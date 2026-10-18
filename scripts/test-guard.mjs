@@ -10,7 +10,7 @@
 //   --no-box       run the can't-fail check unboxed, with the caller's network and environment: local use on your own change only
 //   --json         print one JSON object { hits: [{ file, reason }], notes: [string] } and nothing else (the bridge reads this)
 //   --require-box  accepted and ignored: the box is the default (the changed tests are not trusted)
-// The changed tests run in bubblewrap inside a resource group (the checks limits), and are refused, as a hit, when the group
+// The changed tests run in bubblewrap inside a resource group (the guard's own limit), and are refused, as a hit, when the group
 // cannot be enforced.
 //
 // The can't-fail check puts the merge base in a temp worktree, drops the head's changed test files over it, and runs
@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findBwrap } from "../apps/bridge/build/box.mjs";
-import { CHECKS_SLICE, checksLimits, createResourceLauncher } from "../apps/bridge/cells/resource-group.mjs";
+import { GUARD_SLICE, createResourceLauncher, guardLimits } from "../apps/bridge/cells/resource-group.mjs";
 import { checkBoxArgv } from "../apps/bridge/delivery/checks.mjs";
 import { isBrowserFile } from "./test-split.mjs";
 
@@ -47,13 +47,9 @@ const GUARD_PREFIX = "test-guard-";
 let launches = 0;
 
 const git = (cwd, ...args) => execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8", maxBuffer: 64 * 1024 * 1024 });
-const show = (cwd, rev, file) => {
-  try {
-    return git(cwd, "show", `${rev}:${file}`);
-  } catch {
-    return "";
-  }
-};
+// A file's text at a revision. Every file asked for exists there, so a failure (a missing or corrupt object, a file past the
+// buffer) throws; it must never read as an empty file, which would let a test that cannot be read look like a test with no assertions.
+const show = (cwd, rev, file) => git(cwd, "show", `${rev}:${file}`);
 const count = (re, text) => (text.match(re) ?? []).length;
 
 /** A source text without its comments (shortcut: a quote inside a regex literal can fool it). */
@@ -169,7 +165,14 @@ function staticHits(cwd, base, head) {
     if (c.status === "D" && wasTest) add(c.path, "test file deleted");
     else if (c.status === "R" && wasTest && !isTest) add(c.oldPath, `test file renamed away to ${c.path}`);
     if (!isTest) continue;
-    const [before, after] = [c.status === "A" ? "" : show(cwd, base, c.oldPath), show(cwd, head, c.path)];
+    let before;
+    let after;
+    try {
+      [before, after] = [c.status === "A" ? "" : show(cwd, base, c.oldPath), show(cwd, head, c.path)];
+    } catch (err) {
+      add(c.path, `test file could not be read (${String(err?.code ?? err?.message ?? err).replace(/\s+/g, " ").slice(0, 80)}): the verifier reads it by hand`);
+      continue;
+    }
     if (Math.max(before.length, after.length) > STATIC_MAX_BYTES) {
       add(c.path, `test file over ${STATIC_MAX_BYTES / 1024} KB: not analysed, the verifier reads it by hand`);
       continue;
@@ -211,8 +214,8 @@ function staticHits(cwd, base, head) {
 const passedNames = (tap) =>
   new Set([...tap.matchAll(/^\s*ok \d+ - (.*?)(?: # (SKIP|TODO).*)?$/gm)].filter((m) => !m[2]).map((m) => m[1].replace(/\\#/g, "#").trim()));
 
-// The launcher a guard run uses: the checks limits and the checks slice, as checks.mjs does.
-export const guardLauncher = (env = process.env) => createResourceLauncher({ env, limits: checksLimits(), slice: CHECKS_SLICE });
+// The launcher a guard run uses: the guard's own limit, in a slice of its own so it cannot starve (or be starved by) the checks.
+export const guardLauncher = (env = process.env) => createResourceLauncher({ env, limits: guardLimits(), slice: GUARD_SLICE });
 
 const OUTPUT_KEPT = 16 * 1024 * 1024;
 
@@ -280,7 +283,11 @@ async function cantFail({ cwd, base, head, newTests, box, bwrap, launcher, timeo
     gitDir = git(wt, "rev-parse", "--absolute-git-dir").trim();
     for (const t of files) {
       mkdirSync(path.dirname(path.join(wt, t.path)), { recursive: true });
-      writeFileSync(path.join(wt, t.path), show(cwd, head, t.path));
+      try {
+        writeFileSync(path.join(wt, t.path), show(cwd, head, t.path));
+      } catch (err) {
+        return notRun(`${t.path} could not be read from the change: ${String(err?.code ?? err?.message ?? err).replace(/\s+/g, " ").slice(0, 80)}`);
+      }
     }
     const modules = path.join(repo, "node_modules");
     const node = realpathSync(process.execPath);

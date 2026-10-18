@@ -6,5 +6,6 @@
   },
   "aggregate": { "memoryMiB": 6144, "cpuPercent": 300, "tasks": 768 },
   "storage": { "jobMiB": 4096, "outputMiB": 20 },
-  "checks": { "memoryMiB": 4096, "cpuPercent": 400, "tasks": 1024 }
+  "checks": { "memoryMiB": 4096, "cpuPercent": 400, "tasks": 1024 },
+  "guard": { "memoryMiB": 2048, "cpuPercent": 200, "tasks": 512 }
 }
