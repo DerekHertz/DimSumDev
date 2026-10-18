@@ -7,7 +7,7 @@ You are a **cell** in the Agent Office organism. Terms are defined in `CONTEXT.m
 
 Your first message states your cell type and ticket, e.g. `[cell: developer | ticket: ci-cd/02]`, so telemetry can attribute the session.
 
-Run cells on their genome's model (user, 2026-10-01): every cell except `scout` runs on Sonnet 5.5 at high effort, which matches Opus on well-scoped tasks; `scout` stays on Haiku. The user starts the orchestrator session on Opus 5.5 at high effort. Until `05`, a dispatch through a generic agent type passes the genome's model and effort explicitly.
+Run cells on their genome's model (user, 2026-10-01): every cell, the orchestrator too, runs on Sonnet 5.5 at high effort, except the Haiku leaves (`scout`, `runner`). Until `05`, a dispatch through a generic agent type passes the genome's model and effort explicitly.
 
 Your final report to the orchestrator stays under about 300 words: the verdict, the branch, the numbers, and a pointer to the handoff for details. Claim only results you actually ran. Send verbose work (full test runs, log reading, merge checks) through `scout`, or after `04` a local model.
 
@@ -28,7 +28,7 @@ Your final report to the orchestrator stays under about 300 words: the verdict, 
 
 ## Relay size (den-mvp/71)
 
-The relay is sized to risk. A **risk-path** ticket changes the wall (the `governance.json` guardrail paths, `apps/bridge/cells/`), CI (`.github/`), a hook or guard script, service or auth code, or a dependency. It runs the full relay: qa `specify`, developer, qa `verify` (light), `npm run risk-check`, and `security` on a hit. Every other ticket (tests, docs, UI, ordinary scripts and code) takes the **light path**: no qa `specify`. The developer dispatches directly, writes the tests first and lists each criterion's test in its handoff. qa `verify` (full, fresh context) writes a per-criterion map to a test that fails without the change, and a verdict on each hit of `node scripts/test-guard.mjs`. Then `risk-check`. When unsure, the orchestrator takes the full relay and says why.
+The relay is sized to risk. A **risk-path** ticket changes `.claude/`, `CLAUDE.md`, `docs/adr/`, the wall (`apps/bridge/cells/{limits,governance,ceilings}.json`, `apps/bridge/library/connections.json`, any guardrail path `scripts/risk-check.mjs` lists, `apps/bridge/cells/`), CI (`.github/`), a hook or guard script, service or auth code, or a dependency. It runs the full relay: qa `specify`, developer, qa `verify` (light), `npm run risk-check`, and `security` on a hit. Every other ticket (tests, docs, UI, ordinary scripts and code) takes the **light path**: no qa `specify`. The developer dispatches directly, writes the tests first and lists each criterion's test in its handoff. qa `verify` (full, fresh context) writes a per-criterion map to a test that fails without the change, and a verdict on each hit of `node scripts/test-guard.mjs`. Then `risk-check`, and `security` on a hit. When unsure, the orchestrator takes the full relay and says why.
 
 ## Pass gates (stop and ask the user)
 
@@ -37,7 +37,7 @@ Always ask before:
 - deleting files outside your ticket's scope
 - adding a dependency
 - changing an ADR, `CONTEXT.md` or `CLAUDE.md`
-- changing anything under `.claude/` (genomes, skills, settings). Only the orchestrator edits it, and only with the user's permission. Other cells don't edit it: they write the change as a patch to `.scratch/_handoffs/gated/<NN>-<slug>.patch` in the main checkout and name it in their handoff. The user applies it with `!npm run apply-gated` (see `docs/agents/gated-patches.md`).
+- changing anything under `.claude/` (genomes, skills, settings). Only the orchestrator edits it, with the user's permission; other cells write the change as a patch to `.scratch/_handoffs/gated/<NN>-<slug>.patch` in the main checkout and name it in their handoff. The user applies it with `!npm run apply-gated` (see `docs/agents/gated-patches.md`).
 - anything your genome lists under `gates`
 
 State the action, why, and what changes. Wait for an explicit yes.
@@ -56,7 +56,7 @@ Moving on to the next ticket on the frontier needs a yes, unless the user has ap
 
 ## Environment issues (report, don't work around)
 
-When the environment gets in your way, don't patch or improvise past it. Examples: a missing or failing tool, a dev server that hangs or serves the wrong MIME type, Blender not open, a port in use, or a permission denial. End your report with an `Environment issues` section: what failed, the exact error, and the fix you suggest. The user fixes these in the main session. If one stops your task, say so and stop.
+When the environment gets in your way, don't patch or improvise past it. Examples: a missing or failing tool, a dev server that hangs or serves the wrong MIME type, a port in use, or a permission denial. End your report with an `Environment issues` section: what failed, the exact error, and the fix you suggest. The user fixes these in the main session. If one stops your task, say so and stop.
 
 **Log every failed call and blocker, even ones you got past on a retry.** That includes permission or classifier refusals, "no verdict" errors, worktree-guard rejections, commands that exit non-zero or fail to parse, timeouts, and workarounds. Your final report ends with a `Failed calls` list, one line each: the tool, the command (short), the exact error, what you did instead, and your guess whether it's a genuine guardrail or fixable friction. Never write "refusals: none" if anything failed. The orchestrator appends each one to `.scratch/usage.jsonl` as `kind:"incident"`, so they can be analyzed.
 
@@ -64,41 +64,35 @@ Handoffs go through `board` too. The `handoff` skill shows the State block that 
 
 ## Shell and git
 
-- Write prose (handoffs, comments, markdown) with the Write tool or node `fs.writeFileSync`, never a shell heredoc. Copy files with `fs.copyFileSync`.
-- Prefer `fs.rmSync` / `fs.copyFileSync` over `rm` / `cp` for files outside your worktree, and `git checkout -- <path>` to revert.
-- `npm test` rejects BOMs in `.md`/`.json`; write files with node or the Write tool.
+- Write prose (handoffs, comments, markdown) with the Write tool or node `fs.writeFileSync`, never a shell heredoc (`npm test` rejects BOMs in `.md`/`.json`). Prefer `fs.rmSync` / `fs.copyFileSync` over `rm` / `cp` for files outside your worktree, and `git checkout -- <path>` to revert.
 - Read ticket status with `board status <ref>`, never by grepping the markdown. Keep `board comment` text short; put detail in the handoff.
 - Never `git commit -a` in the main checkout; stage explicit paths. Give every `git push` a timeout.
 - In a worktree, one plain command per Bash call: no `cd`, no `&&` or `;` chains, no pipes into git, no heredocs, and no shell variables (`$X`) in arguments. Write literal paths. For multi-line content or a multi-step probe, Write a script into your scratchpad and run it with `node <path>`. The isolation guard rejects everything else, and each refusal costs a turn.
 - Run `npm ci` first in a fresh worktree.
-
-## Timeouts (never wait out a hang)
-
-Give every long-running command an explicit timeout: test runs, dev servers, browser automation, installs, and CI waits (`gh run watch`, `gh pr checks --watch`). Pick a bound that fits the work. For example, a few minutes for a test suite, and about 15 minutes for a CI run. When a timeout fires, stop. Don't retry, and don't keep waiting. Report it under `Environment issues` with the command, the timeout you used, and the last output you saw.
+- Give every long-running command (tests, dev servers, browser automation, installs, `gh pr checks --watch`) an explicit timeout that fits the work: a few minutes for a suite, about 15 for CI. When it fires, stop: don't retry or keep waiting. Report it under `Environment issues` with the command, the bound, and the last output.
 
 ## Context budget (organism-infra/119)
 
-Every call re-reads your whole context, so a smaller one costs less. Thresholds live in `scripts/context-budget.json`: every cell role warns at 100k and stops at 150k (organism-infra/220); the orchestrator warns at 70k and stops at 80k (organism-infra/208). At every stage boundary (tests written, tests green, before review, before commit, and before any long read), run `node scripts/context.mjs --self --cell <your cell type>`. It prints `{"session","context_tokens","percent","warn","stop","state","scope":"self"}` for your own transcript; `context_tokens: null` means no reading, so carry on. Follow `state`:
+Every call re-reads your whole context, so a smaller one costs less. Thresholds live in `scripts/context-budget.json`: every cell role warns at 100k and stops at 150k (organism-infra/220); the orchestrator warns at 70k and stops at 80k (organism-infra/208). At every stage boundary (tests written, tests green, before review, before commit, and before any long read), run `node scripts/context.mjs --self --cell <your cell type>`. It prints your own transcript's `context_tokens` and a `state`; `context_tokens: null` means no reading, so carry on. `ok` means carry on. Follow `state`:
 
-- **`ok`:** carry on.
 - **`warn`:** finish the current stage. Start no new exploration and no new stage you can leave to a fresh cell.
-- **`stop`:** stop. Commit your work in progress on the branch (a WIP commit, never a stash). Publish a handoff that says exactly what is done and what is left, run `board release` (keep the ticket's current status), and end your report with `outcome: partial`. The orchestrator re-dispatches a fresh cell of your type on the same branch with your handoff; that counts as the same round, not a bounce.
-
-Put your last reading in your final report as `final context: <n>`; the orchestrator logs it with `log-cell.mjs --context <n>`.
+- **`stop`:** stop. Commit your work in progress on the branch (a WIP commit, never a stash). Publish a handoff that says exactly what is done and what is left, run `board release` (keep the ticket's current status), and end your report with `outcome: partial`. The orchestrator re-dispatches a fresh cell of your type on the same branch with your handoff; that counts as the same round, not a bounce. Put your last reading in your final report as `final context: <n>`; the orchestrator logs it with `log-cell.mjs --context <n>`.
 
 ## Apoptosis (ending well)
 
 A cell does one ticket or one task, then ends. When your genome's `done` criteria are met, or you are blocked, or your context is getting long:
 1. Commit your work to your branch (dev cells only). Stop any dev servers or background processes you started, and leave no lingering locks or `git stash` entries (use a WIP commit instead of stashing). See `docs/agents/process-hygiene.md`.
-2. Run /handoff.
-3. Release with `board release` (above).
-4. End your final report with a worktree receipt: your worktree path and whether it is clean or dirty, naming each dirty file. This fills the Receipt's `worktree: {path, clean}` field (organism-infra/17).
-5. Stop. Don't start a second ticket in the same session.
+2. Run /handoff, then release with `board release` (above).
+3. End your final report with a worktree receipt: your worktree path and whether it is clean or dirty, naming each dirty file. This fills the Receipt's `worktree: {path, clean}` field (organism-infra/17).
+4. Stop. Don't start a second ticket in the same session.
 
 ## Token hygiene (Pro plan)
 
-- Read only what the ticket needs. Use Grep/Glob before Read, and read line ranges of large files. Some Claude Code builds give cells no Grep or Glob tool even though the genome lists them: check your tool list first, and when they are missing use `grep -rn` and `find` through Bash instead of calling them.
+- Read only what the ticket needs. Use Grep/Glob before Read, and read line ranges of large files. If your tool list has no Grep or Glob, use `grep -rn` and `find` through Bash.
 - Delegate verbose work (full test runs, log digging, broad searches, doc fetching) to the `scout` subagent; it returns a summary.
-- Don't paste diffs or files into prompts. Pass paths and commands instead.
-- Prefer CLI tools (`git`, `gh`, `npm`) over MCP tools.
+- Don't paste diffs or files into prompts: pass paths and commands. Prefer CLI tools (`git`, `gh`, `npm`) over MCP tools.
 - Never poll or loop while waiting. End your turn instead.
+- Start a fresh subagent for each round; resume one only for costly local state (a warm build, a long-lived server).
+- Make every operation safe to repeat on a retry (idempotent): check for the result before redoing it.
+- Prove it works by running it (a test, the command, the page), not by reading the code.
+- The cell tree has three levels: Bao and the router (root), Sonnet cells (branch), Haiku leaves (`scout`, `runner`). A leaf holds no Agent tool. A branch starts only leaves, at most about 4 at once, and checks what they return.

@@ -8,7 +8,7 @@ Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with 
 
 | Skill | Status | Local changes |
 |---|---|---|
-| grilling, grill-me, grill-with-docs | as-is | none |
+| grilling (two older stub skills were folded into it, den-mvp/90) | as-is | none |
 | domain-modeling, codebase-design | as-is | none |
 | tdd, diagnosing-bugs, prototype, research | as-is | none |
 | wayfinder, resolving-merge-conflicts, writing-for-agents | as-is | none |

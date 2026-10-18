@@ -1,7 +1,7 @@
 // herald/02: the herald genome (.claude/agents/herald.md) must be a cell that
 // cannot publish. Parses the front matter and checks the tool list: read-only
-// on the repo, Write for the draft, Agent(scout) only to dispatch scout (no bare Agent), and no Bash,
-// WebFetch, or GitHub write tools. Also checks name, model and station basics.
+// on the repo, Write for the draft, Agent(scout) only to dispatch scout (no bare Agent), and no WebFetch
+// (den-mvp/90: Bash only as `Bash(node scripts/draft-check.mjs:*)`, pinned in haiku-tree.test.mjs), or GitHub write tools. Also checks name, model and station basics.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, existsSync } from "node:fs";
@@ -53,9 +53,9 @@ test("herald may dispatch only scout: no bare Agent, any Agent(...) names only s
   }
 });
 
-test("herald tools exclude Bash, WebFetch and other ways out of the repo", () => {
+test("herald tools exclude WebFetch and other ways out of the repo", () => {
   const t = tools();
-  for (const banned of ["Bash", "WebFetch", "WebSearch", "Edit", "NotebookEdit"]) {
+  for (const banned of ["WebFetch", "WebSearch", "Edit", "NotebookEdit"]) {
     assert.ok(!t.includes(banned), `${banned} must not be in herald tools`);
   }
 });

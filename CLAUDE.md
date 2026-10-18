@@ -10,7 +10,7 @@ The den runs as a systemd user service (ADR 0026), from release folders under `~
 
 Cell types are defined by genomes in `.claude/agents/`, grouped into stations:
 - `product`, `architect`, `orchestrator` (Pass)
-- `developer`, `scout` (Steamers)
+- `developer`, `scout`, `runner` (Steamers); `scout` and `runner` are Haiku leaves that start no agent: the cell tree is Bao and the router, then Sonnet cells, then leaves
 - `qa`, `security` (Tea & Pantry)
 - `designer`, `herald` (Front of House); herald drafts public posts, the user publishes
 
