@@ -24,8 +24,13 @@ export function createGardenNavigation(garden){
   }else if(id==='mahjong'){
    box(g,[8.8,.375,7.7],[0,.1875,0]);box(g,[3.5,.17,.68],[0,.085,4.46]);box(g,[3,.28,.68],[0,.14,4.05]);box(g,[2.5,1.2,2.5],[0,.975,0]);
   }else if(id==='tea'){
+   // The existing low garden island is the intermediate step up to the tea deck.
+   const island=new T.Mesh(new T.CylinderGeometry(1,1,.21,64));island.scale.set(4.85,1,3.75);island.position.y=.105;g.add(island);
    box(g,[4.35,.43,3.65],[-1.8,.215,-.55]);box(g,[2.55,1.0,1.0],[-1.65,.93,.02]);
    for(let i=0;i<17;i++){const t=(i+.5)/17,y=.31+.42*Math.sin(t*Math.PI);box(g,[.24,y,.80],[.28+t*3.88,y/2,1.18]);}
+   for(const [x,z,radius]of[[-2.9,1,.45],[-.30,1,.45],[-1.45,-1.5,.40],[-.42,1.12,.40]]){
+    const at=asset.root.localToWorld(new T.Vector3(x,0,z));obstacles.push({type:'circle',x:at.x,z:at.z,radius});
+   }
   }else if(id==='sleepy'){
    box(g,[6.5,.20,5.8],[0,.10,0]);box(g,[2.4,1.25,3.25],[0,.825,0]);
   }

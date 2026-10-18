@@ -1,3 +1,4 @@
+import {createKoi} from '../koi.mjs';
 import * as T from 'three';
 import { gardenKit } from './garden-kit.mjs';
 export function createTeaGarden(){
@@ -47,12 +48,6 @@ export function createTeaGarden(){
   const bottom=cyl(pond,1,.025,[2.18,.19,.75],'blueDeep');bottom.scale.set(1.72,1,1.43);
   const waterMaterial=new T.MeshStandardMaterial({color:'#9bc9cb',roughness:.30,transparent:true,opacity:.72,depthWrite:false});
   const water=mesh(pond,new T.CircleGeometry(1,80),waterMaterial,[2.18,.252,.75]);water.rotation.x=-Math.PI/2;water.scale.set(1.72,1.43,1);
-  for(const[x,z,yaw]of[[1.55,.2,-.4],[2.75,.40,.5],[2.18,1.55,2.0]]){
-    const fish=group('A tiny pond koi',pond,[x,.235,z]);fish.rotation.y=yaw;
-    orb(fish,.18,[0,0,0],'coral',[.72,.18,1.4]);orb(fish,.11,[.01,.025,-.025],'cream',[.65,.10,1.2]);
-    const tail=new T.Shape();tail.moveTo(0,0);tail.lineTo(-.15,-.2);tail.quadraticCurveTo(0,-.14,.15,-.2);tail.closePath();const fin=mesh(fish,new T.ShapeGeometry(tail),'coral',[0,0,-.20]);fin.rotation.x=-Math.PI/2;
-    for(const dx of[-.045,.045])orb(fish,.01,[dx,.025,.17],'ink');
-  }
   for(const[x,z,r]of[[1.05,.55,.27],[2.75,-.13,.31],[3.05,1.22,.24]]){
     const shape=new T.Shape();shape.moveTo(0,0);shape.absarc(0,0,r,.20,Math.PI*2-.20,false);shape.lineTo(0,0);const pad=mesh(pond,new T.ShapeGeometry(shape,32),'jade',[x,.275,z]);pad.rotation.x=-Math.PI/2;
     beam(pond,[x,.28,z],[x+r*.65,.28,z],.007,'jadeLight');
@@ -72,7 +67,8 @@ export function createTeaGarden(){
   orb(frog,.095,[0,0,0],'jadeDeep',[1.2,.8,1]);for(const x of[-.05,.05]){orb(frog,.037,[x,.075,.045],'jade');orb(frog,.012,[x,.087,.072],'ink');}beam(frog,[.08,0,0],[.08,.27,0],.008,'timber');orb(frog,.15,[.08,.27,0],'jade',[1,.10,.8]);
   bamboo(root,[-4.0,.21,1.7],.85);bamboo(root,[3.7,.21,-2.45],1.0,false);flowers(root,[.4,.21,-2.7],'pink',1.1);bao(root,[-.1,.35,2.25],.7);
   k.finish();
-  return{root,shade,pond,dispose:k.dispose,setShadeVisible(v){shade.visible=v;},
+  const koi=createKoi(k,pond);
+  return{root,shade,pond,koi,dispose:k.dispose,setShadeVisible(v){shade.visible=v;},
     residents:[{id:'tea-host',position:[-1.45,.445,-1.5],yaw:.18,color:'#709b86',pose:'standing'},{id:'tea-guest',position:[-.42,.445,1.12],yaw:-.5,color:'#c68f7d',pose:'seated'}],
     views:{overview:{position:[10.5,8.9,13.8],target:[0,1.7,.15],shade:true},detail:{position:[6.5,6.0,7.4],target:[1.6,.65,.65],shade:false},approach:{position:[-5.6,3.5,6.7],target:[-1.5,1.2,-.2],shade:true}}};
 }

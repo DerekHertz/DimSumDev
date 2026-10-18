@@ -12,6 +12,7 @@ import { addLiveFixtures } from './live-fixtures.mjs';
 import { materials } from './garden.mjs';
 import { NAVIGATION_TARGETS, WALK_START } from './layout.mjs';
 import propDefinitions from './role-props.mjs';
+import {gardenRoutineSpots} from './daily-routines.mjs';
 
 const active=signal=>{if(signal?.aborted)throw new DOMException('Scene load cancelled','AbortError');};
 
@@ -48,6 +49,7 @@ export async function createMeshyWorld(renderer,{signal,onProgress=()=>{}}={}){
   meeting=gardenKit('Bao’s round table');meeting.root.userData.denInteraction={id:'center'};const fixedTable=meeting.group('Round table and legs');const table=meeting.cyl(fixedTable,1,.13,[0,GROUND+1.04,3.15],'paleWood');table.scale.set(2,1,1.18);for(const x of[-1.3,1.3])meeting.cyl(fixedTable,.09,.98,[x,GROUND+.49,3.15],'timber');const susan=meeting.group('Lazy susan',meeting.root,[0,GROUND+1.12,3.15]);meeting.teaSet(susan,[0,0,0],1.1);meeting.finish();den.world.add(meeting.root);
   addLiveFixtures(den,materials());active(signal);den.world.updateMatrixWorld(true);
   onProgress('Connecting the paths and walk-in entrances…');den.walkWorld=createGardenNavigation(garden);renderer.shadowMap.needsUpdate=true;
+  den.routineSpots=gardenRoutineSpots(garden);den.feedKoi=()=>garden.assets.tea.koi.feed();
   den.world.userData.presentationLayout={kind:'approved-plush-garden',structurePositions:garden.places.map(p=>({id:p.id,x:p.x,z:p.z,rotation:p.rotation})),roleWorkspaces:records};
   return den;
  }catch(error){den.dispose();throw error;}

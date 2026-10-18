@@ -35,7 +35,7 @@ export function MeshyDen({snapshot,cells,frontier,tally,selected,onSelect,onOpen
  },[den,snapshot,bindings]);
  useEffect(()=>{live.current?.agents.setSelected(selected??null);},[den,selected]);
  useFrame((_,delta)=>{
-  const l=live.current;if(!l)return;const dt=Math.min(delta,.1);l.agents.update(dt,l.media.matches);l.elapsed=(l.elapsed||0)+(l.media.matches?0:dt);l.den.ambient.pose(l.elapsed);l.den.world.updateMatrixWorld(true);
+  const l=live.current;if(!l)return;const dt=Math.min(delta,.1);l.agents.update(dt,l.media.matches);l.elapsed=(l.elapsed||0)+(l.media.matches?0:dt);l.den.ambient.pose(l.elapsed,null,l.media.matches);l.den.garden.assets.tea.koi.update(dt,l.media.matches);l.den.world.updateMatrixWorld(true);
   const figures=l.agents.liveFigures();for(const ref of l.anchored)if(!figures.has(ref)){stage.anchors.delete(ref);l.anchored.delete(ref);}
   for(const [ref,{model}]of figures){stage.anchors.set(ref,model.localToWorld(new THREE.Vector3(0,3.4,0)));l.anchored.add(ref);}
   for(const [ref,basket]of l.den.frontier)stage.anchors.set(ref,basket.localToWorld(new THREE.Vector3(0,.6,0)));

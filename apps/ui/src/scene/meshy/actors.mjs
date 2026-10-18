@@ -5,6 +5,8 @@ import {WADDLE} from './panda-rig.mjs';
 import {gardenRoute} from './garden-route.mjs';
 import {isWalkBlocked} from '../procedural/walk.mjs';
 import {seatSpots,seated} from './meeting-table.mjs';
+import {createDailyRoutines} from './daily-routines.mjs';
+import {createLeisureGesture} from './leisure-gesture.mjs';
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 export function createMeshyActors(den){
  const actors=new Map(),definitions=new Map(CHARACTERS.map(c=>[c[0],c]));let bindings=new Map(),selected=null,time=0,held=null;
@@ -13,8 +15,10 @@ export function createMeshyActors(den){
  for(const source of den.propManifest){
   const model=den.roleWorkspaces.workspaces.get(source.id)?.person;if(!model)continue;
   const [role,name,station,,,concept]=definitions.get(source.id),home=model.position.clone();
-  actors.set(role,{role,name,station,concept:!!concept,stationary:role==='orchestrator',panda:{model,rig:den.pandaRigs.get(model).rig},home,baseYaw:model.rotation.y,index:actors.size,state:'idle',activity:role==='orchestrator'?'Hosting the Den':'At the workspace',live:null});
+  const rig=den.pandaRigs.get(model).rig;
+  actors.set(role,{role,name,station,concept:!!concept,stationary:role==='orchestrator',panda:{model,rig},gesture:createLeisureGesture(rig),home,baseYaw:model.rotation.y,index:actors.size,state:'idle',activity:role==='orchestrator'?'Hosting the Den':'At the workspace',live:null});
  }
+ const routines=createDailyRoutines(den,actors);
  function clearPoint(base,index){
   const others=[...actors.values()].map(a=>a.home);
   for(let ring=1;ring<=7;ring++)for(let step=0;step<18;step++){
@@ -29,7 +33,7 @@ export function createMeshyActors(den){
   const base=actors.get(row.role),panda=den.createPanda(row.role),{model}=panda,home=clearPoint(base.home,actors.size);
   model.name=base.name+' · visitor';model.userData={roleId:row.role,actorKey:key};
   model.position.copy(home);den.residents.add(model);
-  const actor={...base,name:base.name+' (visitor)',panda,home,index:actors.size,live:row,visitor:true,baseYaw:base.baseYaw,path:null,seat:null,guest:false};
+  const actor={...base,name:base.name+' (visitor)',panda,gesture:null,routine:null,leaving:false,home,index:actors.size,live:row,visitor:true,baseYaw:base.baseYaw,path:null,seat:null,guest:false};
   // A short arrival uses the same independent skeleton as a meeting walk.
   for(const side of [1,-1]){
    const start=home.clone().add(new THREE.Vector3(side*.9,0,.6));
@@ -44,33 +48,34 @@ export function createMeshyActors(den){
   for(const [key,row]of bindings){if(!actors.has(key)&&guestFor(row))continue;const a=actors.get(key)||addVisitor(key,row);a.live=row;}
   for(const [key,a]of actors){
    a.live=a.guest?[...bindings.values()].find(row=>guestFor(row)===a)||null:bindings.get(key)||null;a.state=a.live?.state||'idle';a.activity=a.live?.activity||(a.role==='orchestrator'?'Hosting the Den':'At the workspace');
+   if(a.live)routines.interrupt(a);
    a.panda.model.userData.ticketRef=a.live?.ref;delete a.panda.model.userData.selected;
   }
   setSelected(selected);
  }
  // Seat the table's meeting: a free resident sits for its role; a busy one keeps working and a guest copy sits in.
- function homeRoute(a){return gardenRoute(den.walkWorld,a.panda.model.position,a.home);}
- function sendHome(key,a){a.seat=null;a.seatRole=null;a.path=homeRoute(a);a.leaving=true;}
+ function travel(a,to){a.path=gardenRoute(den.walkWorld,a.panda.model.position,to);a.routeGoal=to;a.routeTries=1;a.retryAt=time+8;}
+ function sendHome(key,a){routines.cancel(a);a.seat=null;a.seatRole=null;travel(a,a.home);a.leaving=true;}
  function seatActor(role,ref){
   const resident=actors.get(role);if(!resident||resident.stationary)return null;
   if(!resident.live||resident.live.ref===ref)return role;
   const key='meeting:'+role;if(actors.has(key))return key;
   const panda=den.createPanda(role),{model}=panda;
   model.name=resident.name+' · at the table';model.userData={roleId:role,actorKey:key};model.position.copy(resident.home);den.residents.add(model);
-  actors.set(key,{...resident,name:resident.name+' (at the table)',panda,home:resident.home.clone(),index:actors.size,live:null,visitor:false,guest:true,arriving:false,path:null});
+  actors.set(key,{...resident,name:resident.name+' (at the table)',panda,gesture:null,routine:null,home:resident.home.clone(),index:actors.size,live:null,visitor:false,guest:true,arriving:false,path:null});
   return key;
  }
  function applyMeeting(m){
   const roles=seated(m)?m.seats.map(s=>s.role):[],spots=seatSpots(roles.length),want=new Map(roles.map((r,i)=>[r,spots[i]]));
   for(const [role,key]of [...holders]){
    const a=actors.get(key);
-   if(!want.has(role)||meeting?.id!==m?.id){holders.delete(role);if(a)sendHome(key,a);}
+   if(!want.has(role)||meeting?.id!==m?.id||(!a?.guest&&a?.live&&a.live.ref!==m?.ref)){holders.delete(role);if(a)sendHome(key,a);}
   }
   meeting=seated(m)?m:null;
   for(const [role,spot]of want){
    let key=holders.get(role);if(!key||!actors.has(key)){key=seatActor(role,m.ref);if(!key)continue;holders.set(role,key);}
    const a=actors.get(key);
-   if(a.seat?.x!==spot.x||a.seat?.z!==spot.z){a.seat=spot;a.seatRole=role;a.leaving=false;a.path=gardenRoute(den.walkWorld,a.panda.model.position,spot);}
+   if(a.seat?.x!==spot.x||a.seat?.z!==spot.z){routines.cancel(a);a.seat=spot;a.seatRole=role;a.leaving=false;travel(a,spot);}
   }
  }
  // The models the label layer hangs a seat's label over, by role; Bao is 'orchestrator'.
@@ -80,8 +85,11 @@ export function createMeshyActors(den){
  function liveFigures(){const out=new Map();for(const a of actors.values())if(a.live)out.set(a.live.ref,{model:a.panda.model,panda:a.panda});return out;}
  function hold(key=null){held=key;}
  function update(dt,reduced=false){
+  dt=Math.min(dt,.1);
   if(!reduced)time+=dt;
+  routines.update(dt,reduced,held);
   for(const [key,a]of actors){const p=a.panda.model;let moved=0;
+   if(reduced&&!a.path?.length&&(a.seat||a.leaving))a.path=[a.seat?{...a.seat,y:.26}:a.home];
    if(a.arriving){
     if(reduced){p.position.copy(a.home);a.arriving=false;}
     else if(key!==held){const dx=a.home.x-p.position.x,dz=a.home.z-p.position.z,length=Math.hypot(dx,dz),step=Math.min(dt*.65,length);if(length>.015){p.position.x+=dx/length*step;p.position.z+=dz/length*step;p.position.y=den.walkWorld.navigation.groundAt(p.position.x,p.position.z,p.position.y,.23)??p.position.y;p.rotation.y=Math.atan2(dx,dz);moved=step;}else{a.arriving=false;p.rotation.y=a.baseYaw;}}
@@ -90,13 +98,15 @@ export function createMeshyActors(den){
     if(reduced){const end=a.path.at(-1);p.position.set(end.x,end.y,end.z);a.path=[];}
     else if(key!==held){const next=a.path[0],dx=next.x-p.position.x,dz=next.z-p.position.z,length=Math.hypot(dx,dz),step=Math.min(dt*.65,length);
      if(length>.02){p.position.x+=dx/length*step;p.position.z+=dz/length*step;p.position.y=den.walkWorld.navigation.groundAt(p.position.x,p.position.z,p.position.y,.23)??p.position.y;p.rotation.y=Math.atan2(dx,dz);moved=step;}else{p.position.set(next.x,next.y,next.z);a.path.shift();}}
-    if(!a.path.length){a.path=null;if(a.leaving){a.leaving=false;if(a.guest){den.destroyPanda(p);actors.delete(key);continue;}}}
+    if(!a.path.length){a.path=null;a.routeGoal=null;if(a.leaving){a.leaving=false;if(a.guest){den.destroyPanda(p);actors.delete(key);continue;}}}
    }
    const yaw=a.seat?a.seat.yaw:a.baseYaw;
-   if(!a.arriving&&!a.path)p.rotation.y=yaw;
+   if(!a.arriving&&!a.path&&a.routine?.stage!=='visit')p.rotation.y=yaw;
+   if(key===held&&!reduced)continue;
    if(moved){a.gait=(a.gait||0)+moved/p.scale.x/WADDLE.stride*WADDLE.duration;a.panda.rig.poseWaddle(a.gait);}else a.panda.rig.poseIdle(time+a.index*.63,{reducedMotion:reduced});
+   a.gesture?.pose(!reduced&&a.routine?.stage==='visit'?a.routine.spot.kind:null,a.routine?.elapsed||0);
   }
  }
  den.walkAvoid=()=>[...actors.values()].map(a=>({x:a.panda.model.position.x,z:a.panda.model.position.z,r:.65}));
- return {actors,applyLive,applyMeeting,seatModels,seatOf,setSelected,hold,liveFigures,update,dispose(){for(const a of actors.values())if(a.visitor||a.guest)den.destroyPanda(a.panda.model);actors.clear();}};
+ return {actors,applyLive,applyMeeting,seatModels,seatOf,setSelected,hold,liveFigures,update,dispose(){routines.dispose();for(const a of actors.values()){a.gesture?.dispose();if(a.visitor||a.guest)den.destroyPanda(a.panda.model);}actors.clear();}};
 }

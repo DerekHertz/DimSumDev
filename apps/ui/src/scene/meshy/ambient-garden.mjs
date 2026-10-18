@@ -3,6 +3,7 @@ import { createBalancedPandaRig, WADDLE } from './panda-rig.mjs';
 import { createRoleHeadwear } from './role-headwear.mjs';
 import { createRoleOutfit } from './role-outfits.mjs';
 import { GROUND } from './plush/assembly.mjs';
+import {createLeisureGesture} from './leisure-gesture.mjs';
 
 export function populateAmbientGarden(world,{body,vest,headphones}){
  const rigs=[],outfits=[],props=new T.Group(),groups=[];
@@ -15,7 +16,7 @@ export function populateAmbientGarden(world,{body,vest,headphones}){
  function resident(parent,spec,place){
   const rig=createBalancedPandaRig(body),outfit=spec.role?createRoleOutfit(spec.role,{vest,headphones}):tinted(spec);outfits.push(outfit);rig.addOutfit(outfit);rig.model.name='Balanced Bao · '+spec.id;
   rig.model.position.fromArray(spec.position);rig.model.rotation.y=spec.yaw||0;rig.model.scale.setScalar(spec.scale||.68);if(spec.pose==='reclining')rig.model.rotation.x=-Math.PI/2;
-  parent.add(rig.model);const entry={rig,spec,place,index:rigs.length};rigs.push(entry);return entry;
+  parent.add(rig.model);const entry={rig,spec,place,index:rigs.length,gesture:['tea','mahjong'].includes(place)?createLeisureGesture(rig):null};rigs.push(entry);return entry;
  }
  for(const id of['mahjong','tea','sleepy']){const asset=world.assets[id],g=addGroup(asset.root,id+' leisure pandas');for(const spec of asset.residents)resident(g,{...spec,scale:.60},id);}
  const gardenPandas=addGroup(world.landscape.root,'Pandas wandering the rice garden');for(const spec of world.landscape.residents)resident(gardenPandas,spec,'grove');
@@ -28,9 +29,9 @@ export function populateAmbientGarden(world,{body,vest,headphones}){
  const drumSticks=['L','R'].map(side=>stick(players[0].rig,side)),gongMallet=stick(players[2].rig,'L',true);
  const cymbals=['L','R'].map(side=>{const socket=players[1].rig.bones['paw_'+side],holder=new T.Group();socket.add(holder);const profile=[[0,.045],[.08,.07],[.18,.03],[.50,0],[.62,-.025]].map(p=>new T.Vector2(...p)),disc=new T.Mesh(new T.LatheGeometry(profile,36),gold);disc.rotation.x=Math.PI/2;disc.position.z=.12;holder.add(disc);const boss=new T.Mesh(new T.SphereGeometry(.10,16,10),gold);boss.scale.z=.45;boss.position.z=.16;holder.add(boss);tools.push(holder);return{socket,holder};});
  function aimStick(tool,local){const target=festival.root.localToWorld(new T.Vector3(...local)),at=tool.socket.getWorldPosition(new T.Vector3()),scale=tool.socket.getWorldScale(new T.Vector3()).x;tool.holder.scale.set(1,1,1);tool.holder.lookAt(target);tool.holder.scale.z=at.distanceTo(target)/scale;tool.tip.scale.z=1/tool.holder.scale.z;}
- function poseEntry(entry,time){
-  const{rig,spec,index}=entry;rig.poseIdle(time+index*.67);
-  if(spec.pose==='walking'){
+ function poseEntry(entry,time,reduced){
+  const{rig,spec,index}=entry;rig.poseIdle(time+index*.67,{reducedMotion:reduced});
+  if(spec.pose==='walking'&&!reduced){
    rig.poseWaddle(time,{stride:WADDLE.stride});const angularSpeed=WADDLE.stride*spec.scale/WADDLE.duration/6.5,a=.8+angularSpeed*time;
    rig.model.position.set(6.5*Math.sin(a),GROUND+.025,6.5*Math.cos(a));rig.model.rotation.y=a+Math.PI/2;
   }
@@ -40,10 +41,11 @@ export function populateAmbientGarden(world,{body,vest,headphones}){
   if(spec.pose==='musician'){
    const beat=Math.sin(time*Math.PI*2/1.2);for(const[side,sign]of[['L',1],['R',-1]]){const shoulder=rig.bones['Shoulder_'+side];shoulder.rotation.z=-sign*(spec.id==='cymbals'?.85+.10*beat:.61);shoulder.rotation.x=spec.id==='cymbals'?-.95:spec.id==='gong'&&side==='R'?-.30:-1.02;rig.bones['Elbow_'+side].rotation.x=-.08;if(spec.id==='drummer')shoulder.rotation.x+=.08*Math.sin(time*Math.PI*2/1.2+(side==='L'?0:Math.PI));}rig.bones.Head.rotation.x=.015*beat;
   }
+  entry.gesture?.pose(reduced?null:entry.place,time+index*.67);
   rig.model.updateMatrixWorld(true);rig.skeleton.update();
  }
- function pose(time,focused=null){
-  for(const entry of rigs)if(!focused||entry.place===focused)poseEntry(entry,time);
+ function pose(time,focused=null,reduced=false){
+  for(const entry of rigs)if(!focused||entry.place===focused)poseEntry(entry,time,reduced);
   if(!focused||focused==='festival'){
    festival.pose(time);drumSticks.forEach((tool,i)=>{const up=.05+.12*(1+Math.sin(time*Math.PI*2/1.2+i*Math.PI))/2;aimStick(tool,[-3.5+(i?-.21:.21),1.975+up,-.55]);});aimStick(gongMallet,[4.08,2.31,-.89-.1*(1+Math.sin(time*Math.PI*2/2.4))]);
    const offset=new T.Vector3(0,.12,.65).applyQuaternion(festival.root.getWorldQuaternion(new T.Quaternion()));cymbals.forEach((tool,i)=>tool.holder.lookAt(cymbals[1-i].socket.getWorldPosition(new T.Vector3()).add(offset)));
@@ -56,6 +58,6 @@ export function populateAmbientGarden(world,{body,vest,headphones}){
  sleepy.drapeQuilt((x,z)=>{let h=.80+.18*(Math.abs(x)/.86)**2;const ix=Math.round(x*12),iz=Math.round(z*12);for(let dx=-1;dx<=1;dx++)for(let dz=-1;dz<=1;dz++)h=Math.max(h,bins.get(`${ix+dx},${iz+dz}`)||0);return h;});
  return{rigs,groups,carrierRigs,players,outfits,props,pose,
   setVisible(visible){groups.forEach(g=>g.visible=visible);},
-  dispose(){tools.forEach(t=>props.add(t));rigs.forEach(({rig})=>rig.dispose());groups.forEach(g=>g.removeFromParent());},
+  dispose(){tools.forEach(t=>props.add(t));rigs.forEach(({rig,gesture})=>{gesture?.dispose();rig.dispose();});groups.forEach(g=>g.removeFromParent());},
  };
 }
