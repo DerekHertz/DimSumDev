@@ -60,8 +60,9 @@ export const loadPolicy = () => need("./policy.mjs", ["MAX_CONCURRENT_AGENTS", "
 //   gitHost, stateDir  passed to startBridge (den-mvp outcome 3: the delivery runner's git host and log directory)
 //   root            an existing fixture root to start on again (a restarted bridge); the caller cleans it up
 //   library         passed to startBridge (den-mvp outcome 4: the catalog of connections and its record)
+//   serviceToken    den-mvp/88: the router's service token, passed to startBridge's auth
 //   denState, box   passed to startBridge (den-mvp outcome 5: the release folders and the build box)
-export async function makeBridge({ runtimeConfig = {}, policy, preWrite, noRuntime = false, noGit = false, gitHost, stateDir, root, library, denState, box, checks } = {}) {
+export async function makeBridge({ runtimeConfig = {}, policy, preWrite, noRuntime = false, noGit = false, gitHost, stateDir, root, library, denState, box, checks, serviceToken } = {}) {
   const { createFakeRuntime } = await loadRuntime();
   const fx = root ? { root, cleanup: async () => {} } : await makeStateFixture({ git: !noGit });
   if (preWrite) await preWrite(fx.root);
@@ -69,7 +70,7 @@ export async function makeBridge({ runtimeConfig = {}, policy, preWrite, noRunti
   const bridge = await startBridge({
     root: fx.root,
     port: 0,
-    auth: { launchCode: CODE },
+    auth: { launchCode: CODE, ...(serviceToken ? { serviceToken } : {}) },
     ...(noRuntime ? {} : { runtime: fake }),
     ...(policy ? { policy } : {}),
     ...(gitHost ? { gitHost: typeof gitHost === "function" ? gitHost(fx.root) : gitHost } : {}),

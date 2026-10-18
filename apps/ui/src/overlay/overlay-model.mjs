@@ -157,6 +157,24 @@ export function ticketRequests(snapshot) {
     });
 }
 
+// den-mvp/88: a stop the router met (it already pushed a phone notification). It is the user's to dismiss, not to approve.
+export function routerStopRequests(snapshot) {
+  return (Array.isArray(snapshot?.requests) ? snapshot.requests : [])
+    .filter((r) => r?.kind === "router-stop" && r.state === "pending" && typeof r.id === "string")
+    .map((r) => {
+      const role = "orchestrator";
+      const station = stationIdOf(role);
+      const short = typeof r.ref === "string" ? shortRef(r.ref) : "router";
+      return {
+        key: `router-stop:${r.id}`, kind: "router-stop", id: r.id, ref: r.ref ?? null, short, role, station,
+        eyebrow: `${STATION_NAME[station]} · router · ${short}`,
+        title: typeof r.note === "string" && r.note ? r.note : "The router stopped and needs you.",
+        reason: "The router will not act on this itself. Dismiss it once you have seen it; it comes back if it is still true.", reasonFallback: false, plain: true,
+        rowText: `${short} · router stop`, preview: [], detailLabel: "The router stop", age: null,
+      };
+    });
+}
+
 export function needsYouModel(snapshot, nowMs) {
   const byRef = new Map((snapshot?.tickets ?? []).map((t) => [t.ref, t]));
   const gates = gatesModel(snapshot).cards.map((card) => {
@@ -185,7 +203,7 @@ export function needsYouModel(snapshot, nowMs) {
   });
   // den-mvp outcome 3: a delivery that waits on the user sits between the two.
   // den-mvp outcome 4: so does a meeting that is paused, or whose brief waits for the user's choice.
-  const requests = [...permissionRequests(snapshot, nowMs), ...deliveryRequests(snapshot), ...ciRequests(snapshot), ...meetingRequests(snapshot), ...ticketRequests(snapshot), ...gates];
+  const requests = [...permissionRequests(snapshot, nowMs), ...deliveryRequests(snapshot), ...ciRequests(snapshot), ...meetingRequests(snapshot), ...ticketRequests(snapshot), ...routerStopRequests(snapshot), ...gates];
   return { count: requests.length, requests };
 }
 

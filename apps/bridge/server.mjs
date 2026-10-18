@@ -41,7 +41,7 @@ const cleanDeep = (v) => (typeof v === "string" ? cleanText(v) : Array.isArray(v
 const canonical = (v) => (Array.isArray(v) ? v.map(canonical) : isPlainObj(v) ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonical(v[k])])) : v);
 const sameJson = (a, b) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 import { hasSecret } from "../../scripts/exposure.mjs";
-import { REQUEST_KINDS, appendRequestLine } from "./requests-log.mjs";
+import { REQUEST_KINDS, ROUTER_STOP, appendRequestLine, foldRequests, readRequestRows } from "./requests-log.mjs";
 import { createHub } from "./watch.mjs";
 import { createUsageReading } from "./usage-reading.mjs";
 import { parseCatalog } from "./library/catalog.mjs";
@@ -270,6 +270,7 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     if (!handler) return reply(res, 404, { error: "not found" });
     await handler(req, res);
   }
+  const routerRequests = new WeakSet(); // requests that passed only verifyService
   const bearerOf = (req) => /^Bearer ([A-Za-z0-9_-]{1,512})$/.exec(req.headers.authorization ?? "")?.[1] ?? null;
   // Gate order: Origin and Content-Type (403), then the session token (401). All before the body is read, so an
   // unauthenticated caller learns nothing about ids or validation.
@@ -289,8 +290,12 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
       return false;
     }
     if (route.auth === "token" && !auth.verify(req.headers.authorization)) {
-      reply(res, 401, { error: "unauthorized" });
-      return false;
+      // den-mvp/88 (ADR 0027 decisions 3, 8): a request that passed only the service token is the router's, and the handlers narrow it.
+      if (!(route.service && auth.verifyService(req.headers.authorization))) {
+        reply(res, 401, { error: "unauthorized" });
+        return false;
+      }
+      routerRequests.add(req);
     }
     return true;
   }
@@ -345,6 +350,17 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     // den-mvp outcome 4: the library panel's data: each connection with its status, roles and tools, and each skill.
     "GET /library": async (req, res) => reply(res, 200, await library.view()),
     "POST /deliveries": (req, res) => postDelivery(req, res),
+    // den-mvp/88: a stop the router met, kept in requests.jsonl so Needs you shows it until the user dismisses it.
+    "POST /router-stops": async (req, res) => {
+      const run = postChain.then(() => postRouterStop(req, res));
+      postChain = run.catch(() => {});
+      await run;
+    },
+    "POST /router-stops/:id/dismiss": async (req, res) => {
+      const run = postChain.then(() => dismissRouterStop(req, res));
+      postChain = run.catch(() => {});
+      await run;
+    },
     "POST /deliveries/:id/resume": (req, res) => steerDelivery(req, res, "resume"),
     "POST /deliveries/:id/stop": (req, res) => steerDelivery(req, res, "stop"),
     "POST /deliveries/:id/close": (req, res) => steerDelivery(req, res, "close"),
@@ -443,6 +459,38 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     const request = { id: randomUUID(), ts: new Date().toISOString(), kind, ref, ...(note !== undefined ? { note } : {}) };
     await appendRequestLine(root, request);
     reply(res, 201, { request });
+  }
+  // POST /router-stops { key, kind, ref?, text }: one router-stop request; the same key while one is pending is that one, not a second.
+  // A dismissed one no longer counts, so a stop that is still true comes back as a new row.
+  const ROUTER_STOP_CAP = 50;
+  async function postRouterStop(req, res) {
+    const body = await readJsonObject(req, res);
+    if (!body) return;
+    const { key, kind, ref, text } = body;
+    const short = (v, n) => typeof v === "string" && v.length > 0 && v.length <= n;
+    if (!short(key, 300) || !short(kind, 40) || !/^[a-z-]+$/.test(kind) || !short(text, 500) || (ref !== undefined && !short(ref, 200))) {
+      return reply(res, 400, { error: "a router stop needs key, kind (a-z and -) and text, and an optional ref, all short strings" });
+    }
+    if ([key, text, ref].some((v) => typeof v === "string" && hasSecret(v))) return reply(res, 400, { error: "a router stop looks like it holds a secret; nothing was written" });
+    const pendingStops = foldRequests(await readRequestRows(root)).filter((r) => r.kind === ROUTER_STOP && r.state === "pending");
+    const existing = pendingStops.find((r) => r.key === key);
+    if (existing) return reply(res, 200, { request: existing });
+    // The service token is outside the session cap, so pending stops have their own: a holder cannot grow the file without bound.
+    if (pendingStops.length >= ROUTER_STOP_CAP) return reply(res, 429, { error: "too many router stops are waiting; dismiss some" });
+    const request = { id: randomUUID(), ts: new Date().toISOString(), kind: ROUTER_STOP, ref: ref ?? null, note: cleanText(text), key, stopKind: kind };
+    await appendRequestLine(root, request);
+    reply(res, 201, { request });
+  }
+  async function dismissRouterStop(req, res) {
+    if (!(await readJsonObject(req, res))) return; // the body is unused, but the size cap and JSON check apply as on every POST
+    let id = null;
+    try {
+      id = decodeURIComponent(new URL(req.url, "http://x").pathname.split("/")[2]);
+    } catch {} // a malformed % matches no stop
+    const pending = foldRequests(await readRequestRows(root)).find((r) => r.id === id && r.kind === ROUTER_STOP && r.state === "pending");
+    if (!pending) return reply(res, 404, { error: "no such router stop waiting" });
+    await appendRequestLine(root, { handled: id, ts: new Date().toISOString(), outcome: "dismissed" });
+    reply(res, 200, { ok: true });
   }
   // POST /agents (ADR 0016 decision 3): with POST /tasks, the only HTTP ways an agent starts. Only ref, role and mode are read from
   // the body; the host validates them, applies the policy and answers with a status from its table.
@@ -672,6 +720,10 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     if (!body) return;
     let ref = body.ref;
     let ticket = {};
+    // The router delivers a ref it read off the board; it never writes a ticket (ADR 0027 decision 3).
+    if (routerRequests.has(req) && (typeof ref !== "string" || Object.keys(body).some((k) => k !== "ref"))) {
+      return reply(res, 403, { error: "the router may deliver a ticket by its ref only" });
+    }
     if (ref === undefined) {
       const text = typeof body.text === "string" ? body.text.trim() : "";
       const title = typeof body.title === "string" && body.title.trim() ? body.title.trim() : text.split("\n")[0].slice(0, 80);
@@ -696,7 +748,10 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     const body = await readJsonObject(req, res);
     if (!body) return;
     const id = new URL(req.url, "http://x").pathname.split("/")[2];
-    const result = action === "resume" ? await delivery.resume(id, body.verdict === undefined ? (body.note === undefined ? {} : { note: body.note }) : { verdict: body.verdict, note: body.note }) : await delivery[action](id);
+    const router = routerRequests.has(req);
+    // The router gives no verdict and no note: those are the user's (ADR 0027 decision 8).
+    if (router && Object.keys(body).length) return reply(res, 403, { error: "the router resumes with no verdict and no note" });
+    const result = action === "resume" ? await delivery.resume(id, body.verdict === undefined ? (body.note === undefined ? {} : { note: body.note }) : { verdict: body.verdict, note: body.note }, { router }) : await delivery[action](id);
     if (!result.ok) return reply(res, result.status, { error: result.error });
     reply(res, result.status, { delivery: result.delivery });
   }
@@ -924,7 +979,10 @@ if (startedDirectly()) {
   const checksLauncher = createResourceLauncher({ env: process.env, limits: checksLimits(), slice: CHECKS_SLICE });
   // The box mounts the den's packages folder for each commit's own lockfile (deps/<lock-hash>, made by den:update).
   const checks = createChecks({ repo: root, launcher: checksLauncher, recordDir: path.join(root, ".scratch", "_run", "checks"), depsDir: path.join(denState, "deps") });
-  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, runtime: createClaudeRuntime({ env: process.env, launcher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks });
+  // den-mvp/88: the router's service token, written by den:install; none (or a bad file) means no service access.
+  const { readServiceToken } = await import("../router/service-token.mjs");
+  const serviceToken = await readServiceToken(denState);
+  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, runtime: createClaudeRuntime({ env: process.env, launcher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks });
   console.log(`bridge listening on ${bridge.url} (root ${root})`);
   // The only place the launch code is shown (ADR 0016 decision 6.2): once, in a URL fragment the browser never sends.
   console.log(`to steer, open (one use, 5 minutes): ${bridge.url}/#code=${bridge.newLaunchCode()}`);

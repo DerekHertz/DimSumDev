@@ -22,6 +22,9 @@ const DEFAULT_COOLDOWN_S = 300;
 const MAX_COOLDOWN_S = 3600;
 const LOCK_STALE_MS = 30_000;
 const LOCK_WAIT_MS = 15_000;
+const STALE_UNKNOWN_S = 1800; // a cached reading older than this is not a current percent (den-mvp/88, organism-infra/234)
+// --live: skip the cache and never fall back to it; a failed or cooling-down read exits nonzero with nothing on stdout.
+const LIVE = process.argv.includes("--live");
 
 const ttlEnv = process.env.USAGE_CACHE_TTL_MS;
 const TTL_MS = ttlEnv !== undefined && ttlEnv !== "" && Number.isFinite(Number(ttlEnv)) ? Number(ttlEnv) : DEFAULT_TTL_MS;
@@ -70,6 +73,7 @@ const stale = (c) => ({ stale: true, source: "cache", age_s: ageS(c) });
 
 // The answer the cache alone can give, or null when a network read is allowed.
 function fromCache(c) {
+  if (LIVE) return null;
   if (!c.windows || c.at === null) return null;
   if (Date.now() - c.at < TTL_MS) return () => emit(c.windows, { source: "cache", age_s: ageS(c) });
   return null;
@@ -79,11 +83,13 @@ function inCooldown(c) {
   return c.cooldownUntil > Date.now();
 }
 
-// Stale reading if there is one, else today's nonzero exit with the diagnostic.
+// Stale reading if there is one, else today's nonzero exit with the diagnostic. Past 30 minutes the percents are
+// withheld: "unknown": true with every percent null.
 function staleOrFail(c, msg) {
-  if (c.windows && c.at !== null) {
-    emit(c.windows, stale(c));
-    return;
+  if (!LIVE && c.windows && c.at !== null) {
+    if (ageS(c) <= STALE_UNKNOWN_S) return emit(c.windows, stale(c));
+    const blank = Object.fromEntries(Object.entries(c.windows).map(([k, w]) => [k, { ...w, percent: null }]));
+    return emit(blank, { ...stale(c), unknown: true });
   }
   fail(msg);
 }
@@ -163,7 +169,7 @@ async function main() {
   const found = findToken();
   const token = found.token;
   if (!token) {
-    if (process.env.CLAUDE_CODE_REMOTE) {
+    if (process.env.CLAUDE_CODE_REMOTE && !LIVE) {
       // Cloud sessions have no credentials: estimate from transcripts (ticket 32).
       const { estimate } = await import("./usage-estimate.mjs");
       console.log(JSON.stringify(estimate()));

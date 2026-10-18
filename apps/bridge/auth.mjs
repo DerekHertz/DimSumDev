@@ -14,8 +14,11 @@ const digest = (s) => createHash("sha256").update(String(s)).digest();
 const newSecret = () => randomBytes(32).toString("base64url");
 const sameDigest = (a, b) => timingSafeEqual(a, b);
 
-// Only launchCode, ttlMs and now are read: no other option can disable the gate or preset a token.
-export function createAuth({ launchCode, ttlMs = LAUNCH_CODE_TTL_MS, now = Date.now } = {}) {
+// Only launchCode, ttlMs, now and serviceToken are read: no other option can disable the gate or preset a session token.
+// den-mvp/88: serviceToken is the router's credential (32 to 512 base64url characters, else ignored). It is not a session:
+// it takes no slot under SESSION_CAP, and only verifyService accepts it, on the routes marked `service: true`.
+export function createAuth({ launchCode, ttlMs = LAUNCH_CODE_TTL_MS, now = Date.now, serviceToken } = {}) {
+  const service = typeof serviceToken === "string" && /^[A-Za-z0-9_-]{32,512}$/.test(serviceToken) ? digest(serviceToken) : null;
   let codes = []; // { hash, issuedAt }
   const sessions = []; // sha256 digests of live tokens
   let failures = 0;
@@ -57,5 +60,10 @@ export function createAuth({ launchCode, ttlMs = LAUNCH_CODE_TTL_MS, now = Date.
     return ok;
   }
 
-  return { newLaunchCode: () => mint(newSecret()), redeem, verify };
+  function verifyService(header) {
+    const m = /^Bearer ([A-Za-z0-9_-]{1,512})$/.exec(typeof header === "string" ? header : "");
+    return !!(service && m && sameDigest(service, digest(m[1])));
+  }
+
+  return { newLaunchCode: () => mint(newSecret()), redeem, verify, verifyService };
 }

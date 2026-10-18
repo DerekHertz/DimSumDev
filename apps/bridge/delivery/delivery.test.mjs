@@ -798,3 +798,64 @@ describe("a Resume with a note", () => {
     assert.doesNotMatch(qa.args.prompt, /The user left you a note/);
   });
 });
+
+// den-mvp/88 (security H2): a request that passed only verifyService is the router's. ADR 0027 decisions 3 and 8 give it a ref to
+// deliver and three pauses to resume, nothing more: no new ticket from text, no visual verdict, no note, no other pause.
+describe("what the router's service token may do on the delivery routes", () => {
+  const SERVICE = "S".repeat(10) + "e".repeat(33);
+  const asService = (t) => ({ Origin: `http://127.0.0.1:${t.bridge.port}`, Authorization: `Bearer ${SERVICE}` });
+  // A delivery that was paused with the bridge down, as the restart test writes one.
+  const pausedJob = (kind, extra = {}) => async (root) => {
+    const job = { id: "d-0123456789abcdef", ref: REF, title: "08: Plain", type: "bug", state: "paused", base: git(root, "rev-parse", "HEAD"), branch: `den/${REF}-01234567`, startedAt: "2026-10-13T00:00:00.000Z", evidence: {}, live: null, claimed: false, runs: [], pause: { kind, reason: `paused: ${kind}`, next: "Resume." }, ...extra };
+    await mkdir(path.join(root, ".scratch", "_run"), { recursive: true });
+    await writeFile(path.join(root, ".scratch", "_run", "delivery.jsonl"), JSON.stringify({ job }) + "\n");
+  };
+  const ID = "d-0123456789abcdef";
+
+  test("it starts a delivery from a ref, and from nothing else: text, a title or a non-string ref is a 403 that writes no ticket", async () => {
+    const t = await setup({ serviceToken: SERVICE });
+    const as = asService(t);
+    for (const body of [{ text: "do a thing" }, { text: "do a thing", title: "t" }, { ref: REF, text: "do a thing" }, { ref: REF, title: "t" }, { ref: { a: 1 } }, { ref: 5 }, {}]) {
+      const res = await t.post("/deliveries", body, as);
+      assert.equal(res.status, 403, JSON.stringify(body));
+      assert.match(res.body.error, /router/, JSON.stringify(body));
+    }
+    assert.equal(t.fake.spawns.length, 0);
+    assert.equal(readdirSync(path.join(t.root, ".scratch")).includes("den"), false, "no den ticket was written");
+    assert.equal((await t.post("/deliveries", { ref: REF }, as)).status, 201);
+    assert.equal((await t.post("/deliveries", { text: "do a thing" })).status, 201, "the session token still may write one");
+  });
+
+  test("it resumes with no verdict and no note: either is a 403, and the visual-verdict pause stays as it was", async () => {
+    const t = await setup({ serviceToken: SERVICE, preWrite: pausedJob("visual-verdict", { candidate: { sha: "a".repeat(40), runId: "c-0123456789abcdef" } }) });
+    const as = asService(t);
+    for (const body of [{ verdict: "approve" }, { verdict: "decline", note: "no" }, { note: "do it differently" }, { verdict: "approve", note: "x" }]) {
+      assert.equal((await t.post(`/deliveries/${ID}/resume`, body, as)).status, 403, JSON.stringify(body));
+    }
+    const job = await t.job();
+    assert.deepEqual([job.state, job.pause.kind, job.evidence.verdict ?? null], ["paused", "visual-verdict", null]);
+  });
+
+  test("it resumes bridge-restart, usage and no-room pauses", async () => {
+    for (const kind of ["bridge-restart", "usage", "no-room"]) {
+      const t = await setup({ serviceToken: SERVICE, preWrite: pausedJob(kind) });
+      const res = await t.post(`/deliveries/${ID}/resume`, {}, asService(t));
+      assert.equal(res.status, 202, `${kind}: ${JSON.stringify(res.body)}`);
+      await t.close();
+      cleanups.length = 0;
+    }
+  });
+
+  test("any other pause is a 403 with a reason, and the delivery is untouched", async () => {
+    for (const kind of ["stopped", "guardrail", "failed-twice", "visual-verdict", "conflict", "environment", "board", "busy"]) {
+      const t = await setup({ serviceToken: SERVICE, preWrite: pausedJob(kind) });
+      const res = await t.post(`/deliveries/${ID}/resume`, {}, asService(t));
+      assert.equal(res.status, 403, kind);
+      assert.match(res.body.error, new RegExp(`${kind}.*yours|yours.*${kind}`), kind);
+      assert.deepEqual([(await t.job()).state, (await t.job()).pause.kind], ["paused", kind]);
+      assert.equal((await t.post(`/deliveries/${ID}/resume`, {})).status, 202, `${kind}: the session token still resumes it`);
+      await t.close();
+      cleanups.length = 0;
+    }
+  });
+});
