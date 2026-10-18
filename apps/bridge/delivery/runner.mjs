@@ -597,13 +597,16 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     }
   }
 
+  const ROUTER_RESUMES = new Set(["bridge-restart", "usage", "no-room"]);
   const find = (id) => (typeof id === "string" && JOB_ID_RE.test(id) ? jobs.get(id) : undefined);
 
   /** The user's Resume. What the git host said is forgotten and asked again; nothing else is run twice. */
-  async function resume(id, body = {}) {
+  async function resume(id, body = {}, { router = false } = {}) {
     const job = find(id);
     if (!job) return refuse(404, "no such delivery");
     if (job.state !== "paused") return refuse(409, job.state === "running" ? "the delivery is running" : "the delivery has ended");
+    // den-mvp/88: the router's service token resumes the three pauses of ADR 0027 decision 8; every other pause is the user's.
+    if (router && !ROUTER_RESUMES.has(job.pause.kind)) return refuse(403, `this delivery is paused (${job.pause.kind}) and the decision is yours; the router does not resume it`);
     if (body?.verdict !== undefined) {
       if (job.pause.kind !== "visual-verdict" || !["approve", "decline"].includes(body.verdict) || !job.candidate) return refuse(409, "this delivery is not waiting for a visual verdict");
       const { sha } = job.candidate;

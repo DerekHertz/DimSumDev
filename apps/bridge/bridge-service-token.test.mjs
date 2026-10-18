@@ -71,7 +71,10 @@ describe("over HTTP", () => {
     assert.equal(started.status, 201, JSON.stringify(started.body));
     const { id } = started.body.delivery;
     assert.equal((await send(bridge, { method: "POST", path: `/deliveries/${id}/stop`, headers: authed(bridge, session), body: {} })).status, 202);
-    const resumed = await send(bridge, { method: "POST", path: `/deliveries/${id}/resume`, headers: asService(), body: {} });
+    // A stop is the user's pause (ADR 0027 decision 8): the router's token does not resume it; the session token does.
+    const refused = await send(bridge, { method: "POST", path: `/deliveries/${id}/resume`, headers: asService(), body: {} });
+    assert.equal(refused.status, 403, `${refused.status} ${refused.text}`);
+    const resumed = await send(bridge, { method: "POST", path: `/deliveries/${id}/resume`, headers: authed(bridge, session), body: {} });
     assert.ok([200, 202].includes(resumed.status), `${resumed.status} ${resumed.text}`);
   });
   test("the service token is refused with a 401 on every other mutating route, stop and close included", async () => {

@@ -25,7 +25,10 @@ export function createRouter({ bridge, readOrder, readBoard, readUsage, stops, p
     }
   }
 
-  async function report(found, known, up) {
+  // The bridge refuses a key over 300 or a text over 500 characters (400), which would be retried every tick, so both are cut here.
+  const cut = (stop) => ({ ...stop, key: stop.key.slice(0, 300), text: stop.text.slice(0, 500) });
+  async function report(raw, known, up) {
+    const found = cut(raw);
     if (known.has(found.key)) return;
     // Stop text goes to the board and to ntfy, off the box: a secret-looking line is replaced, never sent (88 security).
     const stop = hasSecret(found.text) ? { ...found, text: `a ${found.kind} stop whose text looked like a secret; see the router's log` } : found;

@@ -130,6 +130,11 @@ describe("credential stores are closed to every role", () => {
     for (const p of CREDENTIAL_PATHS) assert.match(p, /^~(?:\/[A-Za-z0-9._@+-]+)+$/);
   });
 
+  // den-mvp/88 security H1: the router's two secrets live in the same folder as projects.json (ADR 0021), for the same reason.
+  test("the router's service token and ntfy topic URL are credential stores like projects.json", () => {
+    for (const p of ["~/.local/state/den/projects.json", "~/.local/state/den/service-token", "~/.local/state/den/ntfy-url"]) assert.ok(CREDENTIAL_PATHS.includes(p), p);
+  });
+
   test("each store given is a Read and Edit deny for the file tools and a denyRead for the shell, for all nine roles", () => {
     const credentials = ["~/.ssh", "~/.claude/.credentials.json"];
     for (const role of ROLES) {
@@ -152,10 +157,10 @@ describe("credential stores are closed to every role", () => {
 });
 
 describe("a grant cannot reopen a credential store", () => {
-  const TOUCHING = ["~/.aws", "~/.aws/credentials", "~/.codex", "~/.kube/config", "~/.gnupg", "~/.docker", "~/.netrc", "~/.npmrc", "~/.claude.json", "~/.AWS", "~/.local/state/den/projects.json", "~/.local/state/den"];
+  const TOUCHING = ["~/.aws", "~/.aws/credentials", "~/.codex", "~/.kube/config", "~/.gnupg", "~/.docker", "~/.netrc", "~/.npmrc", "~/.claude.json", "~/.AWS", "~/.local/state/den/projects.json", "~/.local/state/den/service-token", "~/.local/state/den/ntfy-url", "~/.local/state/den"];
 
   test("the ceiling compiler refuses a path grant on, under or above a store, in either form", () => {
-    for (const value of [...TOUCHING, "/home/u/.aws", "/home/u/.codex", "/home/u/.kube/config", "/home/u/.local/state/den/projects.json"]) {
+    for (const value of [...TOUCHING, "/home/u/.aws", "/home/u/.codex", "/home/u/.kube/config", "/home/u/.local/state/den/projects.json", "/home/u/.local/state/den/service-token", "/home/u/.local/state/den/ntfy-url"]) {
       assert.throws(() => compileCeiling("developer", { worktree: WT, home: "/home/u", root: "/home/u/den", grants: [{ kind: "path", value }] }), /may not reach a credential store/, value);
     }
     for (const value of ["~/projects/data", "/home/u/projects/data", "/srv/data", "~/.awsome"]) {

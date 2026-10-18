@@ -137,6 +137,22 @@ describe("a refused start while the bridge drains for an update (den-mvp/86)", (
     assert.deepEqual([r.calls.recorded.length, r.calls.pushed.length], [1, 1]);
     for (const s of [r.calls.recorded[0], r.calls.pushed[0]]) assert.doesNotMatch(s.text, /hunter2222/);
   });
+  // Security L2: the bridge answers 400 to a key over 300 or a text over 500 characters, so an uncut one is never recorded and is retried every tick.
+  test("a stop's key and text are cut to the bridge's bounds before they are recorded or pushed, and it is then recorded once", async () => {
+    const r = rig({ readOrder: async () => `## Order\n- ${"not a ref ".repeat(80)}\n` });
+    await r.router().tick();
+    await r.router().tick();
+    assert.equal(r.calls.recorded.length, 1);
+    const long = rig();
+    long.parts.startReply = { ok: false, status: 409, error: "e".repeat(900) };
+    await long.router().tick();
+    await long.router().tick();
+    for (const stop of [...r.calls.recorded, ...r.calls.pushed, ...long.calls.recorded, ...long.calls.pushed]) {
+      assert.ok(stop.key.length <= 300, `key ${stop.key.length}`);
+      assert.ok(stop.text.length <= 500, `text ${stop.text.length}`);
+    }
+    assert.deepEqual([long.calls.recorded.length, long.calls.pushed.length], [1, 1]);
+  });
   test("a refused start that is not a drain is not silent: it is recorded and pushed once", async () => {
     const r = rig();
     r.parts.startReply = { ok: false, status: 409, error: "the ticket is not in the frontier" };

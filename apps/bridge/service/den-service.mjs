@@ -25,8 +25,10 @@ export const ROUTER_UNIT_NAME = "den-router.service";
 const ROUTER_TEMPLATE = fileURLToPath(new URL("../../router/den-router.service", import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 // den-mvp/88: the router's files, copied with their layout to <state>/router, so its imports resolve there as here.
-export const ROUTER_FILES = ["den-router", "router", "decide", "order", "client", "service-token"].map((n) => `apps/router/${n}.mjs`).concat("apps/bridge/requests-log.mjs", "scripts/batch-groups.mjs", "scripts/exposure.mjs", "packages/board-refs/src/compare-refs.mjs");
-const NTFY_URL = /^https?:\/\/[A-Za-z0-9.-]+(?::\d+)?\/[A-Za-z0-9._~/-]+$/;
+// The usage reading the router runs (scripts/usage.mjs --live, a child process) and what it imports, run from the copy, never the checkout (security M1).
+const USAGE_FILES = ["usage", "usage-claude", "usage-codex", "usage-estimate", "usage-token", "usage-local-time"].map((n) => `scripts/${n}.mjs`);
+export const ROUTER_FILES = ["den-router", "router", "decide", "order", "client", "service-token"].map((n) => `apps/router/${n}.mjs`).concat("apps/bridge/requests-log.mjs", "scripts/batch-groups.mjs", "scripts/exposure.mjs", "packages/board-refs/src/compare-refs.mjs", ...USAGE_FILES);
+const NTFY_URL = /^https:\/\/[A-Za-z0-9.-]+(?::\d+)?\/[A-Za-z0-9._~/-]+$/;
 
 // Asks once, on a terminal; elsewhere (a test, a pipe) it asks nothing and push stays off.
 async function askOnTerminal(question) {
@@ -101,7 +103,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
     if (!bwrap) throw new DenServiceError("bubblewrap (bwrap) is not installed; the build box cannot be made without it (sudo apt install bubblewrap)");
     if (!(await stat(path.join(repo, ".git")).catch(() => null))) throw new DenServiceError(`${repo} is not a git checkout`);
     renderUnit("", { node, checkout: repo, state: stateDir, searchPath: env.PATH }); // the paths are plain enough for a unit file
-    if (env.DEN_NTFY_URL && !NTFY_URL.test(env.DEN_NTFY_URL)) throw new DenServiceError("DEN_NTFY_URL is not a plain http(s) topic URL");
+    if (env.DEN_NTFY_URL && !NTFY_URL.test(env.DEN_NTFY_URL)) throw new DenServiceError("DEN_NTFY_URL is not a plain https topic URL");
   }
 
   // den-mvp/88: the ntfy topic URL is a secret: kept at 0600, never said. DEN_NTFY_URL replaces it; else a kept file stays;
@@ -113,7 +115,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
       const answer = await ask("Phone push: your private ntfy topic URL (Enter for none): ");
       if (answer === null || answer === undefined) return "off (no terminal to ask on; set DEN_NTFY_URL and run this again)";
       url = String(answer).trim();
-      if (url && !NTFY_URL.test(url)) throw new DenServiceError("that is not a plain http(s) topic URL");
+      if (url && !NTFY_URL.test(url)) throw new DenServiceError("that is not a plain https topic URL");
     }
     await put(ntfyFile, (tmp) => writeFile(tmp, url ? `${url}\n` : "", { mode: 0o600 }));
     return url ? "set" : "off";
@@ -142,7 +144,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
   }
 
   // The files this script runs from the checkout while it builds a release of main (its imports, and the build box).
-  const OWN_CODE = ["apps/bridge/service", "apps/bridge/build", "apps/bridge/cells/resource-group.mjs", "apps/organism-infra/board-service.mjs", "apps/router", "scripts/batch-groups.mjs"];
+  const OWN_CODE = ["apps/bridge/service", "apps/bridge/build", "apps/bridge/cells/resource-group.mjs", "apps/organism-infra/board-service.mjs", "apps/router", "scripts/batch-groups.mjs", ...USAGE_FILES];
   // Fetch main, then the packages and the release for its tip. `state.sha` is what the later steps use.
   // `target` is undefined (the newest v* tag), "--main" (the tip of main) or a tag name. Sets state.tag for a tag.
   const TAG = /^v\d+\.\d+\.\d+$/;

@@ -77,7 +77,14 @@ describe("den:install and the ntfy push address", () => {
     await den({ answer: null }).install();
     assert.equal(existsSync(file()), false);
   });
-  test("a DEN_NTFY_URL that is not a plain http(s) URL is refused before anything changes", async () => {
+  // Security L1: the topic URL is the secret and the stop text goes with it, so neither crosses the network in clear.
+  test("an http:// topic URL is refused, from DEN_NTFY_URL and from the answer, before anything changes", async () => {
+    await assert.rejects(den({ env: { DEN_NTFY_URL: "http://ntfy.sh/den-secret-topic" } }).install(), /DEN_NTFY_URL.*https/);
+    assert.equal(existsSync(state), false);
+    await assert.rejects(den({ answer: "http://ntfy.sh/den-secret-topic" }).install(), /https/);
+    assert.equal(existsSync(file()), false);
+  });
+  test("a DEN_NTFY_URL that is not a plain https URL is refused before anything changes", async () => {
     await assert.rejects(den({ env: { DEN_NTFY_URL: "file:///etc/passwd" } }).install(), /DEN_NTFY_URL/);
     assert.equal(existsSync(state), false);
   });

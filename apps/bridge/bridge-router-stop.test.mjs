@@ -106,6 +106,17 @@ describe("router stops", () => {
     assert.equal(ok.status, 201);
     assert.ok(!/\u202e/.test(ok.body.request.note), ok.body.request.note);
   });
+  // Security M2: the service token is outside the session cap, so pending stops have their own.
+  test("about 50 pending stops is the most: the next new key is a 429, a known key is still the same row, a dismissal makes room", async () => {
+    for (let i = 0; i < 50; i += 1) assert.equal((await post({ key: `k${i}`, kind: "usage-reading", text: "no reading" })).status, 201, `stop ${i}`);
+    const over = await post({ key: "k50", kind: "usage-reading", text: "no reading" });
+    assert.equal(over.status, 429, over.text);
+    assert.equal((await listed()).length, 50);
+    assert.equal((await post({ key: "k0", kind: "usage-reading", text: "no reading" })).status, 200);
+    const [{ id }] = await listed();
+    await send(bridge, { method: "POST", path: `/router-stops/${id}/dismiss`, headers: authed(bridge, session), body: {} });
+    assert.equal((await post({ key: "k50", kind: "usage-reading", text: "no reading" })).status, 201);
+  });
   test("a malformed % in the dismiss id is a 404, not a 500", async () => {
     const res = await send(bridge, { method: "POST", path: "/router-stops/%E0%A4%A/dismiss", headers: authed(bridge, session), body: {} });
     assert.equal(res.status, 404, res.text);

@@ -12,9 +12,10 @@ import { test, describe, before, beforeEach, after } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, statSync } from "node:fs";
-import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { pathToFileURL } from "node:url";
 import * as service from "./den-service.mjs";
 const { createDen, UNIT_NAME } = service;
 const ROUTER_UNIT_NAME = "den-router.service"; // service.ROUTER_UNIT_NAME must equal it (first test)
@@ -73,6 +74,14 @@ describe("den:install and the router", () => {
     assert.doesNotMatch(unit.replace(/^#.*$/gm, ""), /@[A-Z]+@/);
   });
 
+  // Security L3: an always-on process that talks to the network. ProtectHome stays off: usage.mjs writes ~/.claude/usage-cache.json.
+  test("the router unit is hardened without hiding the home folder", async () => {
+    await den().install();
+    const unit = (await readFile(path.join(unitDir, ROUTER_UNIT_NAME), "utf8")).replace(/^#.*$/gm, "");
+    for (const line of ["NoNewPrivileges=yes", "PrivateTmp=yes", "RestrictSUIDSGID=yes", "LockPersonality=yes"]) assert.match(unit, new RegExp(`^${line}$`, "m"), line);
+    assert.doesNotMatch(unit, /^ProtectHome=/m);
+  });
+
   test("the router runs from a file outside every release and link folder, and that file exists", async () => {
     await den().install();
     const unit = await readFile(path.join(unitDir, ROUTER_UNIT_NAME), "utf8");
@@ -114,6 +123,23 @@ describe("den:install and the router", () => {
 });
 
 describe("the installed router copy", () => {
+  // Security M1 (ADR 0027 decision 1): code reaches the always-on router only through den:install, so the usage reading it
+  // runs is the copy's, not the checkout's.
+  test("the router reads usage with the copy of scripts/usage.mjs that install put beside it", async () => {
+    const tmp = await mkdtemp(path.join(tmpdir(), "den-router-usage-"));
+    try {
+      for (const rel of service.ROUTER_FILES) {
+        await mkdir(path.dirname(path.join(tmp, rel)), { recursive: true });
+        await copyFile(path.resolve(import.meta.dirname, "../../..", rel), path.join(tmp, rel));
+      }
+      const { USAGE_SCRIPT } = await import(pathToFileURL(path.join(tmp, "apps/router/client.mjs")).href);
+      assert.equal(USAGE_SCRIPT, path.join(tmp, "scripts/usage.mjs"));
+      assert.equal(existsSync(USAGE_SCRIPT), true);
+    } finally {
+      await rm(tmp, { recursive: true, force: true });
+    }
+  });
+
   // The router runs from a copy of ROUTER_FILES outside the checkout, so a relative import of a file not in the list breaks it
   // at start-up. This follows every relative import from den-router.mjs and asks that each file is copied.
   test("ROUTER_FILES holds every file the router imports, however deep", async () => {
@@ -126,6 +152,9 @@ describe("the installed router copy", () => {
       for (const m of src.matchAll(/(?:from|import\()\s*["'](\.{1,2}\/[^"']+)["']/g)) await walk(path.relative(repo, path.resolve(repo, path.dirname(rel), m[1])));
     };
     await walk("apps/router/den-router.mjs");
+    // Security M1: the router runs scripts/usage.mjs (a child process, so no import reaches it) from its own copy, with its imports.
+    await walk("scripts/usage.mjs");
+    for (const f of ["scripts/usage.mjs", "scripts/usage-claude.mjs", "scripts/usage-token.mjs", "scripts/usage-local-time.mjs"]) assert.ok(seen.has(f), `the walk reached ${f}`);
     assert.ok(seen.size > 6, `walked ${[...seen].join(", ")}`);
     const missing = [...seen].filter((f) => !service.ROUTER_FILES.includes(f));
     assert.deepEqual(missing, [], "copy these in ROUTER_FILES (den-service.mjs)");

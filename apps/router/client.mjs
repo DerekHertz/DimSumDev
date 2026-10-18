@@ -2,7 +2,7 @@
 // router-stop requests (requests.jsonl, read here and written through the bridge) and the ntfy push.
 import { execFile } from "node:child_process";
 import http from "node:http";
-import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { readRequestRows, ROUTER_STOP } from "../bridge/requests-log.mjs";
 
 export function createBridgeClient({ url, token }) {
@@ -55,8 +55,11 @@ const runNode = (args) => new Promise((resolve) => {
   execFile(process.execPath, args, { timeout: 60_000, maxBuffer: 1024 * 1024 }, (err, stdout, stderr) => resolve({ code: err ? (typeof err.code === "number" ? err.code : 1) : 0, stdout: String(stdout), stderr: String(stderr) }));
 });
 
+// Beside this file's own layout (<root>/apps/router, <root>/scripts), so the installed router runs its copy, not the checkout's.
+export const USAGE_SCRIPT = fileURLToPath(new URL("../../scripts/usage.mjs", import.meta.url));
+
 /** What `scripts/usage.mjs --live` printed, or { error } with its one-line diagnostic. */
-export async function readLiveUsage({ run = runNode, script = path.resolve("scripts/usage.mjs") } = {}) {
+export async function readLiveUsage({ run = runNode, script = USAGE_SCRIPT } = {}) {
   const out = await run([script, "--live"]);
   if (out.code !== 0) return { error: String(out.stderr).trim().split("\n").at(-1) || `usage.mjs exited ${out.code}` };
   try {

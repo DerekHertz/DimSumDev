@@ -14,6 +14,11 @@ Environment=DEN_STATE_DIR=@STATE@
 Environment="PATH=@PATH@"
 Restart=on-failure
 RestartSec=10
+# Hardening for an always-on process that talks to the network. No ProtectHome: usage.mjs writes ~/.claude/usage-cache.json.
+NoNewPrivileges=yes
+PrivateTmp=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
 
 [Install]
 WantedBy=default.target

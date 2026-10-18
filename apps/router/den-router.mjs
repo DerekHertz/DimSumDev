@@ -1,5 +1,5 @@
 // den-mvp/88 (ADR 0027): the router's process, run by den-router.service from the copy `den:install` made outside every
-// release. Working directory: the checkout (the board, the work order and scripts/usage.mjs are read there).
+// release. Working directory: the checkout (the board and the work order are read there; usage.mjs runs from the router's own copy).
 //   DEN_STATE_DIR   the den's state folder (service-token, ntfy-url)     PORT  the bridge's port (4317)
 //   DEN_ORDER_FILE  the work order (default <checkout>/.scratch/work-order.md)
 // It ticks at start, after GET /events changes (at most once a minute) and every five minutes, one tick at a time.
@@ -32,7 +32,7 @@ const router = createRouter({
   bridge,
   readOrder: () => readFile(orderFile, "utf8"),
   readBoard: async () => defaultReadBoard(),
-  readUsage: cachedReading(() => readLiveUsage({ script: path.join(root, "scripts", "usage.mjs") }), { ttlMs: USAGE_TTL_MS }),
+  readUsage: cachedReading(() => readLiveUsage(), { ttlMs: USAGE_TTL_MS }),
   stops: {
     known: () => readKnownStops(root),
     record: async (stop) => {
