@@ -26,6 +26,7 @@ appendFileSync(path.join(root, "starts.log"), process.pid + "\\n");
 process.on("SIGTERM", () => process.exit(143));
 if (${JSON.stringify(mode)} === "crash") process.exit(1);
 if (${JSON.stringify(mode)} === "silent") setInterval(() => {}, 1000);
+else if (${JSON.stringify(mode)} === "redirect") http.createServer((req, res) => { if (req.url === "/ok") res.end("ok"); else { res.writeHead(302, { location: "/ok" }); res.end(); } }).listen(Number(process.env.PORT), "127.0.0.1");
 else http.createServer((_req, res) => res.end("ok")).listen(Number(process.env.PORT), "127.0.0.1");
 `;
 
@@ -153,6 +154,17 @@ describe("the launcher (den-mvp/77)", () => {
     });
   });
 
+  test("a redirect is not an answer: the health check follows none, so the previous release runs", async () => {
+    await put(c1);
+    await put(c2, "redirect");
+    await releases.switchBridge(shas[c1]);
+    await releases.switchBridge(shas[c2]);
+    const out = await launcher().launch();
+    assert.equal(out.sha, shas[c1]);
+    assert.equal(out.rolledBack, true);
+    out.child.kill("SIGTERM");
+  });
+
   test("after a failed update the same release is not started again", async () => {
     await put(c1);
     await put(c2, "silent");
@@ -225,6 +237,23 @@ describe("the launcher (den-mvp/77)", () => {
       assert.equal(starts(c1).length, 0);
       assert.match((await readUpdateFailure(state)).reason, /older/i);
       out.child.kill("SIGTERM");
+    });
+
+    test("when git cannot compare the two, the release is refused (fails closed, as releases.mjs does)", async () => {
+      await put(c1);
+      await put(c3);
+      await link("bridge", "current", c1);
+      await link("bridge", "previous", c3);
+      const notRepo = await mkdtemp(path.join(tmpdir(), "den-launcher-norepo-"));
+      try {
+        const out = await launcher({ repo: notRepo }).launch();
+        assert.equal(out.sha, shas[c3]);
+        assert.equal(starts(c1).length, 0);
+        assert.match((await readUpdateFailure(state)).reason, /could not compare/i);
+        out.child.kill("SIGTERM");
+      } finally {
+        await rm(notRepo, { recursive: true, force: true });
+      }
     });
 
     test("a newer release and the running release itself are never refused", async () => {

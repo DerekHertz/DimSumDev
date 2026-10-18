@@ -56,9 +56,10 @@ export function createLauncher({ stateDir, repo, node = process.execPath, port =
   }
   const record = (rel, reason) => replace("failed.json", (tmp) => writeFile(tmp, `${JSON.stringify({ sha: rel.sha, ...(rel.tag ? { tag: rel.tag } : {}), reason, at: new Date().toISOString() })}\n`));
 
-  // Whether `sha` is a strict git ancestor of `than`. When git cannot tell, it is not called older.
+  // Whether `sha` is a strict git ancestor of `than`: true, false, or "unknown" when git cannot tell. Unknown is refused,
+  // as releases.mjs isOlder refuses it (security review of den-mvp/77: fail closed).
   const older = (sha, than) => sha !== than && new Promise((resolve) => {
-    execFile("git", ["-C", repo, "merge-base", "--is-ancestor", sha, than], { timeout: 10_000 }, (err) => resolve(!err));
+    execFile("git", ["-C", repo, "merge-base", "--is-ancestor", sha, than], { timeout: 10_000 }, (err) => resolve(!err ? true : err.code === 1 ? false : "unknown"));
   });
 
   // Starts one release and waits for the den to answer: { ok: true, child } or { ok: false, reason } with the child gone.
@@ -74,7 +75,7 @@ export function createLauncher({ stateDir, repo, node = process.execPath, port =
     const deadline = Date.now() + checkMs;
     while (!exit && !stopped && Date.now() < deadline) {
       try {
-        const res = await fetch(`http://127.0.0.1:${port}/`, { signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())) });
+        const res = await fetch(`http://127.0.0.1:${port}/`, { redirect: "manual", signal: AbortSignal.timeout(Math.max(1, deadline - Date.now())) });
         await res.arrayBuffer();
         if (res.status === 200 && !exit) return { ok: true, child };
       } catch {}
@@ -97,9 +98,10 @@ export function createLauncher({ stateDir, repo, node = process.execPath, port =
     const failed = await readJson("failed.json");
     const consent = await readJson("downgrade.json");
     let why = null;
+    let age;
     if (failed?.sha === cur.sha) why = `it failed before (${failed.reason})`;
-    else if (prev && consent?.sha !== cur.sha && (await older(cur.sha, prev.sha))) {
-      why = `it is older than ${prev.id} and the user did not name it`;
+    else if (prev && consent?.sha !== cur.sha && (age = await older(cur.sha, prev.sha))) {
+      why = age === "unknown" ? `git could not compare it with ${prev.id}` : `it is older than ${prev.id} and the user did not name it`;
       await record(cur, why);
     } else {
       const out = await start(cur);
