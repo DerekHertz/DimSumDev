@@ -13,6 +13,7 @@ import path from "node:path";
 import { spawn as spawnChild, execFile } from "node:child_process";
 import { EnforcementError, GATE_REFUSED, LIMITS, START_GATE, buildScopeArgv, busPlaces, cgroupOf, checkLimits, createResourceLauncher, findUserBus, groupFiles, groupProperties, judgeProbe, PROBE_SCRIPT, measureTree, watchStorage } from "./resource-group.mjs";
 import { createClaudeRuntime } from "./claude-runtime.mjs";
+import { hostPid } from "./launcher-test-helpers.mjs";
 import { SLOTS } from "./policy.mjs";
 
 const MIB = 1024 * 1024;
@@ -285,12 +286,15 @@ describe("live: the launcher under reduced limits", { skip }, () => {
     return run;
   };
   const value = (group, file) => readFileSync(path.join(group.dir, file), "utf8").trim();
+  // den-mvp/35: a command's $$ is its number inside the run's private pid namespace; the host's /proc knows it by another.
+  const hostPids = (run, nsPids) => nsPids.map((n) => hostPid(n, `/${SLICE}.slice/${run.group.unit}`) ?? assert.fail(`no host process is pid ${n} in ${run.group.unit}`));
 
   test("a child and its grandchild are in the run's own scope, with the class limits and the slice's aggregate read back from the kernel", async () => {
     const run = await start("sh -c 'echo $$; sleep 20' & echo $$; wait");
     await until(() => run.out.trim().split("\n").length >= 2, { what: "both pids" });
-    const pids = run.out.trim().split("\n").map(Number);
-    for (const pid of pids) assert.ok((cgroupOf(pid) ?? "").endsWith(`/${SLICE}.slice/${run.group.unit}`), `pid ${pid} is in ${cgroupOf(pid)}`);
+    const pids = hostPids(run, run.out.trim().split("\n"));
+    const members = value(run.group, "cgroup.procs").split("\n").map(Number);
+    for (const pid of pids) assert.ok(members.includes(pid) && (cgroupOf(pid) ?? "").endsWith(`/${SLICE}.slice/${run.group.unit}`), `pid ${pid} is in ${cgroupOf(pid)}`);
     for (const [file, want] of Object.entries(groupFiles(TEST_LIMITS.classes.worker))) assert.equal(value(run.group, file), want, file);
     for (const [file, want] of Object.entries(groupFiles(TEST_LIMITS.aggregate))) assert.equal(readFileSync(path.join(path.dirname(run.group.dir), file), "utf8").trim(), want, `slice ${file}`);
     assert.notEqual(cgroupOf(process.pid), cgroupOf(pids[0]), "the bridge's own process is outside the agents' group");
@@ -376,7 +380,9 @@ echo done`);
     const hog = `exec ${JSON.stringify(process.execPath)} -e "const a=[];setInterval(()=>a.push(Buffer.alloc(8<<20,1)),5)"`;
     for (let i = 0; i < 4; i += 1) {
       const run = await start(hog);
-      assert.equal((await run.exit).signal, "SIGKILL", "the kernel killed the run's main process");
+      // bwrap is pid 1 of the run's namespace, so the kernel's kill shows as bwrap's exit with 128 + SIGKILL, not as the launcher's own signal.
+      const ended = await run.exit;
+      assert.ok(ended.signal === "SIGKILL" || ended.code === 137, `the kernel killed the run's main process: ${JSON.stringify(ended)}`);
       await sleep(150); // long enough for systemd to remove an empty scope
       assert.equal(run.group.exhausted(), "memory");
       run.group.kill();
@@ -438,7 +444,7 @@ echo done`);
   test("stop: a kill of the group leaves no descendant, not even one that started its own session", async () => {
     const run = await start("setsid sh -c 'echo $$; exec sleep 60' & sh -c 'echo $$; sleep 60' & echo $$; wait");
     await until(() => run.out.trim().split("\n").length >= 3, { what: "three pids" });
-    const pids = run.out.trim().split("\n").map(Number);
+    const pids = hostPids(run, run.out.trim().split("\n"));
     for (const pid of pids) assert.ok(existsSync(`/proc/${pid}`), `pid ${pid} is running`);
     run.group.kill();
     assert.equal(await run.group.settled(3000), true);
@@ -457,12 +463,13 @@ echo done`);
   });
 
   test("aggregate: runs that each stay under their own process limit are stopped together at the slice's", async () => {
-    // 21 + 21 + 13 processes fit under the slice's 64; a fourth run of 13 does not, though its own limit is 16.
-    // Each run also holds its anchor: 22 + 22 + 14, and the fourth is stopped at its fifth fork.
+    // Each run holds four processes before its first fork (den-mvp/35): the shell, the two bwrap processes of its pid namespace
+    // (the outer one and the namespace's pid 1) and the anchor. So 19 + 19 + 8 forks make 23 + 23 + 12 = 58 under the slice's 64;
+    // a fourth run of 12 forks (16 with its own four, exactly its own limit) is stopped by the slice after two more.
     const forks = (n) => `i=0; while [ $i -lt ${n} ]; do sleep 20 & i=$((i+1)); done; echo ok; wait`;
     for (const { group } of open) group.kill();
     if (open.length) await until(() => readFileSync(path.join(path.dirname(open[0].group.dir), "pids.current"), "utf8").trim() === "0", { what: "the slice to be empty of earlier runs" });
-    const first = [await start(forks(20)), await start(forks(20)), await start(forks(12), "bao")];
+    const first = [await start(forks(19)), await start(forks(19)), await start(forks(8), "bao")];
     for (const run of first) await until(() => run.out === "ok\n", { what: "a run under the aggregate to finish its forks" });
     const last = await start(forks(12), "scout");
     const slice = path.dirname(last.group.dir);
