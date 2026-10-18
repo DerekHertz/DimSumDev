@@ -8,7 +8,10 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createDen, DenServiceError, renderUnit, UNIT_NAME } from "./den-service.mjs";
-import { createReleases } from "../build/releases.mjs";
+import * as releasesModule from "../build/releases.mjs";
+const { createReleases } = releasesModule;
+const readUpdateFailure = (...a) => releasesModule.readUpdateFailure(...a);
+const recordUpdateFailure = (...a) => releasesModule.recordUpdateFailure(...a);
 
 const git = (cwd, ...args) => execFileSync("git", ["-C", cwd, "-c", "user.name=t", "-c", "user.email=t@example.com", ...args], { encoding: "utf8" }).trim();
 const TEMPLATE = readFileSync(new URL("./den.service", import.meta.url), "utf8");
@@ -26,11 +29,12 @@ const fakeBox = (calls) => ({
 describe("the unit text", () => {
   const values = { node: "/usr/bin/node", checkout: "/home/me/dimsumdev", state: "/home/me/.local/state/den", searchPath: "/home/me/.local/bin:/usr/bin" };
 
-  test("runs the bridge from bridge/current, in den.slice, on 4317, restarting on failure, in the checkout", () => {
+  test("runs the launcher (outside every release), in den.slice, on 4317, restarting on failure, in the checkout", () => {
     const text = renderUnit(TEMPLATE, values);
     assert.match(text, /^Slice=den\.slice$/m);
     assert.match(text, /^WorkingDirectory=\/home\/me\/dimsumdev$/m);
-    assert.match(text, /^ExecStart=\/usr\/bin\/node \/home\/me\/\.local\/state\/den\/bridge\/current\/apps\/bridge\/server\.mjs$/m);
+    assert.match(text, /^ExecStart=\/usr\/bin\/node \/home\/me\/\.local\/state\/den\/launcher\/den-launcher\.mjs$/m);
+    assert.doesNotMatch(text.replace(/^#.*$/gm, ""), /bridge\/current|server\.mjs/, "the unit no longer names a release");
     assert.match(text, /^Environment=PORT=4317$/m);
     assert.match(text, /^Environment="PATH=\/home\/me\/\.local\/bin:\/usr\/bin"$/m);
     assert.match(text, /^Restart=on-failure$/m);
@@ -104,10 +108,37 @@ describe("den:install and den:update", () => {
     assert.equal(link("ui", "current"), `../releases/${sha.slice(0, 12)}`);
     assert.equal(link("bridge", "current"), `../releases/${sha.slice(0, 12)}`);
     const unit = await readFile(path.join(unitDir, UNIT_NAME), "utf8");
-    assert.match(unit, new RegExp(`ExecStart=/usr/bin/node ${state}/bridge/current/apps/bridge/server.mjs`));
+    assert.match(unit, new RegExp(`ExecStart=/usr/bin/node ${state}/launcher/den-launcher.mjs\n`));
     assert.match(unit, new RegExp(`WorkingDirectory=${checkout}`));
     assert.deepEqual(sysCalls, ["show-environment", "daemon-reload", "enable den.service", "restart den.service"]);
     assert.deepEqual(readdirSync(unitDir), [UNIT_NAME]);
+  });
+
+  const LAUNCHER_SOURCE = path.join(path.dirname(new URL(import.meta.url).pathname), "den-launcher.mjs");
+
+  test("install writes the launcher beside the releases, not inside any release or link folder (den-mvp/77)", async () => {
+    await den().install();
+    const installed = path.join(state, "launcher", "den-launcher.mjs");
+    assert.equal(readFileSync(installed, "utf8"), readFileSync(LAUNCHER_SOURCE, "utf8"));
+    for (const inside of ["releases", "deps", "bridge", "ui", "previews"]) assert.equal(path.relative(path.join(state, inside), installed).startsWith(".."), true, inside);
+  });
+
+  test("a release cannot overwrite the launcher: update leaves it as install wrote it, even when a release carries its own copy (den-mvp/77)", async () => {
+    await den().install();
+    const installed = path.join(state, "launcher", "den-launcher.mjs");
+    const before = readFileSync(installed, "utf8");
+    await mkdir(path.join(origin, "apps", "bridge", "service"), { recursive: true });
+    await writeFile(path.join(origin, "apps", "bridge", "service", "den-launcher.mjs"), "// a release's copy\n");
+    git(origin, "add", "-A");
+    git(origin, "commit", "-q", "-m", "a release that carries a launcher");
+    git(checkout, "pull", "-q", "--ff-only");
+    await den().update("--main");
+    assert.equal(readFileSync(installed, "utf8"), before);
+    const newest = link("bridge", "current").split("/").pop();
+    assert.equal(readFileSync(path.join(state, "releases", newest, "apps/bridge/service/den-launcher.mjs"), "utf8"), "// a release's copy\n");
+    git(origin, "reset", "-q", "--hard", "HEAD~1");
+    git(checkout, "fetch", "-q");
+    git(checkout, "reset", "-q", "--hard", "origin/main");
   });
 
   test("it prints the plan first, then each step's result", async () => {
@@ -215,12 +246,12 @@ describe("den:install and den:update", () => {
       untag();
       const one = git(origin, "rev-parse", "HEAD");
       tag("v0.1.0", one);
+      await den().install(); // running: v0.1.0's commit
       const two = push(20);
       tag("v0.2.0", two);
       tag("v0.10.0", two); // semver order: 0.10.0 is newer than 0.2.0
       tag("not-a-release", two);
       const tip = push(21);
-      await den().install();
       await den().update();
       assert.equal(link("bridge", "current"), `../releases/${two.slice(0, 12)}`);
       assert.notEqual(two, tip);
@@ -255,6 +286,52 @@ describe("den:install and den:update", () => {
       await den().install();
       await assert.rejects(den().update(), /no release tags.*--main/);
     });
+  });
+
+  describe("update never goes backwards on its own, and does not retry a failed tag (den-mvp/77)", () => {
+    const tag = (name, sha) => git(origin, "tag", name, sha);
+    const untag = () => [origin, checkout].forEach((repo) => git(repo, "tag", "--list").split("\n").filter(Boolean).forEach((t) => git(repo, "tag", "-d", t)));
+    beforeEach(untag);
+    after(untag);
+
+    test("a bare update whose newest tag is older than the running release is refused; naming the tag is the user's say", async () => {
+      const one = git(origin, "rev-parse", "HEAD");
+      tag("v0.1.0", one);
+      const two = push(60); // main moves on, untagged
+      await den().install(); // running: two (untagged), as on 2026-10-17
+      sysCalls.length = 0;
+      await assert.rejects(den().update(), (err) => err instanceof DenServiceError && /older/i.test(err.message) && /v0\.1\.0/.test(err.message));
+      assert.equal(link("bridge", "current"), `../releases/${two.slice(0, 12)}`, "nothing was switched");
+      assert.equal(link("ui", "current"), `../releases/${two.slice(0, 12)}`);
+      assert.deepEqual(sysCalls, ["show-environment"], "nothing was restarted");
+      await den().update("v0.1.0"); // named: a rollback the user asked for
+      assert.equal(link("bridge", "current"), `../releases/${one.slice(0, 12)}`);
+      assert.deepEqual(sysCalls, ["show-environment", "show-environment", "restart den.service"]);
+    });
+
+    test("a tag that failed to start is not taken by a bare update; naming it clears the record", async () => {
+      await den().install();
+      const next = push(61);
+      tag("v0.5.0", next);
+      await recordUpdateFailure(state, { sha: next, tag: "v0.5.0", reason: "the den did not answer within 30 seconds" });
+      sysCalls.length = 0;
+      await assert.rejects(den().update(), (err) => err instanceof DenServiceError && /v0\.5\.0/.test(err.message) && /fail/i.test(err.message));
+      assert.deepEqual(sysCalls, ["show-environment"]);
+      assert.equal((await readUpdateFailure(state)).tag, "v0.5.0", "the record is kept");
+      await den().update("v0.5.0");
+      assert.equal(link("bridge", "current"), `../releases/${next.slice(0, 12)}`);
+      assert.equal(await readUpdateFailure(state), null, "the user asked, so the record is cleared");
+    });
+  });
+
+  test("nothing under apps/bridge except this folder names the den's unit, so the bridge cannot restart it (den-mvp/77)", () => {
+    const bridge = path.dirname(path.dirname(new URL(import.meta.url).pathname));
+    const walk = (dir) => readdirSync(dir).flatMap((name) => {
+      const file = path.join(dir, name);
+      if (file === path.join(bridge, "service")) return [];
+      return statSync(file).isDirectory() ? walk(file) : file.endsWith(".mjs") && !file.endsWith(".test.mjs") ? [file] : [];
+    });
+    for (const file of walk(bridge)) assert.doesNotMatch(readFileSync(file, "utf8"), /den\.service|UNIT_NAME/, file);
   });
 
   test("nothing under apps/bridge except this folder imports the install or update scripts", () => {
