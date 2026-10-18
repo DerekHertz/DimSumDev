@@ -191,11 +191,16 @@ describe("the production entry (node apps/bridge/server.mjs)", () => {
     assert.ok([201, 202].includes(res.status), `dispatch answered ${res.status} ${res.text}`);
     await until(async () => (await stub.start()) !== undefined, { ms: 5000, what: "the stub binary named by DEN_CLAUDE_BIN to be launched" });
     const { pid } = await stub.start();
-    const scope = /\/den-agents\.slice\/den-run-[0-9a-f-]+\.scope$/;
+    // Only this run's own scope (its session id names it): the real den-agents.slice may hold a live agent whose namespace pid is the same number.
+    const scope = `/den-agents.slice/den-run-${res.body.agent.sessionId}.scope`;
     const host = hostPid(pid, scope); // the stub's pid is its number inside the run's namespace (den-mvp/35)
     assert.ok(host !== null, "the CLI runs in its own scope under the agents slice");
-    assert.match(cgroupOf(host) ?? "", scope);
-    cleanups.push(async () => { if (alive(host)) process.kill(host, "SIGKILL"); });
+    assert.ok((cgroupOf(host) ?? "").endsWith(scope), `pid ${host} is in ${cgroupOf(host)}`);
+    const namesStub = (p) => readFileSync(`/proc/${p}/cmdline`, "utf8").includes(stub.bin);
+    assert.ok(namesStub(host), "the matched process is the stub, not a stranger's");
+    assert.equal(hostPid(pid, `${scope}.other`), null, "a scope that is not this run's matches nothing");
+    // The kill only fires on a process that still names the stub, so a recycled or mismatched pid is never a stranger's.
+    cleanups.push(async () => { if (alive(host) && namesStub(host)) process.kill(host, "SIGKILL"); });
     await sleep(50);
     child.kill("SIGTERM");
   });
