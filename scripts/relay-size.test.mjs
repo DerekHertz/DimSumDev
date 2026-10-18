@@ -52,3 +52,24 @@ test("no file still says every ticket is specified first", () => {
   assert.doesNotMatch(read(".claude/agents/qa.md"), /Make every ticket test-first/);
   assert.doesNotMatch(read("CLAUDE.md"), /Code tickets run a relay: qa `specify` writes failing tests/);
 });
+
+// den-mvp/90: the risk path names the wall's files, every guardrail risk-check knows is on it, and a doubt means the full relay.
+const section = () => read(".claude/skills/organism-protocol/SKILL.md").split(/^## /m).find((x) => x.startsWith("Relay size")) ?? "";
+
+test("the risk path names .claude/, CLAUDE.md, docs/adr/ and the cells JSON files", () => {
+  const s = section();
+  for (const p of ["`.claude/`", "`CLAUDE.md`", "`docs/adr/`", "limits", "governance", "ceilings"]) assert.ok(s.includes(p), `Relay size does not name ${p}`);
+});
+
+test("every guardrail path risk-check hits is on the named risk path", () => {
+  const src = read("scripts/risk-check.mjs");
+  const paths = [...src.matchAll(/^\s*\["(apps\/[^"]+\.json)"/gm)].map((m) => m[1]);
+  assert.ok(paths.length >= 3, `found ${paths.length} guardrail paths in risk-check`);
+  for (const p of paths) assert.ok(section().includes(path.basename(p)), `Relay size does not name ${p}`);
+});
+
+test("the light path ends with security on a hit, and a doubt takes the full relay", () => {
+  const s = section();
+  assert.match(s, /Then `risk-check`, and `security` on a hit/);
+  assert.match(s, /When unsure, [^.]*full relay/);
+});
