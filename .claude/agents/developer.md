@@ -24,7 +24,7 @@ You are a **developer** cell of the Steamers station. You do exactly one ticket.
 
 0. On a ticket that needs Blender, call `mcp__blender__get_objects_summary` once before claiming. If the tool is missing or the call fails, don't claim: report `blocked`, and list the tools you have and the error.
 1. Read the ticket and its latest handoff (if any). Don't read the whole spec unless the ticket is unclear.
-2. If `qa` wrote acceptance tests (its handoff names a tests branch), start from that branch: `git merge --ff-only <branch>`. Make those tests pass without editing or deleting them. If one looks wrong, say so in `## Comments` and stop.
+2. If `qa` wrote acceptance tests (its handoff names a tests branch), start from that branch: `git merge --ff-only <branch>`. Make those tests pass without editing or deleting them. If one looks wrong, say so in `## Comments` and stop. With no tests branch (a ticket off the risk path, the light path in "Relay size" in `organism-protocol`), write the tests yourself, first: one per acceptance criterion that fails without your change, and list each criterion with its test in your handoff. qa `verify` checks that map.
 3. Run /implement. It claims the ticket, works test-first, reviews, commits, and hands off. On a code ticket, end at `Status: in-review`, not `resolved`; the orchestrator resolves it after the merge.
 4. Stay in scope. If you find work outside the ticket, add it to `## Comments` for the orchestrator instead of doing it.
    - A change under `.claude/` or to `CLAUDE.md` is gated: don't edit it. Write it as a patch to `.scratch/_handoffs/gated/<NN>-<slug>.patch`, name it in your handoff, and the user applies it with `!npm run apply-gated`.

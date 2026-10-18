@@ -26,6 +26,10 @@ Your final report to the orchestrator stays under about 300 words: the verdict, 
    - Take over a dead holder's lock with `board reclaim <ref> <cell-type> --reason "..."`, never as `orchestrator`. Free a lock without changing status with `board release <ref> --keep-status`.
 4. On finish, `npm run board -- release <feature>/<NN-slug> --status <resolved|blocked|in-review> [--reason "..."]`. On a code ticket, cells in the review relay (`qa`, `developer`, `security`) never set `resolved`: a developer releases at `in-review`, and `qa` and `security` leave the status as it is and write their verdict with `board comment <ref> --verdict pass|bounce "<text>"`. The `--verdict` flag is what the bounce count reads (ADR 0008 decision 12); a verdict in the text alone doesn't count.
 
+## Relay size (den-mvp/71)
+
+The relay is sized to risk. A **risk-path** ticket changes the wall (the `governance.json` guardrail paths, `apps/bridge/cells/`), CI (`.github/`), a hook or guard script, service or auth code, or a dependency. It runs the full relay: qa `specify`, developer, qa `verify` (light), `npm run risk-check`, and `security` on a hit. Every other ticket (tests, docs, UI, ordinary scripts and code) takes the **light path**: no qa `specify`. The developer dispatches directly, writes the tests first and lists each criterion's test in its handoff. qa `verify` (full, fresh context) writes a per-criterion map to a test that fails without the change, and a verdict on each hit of `node scripts/test-guard.mjs`. Then `risk-check`. When unsure, the orchestrator takes the full relay and says why.
+
 ## Pass gates (stop and ask the user)
 
 Always ask before:
