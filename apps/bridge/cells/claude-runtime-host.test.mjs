@@ -196,7 +196,7 @@ describe("the production entry (node apps/bridge/server.mjs)", () => {
     const host = hostPid(pid, scope); // the stub's pid is its number inside the run's namespace (den-mvp/35)
     assert.ok(host !== null, "the CLI runs in its own scope under the agents slice");
     assert.ok((cgroupOf(host) ?? "").endsWith(scope), `pid ${host} is in ${cgroupOf(host)}`);
-    const namesStub = (p) => readFileSync(`/proc/${p}/cmdline`, "utf8").includes(stub.bin);
+    const namesStub = (p) => { try { return readFileSync(`/proc/${p}/cmdline`, "utf8").includes(stub.bin); } catch { return false; } }; // gone between checks: not ours to kill
     assert.ok(namesStub(host), "the matched process is the stub, not a stranger's");
     assert.equal(hostPid(pid, `${scope}.other`), null, "a scope that is not this run's matches nothing");
     // The kill only fires on a process that still names the stub, so a recycled or mismatched pid is never a stranger's.
