@@ -36,7 +36,7 @@ function rig(over = {}) {
     now: () => clock.t,
     ...over,
   };
-  return { parts, calls, clock, router: () => createRouter(parts) };
+  return { parts, calls, clock, known, router: () => createRouter(parts) };
 }
 
 describe("one tick", () => {
@@ -137,5 +137,126 @@ describe("a refused start while the bridge drains for an update (den-mvp/86)", (
     await router.tick();
     await router.tick();
     assert.deepEqual([r.calls.recorded.length, r.calls.pushed.length], [1, 1]);
+  });
+});
+
+describe("a stop that could not be recorded (den-mvp/88 qa bounce)", () => {
+  test("is pushed once, recorded on a later tick when the record works again, and not pushed again", async () => {
+    const r = rig();
+    let up = false;
+    r.parts.stops.record = async (s) => {
+      if (!up) throw new Error("POST /router-stops answered 500");
+      r.calls.recorded.push(s);
+      r.known.push(s.key);
+    };
+    r.parts.readUsage = async () => ({ error: "HTTP 401" });
+    const router = r.router();
+    await router.tick();
+    await router.tick();
+    assert.deepEqual([r.calls.recorded.length, r.calls.pushed.length], [0, 1]);
+    up = true;
+    await router.tick();
+    await router.tick();
+    assert.deepEqual([r.calls.recorded.length, r.calls.pushed.length], [1, 1]);
+    assert.equal(r.calls.recorded[0].key, r.calls.pushed[0].key);
+  });
+  test("a stop raised while the bridge is down is recorded once the bridge answers", async () => {
+    const r = rig({ readOrder: async () => "## Order\n- not a ref\n" });
+    let up = false;
+    r.parts.bridge.state = async () => {
+      if (!up) throw new Error("ECONNREFUSED");
+      return st();
+    };
+    r.parts.stops.record = async (s) => {
+      if (!up) throw new Error("the bridge is down");
+      r.calls.recorded.push(s);
+      r.known.push(s.key);
+    };
+    const router = r.router();
+    await router.tick();
+    up = true;
+    await router.tick();
+    await router.tick();
+    assert.deepEqual([r.calls.recorded.length, r.calls.pushed.length], [1, 1]);
+  });
+});
+
+describe("the bridge down is push-only, then recorded once it answers", () => {
+  const down = () => {
+    const r = rig();
+    let up = false;
+    r.parts.bridge.state = async () => {
+      if (!up) throw new Error("ECONNREFUSED");
+      return st([], 0);
+    };
+    return { r, answer: () => (up = true) };
+  };
+  test("no record is attempted through the down bridge; one 'was down for N minutes' stop is recorded when it answers, not pushed again", async () => {
+    const { r, answer } = down();
+    const router = r.router();
+    await router.tick();
+    r.clock.t += BRIDGE_DOWN_MS + 60_000;
+    await router.tick();
+    await router.tick();
+    assert.deepEqual([r.calls.recorded.length, r.calls.pushed.length], [0, 1]);
+    answer();
+    await router.tick();
+    await router.tick();
+    assert.equal(r.calls.pushed.length, 1);
+    assert.equal(r.calls.recorded.length, 1);
+    assert.equal(r.calls.recorded[0].kind, "bridge-down");
+    assert.match(r.calls.recorded[0].text, /was down for 1\d minutes/);
+  });
+  test("an outage under the threshold records nothing", async () => {
+    const { r, answer } = down();
+    const router = r.router();
+    await router.tick();
+    r.clock.t += 60_000;
+    answer();
+    await router.tick();
+    assert.deepEqual([r.calls.recorded.length, r.calls.pushed.length], [0, 0]);
+  });
+  test("a second outage is reported again", async () => {
+    const r = rig();
+    let up = false;
+    r.parts.bridge.state = async () => {
+      if (!up) throw new Error("ECONNREFUSED");
+      return st([], 0);
+    };
+    const router = r.router();
+    for (let i = 0; i < 2; i++) {
+      up = false;
+      await router.tick();
+      r.clock.t += BRIDGE_DOWN_MS + 1000;
+      await router.tick();
+      up = true;
+      r.clock.t += 1000;
+      await router.tick();
+    }
+    assert.deepEqual([r.calls.recorded.length, r.calls.pushed.length], [2, 2]);
+  });
+});
+
+describe("the live usage reading is read only when a start or resume is due", () => {
+  test("with nothing to start or resume, usage is not read and no stop is raised", async () => {
+    let reads = 0;
+    const r = rig({ readBoard: async () => [], readUsage: async () => (reads++, { error: "HTTP 429" }) });
+    await r.router().tick();
+    assert.equal(reads, 0);
+    assert.deepEqual([r.calls.recorded, r.calls.pushed], [[], []]);
+  });
+  test("with a ticket due it is read, once per tick", async () => {
+    let reads = 0;
+    const r = rig({ readUsage: async () => (reads++, { "5-hour": { percent: 10 }, source: "live", age_s: 0 }) });
+    await r.router().tick();
+    assert.equal(reads, 1);
+    assert.deepEqual(r.calls.start, [REF]);
+  });
+  test("a user-owned pause is still reported with no usage reading", async () => {
+    let reads = 0;
+    const r = rig({ readBoard: async () => [], readUsage: async () => (reads++, { error: "x" }) });
+    r.parts.stateNow = st([paused("visual-verdict")]);
+    await r.router().tick();
+    assert.deepEqual([reads, r.calls.pushed.length], [0, 1]);
   });
 });

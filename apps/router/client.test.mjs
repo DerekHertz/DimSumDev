@@ -14,7 +14,7 @@ import http from "node:http";
 import { mkdtemp, rm, stat, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createBridgeClient, readLiveUsage } from "./client.mjs";
+import { createBridgeClient, readLiveUsage, cachedReading } from "./client.mjs";
 import { ensureServiceToken, readServiceToken, serviceTokenPath } from "./service-token.mjs";
 
 describe("the bridge client", () => {
@@ -89,6 +89,47 @@ describe("the bridge client", () => {
     for (let i = 0; i < 50 && !got; i++) await new Promise((r) => setTimeout(r, 20));
     assert.ok(got >= 1);
     sub.close();
+  });
+  test("events() calls onEnd once when the server destroys the socket mid-stream, so the router can reconnect", async () => {
+    fresh(200, {});
+    sse = null;
+    let ends = 0;
+    const sub = createBridgeClient({ url, token: TOKEN }).events(() => {}, () => ends++);
+    for (let i = 0; i < 50 && !sse; i++) await new Promise((r) => setTimeout(r, 20));
+    sse.socket.destroy();
+    for (let i = 0; i < 50 && !ends; i++) await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(ends, 1);
+    sub.close();
+  });
+  test("events() calls onEnd once when the server ends the stream cleanly", async () => {
+    fresh(200, {});
+    sse = null;
+    let ends = 0;
+    createBridgeClient({ url, token: TOKEN }).events(() => {}, () => ends++);
+    for (let i = 0; i < 50 && !sse; i++) await new Promise((r) => setTimeout(r, 20));
+    sse.end();
+    for (let i = 0; i < 50 && !ends; i++) await new Promise((r) => setTimeout(r, 20));
+    await new Promise((r) => setTimeout(r, 100));
+    assert.equal(ends, 1);
+  });
+});
+
+describe("cachedReading", () => {
+  test("serves a reading, good or an error, for the ttl, then reads again", async () => {
+    let t = 0;
+    let n = 0;
+    const read = cachedReading(async () => ({ n: ++n }), { ttlMs: 180_000, now: () => t });
+    assert.deepEqual([await read(), await read()], [{ n: 1 }, { n: 1 }]);
+    t = 179_999;
+    assert.deepEqual(await read(), { n: 1 });
+    t = 180_000;
+    assert.deepEqual(await read(), { n: 2 });
+    const failing = cachedReading(async () => (n++, { error: "HTTP 429" }), { ttlMs: 180_000, now: () => t });
+    n = 0;
+    await failing();
+    await failing();
+    assert.equal(n, 1);
   });
 });
 

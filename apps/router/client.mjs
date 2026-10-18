@@ -1,9 +1,9 @@
 // den-mvp/88: the router's adapters to the far side: the bridge (client.test.mjs's header), the live usage read, the
 // router-stop requests (requests.jsonl, read here and written through the bridge) and the ntfy push.
 import { execFile } from "node:child_process";
-import { readFile } from "node:fs/promises";
 import http from "node:http";
 import path from "node:path";
+import { readRequestRows, ROUTER_STOP } from "../bridge/requests-log.mjs";
 
 export function createBridgeClient({ url, token }) {
   const origin = new URL(url).origin;
@@ -29,6 +29,8 @@ export function createBridgeClient({ url, token }) {
     /** Follows GET /events; onChange runs for each event message. close() ends it. */
     events(onChange, onEnd = () => {}) {
       let buffer = "";
+      let ended = false;
+      const end = () => void (ended || ((ended = true), onEnd())); // a clean end, a destroyed socket and a refused connection each reach it, once
       const req = http.get(`${origin}/events`, (res) => {
         res.setEncoding("utf8");
         res.on("data", (chunk) => {
@@ -40,10 +42,11 @@ export function createBridgeClient({ url, token }) {
             if (/^data:/m.test(message)) onChange(message);
           }
         });
-        res.on("end", onEnd);
+        res.on("end", end);
+        res.on("close", end);
       });
-      req.on("error", onEnd);
-      return { close: () => req.destroy() };
+      req.on("error", end);
+      return { close: () => ((ended = true), req.destroy()) };
     },
   };
 }
@@ -65,21 +68,27 @@ export async function readLiveUsage({ run = runNode, script = path.resolve("scri
 
 /** The keys of router-stop requests the board holds that still silence a stop (see knownStopKeys). */
 export async function readKnownStops(root) {
-  const text = await readFile(path.join(root, ".scratch", "_requests", "requests.jsonl"), "utf8").catch(() => "");
-  const rows = [];
-  for (const line of text.split("\n")) {
-    try {
-      if (line.trim()) rows.push(JSON.parse(line));
-    } catch {}
-  }
-  return knownStopKeys(rows);
+  return knownStopKeys(await readRequestRows(root));
+}
+
+/** read() served again for ttlMs, a failure ({ error }) included, so a cooldown or 429 is not hit on every tick. */
+export function cachedReading(read, { ttlMs, now = Date.now }) {
+  let at = -Infinity;
+  let value;
+  return async () => {
+    if (now() - at >= ttlMs) {
+      value = await read();
+      at = now();
+    }
+    return value;
+  };
 }
 
 // A pending stop is known. A dismissed one stays known only when its key names one occurrence (a pause); a dismissed
 // "usage-reading" or "order" stop that is still true comes back, since the router is still stuck.
 export function knownStopKeys(rows) {
   const handled = new Set(rows.filter((r) => typeof r?.handled === "string").map((r) => r.handled));
-  return rows.filter((r) => r?.kind === "router-stop" && typeof r.key === "string" && (!handled.has(r.id) || r.key.startsWith("pause:"))).map((r) => r.key);
+  return rows.filter((r) => r?.kind === ROUTER_STOP && typeof r.key === "string" && (!handled.has(r.id) || r.key.startsWith("pause:"))).map((r) => r.key);
 }
 
 /** A short push to the user's private ntfy topic. With no URL it does nothing. Errors never carry the URL. */

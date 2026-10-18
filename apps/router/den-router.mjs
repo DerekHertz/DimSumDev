@@ -6,12 +6,13 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { defaultReadBoard } from "../../scripts/batch-groups.mjs";
-import { createBridgeClient, pushNtfy, readKnownStops, readLiveUsage } from "./client.mjs";
+import { cachedReading, createBridgeClient, pushNtfy, readKnownStops, readLiveUsage } from "./client.mjs";
 import { createRouter } from "./router.mjs";
 import { readServiceToken } from "./service-token.mjs";
 
 const MIN_GAP_MS = 60_000;
 const EVERY_MS = 5 * 60_000;
+const USAGE_TTL_MS = 3 * 60_000; // the live usage API is not read more often, and a 429 or cooldown reading (an error) holds for as long
 const root = process.cwd();
 const stateDir = process.env.DEN_STATE_DIR;
 if (!stateDir || !path.isAbsolute(stateDir)) {
@@ -31,7 +32,7 @@ const router = createRouter({
   bridge,
   readOrder: () => readFile(orderFile, "utf8"),
   readBoard: async () => defaultReadBoard(),
-  readUsage: () => readLiveUsage({ script: path.join(root, "scripts", "usage.mjs") }),
+  readUsage: cachedReading(() => readLiveUsage({ script: path.join(root, "scripts", "usage.mjs") }), { ttlMs: USAGE_TTL_MS }),
   stops: {
     known: () => readKnownStops(root),
     record: async (stop) => {

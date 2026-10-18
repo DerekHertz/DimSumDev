@@ -44,8 +44,8 @@ export function foldRequests(rows) {
         req.handledAt = r.ts;
       }
     } else if (typeof r.id === "string" && !byId.has(r.id)) {
-      const { id, ts, kind, ref, note, key, stop } = r;
-      const req = { id, ts, kind, ref, ...(note !== undefined ? { note } : {}), ...(kind === ROUTER_STOP ? { key, stop } : {}), state: "pending" };
+      const { id, ts, kind, ref, note, key, stopKind } = r;
+      const req = { id, ts, kind, ref, ...(note !== undefined ? { note } : {}), ...(kind === ROUTER_STOP ? { key, stopKind } : {}), state: "pending" };
       byId.set(id, req);
       order.push(req);
     }

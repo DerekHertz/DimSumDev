@@ -41,7 +41,7 @@ const cleanDeep = (v) => (typeof v === "string" ? cleanText(v) : Array.isArray(v
 const canonical = (v) => (Array.isArray(v) ? v.map(canonical) : isPlainObj(v) ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canonical(v[k])])) : v);
 const sameJson = (a, b) => JSON.stringify(canonical(a)) === JSON.stringify(canonical(b));
 import { hasSecret } from "../../scripts/exposure.mjs";
-import { REQUEST_KINDS, appendRequestLine, foldRequests, readRequestRows } from "./requests-log.mjs";
+import { REQUEST_KINDS, ROUTER_STOP, appendRequestLine, foldRequests, readRequestRows } from "./requests-log.mjs";
 import { createHub } from "./watch.mjs";
 import { createUsageReading } from "./usage-reading.mjs";
 import { parseCatalog } from "./library/catalog.mjs";
@@ -455,7 +455,8 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     await appendRequestLine(root, request);
     reply(res, 201, { request });
   }
-  // POST /router-stops { key, kind, ref?, text }: one router-stop request; the same key twice is the first one, not a second.
+  // POST /router-stops { key, kind, ref?, text }: one router-stop request; the same key while one is pending is that one, not a second.
+  // A dismissed one no longer counts, so a stop that is still true comes back as a new row.
   async function postRouterStop(req, res) {
     const body = await readJsonObject(req, res);
     if (!body) return;
@@ -464,16 +465,20 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     if (!short(key, 300) || !short(kind, 40) || !/^[a-z-]+$/.test(kind) || !short(text, 500) || (ref !== undefined && !short(ref, 200))) {
       return reply(res, 400, { error: "a router stop needs key, kind (a-z and -) and text, and an optional ref, all short strings" });
     }
-    const existing = (await readRequestRows(root)).find((r) => r.kind === "router-stop" && r.key === key);
+    if ([key, text, ref].some((v) => typeof v === "string" && hasSecret(v))) return reply(res, 400, { error: "a router stop looks like it holds a secret; nothing was written" });
+    const existing = foldRequests(await readRequestRows(root)).find((r) => r.kind === ROUTER_STOP && r.state === "pending" && r.key === key);
     if (existing) return reply(res, 200, { request: existing });
-    const request = { id: randomUUID(), ts: new Date().toISOString(), kind: "router-stop", ref: ref ?? null, note: text, key, stop: kind };
+    const request = { id: randomUUID(), ts: new Date().toISOString(), kind: ROUTER_STOP, ref: ref ?? null, note: cleanText(text), key, stopKind: kind };
     await appendRequestLine(root, request);
     reply(res, 201, { request });
   }
   async function dismissRouterStop(req, res) {
     if (!(await readJsonObject(req, res))) return; // the body is unused, but the size cap and JSON check apply as on every POST
-    const id = decodeURIComponent(new URL(req.url, "http://x").pathname.split("/")[2]);
-    const pending = foldRequests(await readRequestRows(root)).find((r) => r.id === id && r.kind === "router-stop" && r.state === "pending");
+    let id = null;
+    try {
+      id = decodeURIComponent(new URL(req.url, "http://x").pathname.split("/")[2]);
+    } catch {} // a malformed % matches no stop
+    const pending = foldRequests(await readRequestRows(root)).find((r) => r.id === id && r.kind === ROUTER_STOP && r.state === "pending");
     if (!pending) return reply(res, 404, { error: "no such router stop waiting" });
     await appendRequestLine(root, { handled: id, ts: new Date().toISOString(), outcome: "dismissed" });
     reply(res, 200, { ok: true });

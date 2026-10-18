@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import { needsYouModel } from "./overlay-model.mjs";
 import { createBridgeClient } from "../state/bridge-client.mjs";
 
-const stop = (extra = {}) => ({ id: "r-1", ts: "2026-10-17T10:00:00Z", kind: "router-stop", ref: "den-mvp/90-x", note: "90-x needs your answer: a visual verdict", key: "pause:d-1:visual-verdict:t", stop: "visual-verdict", state: "pending", ...extra });
+const stop = (extra = {}) => ({ id: "r-1", ts: "2026-10-17T10:00:00Z", kind: "router-stop", ref: "den-mvp/90-x", note: "90-x needs your answer: a visual verdict", key: "pause:d-1:visual-verdict:t", stopKind: "visual-verdict", state: "pending", ...extra });
 
 test("a pending router-stop is a Needs you request that names the stop and carries the id the dismiss needs", () => {
   const { count, requests } = needsYouModel({ tickets: [], requests: [stop()] }, 0);
@@ -24,7 +24,7 @@ test("a handled router-stop, and a gate request, are not router-stop cards", () 
 });
 
 test("a stop with no ref still shows", () => {
-  const { requests } = needsYouModel({ tickets: [], requests: [stop({ ref: null, stop: "bridge-down", note: "the bridge has been down for 10 minutes" })] }, 0);
+  const { requests } = needsYouModel({ tickets: [], requests: [stop({ ref: null, stopKind: "bridge-down", note: "the bridge has been down for 10 minutes" })] }, 0);
   assert.equal(requests.length, 1);
   assert.match(requests[0].title, /bridge has been down/);
 });

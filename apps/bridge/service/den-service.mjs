@@ -25,7 +25,7 @@ export const ROUTER_UNIT_NAME = "den-router.service";
 const ROUTER_TEMPLATE = fileURLToPath(new URL("../../router/den-router.service", import.meta.url));
 const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 // den-mvp/88: the router's files, copied with their layout to <state>/router, so its imports resolve there as here.
-const ROUTER_FILES = ["den-router", "router", "decide", "order", "client", "service-token"].map((n) => `apps/router/${n}.mjs`).concat("scripts/batch-groups.mjs", "packages/board-refs/src/compare-refs.mjs");
+export const ROUTER_FILES = ["den-router", "router", "decide", "order", "client", "service-token"].map((n) => `apps/router/${n}.mjs`).concat("apps/bridge/requests-log.mjs", "scripts/batch-groups.mjs", "packages/board-refs/src/compare-refs.mjs");
 const NTFY_URL = /^https?:\/\/[A-Za-z0-9.-]+(?::\d+)?\/[A-Za-z0-9._~/-]+$/;
 
 // Asks once, on a terminal; elsewhere (a test, a pipe) it asks nothing and push stays off.

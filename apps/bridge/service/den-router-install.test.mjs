@@ -112,3 +112,22 @@ describe("den:install and the router", () => {
     assert.equal(sysCalls.some((c) => c.includes("den-router")), false, sysCalls.join(" | "));
   });
 });
+
+describe("the installed router copy", () => {
+  // The router runs from a copy of ROUTER_FILES outside the checkout, so a relative import of a file not in the list breaks it
+  // at start-up. This follows every relative import from den-router.mjs and asks that each file is copied.
+  test("ROUTER_FILES holds every file the router imports, however deep", async () => {
+    const repo = path.resolve(import.meta.dirname, "../../..");
+    const seen = new Set();
+    const walk = async (rel) => {
+      if (seen.has(rel)) return;
+      seen.add(rel);
+      const src = await readFile(path.join(repo, rel), "utf8");
+      for (const m of src.matchAll(/(?:from|import\()\s*["'](\.{1,2}\/[^"']+)["']/g)) await walk(path.relative(repo, path.resolve(repo, path.dirname(rel), m[1])));
+    };
+    await walk("apps/router/den-router.mjs");
+    assert.ok(seen.size > 6, `walked ${[...seen].join(", ")}`);
+    const missing = [...seen].filter((f) => !service.ROUTER_FILES.includes(f));
+    assert.deepEqual(missing, [], "copy these in ROUTER_FILES (den-service.mjs)");
+  });
+});
