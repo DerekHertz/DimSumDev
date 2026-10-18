@@ -13,6 +13,7 @@ import path from "node:path";
 import { createAuth, SESSION_CAP } from "./auth.mjs";
 import { ROUTES } from "./routes.mjs";
 import { startBridge } from "./server.mjs";
+import { createFakeRuntime } from "./cells/runtime.mjs";
 import { makeStateFixture, FEATURE } from "./bridge-fixture.mjs";
 import { CODE, origin, send, login, authed } from "./bridge-auth-helpers.mjs";
 
@@ -56,7 +57,7 @@ describe("over HTTP", () => {
   beforeEach(async () => {
     fx = await makeStateFixture({ git: true });
     const gitHost = { mainSha: async () => execFileSync("git", ["-C", fx.root, "rev-parse", "HEAD"], { encoding: "utf8" }).trim() };
-    bridge = await startBridge({ root: fx.root, port: 0, auth: { launchCode: CODE, serviceToken: SERVICE }, gitHost, denState: path.join(fx.root, ".den-state"), checks: { run: async () => ({}), recent: async () => [], running: () => [] } });
+    bridge = await startBridge({ root: fx.root, port: 0, auth: { launchCode: CODE, serviceToken: SERVICE }, gitHost, denState: path.join(fx.root, ".den-state"), checks: { run: async () => ({}), recent: async () => [], running: () => [] }, runtime: createFakeRuntime({ send: true, cancel: true }) });
     session = await login(bridge);
   });
   afterEach(async () => {
