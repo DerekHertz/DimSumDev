@@ -83,10 +83,10 @@ test("herald may run scripts/draft-check.mjs and no other Bash", () => {
   assert.doesNotMatch(front("herald").body, /hold no Bash/);
 });
 
-test("developer and designer list no Blender or socket tools", () => {
-  for (const a of ["developer", "designer"]) {
-    assert.deepEqual(front(a).tools.filter((t) => /^mcp__(blender|socket)/.test(t)), [], a);
-  }
+// mcp__socket stays on developer: the connections catalog grants it and catalog.test.mjs (den-mvp/36) pins that; the user decides.
+test("developer and designer list no Blender tools, and designer no socket", () => {
+  for (const a of ["developer", "designer"]) assert.deepEqual(front(a).tools.filter((t) => /^mcp__blender/.test(t)), [], a);
+  assert.deepEqual(front("designer").tools.filter((t) => /^mcp__socket/.test(t)), []);
   assert.doesNotMatch(front("developer").body, /mcp__blender/);
   assert.doesNotMatch(front("designer").body, /with the Blender tools/);
 });

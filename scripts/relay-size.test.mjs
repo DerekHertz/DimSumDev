@@ -65,7 +65,7 @@ test("every guardrail path risk-check hits is on the named risk path", () => {
   const src = read("scripts/risk-check.mjs");
   const paths = [...src.matchAll(/^\s*\["(apps\/[^"]+\.json)"/gm)].map((m) => m[1]);
   assert.ok(paths.length >= 3, `found ${paths.length} guardrail paths in risk-check`);
-  for (const p of paths) assert.ok(section().includes(path.basename(p)), `Relay size does not name ${p}`);
+  for (const p of paths) assert.ok(section().includes(path.basename(p, ".json")), `Relay size does not name ${p}`);
 });
 
 test("the light path ends with security on a hit, and a doubt takes the full relay", () => {
