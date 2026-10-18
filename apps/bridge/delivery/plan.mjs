@@ -3,7 +3,7 @@
 // only while that commit is still the candidate, so a changed commit asks for each check again.
 //
 //   nextStep(job) -> { kind: "run", role, mode?, at, since, fix? }      start an agent at commit `at`
-//                  | { kind: "check" | "tests" | "preview" | "sync" | "publish" | "ci" | "merge" | "go-live" | "resolve" }   a bridge operation
+//                  | { kind: "guard" | "check" | "tests" | "preview" | "sync" | "publish" | "ci" | "merge" | "go-live" | "resolve" }   a bridge operation
 //                  | { kind: "pause", pause, reason, next }             wait for the user
 //   job = { base, candidate: { sha } | null, bounces, visual, localChecks?, evidence: { qa, security, risk, tests, preview, verdict, pr, ci, live } }
 // den-mvp/34: with localChecks, the bridge runs the checks of ci.yml here (delivery/checks.mjs) after the scripted risk
@@ -62,7 +62,7 @@ export function nextStep(job) {
   const ev = job.evidence ?? {};
   const now = (e) => (e && e.sha === c.sha ? e : null);
   const [qa, security, risk, pr, ci] = [now(ev.qa), now(ev.security), now(ev.risk), now(ev.pr), now(ev.ci)];
-  const [preview, verdict, live, tests, sync] = [now(ev.preview), now(ev.verdict), now(ev.live), now(ev.tests), now(ev.sync)];
+  const [preview, verdict, live, tests, sync, guard] = [now(ev.preview), now(ev.verdict), now(ev.live), now(ev.tests), now(ev.sync), now(ev.guard)];
 
   // The user declined this commit: the developer runs again with their note, however many times. Not a bounce.
   if (verdict?.ok === false) return { kind: "run", role: "developer", at: c.sha, since: job.base, fix: true };
@@ -72,6 +72,8 @@ export function nextStep(job) {
     if (job.bounces >= MAX_BOUNCES) return pause("failed-twice", "the review sent the work back twice", "Read the findings on the ticket, then Resume for one more round or close the delivery.");
     return { kind: "run", role: "developer", at: c.sha, since: job.base, fix: true };
   }
+  // den-mvp/70: the test guard hits go to the verifier, so it runs first. A hit blocks nothing by itself.
+  if (job.testGuard === true && !guard) return { kind: "guard" };
   if (!qa) return { kind: "run", role: "qa", mode: "verify", at: c.sha, since: job.base };
   if (!risk) return { kind: "check" };
   if (risk.secret) return pause("possible-secret", "the change adds a line or a file that looks like a secret; nothing was pushed", "Look at the commit yourself. Close the delivery if it holds a secret.");

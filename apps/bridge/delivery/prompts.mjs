@@ -51,7 +51,7 @@ const SHARED =
   WORK_TIPS;
 
 /** { role, mode?, ref, ticketFile, since, fix?, note? } -> the step's prompt. `since` is the commit the delivery started from. */
-export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false, note = false }) {
+export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false, note = false, guard = false }) {
   const head = `You are the ${role} cell${mode ? ` in ${mode} mode` : ""} for ticket ${ref}. Read .claude/agents/${role}.md for how to work, with these changes. ${SHARED}The ticket is the file ${ticketFile}. ${note ? "The user left you a note when they resumed this delivery: it is at the top of .den/findings.md. Read it first and follow it. " : ""}`;
   if (role === "developer") {
     return (
@@ -62,11 +62,12 @@ export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false
       "If the change alters what the den looks like, end the report with a `Look at:` line and a list under it: for each visible change, one line saying where in the den to find it and what should look different. The user reads that list beside the preview."
     );
   }
+  const guardNote = guard ? "The bridge's test guard flagged changes that may weaken the tests: they are listed in .den/findings.md under 'Test guard'. For each one, say in your findings whether you accept it and why, or bounce it. " : "";
   const scope = role === "security" ? "for security: what it lets an agent, a request or untrusted text do that it could not do before" : "against the ticket's acceptance criteria, independently of the developer's own report";
   return (
     head +
     `Review the commit checked out here ${scope}. The change is \`git diff ${since}..HEAD\`. Run the checks that cover the change yourself; the full suite runs on the pull request, so do not run it here. ` +
-    "Change no file and commit nothing: a review that moves the commit is not counted. " +
+    guardNote + "Change no file and commit nothing: a review that moves the commit is not counted. " +
     "End with your findings, each one concrete enough to fix, and then, on a line of its own, `VERDICT: pass` or `VERDICT: bounce`. That last message is your handoff."
   );
 }

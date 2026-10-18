@@ -18,6 +18,7 @@ const DIFF_MAX = 32 * 1024 * 1024;
 const SECRET_FILE_RE = /^(?:\.env(?:\.(?!example$|sample$|template$)[^/]*)?|.*\.(?:pem|key|p12|pfx)|id_(?:rsa|dsa|ecdsa|ed25519))$/i;
 const NO_CHECKS_TRIES = 6; // a new pull request's checks take a moment to be registered
 const NO_CHECKS_WAIT_MS = 10000;
+const GUARD_TIMEOUT_MS = 5 * 60 * 1000; // the whole guard: static pass, the box start and the rerun's own 60 s limit
 const PASSED = ["SUCCESS", "NEUTRAL", "SKIPPED"];
 
 const commit = (v, what) => {
@@ -36,7 +37,7 @@ const idOf = (v, what) => {
   if (typeof v !== "string" || !/^[1-9][0-9]{0,19}$/.test(v)) throw new TypeError(`git host: not a ${what} id`);
   return v;
 };
-const oneLine = (v, max) => String(v ?? "").replace(/[\u0000-\u001f\u007f-\u009f‎‏‪-‮⁦-⁩]/g, " ").trim().slice(0, max);
+const oneLine = (v, max) => String(v ?? "").replace(/[\u0000-\u001f\u007f-\u009f‎‏‪-‮⁦-⁩\u2028\u2029]/g, " ").trim().slice(0, max);
 
 // One check of a pull request, from either shape the git host reports. -> { name, done, ok }
 const checkOf = (raw) => {
@@ -51,7 +52,7 @@ const watchedCheckOf = (raw) => {
   return { ...checkOf(raw), cancelled: raw?.conclusion === "CANCELLED", runId: link?.[1] ?? null, jobId: link?.[2] ?? null };
 };
 
-export function createGitHost(root, { exec = execFileP, remote = "origin", main = "main", riskScript = path.join(root, "scripts", "risk-check.mjs"), env = process.env, waitMs = NO_CHECKS_WAIT_MS } = {}) {
+export function createGitHost(root, { exec = execFileP, remote = "origin", main = "main", riskScript = path.join(root, "scripts", "risk-check.mjs"), guardScript = path.join(root, "scripts", "test-guard.mjs"), env = process.env, waitMs = NO_CHECKS_WAIT_MS } = {}) {
   if (!NAME_RE.test(remote) || !NAME_RE.test(main)) throw new TypeError("git host: bad remote or branch name");
   const quiet = { ...env, GIT_TERMINAL_PROMPT: "0", GH_PROMPT_DISABLED: "1", NO_COLOR: "1" };
   const git = async (...args) => String((await exec("git", ["-C", root, ...args], { env: quiet, maxBuffer: DIFF_MAX })).stdout);
@@ -119,6 +120,34 @@ export function createGitHost(root, { exec = execFileP, remote = "origin", main 
         if (!Number.isInteger(err?.code) || err.code === 0) throw err;
         return { clean: false, hits: String(err.stdout ?? "").split("\n").map((l) => oneLine(l, 300)).filter(Boolean).slice(0, 50) };
       }
+    },
+    /**
+     * den-mvp/70: the test-tamper guard, run from the bridge's own checkout on the change. Its hits go to the verifier; none
+     * blocks. The changed tests run only inside bubblewrap (--require-box), under a time limit. A crash (not exit 0 or 1) throws.
+     */
+    async guard({ base, sha }) {
+      const range = `${commit(base, "base")}...${commit(sha, "sha")}`;
+      if (!(await access(guardScript).then(() => true, () => false))) return { hits: ["no test guard here: the verifier checks the tests by hand"] };
+      const noResult = (why) => ({ hits: [`(guard): the test guard did not give a result (${oneLine(why, 150)}): the verifier checks the tests by hand`] });
+      let code = 0;
+      let stdout = "";
+      let why = "";
+      try {
+        ({ stdout } = await exec(process.execPath, [guardScript, range, "--json"], { cwd: root, env: quiet, maxBuffer: 4 * 1024 * 1024, timeout: GUARD_TIMEOUT_MS, killSignal: "SIGKILL" }));
+      } catch (err) {
+        if (err?.killed || err?.signal === "SIGKILL") return { hits: [`(guard): the test guard did not finish in ${GUARD_TIMEOUT_MS / 1000} s: the verifier checks the tests by hand`] };
+        code = Number.isInteger(err?.code) ? err.code : -1;
+        stdout = err?.stdout;
+        why = `exit ${code}: ${String(err?.stderr || err?.message || "")}`;
+      }
+      // The result is the JSON the script printed alone on stdout; a file name cannot forge it. A failure without one is a hit.
+      let result = null;
+      try {
+        result = JSON.parse(String(stdout ?? ""));
+      } catch {}
+      const listed = Array.isArray(result?.hits) && result.hits.every((h) => typeof h?.file === "string" && typeof h?.reason === "string");
+      if (!listed || (code !== 0 && result.hits.length === 0)) return noResult(why || "no JSON on stdout");
+      return { hits: result.hits.map((h) => oneLine(`${h.file}: ${h.reason}`, 300)).slice(0, 50) };
     },
     /** Puts exactly this commit on the remote branch. A branch that has moved elsewhere is not forced. */
     async push({ branch, sha }) {

@@ -37,10 +37,11 @@ const KEPT = 30; // ended deliveries kept in the snapshot
 const PLAN_STEPS_MAX = 12; // bridge operations in a row before the runner stops and says the plan did not move
 const NOTE_MAX_BYTES = 2000; // the user's note with a decline, or with a Resume
 const FINDINGS_MAX = 16000;
+const GUARD_HITS_IN_BODY = 10;
 const refuse = (status, error) => ({ ok: false, status, error });
 // An error's text as the den may show it: one line, no credential a remote URL carried, nothing that looks like a secret.
 const errorText = (err) => {
-  const text = String(err?.stderr || err?.message || err).replace(/[\u0000-\u001f\u007f-\u009f‎‏‪-‮⁦-⁩]+/g, " ").replace(/\/\/[^@\s/]+@/g, "//").trim().slice(0, 300);
+  const text = String(err?.stderr || err?.message || err).replace(/[\u0000-\u001f\u007f-\u009f‎‏‪-‮⁦-⁩\u2028\u2029]+/g, " ").replace(/\/\/[^@\s/]+@/g, "//").trim().slice(0, 300);
   return hasSecret(text) ? "[masked: possible secret]" : text;
 };
 
@@ -98,6 +99,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     const now = (e) => (j.candidate && e?.sha === j.candidate.sha ? e : null); // evidence counts for the candidate only
     const risk = now(j.evidence.risk);
     const tests = now(j.evidence.tests);
+    const guard = now(j.evidence.guard);
     return {
       id: j.id, ref: j.ref, title: j.title, state: j.state, step: j.step, pause: j.pause, base: j.base, branch: j.branch,
       candidate: j.candidate ? { sha: j.candidate.sha } : null, bounces: j.bounces, live: j.live ? { runId: j.live.runId, role: j.live.role, mode: j.live.mode } : null,
@@ -105,6 +107,8 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
         qa: now(j.evidence.qa)?.verdict ?? null, security: now(j.evidence.security)?.verdict ?? null,
         risk: risk ? { clean: risk.clean, hits: risk.hits, security: risk.security, userMerge: risk.userMerge } : null,
         ci: now(j.evidence.ci)?.state ?? null,
+        // den-mvp/70: what the test guard flagged on this commit, for the verifier to accept or bounce.
+        ...(guard ? { guard: { hits: guard.hits } } : {}),
         // den-mvp/34: the local run of ci.yml's checks, and what of this machine differs from GitHub's runner.
         tests: tests ? { state: tests.state, record: tests.record, reason: tests.reason ?? null, failed: tests.failed ?? [], flaky: tests.flaky ?? [], commands: tests.commands ?? [], differences: tests.differences ?? [] } : null,
       },
@@ -205,7 +209,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     if ([...jobs.values()].some((j) => j.ref === ref && live(j))) return refuse(409, "this ticket already has a delivery; resume or close it");
     const job = {
       id: `d-${randomBytes(8).toString("hex")}`, ref, title: ticket.title ?? "", type: ticket.type, visual: VISUAL_TYPES.includes(ticket.type), state: "running", pause: null, step: null,
-      base, branch: null, candidate: null, evidence: { qa: null, security: null, risk: null, tests: null, pr: null, ci: null, verdict: null, preview: null, live: null }, localChecks: Boolean(checks), bounces: 0, declines: 0, findings: null, ciRerun: null, ciBounced: null,
+      base, branch: null, candidate: null, evidence: { qa: null, security: null, risk: null, tests: null, pr: null, ci: null, verdict: null, preview: null, live: null }, localChecks: Boolean(checks), testGuard: typeof git.guard === "function", bounces: 0, declines: 0, findings: null, ciRerun: null, ciBounced: null,
       live: null, claimed: false, runs: [], pr: null, startedAt: new Date().toISOString(), updatedAt: null, gen: 0,
     };
     jobs.set(job.id, job);
@@ -230,7 +234,8 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       await save(job);
       const gen = job.gen;
       try {
-        if (next.kind === "check") await check(job, gen);
+        if (next.kind === "guard") await testGuard(job, gen);
+        else if (next.kind === "check") await check(job, gen);
         else if (next.kind === "tests") await localTests(job, gen);
         else if (next.kind === "preview") await preview(job, gen);
         else if (next.kind === "go-live") await goLive(job, gen);
@@ -242,7 +247,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
         else if (next.kind === "resolve") return await resolveTicket(job, gen);
       } catch (err) {
         console.error(`bridge: delivery ${job.id} could not ${next.kind}: ${err?.message ?? err}`);
-        const kind = { check: "environment", tests: "environment", preview: "environment", "go-live": "go-live-failed" }[next.kind] ?? "publish-failed";
+        const kind = { guard: "environment", check: "environment", tests: "environment", preview: "environment", "go-live": "go-live-failed" }[next.kind] ?? "publish-failed";
         const what = { tests: "run the checks here", ci: "read the checks", "ci-rerun": "run the timed-out checks again", preview: "build the preview", "go-live": "put the change live" }[next.kind] ?? next.kind;
         if (job.gen === gen) await pause(job, kind, `could not ${what}: ${errorText(err)}`, "Resume to try again: the bridge looks at what is there first.");
         return;
@@ -252,7 +257,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
 
   async function startRun(job, next) {
     const { role, mode } = next;
-    const started = await host.start({ ref: job.ref, role, ...(mode ? { mode } : {}), delivery: { at: next.at, since: next.since, ...(next.fix ? { findings: job.findings ?? "(the review left no findings text)" } : {}), ...(job.note ? { note: job.note } : {}) } });
+    const started = await host.start({ ref: job.ref, role, ...(mode ? { mode } : {}), delivery: { at: next.at, since: next.since, ...(next.fix ? { findings: job.findings ?? "(the review left no findings text)" } : {}), ...(job.note ? { note: job.note } : {}), ...(role !== "developer" && guardHits(job).length ? { guard: guardHits(job) } : {}) } });
     if (!started.ok) {
       const kind = started.status === 429 ? (/usage/.test(started.error) ? "usage" : "no-room") : started.status === 409 ? "busy" : "environment";
       return pause(job, kind, started.error, kind === "no-room" ? "It starts by itself when a run ends, or on Resume." : "Resume once that has changed.");
@@ -337,6 +342,16 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       return pause(job, "board", `the board refused the ${role} handoff (${short}): ${errorText(err)}`, "Resume to go on from the recorded commit.");
     }
     await advance(job);
+  }
+
+  // den-mvp/70: the test guard on the candidate, before any verifier sees it. Its hits block nothing; the verifier's brief lists them.
+  const guardHits = (j) => (j.candidate && j.evidence.guard?.sha === j.candidate.sha ? j.evidence.guard.hits : []);
+  async function testGuard(job, gen) {
+    const range = { base: job.base, sha: job.candidate.sha };
+    const found = await git.guard(range);
+    if (job.gen !== gen) return;
+    job.evidence.guard = { sha: range.sha, hits: found.hits.slice(0, 50).map((h) => errorText(h)) };
+    await save(job);
   }
 
   // The scripted checks of the candidate, run by the bridge from its own checkout.
@@ -435,6 +450,17 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     await save(job);
   }
 
+  // The guard's hits, the first ten of them: they are text from the candidate's own tests, so each goes through errorText.
+  // Each is a code span, so markdown, an HTML comment, a link or a mention in it does nothing: the fence is longer than any backtick run inside.
+  const inert = (text) => {
+    const fence = "`".repeat(Math.max(0, ...(text.match(/`+/g) ?? []).map((r) => r.length)) + 1);
+    return fence.length === 1 ? `${fence}${text}${fence}` : `${fence} ${text} ${fence}`;
+  };
+  const guardLines = (hits) =>
+    hits.length
+      ? [`- Test guard: ${hits.length} hit(s) listed for the verifier`, ...hits.slice(0, GUARD_HITS_IN_BODY).map((h) => `  - ${inert(errorText(h))}`), ...(hits.length > GUARD_HITS_IN_BODY ? [`  - and ${hits.length - GUARD_HITS_IN_BODY} more`] : [])]
+      : ["- Test guard: clean"];
+
   const prBody = (job) =>
     [
       `Delivered from the den for ticket \`${job.ref}\`.`, "",
@@ -442,6 +468,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       `- qa verify: ${job.evidence.qa.verdict} (run ${job.evidence.qa.runId})`,
       `- Risk check: ${job.evidence.risk.clean ? "clean" : `${job.evidence.risk.hits} hit(s)`}${job.evidence.risk.userMerge ? "; touches a guardrail, bridge or check path: the user reviews and merges" : ""}`,
       // The local run is advisory (the commit's own test scripts ran it), so only its state and counts are written here.
+      ...(job.evidence.guard?.sha === job.candidate.sha ? guardLines(job.evidence.guard.hits) : []),
       ...(job.evidence.tests?.sha === job.candidate.sha ? [`- Checks run on the den's machine (advisory; GitHub CI is the gate): ${job.evidence.tests.state}${job.evidence.tests.flaky?.length ? `, ${job.evidence.tests.flaky.length} test(s) passed only when run again` : ""} (record \`${job.evidence.tests.record}\`)`] : []),
       ...(job.evidence.security?.sha === job.candidate.sha ? [`- Security review: ${job.evidence.security.verdict} (run ${job.evidence.security.runId})`] : []),
       "", "The handoffs are on the board. The bridge opened this pull request; no agent holds git-host credentials.",

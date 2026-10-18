@@ -31,6 +31,14 @@ describe("the delivery plan", () => {
     assert.equal(nextStep(job({ ...passed, tests: { sha: SHA, state: "red" } }, { localChecks: true, bounces: MAX_BOUNCES })).pause, "failed-twice");
   });
 
+  // den-mvp/70: with the test guard on, it runs on the candidate before any verifier sees it.
+  test("the test guard runs before qa verifies, once per candidate, and only for a job that has it", () => {
+    assert.deepEqual(nextStep(job({}, { testGuard: true })), { kind: "guard" });
+    assert.deepEqual(nextStep(job({ guard: { sha: OLD, hits: [] } }, { testGuard: true })), { kind: "guard" });
+    assert.deepEqual(nextStep(job({ guard: { sha: SHA, hits: ["a.test.mjs: test file deleted"] } }, { testGuard: true })), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE });
+    assert.deepEqual(nextStep(job({}, {})), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE });
+  });
+
   const rows = [
     ["no candidate: a developer at the base", { base: BASE, candidate: null, bounces: 0, evidence: {} }, { kind: "run", role: "developer", at: BASE, since: BASE }],
     ["a candidate: qa verifies it", job(), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE }],
@@ -266,6 +274,47 @@ describe("the git-host operations", () => {
     };
     return { calls, git: createGitHost("/repo", { exec, waitMs: 1, riskScript: "/nonexistent/risk-check.mjs" }) };
   }
+
+  // den-mvp/70: the test guard is run like the risk check, with the box required for the changed tests.
+  test("the test guard: clean, hits without its own header and notes, a crash, and no script", async () => {
+    const run = (answer) => {
+      const calls = [];
+      const exec = async (file, args, options) => {
+        calls.push([file, ...args, options]);
+        if (answer instanceof Error) throw answer;
+        return { stdout: answer, stderr: "" };
+      };
+      return { calls, git: createGitHost("/repo", { exec, guardScript: new URL(import.meta.url).pathname }) };
+    };
+    const guard = (g) => g.git.guard({ base: BASE, sha: SHA });
+    const json = (hits, notes = []) => JSON.stringify({ hits, notes });
+    const clean = run(json([]));
+    assert.deepEqual(await guard(clean), { hits: [] });
+    assert.deepEqual(clean.calls[0].slice(1, 4), [new URL(import.meta.url).pathname, `${BASE}...${SHA}`, "--json"]);
+    // M2: the run has a time limit and is killed hard.
+    const options = clean.calls[0].at(-1);
+    assert.ok(options.timeout >= 60_000 && options.timeout <= 600_000, `timeout ${options.timeout}`);
+    assert.equal(options.killSignal, "SIGKILL");
+    // M3: the hits come from the JSON, so a file named like a note is still a hit, and notes are not hits.
+    const hits = [{ file: "test-guard: x.test.mjs", reason: "skip, todo or only added: test.skip" }, { file: "(guard)", reason: "can't-fail check not run: no bubblewrap" }];
+    const hit = run(Object.assign(new Error("x"), { code: 1, stdout: json(hits, ["test-guard: not rerun (browser test): b.test.mjs"]) }));
+    assert.deepEqual(await guard(hit), { hits: ["test-guard: x.test.mjs: skip, todo or only added: test.skip", "(guard): can't-fail check not run: no bubblewrap"] });
+    // L5: a failure with nothing to read, or output that is not the result, is a hit and not clean.
+    for (const bad of [Object.assign(new Error("boom"), { code: 1, stdout: "" }), Object.assign(new Error("bad range"), { code: 2, stdout: "", stderr: "no" }), Object.assign(new Error("x"), { code: 1, stdout: "test-guard: clean\n" })]) {
+      const r = await guard(run(bad));
+      assert.equal(r.hits.length, 1);
+      assert.match(r.hits[0], /^\(guard\): the test guard did not give a result/);
+    }
+    assert.match((await guard(run("test-guard: clean\n"))).hits[0], /did not give a result/); // exit 0 with no JSON
+    assert.match((await guard(run(json("nope")))).hits[0], /did not give a result/);
+    // M2: a run killed at the time limit is a hit.
+    const killed = await guard(run(Object.assign(new Error("timed out"), { killed: true, signal: "SIGKILL", code: null, stdout: "" })));
+    assert.match(killed.hits[0], /^\(guard\): the test guard did not finish in \d+ s/);
+    // L8: line and paragraph separators in a hit are blanks.
+    assert.deepEqual(await guard(run(json([{ file: "a.test.mjs", reason: "x\u2028y\u2029z" }]))), { hits: ["a.test.mjs: x y z"] });
+    const none = createGitHost("/repo", { exec: async () => ({ stdout: "" }), guardScript: "/nonexistent/test-guard.mjs" });
+    assert.match((await none.guard({ base: BASE, sha: SHA })).hits[0], /no test guard here/);
+  });
 
   test("each operation is one fixed argument list over checked values", async () => {
     const t = host({ "pr list": [{ number: 9, url: "https://github.com/o/r/pull/9", state: "OPEN", headRefOid: SHA }], "rev-parse": `${SHA}\n` });

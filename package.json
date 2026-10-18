@@ -18,6 +18,7 @@
     "smoke:ui": "node apps/ci-cd/smoke-ui.mjs",
     "smoke:live": "node apps/bridge/cells/conformance.mjs --spike Live",
     "risk-check": "node scripts/risk-check.mjs",
+    "test-guard": "node scripts/test-guard.mjs",
     "check:bom": "node scripts/bom-check.mjs",
     "board": "node apps/organism-infra/board.mjs",
     "queue": "node scripts/queue.mjs",

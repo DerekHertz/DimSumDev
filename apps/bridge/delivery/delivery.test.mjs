@@ -170,6 +170,46 @@ describe("one approved job, from the den to a merged pull request", () => {
     assert.deepEqual(done.runs.map((r) => [r.role, r.state]), [["developer", "done"], ["qa", "done"]]);
   });
 
+  // den-mvp/70: the test guard runs on the candidate before qa verifies; its hits reach the verifier's brief, the delivery's
+  // evidence and the pull request, and block nothing.
+  // M4: a hit is text from the candidate's own tests, so the pull request shows it as inert code.
+  test("a hit with markdown, HTML, a mention or a link in it is shown in the pull request as code", async () => {
+    const t = await setup();
+    const hostile = 'a.test.mjs: skip, todo or only added: test.skip("<!-- @octocat [x](http://e.test) #123 `tick` ``two``\u2028", () => {})';
+    t.git.guard = async () => ({ hits: [hostile, "b.test.mjs: test file deleted"] });
+    await t.start();
+    t.work(await t.spawn(0), { commit: "feature.txt", say: "Added feature.txt." });
+    const qa = await t.spawn(1);
+    t.work(qa, { say: "Accepted.\nVERDICT: pass" });
+    await t.when((j) => j.state === "merged", "the delivery to merge");
+    const body = t.git.calls.find((c) => c[0] === "openPr")[1].body;
+    const lines = body.split("\n").filter((l) => l.startsWith("  - "));
+    assert.equal(lines.length, 2);
+    // A code span whose fence is longer than any backtick run inside it, padded with a space on each side.
+    assert.equal(lines[0], '  - ``` a.test.mjs: skip, todo or only added: test.skip("<!-- @octocat [x](http://e.test) #123 `tick` ``two`` ", () => {}) ```');
+    assert.equal(lines[1], "  - `b.test.mjs: test file deleted`");
+    assert.equal(body.split("\n").filter((l) => l.includes("<!--") && !l.startsWith("  - ")).length, 0, "no comment opener outside a code span");
+  });
+
+  test("the test guard's hits reach the verifier's brief and the check record, and block nothing", async () => {
+    const t = await setup();
+    const hits = ["a.test.mjs: test file deleted", "b.test.mjs: can't fail: \"x\" passes on the merge base", ...Array.from({ length: 10 }, (_, i) => `c.test.mjs: assertion removed: ${i}`)];
+    t.git.guard = async () => ({ hits });
+    await t.start();
+    t.work(await t.spawn(0), { commit: "feature.txt", say: "Added feature.txt." });
+    const qa = await t.spawn(1);
+    const brief = readFileSync(path.join(qa.args.cwd, ".den", "findings.md"), "utf8");
+    assert.match(brief, /# Test guard[\s\S]*- a\.test\.mjs: test file deleted\n- b\.test\.mjs: can't fail/);
+    assert.match(qa.args.prompt, /test guard flagged[\s\S]*accept it and why, or bounce it/);
+    assert.deepEqual((await t.job()).evidence.guard, { hits });
+    t.work(qa, { say: "Accepted both.\nVERDICT: pass" });
+    await t.when((j) => j.state === "merged", "the delivery to merge");
+    assert.match(t.git.calls.find((c) => c[0] === "openPr")[1].body, /Test guard: 12 hit\(s\) listed for the verifier/);
+    const body = t.git.calls.find((c) => c[0] === "openPr")[1].body;
+    assert.match(body, /listed for the verifier\n  - `a\.test\.mjs: test file deleted`\n  - `b\.test\.mjs: can't fail/);
+    assert.match(body, /  - `c\.test\.mjs: assertion removed: 7`\n  - and 2 more\n/); // the first ten are listed, the rest counted
+  });
+
   test("Bao's desk is never retired by the host", async () => {
     const t = await setup();
     const { DESK_REF } = await import("../cells/policy.mjs");
