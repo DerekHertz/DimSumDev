@@ -2,22 +2,24 @@
 // bridge under a systemd user service and move it to a new release. Both print what they will do first and each step's
 // result, and both check the host before changing anything, so a refusal leaves nothing half-installed. No bridge route and
 // no agent calls them: nothing under apps/bridge imports this file, and a test says so.
-//   install()  fetch main, packages, first release, the four links, the unit, enable and start, check it answers
+//   install()  fetch main, packages, first release, the four links, the launcher and the unit, enable and start, check it answers
 //   update(t)  fetch main and tags, packages if the lockfile changed, a release of the newest v* tag (or --main, or tag t),
-//              the links, restart (skipped when nothing changed)
+//              the links, restart (skipped when nothing changed). A bare update never goes back to an older release or
+//              to one that failed to start; naming it (t or --main) is the user's say (den-mvp/77).
 import { execFile } from "node:child_process";
-import { mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { resolveRoot } from "../../organism-infra/board-service.mjs";
 import { createResourceLauncher, findUserBus } from "../cells/resource-group.mjs";
 import { createBuildBox, findBwrap } from "../build/box.mjs";
-import { createReleases, currentRelease } from "../build/releases.mjs";
+import { clearUpdateFailure, createReleases, currentRelease, isOlder, readUpdateFailure } from "../build/releases.mjs";
 
 export const UNIT_NAME = "den.service";
 export const PORT = 4317;
 const TEMPLATE = fileURLToPath(new URL("./den.service", import.meta.url));
+const LAUNCHER = fileURLToPath(new URL("./den-launcher.mjs", import.meta.url));
 const PLAIN = /^(?:\/[A-Za-z0-9._@+=,-]+)+$/; // a path that needs no quoting or escaping in a unit file
 const PATH_ENTRY = /^\/[A-Za-z0-9._@+=,/ -]*$/;
 
@@ -137,33 +139,51 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
 
   const LINKS = "switch the ui and bridge links";
 
-  const check4317 = (what) => async () => {
+  // The launcher (den-mvp/77) rolls a release that does not start back to the previous one, which then answers; that is a
+  // failed update, not a done one.
+  const check4317 = (what, state) => async () => {
     if (!(await answers(`http://127.0.0.1:${PORT}/`))) throw new DenServiceError(`the den did not answer on port ${PORT} after ${what}; see: journalctl --user -u ${UNIT_NAME} -n 50`);
+    const failed = await readUpdateFailure(stateDir);
+    if (failed?.sha === state.sha) throw new DenServiceError(`${state.tag ?? state.sha.slice(0, 12)} failed to start (${failed.reason}); the previous release runs instead`);
     return `answers on ${PORT}`;
   };
+
+  // A release the user named (install, --main, a tag) may be older than the running one, and is tried again after a failure.
+  async function switchNamed(sha) {
+    await rel().switchBridge(sha, { downgrade: true });
+    await rel().switchUi(sha);
+    if ((await readUpdateFailure(stateDir))?.sha === sha) await clearUpdateFailure(stateDir);
+  }
+
+  // Written beside, then renamed over.
+  async function put(file, write) {
+    await mkdir(path.dirname(file), { recursive: true });
+    const tmp = `${file}.new-${process.pid}`;
+    try {
+      await write(tmp);
+      await rename(tmp, file);
+    } catch (err) {
+      await rm(tmp, { force: true });
+      throw err;
+    }
+  }
 
   /** First install, and safe to run again. */
   async function install() {
     await check();
     const state = {};
     const template = await readFile(TEMPLATE, "utf8");
+    const launcher = path.join(stateDir, "launcher", "den-launcher.mjs");
     await steps([
       ...prepare(state, "--main"),
       [LINKS, async () => {
-        await rel().switchUi(state.sha);
-        await rel().switchBridge(state.sha);
+        await switchNamed(state.sha);
         return `ui and bridge at ${state.sha.slice(0, 12)}`;
       }],
-      [`write ${unitFile}`, async () => {
-        await mkdir(unitDir, { recursive: true });
-        const tmp = `${unitFile}.new-${process.pid}`;
-        try {
-          await writeFile(tmp, renderUnit(template, { node, checkout: repo, state: stateDir, searchPath: env.PATH }));
-          await rename(tmp, unitFile);
-        } catch (err) {
-          await rm(tmp, { force: true });
-          throw err;
-        }
+      [`write ${launcher} and ${unitFile}`, async () => {
+        // The launcher lives outside every release; only install writes it, from the checkout's own copy.
+        await put(launcher, (tmp) => copyFile(LAUNCHER, tmp));
+        await put(unitFile, (tmp) => writeFile(tmp, renderUnit(template, { node, checkout: repo, state: stateDir, searchPath: env.PATH })));
       }],
       ["enable the service and (re)start it", async () => {
         for (const args of [["daemon-reload"], ["enable", UNIT_NAME], ["restart", UNIT_NAME]]) {
@@ -171,7 +191,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
           if (!out.ok) throw new DenServiceError(`systemctl --user ${args.join(" ")} failed: ${out.err}`);
         }
       }],
-      ["check that the den answers", check4317("starting")],
+      ["check that the den answers", check4317("starting", state)],
     ]);
     say("The den runs as a user service. After a reboot or a WSL restart it comes back when your user manager starts.");
   }
@@ -182,13 +202,25 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
     await check();
     if (!(await stat(unitFile).catch(() => null))) throw new DenServiceError(`${unitFile} does not exist; run npm run den:install first`);
     const state = {};
+    const [fetch, ...build] = prepare(state, target);
+    // A bare update takes the newest tag only forward (it went back to v0.1.0 on 2026-10-17), and not a tag that failed.
+    const forward = ["check the tag is newer than the running release and has not failed", async () => {
+      const failed = await readUpdateFailure(stateDir);
+      if (failed?.sha === state.sha) throw new DenServiceError(`${state.tag} failed to start before (${failed.reason}); to try it again: npm run den:update -- ${state.tag}`);
+      const running = await currentRelease(stateDir, "bridge");
+      if (running && (await isOlder(repo, state.sha, running.sha))) throw new DenServiceError(`the newest tag ${state.tag} is older than the running release ${running.id}; to go back to it: npm run den:update -- ${state.tag}`);
+    }];
     await steps([
-      ...prepare(state, target),
+      fetch,
+      ...(target === undefined ? [forward] : []),
+      ...build,
       [LINKS, async () => {
         const before = await currentRelease(stateDir, "bridge");
         state.same = before?.sha === state.sha && (await currentRelease(stateDir, "ui"))?.sha === state.sha;
-        await rel().switchUi(state.sha);
-        await rel().switchBridge(state.sha);
+        if (target === undefined) {
+          await rel().switchBridge(state.sha);
+          await rel().switchUi(state.sha);
+        } else await switchNamed(state.sha);
         return state.same ? `already at ${state.sha.slice(0, 12)}` : `ui and bridge at ${state.sha.slice(0, 12)}`;
       }],
       ["restart the service (running agents are stopped and need Resume)", async () => {
@@ -196,7 +228,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
         const out = await systemctl(["restart", UNIT_NAME]);
         if (!out.ok) throw new DenServiceError(`systemctl --user restart ${UNIT_NAME} failed: ${out.err}`);
       }],
-      ["check that the den answers", check4317("the restart")],
+      ["check that the den answers", check4317("the restart", state)],
     ]);
   }
 

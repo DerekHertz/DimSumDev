@@ -6,6 +6,9 @@
 //   ui/current, ui/previous       links to the release whose UI is served, and the one before it
 //   ui/live.json                  when the served release went live, and the release a roll back undid (decision 7)
 //   bridge/current, bridge/previous   the same for the bridge code
+//   bridge/failed.json            the release the launcher could not start, and why (den-mvp/77); it is not started again
+//   bridge/downgrade.json         the older release the user named for bridge/current, so the launcher starts it
+// The launcher (service/den-launcher.mjs) cannot import this file, so it reads and writes the last two by the same names.
 // Every path below is built from a checked sha (full lowercase hex, then its first 12 characters) or a checked lock hash
 // and fixed names; a link's target is read back only if it is exactly `../releases/<sha12>`.
 import { execFile, spawn } from "node:child_process";
@@ -20,9 +23,12 @@ const PAIRS = ["ui", "bridge"];
 const MAKING = ".making";
 const BUILD = "build.json";
 const LIVE = "live.json";
+const FAILED = "failed.json";
+const DOWNGRADE = "downgrade.json";
+const TAG_RE = /^v\d+\.\d+\.\d+$/;
 export const UI_DIST = path.join("apps", "ui", "dist");
 
-/** A refusal with a stable `code`: bad-sha, not-on-main, needs-update, build, missing, conflict, git. */
+/** A refusal with a stable `code`: bad-sha, not-on-main, needs-update, build, missing, conflict, git, older. */
 export class ReleaseError extends Error {
   constructor(code, message) {
     super(message);
@@ -130,6 +136,51 @@ export async function currentRelease(stateDir, pair) {
 const run = (file, args, opts = {}) => new Promise((resolve, reject) => {
   execFile(file, args, { maxBuffer: 16 * 1024 * 1024, ...opts }, (err, stdout, stderr) => (err ? reject(Object.assign(err, { stderr })) : resolve(stdout)));
 });
+
+/** Whether commit `sha` is older than `than`: a strict ancestor of it in `repo`. Throws ReleaseError git when git cannot tell. */
+export async function isOlder(repo, sha, than) {
+  if (checkSha(sha) === checkSha(than)) return false;
+  try {
+    await run("git", ["-C", repo, "merge-base", "--is-ancestor", sha, than]);
+    return true;
+  } catch (err) {
+    if (err.code === 1) return false;
+    throw new ReleaseError("git", `could not compare ${sha.slice(0, 12)} with ${than.slice(0, 12)}: ${String(err.stderr || err.message).trim()}`);
+  }
+}
+
+// Written beside, then renamed over, like a link (a `.new-` leftover is removed by sweep).
+async function writeJson(file, record) {
+  await mkdir(path.dirname(file), { recursive: true });
+  const tmp = path.join(path.dirname(file), `.new-${path.basename(file)}-${process.pid}-${randomBytes(4).toString("hex")}`);
+  try {
+    await writeFile(tmp, `${JSON.stringify(record)}\n`);
+    await rename(tmp, file);
+  } catch (err) {
+    await rm(tmp, { force: true });
+    throw err;
+  }
+}
+
+/** Records that the bridge release of `sha` failed to start (den-mvp/77). The launcher writes the same file itself. */
+export async function recordUpdateFailure(stateDir, { sha, tag, reason }) {
+  checkSha(sha);
+  await writeJson(path.join(stateDir, "bridge", FAILED), { sha, ...(TAG_RE.test(tag ?? "") ? { tag } : {}), reason: String(reason).slice(0, 500), at: new Date().toISOString() });
+}
+
+/** The failed update, every field checked: { sha, tag?, reason, at }, or null. */
+export async function readUpdateFailure(stateDir) {
+  try {
+    const raw = JSON.parse(await readFile(path.join(stateDir, "bridge", FAILED), "utf8"));
+    if (!SHA_RE.test(raw?.sha) || typeof raw.reason !== "string" || !stamp(raw.at)) return null;
+    return { sha: raw.sha, ...(TAG_RE.test(raw.tag ?? "") ? { tag: raw.tag } : {}), reason: raw.reason.slice(0, 500), at: raw.at };
+  } catch {
+    return null;
+  }
+}
+
+/** Forgets the failed update: the user asked for that release again. */
+export const clearUpdateFailure = (stateDir) => rm(path.join(stateDir, "bridge", FAILED), { force: true });
 
 /** `git archive` of `sha` unpacked into `dir`: no .git, owner and mode bits not taken from the archive. */
 export function extractArchive(repo, sha, dir) {
@@ -320,24 +371,37 @@ export function createReleases({ stateDir, repo, box, npm = npmCi, main = "main"
     }
   }
 
-  async function switchPair(pair, sha) {
+  async function switchPair(pair, sha, { downgrade = false } = {}) {
     checkSha(sha);
     const id = sha.slice(0, 12);
     const release = await completeRelease(stateDir, id);
     if (!release || release.build.sha !== sha) throw new ReleaseError("missing", `there is no complete release for ${id}`);
     const cur = await linkedId(stateDir, pair, "current");
     if (cur !== id) {
+      if (pair === "bridge") {
+        const running = cur ? (await completeRelease(stateDir, cur))?.build.sha : null;
+        const older = running ? await isOlder(repo, sha, running) : false;
+        if (older && !downgrade) throw new ReleaseError("older", `${id} is older than the running release ${cur}; name it to go back to it`);
+        // The launcher starts an older bridge/current only with this consent, which names that one release.
+        if (older) await writeJson(path.join(stateDir, pair, DOWNGRADE), { sha });
+        else await rm(path.join(stateDir, pair, DOWNGRADE), { force: true });
+      }
       if (cur) await setLink(pair, "previous", cur);
       await setLink(pair, "current", id);
       if (pair === "ui") await writeLive({ sha, at: new Date().toISOString(), rolledBack: null });
     }
-    await collect();
+    // den-mvp/77: only a UI switch collects. A bridge switch leaves every release in place, so the one the launcher may
+    // fall back to, or a release made ahead of its switch, is still there; the UI switch that comes with it cleans up.
+    if (pair === "ui") await collect();
   }
 
   /** Points ui/current at the release of `sha`; the release it replaces becomes ui/previous, and a release no link points to is deleted. */
   const switchUi = (sha) => switchPair("ui", sha);
-  /** The same for bridge/current and bridge/previous. */
-  const switchBridge = (sha) => switchPair("bridge", sha);
+  /**
+   * The same for bridge/current and bridge/previous, without deleting any release. A release older than the running one
+   * (a strict git ancestor) is refused with code `older` unless `downgrade` says the user named it.
+   */
+  const switchBridge = (sha, { downgrade = false } = {}) => switchPair("bridge", sha, { downgrade });
 
   /** Swaps ui/current and ui/previous. `to` names the release the caller saw as previous (its sha, or its 12 characters); anything else is a conflict. */
   async function rollbackUi(to) {
