@@ -28,11 +28,11 @@ const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArr
 const intIn = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
 const isGroupLimit = (g) => isPlainObject(g) && Object.keys(g).length === 3 && intIn(g.memoryMiB, 16, 1024 * 1024) && intIn(g.cpuPercent, 5, 6400) && intIn(g.tasks, 8, 65536);
 /**
- * Checks a limits object: one group limit per slot class, the aggregate, the storage bounds, and the den's checks (one
- * group limit: den-mvp/34). Throws on anything else.
+ * Checks a limits object: one group limit per slot class, the aggregate, the storage bounds, and the den's checks and test guard (one
+ * group limit each: den-mvp/34, den-mvp/70). Throws on anything else.
  */
 export function checkLimits(limits) {
-  const ok = isPlainObject(limits) && Object.keys(limits).length === 4 && isPlainObject(limits.classes) && isGroupLimit(limits.checks) &&
+  const ok = isPlainObject(limits) && Object.keys(limits).length === 5 && isPlainObject(limits.classes) && isGroupLimit(limits.checks) && isGroupLimit(limits.guard) &&
     Object.keys(limits.classes).length === SLOT_CLASSES.length && SLOT_CLASSES.every((c) => isGroupLimit(limits.classes[c])) &&
     isGroupLimit(limits.aggregate) && isPlainObject(limits.storage) && Object.keys(limits.storage).length === 2 &&
     intIn(limits.storage.jobMiB, 1, 1024 * 1024) && intIn(limits.storage.outputMiB, 1, 1024);
@@ -45,7 +45,12 @@ export const LIMITS = Object.freeze(checkLimits(JSON.parse(readFileSync(new URL(
 // agent, so it gets the checks group of its own: in a slice of its own (den-checks), outside the agents' aggregate, one
 // run at a time (delivery/checks.mjs queues them). The checks run as the "worker" slot class of that launcher.
 export const CHECKS_SLICE = "den-checks";
-export const checksLimits = (limits = LIMITS) => checkLimits({ ...limits, classes: { ...limits.classes, worker: limits.checks }, aggregate: limits.checks });
+const oneGroup = (limits, group) => checkLimits({ ...limits, classes: { ...limits.classes, worker: group }, aggregate: group });
+export const checksLimits = (limits = LIMITS) => oneGroup(limits, limits.checks);
+// den-mvp/70: the test guard reruns untrusted tests, so it gets a slice of its own (den-guard) and a smaller limit. Sharing den-checks
+// let a guard rerun and a checks run starve each other into a memory kill when two deliveries overlapped.
+export const GUARD_SLICE = "den-guard";
+export const guardLimits = (limits = LIMITS) => oneGroup(limits, limits.guard);
 
 const MIB = 1024 * 1024;
 const CPU_PERIOD = 100_000; // systemd's default cpu.max period, in microseconds
@@ -385,6 +390,7 @@ export function createResourceLauncher({ env = process.env, limits = LIMITS, sli
   return {
     enforced: true,
     limits,
+    slice,
     preflight,
     active,
     async launch({ slotClass, id, bin, args, cwd, env: childEnv }) {

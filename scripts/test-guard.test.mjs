@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, w
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { EnforcementError, LIMITS, checksLimits } from "../apps/bridge/cells/resource-group.mjs";
+import { CHECKS_SLICE, EnforcementError, GUARD_SLICE, LIMITS, guardLimits } from "../apps/bridge/cells/resource-group.mjs";
 import { guardLauncher, staticGuard, stripComments, testGuard } from "./test-guard.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./test-guard.mjs", import.meta.url));
@@ -322,7 +322,34 @@ describe("a new test that passes on the merge base", () => {
     assert.equal(existsSync(path.join(root, ".claude", "worktrees")) ? readdirSync(path.join(root, ".claude", "worktrees")).length : 0, 0);
   });
 
-  // H1: the rerun of untrusted tests goes through the launcher, in a resource group with the checks limits.
+  // L10: the bridge SIGKILLs a guard that outlives its 5 minutes, and a SIGKILLed process cannot clean up. The group must not outlive it:
+  // the box is made with --die-with-parent, so when the guard goes, so does what it launched.
+  test("a SIGKILLed guard leaves no group running", { skip: !boxWorks && "no working bubblewrap here" }, async (t) => {
+    const launcher = guardLauncher(process.env);
+    if (!(await launcher.preflight()).ok) return t.skip("no resource group here");
+    const bwrapBin = spawnSync("sh", ["-c", "command -v bwrap"], { encoding: "utf8" }).stdout.trim();
+    const secs = `${3000 + Math.floor(Math.random() * 1e6) / 1e3}`; // a sleep length no other process has
+    const alive = () => spawnSync("pgrep", ["-f", `^/bin/sleep ${secs}$`]).status === 0;
+    const holder = spawn(process.execPath, ["--input-type=module", "-e",
+      `import { guardLauncher } from ${JSON.stringify(new URL("./test-guard.mjs", import.meta.url).href)};
+       await guardLauncher(process.env).launch({ slotClass: "worker", id: "l10-" + process.pid, bin: ${JSON.stringify(bwrapBin)},
+         args: ["--dev-bind", "/", "/", "--unshare-pid", "--proc", "/proc", "--die-with-parent", "--", "/bin/sleep", ${JSON.stringify(secs)}], cwd: "/", env: {} });
+       console.log("up"); setInterval(() => {}, 1000);`], { stdio: ["ignore", "pipe", "inherit"] });
+    const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    try {
+      await new Promise((resolve, reject) => (holder.stdout.once("data", resolve), holder.once("exit", () => reject(new Error("the holder exited before it launched")))));
+      for (let i = 0; i < 50 && !alive(); i += 1) await wait(100);
+      assert.ok(alive(), "the grouped sleep never started");
+      holder.kill("SIGKILL");
+      for (let i = 0; i < 50 && alive(); i += 1) await wait(100);
+      assert.equal(alive(), false, "the group outlived its SIGKILLed parent");
+    } finally {
+      holder.kill("SIGKILL");
+      spawnSync("pkill", ["-f", `^/bin/sleep ${secs}$`]);
+    }
+  });
+
+  // H1: the rerun of untrusted tests goes through the launcher, in a resource group of its own (L11).
   const addZero = () => fixture(before, withNew('test("adds zero", () => { assert.strictEqual(add(0, 0), 0); });\n'));
   const BWRAP = "/usr/bin/bwrap"; // never run: the fake launcher stands in for it
   function fakeLauncher({ out = "", hang = false, fail = null, exhausted = null, code = 0 } = {}) {
@@ -372,10 +399,12 @@ describe("a new test that passes on the merge base", () => {
     assert.deepEqual(await reasons(addZero(), { rerun: true, launcher, bwrap: BWRAP }), []);
   });
 
-  test("the guard's launcher has the checks limits", () => {
+  test("the guard's launcher has the guard's own limits, in a slice of its own", () => {
     const l = guardLauncher({});
-    assert.deepEqual(l.limits.classes.worker, LIMITS.checks);
-    assert.deepEqual(l.limits, checksLimits());
+    assert.deepEqual(l.limits.classes.worker, LIMITS.guard);
+    assert.deepEqual(l.limits, guardLimits());
+    assert.equal(l.slice, GUARD_SLICE);
+    assert.notEqual(l.slice, CHECKS_SLICE, "L11: sharing den-checks let a guard rerun and a checks run starve each other");
   });
 
   test("with box required and no launcher, the rerun is a hit and runs nothing", async () => {
@@ -421,6 +450,17 @@ describe("the static pass is bounded", () => {
     const started = Date.now();
     stripComments("/*a".repeat(80000));
     assert.ok(Date.now() - started < 500, `took ${Date.now() - started} ms`);
+  });
+
+  // L12: a file the guard cannot read is not an empty file. Here the head's blob is gone from the object store.
+  test("a test file that cannot be read is a hit, not an empty file", () => {
+    const one = 'test("adds", () => { assert.strictEqual(1, 1); });\n';
+    const root = fixture({ "a.test.mjs": T(one) }, { "a.test.mjs": T(`${one}test("more", () => { assert.strictEqual(2, 2); });\n`) });
+    const blob = git(root, "rev-parse", "HEAD:a.test.mjs");
+    rmSync(path.join(root, ".git", "objects", blob.slice(0, 2), blob.slice(2)));
+    const hits = reasons(root);
+    flagged(hits, /^a\.test\.mjs: test file could not be read .*: the verifier reads it by hand/);
+    assert.equal(hits.some((h) => /removed|renamed away/.test(h)), false, "an unreadable file is not reported as tests removed");
   });
 
   test("a test file over the size cap is a hit and is not analysed", () => {
