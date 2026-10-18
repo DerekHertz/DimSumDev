@@ -7,6 +7,8 @@ import {isWalkBlocked} from '../procedural/walk.mjs';
 import {seatSpots,seated} from './meeting-table.mjs';
 import {createDailyRoutines} from './daily-routines.mjs';
 import {createLeisureGesture} from './leisure-gesture.mjs';
+import {TRAVEL_SPEED_SCALE} from './travel-speed.mjs';
+const travelSpeed=.65*TRAVEL_SPEED_SCALE;
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 export function createMeshyActors(den){
  const actors=new Map(),definitions=new Map(CHARACTERS.map(c=>[c[0],c]));let bindings=new Map(),selected=null,time=0,held=null;
@@ -92,11 +94,11 @@ export function createMeshyActors(den){
    if(reduced&&!a.path?.length&&(a.seat||a.leaving))a.path=[a.seat?{...a.seat,y:.26}:a.home];
    if(a.arriving){
     if(reduced){p.position.copy(a.home);a.arriving=false;}
-    else if(key!==held){const dx=a.home.x-p.position.x,dz=a.home.z-p.position.z,length=Math.hypot(dx,dz),step=Math.min(dt*.65,length);if(length>.015){p.position.x+=dx/length*step;p.position.z+=dz/length*step;p.position.y=den.walkWorld.navigation.groundAt(p.position.x,p.position.z,p.position.y,.23)??p.position.y;p.rotation.y=Math.atan2(dx,dz);moved=step;}else{a.arriving=false;p.rotation.y=a.baseYaw;}}
+    else if(key!==held){const dx=a.home.x-p.position.x,dz=a.home.z-p.position.z,length=Math.hypot(dx,dz),step=Math.min(dt*travelSpeed,length);if(length>.015){p.position.x+=dx/length*step;p.position.z+=dz/length*step;p.position.y=den.walkWorld.navigation.groundAt(p.position.x,p.position.z,p.position.y,.23)??p.position.y;p.rotation.y=Math.atan2(dx,dz);moved=step;}else{a.arriving=false;p.rotation.y=a.baseYaw;}}
    }
    if(a.path?.length){
     if(reduced){const end=a.path.at(-1);p.position.set(end.x,end.y,end.z);a.path=[];}
-    else if(key!==held){const next=a.path[0],dx=next.x-p.position.x,dz=next.z-p.position.z,length=Math.hypot(dx,dz),step=Math.min(dt*.65,length);
+    else if(key!==held){const next=a.path[0],dx=next.x-p.position.x,dz=next.z-p.position.z,length=Math.hypot(dx,dz),step=Math.min(dt*travelSpeed,length);
      if(length>.02){p.position.x+=dx/length*step;p.position.z+=dz/length*step;p.position.y=den.walkWorld.navigation.groundAt(p.position.x,p.position.z,p.position.y,.23)??p.position.y;p.rotation.y=Math.atan2(dx,dz);moved=step;}else{p.position.set(next.x,next.y,next.z);a.path.shift();}}
     if(!a.path.length){a.path=null;a.routeGoal=null;if(a.leaving){a.leaving=false;if(a.guest){den.destroyPanda(p);actors.delete(key);continue;}}}
    }

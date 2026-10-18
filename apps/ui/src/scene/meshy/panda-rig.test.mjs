@@ -174,3 +174,43 @@ test('idle breathing gently moves the torso while the skinned soles stay fixed',
     }
   } finally { rig.dispose(); }
 });
+
+test('approved weightier waddle relaxes arms and follows the hips without changing idle cadence', () => {
+  const rig = createBalancedPandaRig(source);
+  try {
+    const ranges = { arm: [], hip: [], spine: [], chest: [], head: [], wrist: [], elbow: [] };
+    for (let frame = 0; frame < 48; frame++) {
+      rig.poseWaddle(frame / 48 * WADDLE.duration);
+      const b = rig.bones;
+      assert.ok(b.Shoulder_L.rotation.z < -.29 && b.Shoulder_R.rotation.z > .29, 'arms hang toward the body');
+      assert.ok(Math.abs(b.Shoulder_L.rotation.x + b.Shoulder_R.rotation.x) < 1e-7, 'arms swing in opposition');
+      for (const [key, value] of Object.entries({ arm: b.Shoulder_L.rotation.x, hip: b.Pelvis.position.x, spine: b.Spine.rotation.y, chest: b.Chest.rotation.y, head: b.Head.rotation.z, wrist: b.Wrist_L.rotation.x, elbow: b.Elbow_L.rotation.x })) ranges[key].push(value);
+    }
+    const span = key => Math.max(...ranges[key]) - Math.min(...ranges[key]);
+    assert.ok(span('arm') > .75 && span('arm') < .77, 'approved broad arm swing');
+    assert.ok(span('hip') > .129 && span('hip') < .131, 'approved deeper hip shift');
+    assert.ok(span('spine') > .069 && span('chest') > .029 && span('head') > .027, 'torso and head follow through');
+    assert.ok(span('wrist') > .089 && span('elbow') > .099, 'wrists and elbows soften the swing');
+    assert.equal(IDLE.duration, 4.8);
+    rig.poseIdle(0);
+    assert.ok(rig.bones.Shoulder_L.rotation.z < -.31, 'idle retains relaxed arms');
+    assert.ok(rig.bones.Elbow_L.rotation.x < -.11, 'idle retains soft elbows');
+    assert.equal(rig.poseIdle(2.4).breath, 1);
+  } finally { rig.dispose(); }
+});
+
+test('the full lower paw follows its wrist rigidly through the wider swing', () => {
+  const rig = createBalancedPandaRig(source);
+  try {
+    const mesh = rig.meshes[0], positions = mesh.geometry.attributes.position;
+    const tips = Array.from({ length: positions.count }, (_, i) => i).filter(i => Math.abs(positions.getX(i)) > 1.22 && positions.getY(i) > .95 && positions.getY(i) < 1.17);
+    assert.ok(tips.length > 30, 'exercise the actual lower hand vertices');
+    const skin = i => mesh.applyBoneTransform(i, new T.Vector3().fromBufferAttribute(positions, i));
+    const local = i => rig.bones['Wrist_' + (positions.getX(i) > 0 ? 'L' : 'R')].worldToLocal(mesh.localToWorld(skin(i)));
+    const rest = tips.map(local);
+    for (let frame = 0; frame < 24; frame++) {
+      rig.poseWaddle(frame / 24 * WADDLE.duration);
+      tips.forEach((i, index) => assert.ok(local(i).distanceTo(rest[index]) < 1e-6, 'hand tip stretched away from its wrist'));
+    }
+  } finally { rig.dispose(); }
+});

@@ -20,7 +20,7 @@ for (const [side, sign] of [['L', 1], ['R', -1]]) REST.push(
   ['Toe_' + side, 'Ankle_' + side, [sign * .49, .075, .27]],
 );
 export const PANDA_BONE_NAMES = Object.freeze(REST.map(([name]) => name));
-export const WADDLE = Object.freeze({ stride: .56, duration: 1.20, lift: .095, sway: .042, stance: .60 });
+export const WADDLE = Object.freeze({ stride: .56, duration: 1.20, lift: .095, sway: .065, stance: .60 });
 export const IDLE = Object.freeze({ duration: 4.8 });
 const clamp = T.MathUtils.clamp;
 const smooth = (a, b, value) => T.MathUtils.smoothstep(value, a, b);
@@ -37,7 +37,8 @@ function weightsFor(position, headOnly = false) {
   const weights = new Map();
   const add = (name, weight) => { if (weight > 1e-7) weights.set(name, (weights.get(name) || 0) + weight); };
   const armBoundary = .98 - .45 * clamp((y - 1.25) / .75, 0, 1);
-  const arm = smooth(armBoundary, armBoundary + .22, ax) * smooth(1.0, 1.20, y) * (1 - smooth(1.98, 2.18, y));
+  // Include the whole lower paw so the broader swing cannot leave its tips on the torso.
+  const arm = smooth(armBoundary, armBoundary + .22, ax) * smooth(.75, .95, y) * (1 - smooth(1.98, 2.18, y));
   // Even the inner edge of each sole belongs fully to its foot; only the upper
   // leg blends toward the central belly. Otherwise body bob pulls toes below ground.
   const leg = (1 - smooth(.43, .76, y)) * T.MathUtils.lerp(1, smooth(.17, .34, ax), smooth(.17, .42, y));
@@ -168,12 +169,20 @@ export function createBalancedPandaRig(source) {
     travelRoot.position.z = travel ? gait.distance : 0;
     const sway = Math.cos(phase - Math.PI * .6);
     bones.Pelvis.position.x += gait.config.sway * sway;
-    bones.Pelvis.position.y += -.022 + .007 * Math.cos(phase * 2);
-    bones.Pelvis.rotation.z = -.024 * sway; bones.Spine.rotation.z = .009 * sway; bones.Head.rotation.z = .009 * sway;
+    bones.Pelvis.position.y += -.030 + .014 * Math.cos(phase * 2);
+    bones.Pelvis.rotation.z = -.045 * sway;
+    bones.Spine.rotation.z = .022 * Math.cos(phase - Math.PI * .6 - .20);
+    bones.Spine.rotation.y = .035 * Math.sin(phase - .28);
+    bones.Spine.rotation.x = .018 + .008 * Math.cos(phase * 2);
+    bones.Chest.rotation.y = -.015 * Math.sin(phase - .48);
+    bones.Head.rotation.z = .014 * Math.cos(phase - Math.PI * .6 - .35);
+    bones.Head.rotation.x = -.012;
     for (const [side, sign, offset] of [['L', 1, 0], ['R', -1, Math.PI]]) {
-      bones['Shoulder_' + side].rotation.z = -sign * .10;
-      bones['Shoulder_' + side].rotation.x = .09 * Math.cos(phase + offset);
-      bones['Elbow_' + side].rotation.x = .025 + .018 * Math.sin(phase + offset);
+      const swing = Math.cos(phase + offset - .16);
+      bones['Shoulder_' + side].rotation.z = -sign * (.32 + .025 * Math.sin(phase + offset));
+      bones['Shoulder_' + side].rotation.x = .38 * swing;
+      bones['Elbow_' + side].rotation.x = -.16 - .10 * Math.max(0, -Math.cos(phase + offset - .25));
+      bones['Wrist_' + side].rotation.x = .045 * Math.sin(phase + offset - .35);
     }
     model.updateMatrixWorld(true);
     // Keep short legs within reach at longer strides, instead of clamping an
@@ -200,7 +209,10 @@ export function createBalancedPandaRig(source) {
     bones.Chest.scale.set(1 + .008 * breath, 1 + .004 * breath, 1 + .012 * breath);
     bones.Chest.position.y += .006 * breath;
     bones.Head.rotation.x = -.006 * breath;
-    for (const [side, sign] of [['L', 1], ['R', -1]]) bones['Shoulder_' + side].rotation.z = -sign * (.10 - .008 * breath);
+    for (const [side, sign] of [['L', 1], ['R', -1]]) {
+      bones['Shoulder_' + side].rotation.z = -sign * (.32 - .008 * breath);
+      bones['Elbow_' + side].rotation.x = -.12;
+    }
     model.updateMatrixWorld(true); skeleton.update();
     return { cycles, breath };
   }

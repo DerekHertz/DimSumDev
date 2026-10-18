@@ -4,6 +4,7 @@ import { createRoleHeadwear } from './role-headwear.mjs';
 import { createRoleOutfit } from './role-outfits.mjs';
 import { GROUND } from './plush/assembly.mjs';
 import {createLeisureGesture} from './leisure-gesture.mjs';
+import {TRAVEL_SPEED_SCALE} from './travel-speed.mjs';
 
 export function populateAmbientGarden(world,{body,vest,headphones}){
  const rigs=[],outfits=[],props=new T.Group(),groups=[];
@@ -32,7 +33,8 @@ export function populateAmbientGarden(world,{body,vest,headphones}){
  function poseEntry(entry,time,reduced){
   const{rig,spec,index}=entry;rig.poseIdle(time+index*.67,{reducedMotion:reduced});
   if(spec.pose==='walking'&&!reduced){
-   rig.poseWaddle(time,{stride:WADDLE.stride});const angularSpeed=WADDLE.stride*spec.scale/WADDLE.duration/6.5,a=.8+angularSpeed*time;
+   const walkingTime=time*TRAVEL_SPEED_SCALE;
+   rig.poseWaddle(walkingTime,{stride:WADDLE.stride});const angularSpeed=WADDLE.stride*spec.scale/WADDLE.duration/6.5,a=.8+angularSpeed*walkingTime;
    rig.model.position.set(6.5*Math.sin(a),GROUND+.025,6.5*Math.cos(a));rig.model.rotation.y=a+Math.PI/2;
   }
   if(spec.pose==='seated')for(const[side,sign]of[['L',1],['R',-1]]){rig.bones['Shoulder_'+side].rotation.x=-.15;rig.bones['Shoulder_'+side].rotation.z=-sign*.12;rig.bones['Elbow_'+side].rotation.x=-.025;}
