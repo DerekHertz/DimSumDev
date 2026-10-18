@@ -15,11 +15,30 @@ import { resolveRoot } from "../../organism-infra/board-service.mjs";
 import { createResourceLauncher, findUserBus } from "../cells/resource-group.mjs";
 import { createBuildBox, findBwrap } from "../build/box.mjs";
 import { clearUpdateFailure, createReleases, currentRelease, isOlder, readUpdateFailure } from "../build/releases.mjs";
+import { ensureServiceToken } from "../../router/service-token.mjs";
 
 export const UNIT_NAME = "den.service";
 export const PORT = 4317;
 const TEMPLATE = fileURLToPath(new URL("./den.service", import.meta.url));
 const LAUNCHER = fileURLToPath(new URL("./den-launcher.mjs", import.meta.url));
+export const ROUTER_UNIT_NAME = "den-router.service";
+const ROUTER_TEMPLATE = fileURLToPath(new URL("../../router/den-router.service", import.meta.url));
+const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
+// den-mvp/88: the router's files, copied with their layout to <state>/router, so its imports resolve there as here.
+const ROUTER_FILES = ["den-router", "router", "decide", "order", "client", "service-token"].map((n) => `apps/router/${n}.mjs`).concat("scripts/batch-groups.mjs", "packages/board-refs/src/compare-refs.mjs");
+const NTFY_URL = /^https?:\/\/[A-Za-z0-9.-]+(?::\d+)?\/[A-Za-z0-9._~/-]+$/;
+
+// Asks once, on a terminal; elsewhere (a test, a pipe) it asks nothing and push stays off.
+async function askOnTerminal(question) {
+  if (!process.stdin.isTTY) return null;
+  const { createInterface } = await import("node:readline/promises");
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  try {
+    return await rl.question(question);
+  } finally {
+    rl.close();
+  }
+}
 const PLAIN = /^(?:\/[A-Za-z0-9._@+=,-]+)+$/; // a path that needs no quoting or escaping in a unit file
 const PATH_ENTRY = /^\/[A-Za-z0-9._@+=,/ -]*$/;
 
@@ -56,12 +75,14 @@ const defaultAnswers = async (url, { tries = 30, waitMs = 500 } = {}) => {
  * The host and its parts, each replaceable by a test. `systemctl(args)` -> { ok, out, err }; `answers(url)` -> boolean;
  * `releases` is a createReleases object; `git(args)` -> { ok, out, err } in the checkout.
  */
-export function createDen({ env = process.env, say = (line) => console.log(line), platform = process.platform, node = process.execPath, repo, stateDir, unitDir, bus, bwrap, systemctl, git, answers = defaultAnswers, releases, remote = "origin", journal, linkWaitMs = 250 } = {}) {
+export function createDen({ env = process.env, say = (line) => console.log(line), platform = process.platform, node = process.execPath, repo, stateDir, unitDir, bus, bwrap, systemctl, git, answers = defaultAnswers, releases, remote = "origin", journal, linkWaitMs = 250, ask = askOnTerminal } = {}) {
   repo ??= resolveRoot(process.cwd(), env);
   const home = env.HOME || os.homedir();
   stateDir ??= path.join(env.XDG_STATE_HOME || path.join(home, ".local", "state"), "den");
   unitDir ??= path.join(env.XDG_CONFIG_HOME || path.join(home, ".config"), "systemd", "user");
   const unitFile = path.join(unitDir, UNIT_NAME);
+  const routerUnitFile = path.join(unitDir, ROUTER_UNIT_NAME);
+  const ntfyFile = path.join(stateDir, "ntfy-url");
   bus ??= findUserBus(env);
   if (bwrap === undefined) bwrap = findBwrap(); // null means there is none
   systemctl ??= (args) => run("systemctl", ["--user", ...args], { env: bus.env ?? {} });
@@ -80,6 +101,22 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
     if (!bwrap) throw new DenServiceError("bubblewrap (bwrap) is not installed; the build box cannot be made without it (sudo apt install bubblewrap)");
     if (!(await stat(path.join(repo, ".git")).catch(() => null))) throw new DenServiceError(`${repo} is not a git checkout`);
     renderUnit("", { node, checkout: repo, state: stateDir, searchPath: env.PATH }); // the paths are plain enough for a unit file
+    if (env.DEN_NTFY_URL && !NTFY_URL.test(env.DEN_NTFY_URL)) throw new DenServiceError("DEN_NTFY_URL is not a plain http(s) topic URL");
+  }
+
+  // den-mvp/88: the ntfy topic URL is a secret: kept at 0600, never said. DEN_NTFY_URL replaces it; else a kept file stays;
+  // else the user is asked once, and an empty answer is kept too (push off).
+  async function writeNtfyUrl() {
+    let url = env.DEN_NTFY_URL;
+    if (!url) {
+      if (await stat(ntfyFile).catch(() => null)) return "kept";
+      const answer = await ask("Phone push: your private ntfy topic URL (Enter for none): ");
+      if (answer === null || answer === undefined) return "off (no terminal to ask on; set DEN_NTFY_URL and run this again)";
+      url = String(answer).trim();
+      if (url && !NTFY_URL.test(url)) throw new DenServiceError("that is not a plain http(s) topic URL");
+    }
+    await put(ntfyFile, (tmp) => writeFile(tmp, url ? `${url}\n` : "", { mode: 0o600 }));
+    return url ? "set" : "off";
   }
 
   const gitRaw = async (args) => {
@@ -105,7 +142,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
   }
 
   // The files this script runs from the checkout while it builds a release of main (its imports, and the build box).
-  const OWN_CODE = ["apps/bridge/service", "apps/bridge/build", "apps/bridge/cells/resource-group.mjs", "apps/organism-infra/board-service.mjs"];
+  const OWN_CODE = ["apps/bridge/service", "apps/bridge/build", "apps/bridge/cells/resource-group.mjs", "apps/organism-infra/board-service.mjs", "apps/router", "scripts/batch-groups.mjs"];
   // Fetch main, then the packages and the release for its tip. `state.sha` is what the later steps use.
   // `target` is undefined (the newest v* tag), "--main" (the tip of main) or a tag name. Sets state.tag for a tag.
   const TAG = /^v\d+\.\d+\.\d+$/;
@@ -185,8 +222,19 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
         await put(launcher, (tmp) => copyFile(LAUNCHER, tmp));
         await put(unitFile, (tmp) => writeFile(tmp, renderUnit(template, { node, checkout: repo, state: stateDir, searchPath: env.PATH })));
       }],
-      ["enable the service and (re)start it", async () => {
-        for (const args of [["daemon-reload"], ["enable", UNIT_NAME], ["restart", UNIT_NAME]]) {
+      ["write the router's service token and phone push address", async () => {
+        await mkdir(stateDir, { recursive: true });
+        await ensureServiceToken(stateDir);
+        return `token ready; push ${await writeNtfyUrl()}`;
+      }],
+      [`write the router to ${path.join(stateDir, "router")} and ${routerUnitFile}`, async () => {
+        // Like the launcher: outside every release, from the checkout's own copy; only install writes it.
+        const routerTemplate = await readFile(ROUTER_TEMPLATE, "utf8");
+        for (const rel of ROUTER_FILES) await put(path.join(stateDir, "router", rel), (tmp) => copyFile(path.join(REPO_ROOT, rel), tmp));
+        await put(routerUnitFile, (tmp) => writeFile(tmp, renderUnit(routerTemplate, { node, checkout: repo, state: stateDir, searchPath: env.PATH })));
+      }],
+      ["enable the service and the router and (re)start them", async () => {
+        for (const args of [["daemon-reload"], ["enable", UNIT_NAME], ["restart", UNIT_NAME], ["enable", ROUTER_UNIT_NAME], ["restart", ROUTER_UNIT_NAME]]) {
           const out = await systemctl(args);
           if (!out.ok) throw new DenServiceError(`systemctl --user ${args.join(" ")} failed: ${out.err}`);
         }

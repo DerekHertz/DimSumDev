@@ -13,7 +13,7 @@ const run = promisify(execFile);
 const CODE_TYPES = new Set(["feature", "task", "fix", "bug", "chore", "refactor"]);
 const KNOWN_DIRS = new Set(["apps", "scripts", "docs", "assets", "src", "public", "tests"]);
 
-const field = (text, name) => text.match(new RegExp(`^\\*\\*${name}:\\*\\*[ \\t]*(.*)$`, "mi"))?.[1].trim() ?? "";
+export const field = (text, name) => text.match(new RegExp(`^\\*\\*${name}:\\*\\*[ \\t]*(.*)$`, "mi"))?.[1].trim() ?? "";
 
 function section(text, heading) {
   const m = text.match(new RegExp(`^## ${heading}[ \\t]*\\n([\\s\\S]*?)(?=^## |(?![\\s\\S]))`, "mi"));
@@ -26,7 +26,7 @@ function isPath(tok) {
   return /\.[A-Za-z0-9]+$/.test(last) || (tok.endsWith("/") && KNOWN_DIRS.has(tok.split("/")[0]));
 }
 
-function pathsOf(text) {
+export function pathsOf(text) {
   const body = section(text, "What to build") + "\n" + section(text, "Acceptance criteria");
   const found = new Set();
   for (const m of body.matchAll(/`([^`\s]+)`/g)) {
@@ -39,7 +39,7 @@ function pathsOf(text) {
 const num = (s) => Number.parseInt(s, 10);
 
 // Every `Blocked by` entry must name a ticket on the board that is resolved. "None ..." means no blockers.
-function unblocked(ticket, status, byNumber) {
+export function unblocked(ticket, status, byNumber) {
   const raw = field(ticket.text, "Blocked by");
   if (!raw || /^none/i.test(raw)) return true;
   const feature = ticket.ref.split("/")[0];
@@ -136,7 +136,7 @@ export async function main(argv, { readBoard, inFlightFiles }) {
   return { code: 0, stdout: lines.join("\n") + "\n", stderr: "" };
 }
 
-function defaultReadBoard() {
+export function defaultReadBoard() {
   const root = path.resolve(process.env.ORGANISM_ROOT || process.cwd());
   const scratch = path.join(root, ".scratch");
   const tickets = [];

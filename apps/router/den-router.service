@@ -1,0 +1,19 @@
+# The den's router as a systemd user service (ADR 0027 decision 1). `npm run den:install` fills the @...@ marks from this
+# machine and writes the result beside den.service; nothing else writes it. It runs the copy den:install made outside every
+# release, so a deployment that restarts the bridge does not stop routing; a router change needs den:install again.
+[Unit]
+Description=Dim Sum Dev router
+After=den.service
+
+[Service]
+Type=simple
+WorkingDirectory=@CHECKOUT@
+ExecStart=@NODE@ @STATE@/router/apps/router/den-router.mjs
+Environment=PORT=4317
+Environment=DEN_STATE_DIR=@STATE@
+Environment="PATH=@PATH@"
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

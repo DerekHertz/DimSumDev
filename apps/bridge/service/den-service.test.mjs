@@ -7,7 +7,7 @@ import { existsSync, readFileSync, readdirSync, readlinkSync, statSync } from "n
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createDen, DenServiceError, renderUnit, UNIT_NAME } from "./den-service.mjs";
+import { createDen, DenServiceError, renderUnit, ROUTER_UNIT_NAME, UNIT_NAME } from "./den-service.mjs";
 import * as releasesModule from "../build/releases.mjs";
 const { createReleases } = releasesModule;
 const readUpdateFailure = (...a) => releasesModule.readUpdateFailure(...a);
@@ -110,8 +110,8 @@ describe("den:install and den:update", () => {
     const unit = await readFile(path.join(unitDir, UNIT_NAME), "utf8");
     assert.match(unit, new RegExp(`ExecStart=/usr/bin/node ${state}/launcher/den-launcher.mjs\n`));
     assert.match(unit, new RegExp(`WorkingDirectory=${checkout}`));
-    assert.deepEqual(sysCalls, ["show-environment", "daemon-reload", "enable den.service", "restart den.service"]);
-    assert.deepEqual(readdirSync(unitDir), [UNIT_NAME]);
+    assert.deepEqual(sysCalls, ["show-environment", "daemon-reload", "enable den.service", "restart den.service", "enable den-router.service", "restart den-router.service"]);
+    assert.deepEqual(readdirSync(unitDir).sort(), [ROUTER_UNIT_NAME, UNIT_NAME].sort());
   });
 
   const LAUNCHER_SOURCE = path.join(path.dirname(new URL(import.meta.url).pathname), "den-launcher.mjs");
@@ -145,10 +145,10 @@ describe("den:install and den:update", () => {
     await den().install();
     assert.equal(lines[0], "This will:");
     const planned = lines.slice(1, lines.indexOf("> fetch origin main")).map((l) => l.replace(/^\s+\d+\. /, ""));
-    assert.equal(planned.length, 7);
+    assert.equal(planned.length, 9);
     const started = lines.filter((l) => l.startsWith("> ")).map((l) => l.slice(2));
     assert.deepEqual(started, planned);
-    assert.equal(lines.filter((l) => l.startsWith("  done")).length, 7);
+    assert.equal(lines.filter((l) => l.startsWith("  done")).length, 9);
     assert.match(lines.find((l) => l.startsWith("  done: ") && /answers on 4317/.test(l)), /4317/);
   });
 
@@ -158,8 +158,8 @@ describe("den:install and den:update", () => {
     await den().install();
     assert.equal(npmCalls.length, 1);
     assert.equal(boxCalls.length, 1);
-    assert.deepEqual(sysCalls, ["show-environment", "daemon-reload", "enable den.service", "restart den.service"]);
-    assert.deepEqual(readdirSync(unitDir), [UNIT_NAME]);
+    assert.deepEqual(sysCalls, ["show-environment", "daemon-reload", "enable den.service", "restart den.service", "enable den-router.service", "restart den-router.service"]);
+    assert.deepEqual(readdirSync(unitDir).sort(), [ROUTER_UNIT_NAME, UNIT_NAME].sort());
   });
 
   describe("on a host that cannot run it, install refuses and leaves nothing behind", () => {
