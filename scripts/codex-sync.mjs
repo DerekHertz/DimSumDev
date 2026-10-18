@@ -29,8 +29,9 @@ export const RULES = [
     why: "Codex has no Agent(...) tool list; delegation is natural language naming the subagent" },
   { name: "mcp-tool", pattern: /`?mcp__((?:(?!__)\w)+)(?:__\w+)?`?/g, action: "rewrite", to: (_m, server) => `the ${server} MCP server`,
     why: "Codex addresses MCP servers by config, not mcp__ tool names" },
-  { name: "claude-launch", pattern: /^[^\n]*claude --agent[^\n]*\n\n?/gm, action: "drop", to: "",
-    why: "the claude --agent launch line is meaningless to Codex" },
+  { name: "claude-launch", pattern: /^[^\n]*claude --agent[^\n]*$/gm, action: "rewrite",
+    to: "To act as a cell, read its genome first and follow it: `.codex/agents/<cell-type>.toml` (generated from `.claude/agents/<cell-type>.md`).",
+    why: "the claude --agent launch flag is meaningless to Codex; the read-the-genome rule still holds" },
 ];
 const applyRules = (text) => RULES.reduce((t, r) => t.replace(r.pattern, r.to), text);
 

@@ -26,6 +26,8 @@ Delivery (ADR 0024): Deliver on a ticket in the den runs developer, qa `verify`,
 
 Meetings (ADR 0017, Amendment 1): from the den the user asks up to six specialists for one take each, in sequence; Bao then writes a decision brief with two or three options. The bridge runs it and writes the takes and the brief under `.scratch/<feature>/meetings/`. Choosing an option writes a ticket at `ready-for-human`; a brief authorizes nothing.
 
+To act as a cell, read its genome first and follow it: `.codex/agents/<cell-type>.toml` (generated from `.claude/agents/<cell-type>.md`).
+
 ## Cloud sessions
 
 Environment setup for cloud containers (browser path, proxy, usage readings) lives in `docs/agents/cloud-sessions.md`; read it when `CLAUDE_CODE_REMOTE` is set. Locally (WSL or macOS) none of it applies.

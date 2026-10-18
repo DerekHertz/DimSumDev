@@ -10,7 +10,7 @@
     "pretest": "npm run check:bom",
     "test": "node scripts/test-lock.mjs node --test \"apps/**/*.test.mjs\" \"packages/**/*.test.mjs\" \"scripts/**/*.test.mjs\"",
     "codex:sync": "node scripts/codex-sync.mjs",
-    "test:browser":"node scripts/test-split.mjs browser",
+    "test:browser": "node scripts/test-split.mjs browser",
     "test:rest": "node scripts/test-split.mjs rest",
     "test:path": "node scripts/test-path.mjs",
     "merge:green": "node scripts/merge-when-green.mjs",
