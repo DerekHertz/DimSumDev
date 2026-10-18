@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
 import {createMeshyActors} from './actors.mjs';
-import {createBalancedPandaRig} from './panda-rig.mjs';
+import {createBalancedPandaRig, WADDLE} from './panda-rig.mjs';
 import definitions from './role-props.mjs';
 function fixture(){
  const body=new T.Mesh(new T.BoxGeometry(2,3,1),new T.MeshStandardMaterial());body.position.y=1.5;
@@ -24,6 +24,32 @@ test('visitors retain live identities and own skeletons, and release them when t
  }finally{f.dispose();}
 });
 function advance(actors,seconds,reduced=false){for(let t=0;t<seconds;t+=.1)actors.update(.1,reduced);}
+test('arrivals, leisure walks and returns, meeting guests and returns travel at .78 scene units per second',()=>{
+ const checkStep=(actors,a,label)=>{
+  const before=a.panda.model.position.clone(),gait=a.gait||0;
+  actors.update(.1);
+  const moved=Math.hypot(a.panda.model.position.x-before.x,a.panda.model.position.z-before.z);
+  assert.ok(Math.abs(moved-.078)<1e-7,label+' travels 20% faster than .65');
+  const gaitDistance=(a.gait-gait)/WADDLE.duration*WADDLE.stride*a.panda.model.scale.x;
+  assert.ok(Math.abs(gaitDistance-moved)<1e-7,label+' gait follows distance');
+ };
+ const f=fixture();try{
+  const {actors}=f;
+  actors.applyLive([{role:'developer',ref:'work/1'},{role:'developer',ref:'work/2'}]);
+  checkStep(actors,actors.actors.get('developer#work/2'),'visitor arrival');
+  actors.applyMeeting({id:'meeting/1',ref:'work/meeting',state:'running',seats:[{role:'developer'}]});
+  const guest=actors.actors.get('meeting:developer');checkStep(actors,guest,'meeting guest');
+  actors.update(.1,true);actors.applyMeeting(null);checkStep(actors,guest,'meeting return');
+ }finally{f.dispose();}
+ const leisure=fixture();try{
+  const {actors}=leisure;
+  advance(actors,2.1);const a=[...actors.actors.values()].find(a=>a.routine?.stage==='outbound');assert.ok(a);
+  checkStep(actors,a,'optional leisure walk');
+  // Work interrupts the same trip and routes it home through the common traveller.
+  actors.applyLive([{role:a.role,ref:'work/1'}]);assert.equal(a.leaving,true);
+  checkStep(actors,a,'interrupted leisure return');
+ }finally{leisure.dispose();}
+});
 test('idle residents stagger capped visits, sip, feed and greet, then return home and rotate',()=>{
  const f=fixture();try{
   const {actors}=f,bao=actors.actors.get('orchestrator'),baoHome=bao.home.clone(),visits=new Set(),returns=new Set(),started=new Set();
