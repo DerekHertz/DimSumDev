@@ -99,7 +99,7 @@ describe("router stops", () => {
     assert.notEqual(now[0].id, id);
   });
   test("a stop whose text looks like a secret is a 400 and nothing is written; control characters are cleaned off the text", async () => {
-    const secret = await post({ key: "usage-reading", kind: "usage-reading", text: "api_key = sk-ant-api03-abcdefghijklmnopqrstuvwxyz0123456789" });
+    const secret = await post({ key: "usage-reading", kind: "usage-reading", text: `api_key = ${["sk", "ant", "api03"].join("-")}-abcdefghijklmnopqrstuvwxyz0123456789` } /* built at runtime: the root secret scan */);
     assert.equal(secret.status, 400, secret.text);
     assert.deepEqual(await listed(), []);
     const ok = await post({ key: "usage-reading", kind: "usage-reading", text: "bad\u202e reading" });

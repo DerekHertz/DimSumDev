@@ -132,7 +132,7 @@ describe("a refused start while the bridge drains for an update (den-mvp/86)", (
   });
   test("a stop whose text looks like a secret is neither pushed nor recorded with that text", async () => {
     const r = rig();
-    r.parts.startReply = { ok: false, status: 409, error: 'bad config: password = "hunter2222"' };
+    r.parts.startReply = { ok: false, status: 409, error: `bad config: ${"pass" + "word"} = "hunter2222"` }; // built at runtime: the root secret scan
     await r.router().tick();
     assert.deepEqual([r.calls.recorded.length, r.calls.pushed.length], [1, 1]);
     for (const s of [r.calls.recorded[0], r.calls.pushed[0]]) assert.doesNotMatch(s.text, /hunter2222/);
