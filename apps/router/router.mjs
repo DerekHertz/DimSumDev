@@ -4,6 +4,7 @@
 // N minutes" is recorded. Everything else is read fresh on each tick.
 import { decide } from "./decide.mjs";
 import { parseOrder } from "./order.mjs";
+import { hasSecret } from "../../scripts/exposure.mjs";
 
 // A "usage" reading that would let a start or resume go ahead. decide() runs once with it to learn whether anything is due;
 // the live reading is read, and decide() run again, only when something is.
@@ -24,8 +25,10 @@ export function createRouter({ bridge, readOrder, readBoard, readUsage, stops, p
     }
   }
 
-  async function report(stop, known, up) {
-    if (known.has(stop.key)) return;
+  async function report(found, known, up) {
+    if (known.has(found.key)) return;
+    // Stop text goes to the board and to ntfy, off the box: a secret-looking line is replaced, never sent (88 security).
+    const stop = hasSecret(found.text) ? { ...found, text: `a ${found.kind} stop whose text looked like a secret; see the router's log` } : found;
     known.add(stop.key);
     if (stop.kind === "bridge-down") downPushed = true; // push-only: it cannot be recorded through the bridge it reports as down
     else if (!(up && (await tryRecord(stop)))) unrecorded.set(stop.key, stop);
