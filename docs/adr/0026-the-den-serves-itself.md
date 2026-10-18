@@ -133,3 +133,26 @@ Decided in outline. The detail is settled when this part is cut into tickets.
 - A preview for a change that also alters the lockfile.
 - Automatic roll back, and reverting `main` after a roll back.
 - Target projects (outcome 6): this is the den's own code and UI only.
+
+## Amendment 1 (2026-10-17): updates apply themselves when the den is idle
+
+**Status:** proposed; the user accepts it by merging the PR that carries it. It replaces Part B decision 1 ("nothing restarts until the click") and the part of den-mvp/45 that made the user's Approve the only way to tag a release. The other Part B decisions stand, with the changes below.
+
+**Context.** After Part A every merged bridge change still needs the user to run `npm run den:update` in a terminal before it runs. The user asked (2026-10-17, question tool) for updates to go out through a deployment instead. Tags already exist (den-mvp/44), Bao drafts releases (den-mvp/45), and Part B was only decided in outline.
+
+**Decisions** (all **(user)**, 2026-10-17, question tool):
+
+1. **The merge is the approval.** A bridge change reaches `main` only by the user's own merge (ADR 0024: the bridge never merges its own bridge changes). So that merge is the approval for the update that follows; no second click is needed. This replaces Part B decision 1.
+2. **The bridge tags patch releases.** When a commit that changes bridge or service code lands on `main`, the bridge cuts the next patch tag (`v<major>.<minor>.<patch+1>`) and publishes the GitHub Release, with notes from the merged PRs (`mergedSince`). A merge that changes only docs or the UI does not get a tag: a UI-only change already goes live without a restart (Part A). A minor or major bump is still a Bao proposal that the user approves (den-mvp/45). No agent can tag; the bridge does, with its git-host login. The tag is cut only for a commit that is on `main` and was merged by the user's own login.
+3. **Tags are the unit of update.** The den updates to the newest tag. The running version comes from the release's `build.json`; `package.json`'s `version` is no longer kept equal to the tag (a tag cut by the bridge makes no commit).
+4. **The update builds in the background and applies when idle.** The bridge builds the new tag's release in the box without switching (Part A decision 2 still holds), shows "vX.Y.Z ready" with what changed, and then **drains**: it stops admitting new runs, lets the running ones finish for as long as they take, records the release to start, and exits. An auto-update toggle in the den (on by default) turns this off; with it off, "Update now" does the same drain on a click. "Restart now" stops the running work, which pauses and needs Resume, as in Part B decision 2.
+5. **The launcher starts the release (Part B decisions 3 to 5, unchanged).** The bridge never calls the service manager. A small launcher installed by `den:install`, and not part of any release, starts the release the bridge named and checks that it answers. If it does not, the launcher starts the previous release and the den says the update failed and why. A failed update turns the auto-update toggle off until the user turns it on, so a bad tag cannot loop.
+6. **One more `den:install`.** The unit changes (it runs the launcher), so the user runs `den:install` once more. After that `den:update` is only a manual fallback.
+
+**To check during the build.** Which paths count as "bridge or service code" (start from `apps/bridge/`, the scripts the bridge runs, `package.json` and the lockfile; the list lives in one place with a test). How the bridge learns of a merge on `main` (polling the git host, as `ci-watch` does). What "merged by the user" is checked against.
+
+**Consequences.**
+
+- The user no longer runs a command per bridge change. The cost is that a merge to `main` that touches bridge code is now also a deploy, so a bad bridge merge restarts the den onto it. The launcher's rollback and the toggle are the brake.
+- While an update is draining, new runs wait. With long runs that can be long; "Restart now" is the escape.
+- `den:update` keeps working by hand, to a tag, to `--main`, and for a rollback.
