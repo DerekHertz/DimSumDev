@@ -471,6 +471,7 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     reply(res, 201, { request });
   }
   async function dismissRouterStop(req, res) {
+    if (!(await readJsonObject(req, res))) return; // the body is unused, but the size cap and JSON check apply as on every POST
     const id = decodeURIComponent(new URL(req.url, "http://x").pathname.split("/")[2]);
     const pending = foldRequests(await readRequestRows(root)).find((r) => r.id === id && r.kind === "router-stop" && r.state === "pending");
     if (!pending) return reply(res, 404, { error: "no such router stop waiting" });

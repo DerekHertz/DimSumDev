@@ -1,9 +1,11 @@
 #!/usr/bin/env node
 // Provider routing happens before either adapter reads credentials or starts I/O.
-const args = process.argv.slice(2);
+// --live (claude only; usage-claude.mjs reads it) skips the cache. It is not part of the provider shape.
+const live = process.argv.includes("--live");
+const args = process.argv.slice(2).filter((a) => a !== "--live");
 const provider = args.length === 0 ? "claude" : args.length === 2 && args[0] === "--provider" ? args[1] : null;
-if (!["claude", "codex"].includes(provider)) {
-  console.error("usage: expected --provider claude|codex");
+if (!["claude", "codex"].includes(provider) || (live && provider !== "claude")) {
+  console.error("usage: expected [--live] [--provider claude|codex] (--live is claude only)");
   process.exit(1);
 }
 if (provider === "claude") await import("./usage-claude.mjs");

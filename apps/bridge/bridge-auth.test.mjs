@@ -114,6 +114,20 @@ const BODIES = {
   "POST /deliveries/:id/stop": { real: {}, bogus: {}, prepare: () => delivery() },
   "POST /deliveries/:id/resume": { real: {}, bogus: {}, prepare: () => delivery({ stopped: true }) },
   "POST /deliveries/:id/close": { real: {}, bogus: {}, prepare: () => delivery({ stopped: true }) },
+  // den-mvp/88: the router records a stop it met; a dismiss needs one waiting, which `prepare` records and returns the id of.
+  "POST /router-stops": {
+    real: { key: "usage-reading", kind: "usage-reading", text: "the usage reading failed" },
+    bogus: { key: "order:99-nope", kind: "order", text: "something else entirely" },
+  },
+  "POST /router-stops/:id/dismiss": {
+    real: {},
+    bogus: {},
+    prepare: async () => {
+      const res = await send(bridge, { method: "POST", path: "/router-stops", headers: authed(bridge, token), body: { key: "bridge-down", kind: "bridge-down", text: "the bridge is down" } });
+      assert.equal(res.status, 201, res.text);
+      return res.body.request.id;
+    },
+  },
   // den-mvp outcome 4: a meeting is started on a topic; the steering rows need one that is running, waiting or briefed.
   "POST /meetings": { real: { topic: "one log or many?", roles: ["qa"] }, bogus: { topic: "something else", roles: ["scout"] } },
   "POST /meetings/:id/stop": { real: {}, bogus: {}, prepare: () => meeting() },
