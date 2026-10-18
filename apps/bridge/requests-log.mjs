@@ -5,6 +5,8 @@ import { readFile, appendFile, mkdir } from "node:fs/promises";
 import path from "node:path";
 
 export const REQUEST_KINDS = ["merge-approve", "merge-reject", "dispatch-approve", "dispatch-reject"];
+// den-mvp/88: a stop the router met (POST /router-stops, its service token); not a gate request, so not in REQUEST_KINDS.
+export const ROUTER_STOP = "router-stop";
 const HANDLED_KEPT = 10;
 
 export const requestsFile = (root) => path.join(root, ".scratch", "_requests", "requests.jsonl");
@@ -42,8 +44,8 @@ export function foldRequests(rows) {
         req.handledAt = r.ts;
       }
     } else if (typeof r.id === "string" && !byId.has(r.id)) {
-      const { id, ts, kind, ref, note } = r;
-      const req = { id, ts, kind, ref, ...(note !== undefined ? { note } : {}), state: "pending" };
+      const { id, ts, kind, ref, note, key, stop } = r;
+      const req = { id, ts, kind, ref, ...(note !== undefined ? { note } : {}), ...(kind === ROUTER_STOP ? { key, stop } : {}), state: "pending" };
       byId.set(id, req);
       order.push(req);
     }

@@ -170,7 +170,8 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
 
   const requests = buildRequests(requestRows);
   const pendingByRef = new Map();
-  for (const r of requests) if (r.state === "pending" && !pendingByRef.has(r.ref)) pendingByRef.set(r.ref, r);
+  // A router stop is not a gate request: it does not hold the ticket's gate (den-mvp/88).
+  for (const r of requests) if (r.state === "pending" && r.kind !== "router-stop" && !pendingByRef.has(r.ref)) pendingByRef.set(r.ref, r);
 
   const goalsFile = await readGoals(root);
   const tickets = [];

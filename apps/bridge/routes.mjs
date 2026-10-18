@@ -4,6 +4,7 @@
 //         "origin" Origin and Content-Type checked, no Bearer (POST /session: this is how a token is obtained)
 //         "token"  Origin, Content-Type and a valid session token
 //         "run"    Origin, Content-Type and the token of a live run (den-mvp/38: the den script calling back for Bao)
+// service: true  den-mvp/88: the router's service token is accepted too (a session token always is on a "token" row)
 // A request that matches no row is a 404 (GET and HEAD fall through to the static UI build).
 export const ROUTES = [
   { method: "GET", path: "/state", auth: "none", mutating: false },
@@ -22,8 +23,10 @@ export const ROUTES = [
   { method: "POST", path: "/approvals/:id", auth: "token", mutating: true },
   { method: "GET", path: "/conversations/:role", auth: "token", mutating: false },
   { method: "POST", path: "/conversations/:role/message", auth: "token", mutating: true },
-  { method: "POST", path: "/deliveries", auth: "token", mutating: true },
-  { method: "POST", path: "/deliveries/:id/resume", auth: "token", mutating: true },
+  { method: "POST", path: "/deliveries", auth: "token", mutating: true, service: true },
+  { method: "POST", path: "/deliveries/:id/resume", auth: "token", mutating: true, service: true },
+  { method: "POST", path: "/router-stops", auth: "token", mutating: true, service: true },
+  { method: "POST", path: "/router-stops/:id/dismiss", auth: "token", mutating: true },
   { method: "POST", path: "/deliveries/:id/stop", auth: "token", mutating: true },
   { method: "POST", path: "/deliveries/:id/close", auth: "token", mutating: true },
   { method: "POST", path: "/meetings", auth: "token", mutating: true },

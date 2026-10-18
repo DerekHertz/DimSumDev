@@ -45,8 +45,9 @@ describe("createAuth", () => {
 });
 
 describe("the route registry", () => {
-  test("exactly the start and resume delivery routes accept the service token", () => {
-    assert.deepEqual(ROUTES.filter((r) => r.service).map((r) => `${r.method} ${r.path}`).sort(), ["POST /deliveries", "POST /deliveries/:id/resume"]);
+  // den-mvp/88 user decision (2026-10-17): the router also posts its router-stop requests with the token.
+  test("exactly the start and resume delivery routes, and the router-stop post, accept the service token", () => {
+    assert.deepEqual(ROUTES.filter((r) => r.service).map((r) => `${r.method} ${r.path}`).sort(), ["POST /deliveries", "POST /deliveries/:id/resume", "POST /router-stops"]);
   });
 });
 
