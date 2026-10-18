@@ -183,7 +183,8 @@ export function useDeliveries(client) {
   const steer = useCallback((id, action, options) => call(id, () => client.steerDelivery(id, action, options)), [call, client]);
   const answerTicket = useCallback((ref, action, options) => call(`ticket:${ref}`, () => client.answerTicket(ref, action, options)), [call, client]);
   const runChecks = useCallback((pr) => call(`checks:${pr}`, () => client.runChecks({ pr })), [call, client]);
-  return useMemo(() => ({ inflight, results, deliver, deliverText, steer, runChecks, answerTicket }), [inflight, results, deliver, deliverText, steer, runChecks, answerTicket]);
+  const dismissRouterStop = useCallback((id) => call(`router-stop:${id}`, () => client.dismissRouterStop(id)), [call, client]);
+  return useMemo(() => ({ inflight, results, deliver, deliverText, steer, runChecks, answerTicket, dismissRouterStop }), [inflight, results, deliver, deliverText, steer, runChecks, answerTicket, dismissRouterStop]);
 }
 
 const idPart = (s) => String(s).replace(/[^A-Za-z0-9_-]/g, "-");
@@ -247,6 +248,22 @@ function CiNote({ request, steer, deliveries }) {
           </button>
         </div>
       ) : null}
+      {error ? <p className="small gate-error" role="alert">{error}</p> : null}
+    </div>
+  );
+}
+
+// den-mvp/88: a stop the router met. Nothing to approve: Dismiss says the user has seen it.
+function RouterStopNote({ request, steer, deliveries }) {
+  const off = steer.demo ? "Demo mode: actions are off" : steer.state === "none" ? "Not signed in to steer" : null;
+  const busy = deliveries.inflight.has(`router-stop:${request.id}`);
+  const error = deliveries.results[`router-stop:${request.id}`]?.error;
+  return (
+    <div aria-live="polite">
+      <div className="decision-buttons">
+        <button type="button" className="btn btn-outline" aria-label={`Dismiss ${request.short}`} title={off ?? undefined} disabled={!!off || busy} aria-busy={busy || undefined} onClick={() => deliveries.dismissRouterStop(request.id)}>Dismiss</button>
+      </div>
+      {off ? <p className="small muted">{off}</p> : null}
       {error ? <p className="small gate-error" role="alert">{error}</p> : null}
     </div>
   );
@@ -562,6 +579,8 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
                 ? <CiNote key={current.key} request={current} steer={steer} deliveries={deliveries} />
               : current.kind === "ticket"
                 ? (deliveries ? <TicketDecision key={current.key} request={current} steer={steer} deliveries={deliveries} /> : null)
+              : current.kind === "router-stop"
+                ? (deliveries ? <RouterStopNote key={current.key} request={current} steer={steer} deliveries={deliveries} /> : null)
               : current.kind === "meeting"
                 ? (meetings ? <MeetingDecision key={current.key} request={current} steer={steer} meetings={meetings} onOpenMeeting={onOpenMeeting} /> : null)
               : prompt.show

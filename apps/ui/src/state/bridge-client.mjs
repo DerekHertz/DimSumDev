@@ -173,6 +173,11 @@ export function createBridgeClient({ fetch }) {
       });
       return body ?? { ok: true };
     },
+    // den-mvp/88: the user has seen a stop the router met; it leaves Needs you (and returns if the stop is still true).
+    async dismissRouterStop(id) {
+      const body = await call(`/router-stops/${encodeURIComponent(id)}/dismiss`, { method: "POST", headers: { "Content-Type": "application/json" }, body: "{}" });
+      return body ?? { ok: true };
+    },
     // den-mvp/34: run ci.yml's checks on this machine for an open pull request's head commit. -> { sha }
     async runChecks({ pr } = {}) {
       if (!Number.isInteger(pr) || pr < 1) throw failure(0, "No pull request to check.");
