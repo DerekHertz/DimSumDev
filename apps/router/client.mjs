@@ -99,7 +99,7 @@ export async function pushNtfy(url, stop) {
   if (!url) return false;
   let res;
   try {
-    res = await fetch(url, { method: "POST", headers: { Title: `Den: ${stop.kind}` }, body: `${stop.ref ? `${stop.ref}: ` : ""}${stop.text}`.slice(0, 500), signal: AbortSignal.timeout(15_000) });
+    res = await fetch(url, { method: "POST", redirect: "error", headers: { Title: `Den: ${stop.kind}` }, body: `${stop.ref ? `${stop.ref}: ` : ""}${stop.text}`.slice(0, 500), signal: AbortSignal.timeout(15_000) });
   } catch (err) {
     throw new Error(`push failed (${err.name})`);
   }
