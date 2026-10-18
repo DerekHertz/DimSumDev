@@ -1,5 +1,6 @@
 # The den's bridge as a systemd user service (ADR 0026 decision 4). `npm run den:install` fills the @...@ marks from this
 # machine and writes the result to ~/.config/systemd/user/den.service; nothing else writes it, and no agent or bridge route may.
+# It runs the launcher den:install copied outside every release (den-mvp/77), which starts the release bridge/current names.
 [Unit]
 Description=Dim Sum Dev bridge
 
@@ -7,7 +8,7 @@ Description=Dim Sum Dev bridge
 Type=simple
 Slice=den.slice
 WorkingDirectory=@CHECKOUT@
-ExecStart=@NODE@ @STATE@/bridge/current/apps/bridge/server.mjs
+ExecStart=@NODE@ @STATE@/launcher/den-launcher.mjs
 Environment=PORT=4317
 Environment=DEN_STATE_DIR=@STATE@
 Environment="PATH=@PATH@"
