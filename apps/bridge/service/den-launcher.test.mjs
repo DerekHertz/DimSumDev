@@ -6,7 +6,7 @@ import { test, describe, beforeEach, afterEach, after, before } from "node:test"
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { mkdir, mkdtemp, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -169,6 +169,18 @@ describe("the launcher (den-mvp/77)", () => {
     out.child.kill("SIGTERM");
   });
 
+  test("a malformed bridge/failed.json fails open: it names nothing, so the release is started", async () => {
+    await put(c1);
+    await put(c2);
+    await releases.switchBridge(shas[c1]);
+    await releases.switchBridge(shas[c2]);
+    await writeFile(path.join(state, "bridge", "failed.json"), "{ not json");
+    const out = await launcher().launch();
+    assert.equal(out.sha, shas[c2]);
+    assert.equal(out.rolledBack, false);
+    out.child.kill("SIGTERM");
+  });
+
   describe("a release older than the running one", () => {
     // links made by hand: a name the bridge could not have written without consent
     const link = async (pair, name, i) => {
@@ -202,6 +214,19 @@ describe("the launcher (den-mvp/77)", () => {
       out.child.kill("SIGTERM");
     });
 
+    test("a malformed bridge/downgrade.json fails closed: it is no consent, so the older release is refused", async () => {
+      await put(c1);
+      await put(c3);
+      await link("bridge", "current", c1);
+      await link("bridge", "previous", c3);
+      await writeFile(path.join(state, "bridge", "downgrade.json"), "{ not json");
+      const out = await launcher().launch();
+      assert.equal(out.sha, shas[c3]);
+      assert.equal(starts(c1).length, 0);
+      assert.match((await readUpdateFailure(state)).reason, /older/i);
+      out.child.kill("SIGTERM");
+    });
+
     test("a newer release and the running release itself are never refused", async () => {
       await put(c1);
       await put(c2);
@@ -227,6 +252,29 @@ describe("the launcher (den-mvp/77)", () => {
         assert.ok(done, "the launcher exits after SIGTERM");
         assert.ok(done.code === 143 || done.code === 0 || done.signal === "SIGTERM", `a stop is a clean exit, got ${JSON.stringify(done)}`);
         assert.equal(alive(pid), false, "the bridge does not outlive the launcher");
+      } finally {
+        proc.kill("SIGKILL");
+      }
+    });
+
+    test("a state dir reached through a symlink still starts the release (the unit's path need not be the real one)", async () => {
+      await put(c2);
+      await releases.switchBridge(shas[c2]);
+      await mkdir(path.join(state, "launcher"));
+      await copyFile(LAUNCHER, path.join(state, "launcher", "den-launcher.mjs"));
+      const viaLink = `${state}-link`;
+      await symlink(state, viaLink);
+      const proc = spawn(process.execPath, [path.join(viaLink, "launcher", "den-launcher.mjs")], { cwd: repo, env: { PATH: process.env.PATH, DEN_STATE_DIR: viaLink, PORT: String(port) }, stdio: "ignore" });
+      const exited = new Promise((resolve) => proc.on("exit", (code, signal) => resolve({ code, signal })));
+      try {
+        let early = null;
+        for (let i = 0; i < 100 && !(await answers(port)) && !early; i += 1) {
+          await wait(50);
+          early = await Promise.race([exited, Promise.resolve(null)]);
+        }
+        assert.equal(early, null, `the launcher stays up, got ${JSON.stringify(early)}`);
+        assert.equal(await answers(port), true);
+        assert.equal(starts(c2).length, 1);
       } finally {
         proc.kill("SIGKILL");
       }

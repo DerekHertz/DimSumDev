@@ -13,6 +13,7 @@ import { randomBytes } from "node:crypto";
 import { readFile, readlink, rename, rm, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { realpathSync } from "node:fs";
 
 const SHA_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
 const LINK_RE = /^\.\.\/releases\/([0-9a-f]{12})$/;
@@ -123,7 +124,16 @@ export function createLauncher({ stateDir, repo, node = process.execPath, port =
   return { launch, stop };
 }
 
-if (process.argv[1] === fileURLToPath(import.meta.url)) {
+// import.meta.url is the real path; argv[1] is as the unit gave it, possibly through a symlinked state dir (server.mjs does the same).
+const startedDirectly = () => {
+  try {
+    return process.argv[1] !== undefined && realpathSync(process.argv[1]) === fileURLToPath(import.meta.url);
+  } catch {
+    return false;
+  }
+};
+
+if (startedDirectly()) {
   const launcher = createLauncher({ stateDir: process.env.DEN_STATE_DIR, repo: process.cwd(), port: Number(process.env.PORT) || 4317 });
   let stopping = false;
   process.on("SIGTERM", () => {
