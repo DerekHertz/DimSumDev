@@ -54,6 +54,7 @@ import { PREVIEW_READS, matchRoute } from "./routes.mjs";
 import { computeMetrics, parseJsonl } from "../../scripts/metrics.mjs";
 import { contentTypeFor } from "../ci-cd/dev-server.mjs";
 import { ReleaseError, readBuild, resolveUi } from "./build/releases.mjs";
+import { createUpdater } from "./build/update.mjs";
 import { createDenBuild } from "./build/den-build.mjs";
 import { redactChange, redactSnapshot } from "./build/preview.mjs";
 import { RECOVER_HTML, RECOVER_SCRIPT } from "./build/recover.mjs";
@@ -128,7 +129,10 @@ function installProcessHandlers(host) {
 // it the watch only reads its record, so a test never reaches the git host by the timer.
 // den-mvp/34: checks (delivery/checks.mjs) runs ci.yml's checks here: before a delivery pushes, and on POST /checks for an
 // open pull request. With none, a delivery skips them and POST /checks is a 503.
-export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, usage: usageOption, usageByRuntime = {}, checks: checksOption = null } = {}) {
+// The routes that start a run, a delivery or a meeting, or resume one.
+const STARTS = /^\/(?:agents|tasks|deliveries|meetings)(?:\/[^/]+\/resume)?$/;
+
+export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs } = {}) {
   let actualPort = port;
   const git = gitHost ?? createGitHost(root);
   // den-mvp/10 and 11: the den's own build, when it is served from release folders: previews, go-live and roll back. The
@@ -145,9 +149,10 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   // den-mvp/85: the bridge tags a patch release for a merged bridge change, and builds the newest tag ahead of the update.
   // Both run on timers (watchCi) and are no agent's tool.
   const autoRelease = createAutoRelease({ git });
-  const readyRelease = denBuild ? createReadyRelease({ git, releases: denBuild.releases, stateDir: denState, repo: root, onChange: (change) => hub.publish(change) }) : null;
+  const readyRelease = denBuild ? createReadyRelease({ git, releases: denBuild.releases, stateDir: denState, repo: root, onChange: (change) => (hub.publish(change), updater?.check().catch(() => {})) }) : null;
   const auth = createAuth(authOptions);
   let host;
+  let updater = null;
   let delivery;
   let meetings;
   // A pull request a delivery is running or waiting on is the delivery's: its runner re-runs a timeout or sends a red back.
@@ -180,6 +185,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     build: () => readBuild_(),
     release: () => releases.current(),
     readyRelease: () => readyRelease?.snapshot() ?? null,
+    update: () => updater?.snapshot() ?? null,
     wall: () => wallTables(),
     readUsage: usageReading,
     boardRoot: () => projects.activeRoot(),
@@ -241,6 +247,22 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   });
   await meetings.ready;
   await ciWatch.ready;
+  // den-mvp/86: an update applies when nothing is running. Work is live while a run is, a delivery is running (a step, a check,
+  // a merge) or a meeting is. Stopping is the ordinary shutdown: whatever is left pauses and waits for Resume.
+  if (denBuild && readyRelease) {
+    updater = createUpdater({
+      stateDir: denState,
+      releases: denBuild.releases,
+      ready: () => readyRelease.snapshot(),
+      busy: () => host.busy() || (delivery.snapshot() ?? []).some((d) => d.state === "running") || (meetings.snapshot() ?? []).some((m) => m.state === "running"),
+      stop: () => stopWork(),
+      exit,
+      pollMs: updatePollMs,
+      onChange: (change) => hub.publish(change),
+      onDrain: (text) => host.drain(text),
+    });
+    await updater.ready;
+  }
   if (watchCi) {
     ciWatch.start();
     autoRelease.start();
@@ -280,6 +302,9 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       return reply(res, 404, { error: "not found" });
     }
     if (route.auth !== "none" && !passesGate(req, res, route)) return;
+    // den-mvp/86: while the bridge drains for an update it starts nothing new; `draining` tells the router this is a wait.
+    const drainText = updater?.drainingText();
+    if (drainText && req.method === "POST" && STARTS.test(pathname)) return reply(res, 503, { error: drainText, draining: true });
     const handler = HANDLERS[`${route.method} ${route.path}`];
     if (!handler) return reply(res, 404, { error: "not found" });
     await handler(req, res);
@@ -389,6 +414,25 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     "POST /meetings/:id/close": (req, res) => steerMeeting(req, res, "close"),
     "POST /meetings/:id/decide": (req, res) => steerMeeting(req, res, "decide"),
     "POST /meetings/:id/ask": (req, res) => steerMeeting(req, res, "ask"),
+    "POST /update/now": async (req, res) => {
+      if (!(await readJsonObject(req, res))) return;
+      if (!updater) return reply(res, 409, { error: "the den runs from the checkout: there is nothing to update" });
+      const { status, update, started, reason } = await updater.updateNow();
+      reply(res, status, { update, started, ...(reason ? { reason } : {}) });
+    },
+    "POST /update/restart": async (req, res) => {
+      if (!(await readJsonObject(req, res))) return;
+      if (!updater) return reply(res, 409, { error: "the den runs from the checkout: it cannot restart itself" });
+      reply(res, 202, { restarting: true });
+      updater.restartNow().catch((err) => console.error(`bridge: restart failed: ${err?.message ?? err}`));
+    },
+    "POST /update/auto": async (req, res) => {
+      const body = await readJsonObject(req, res);
+      if (!body) return;
+      if (typeof body.auto !== "boolean") return reply(res, 400, { error: "auto must be true or false" });
+      if (!updater) return reply(res, 409, { error: "the den runs from the checkout: there are no updates" });
+      reply(res, 200, { update: await updater.setAuto(body.auto) });
+    },
     "POST /build/rollback": (req, res) => rollBack(req, res),
     "POST /release/approve": (req, res) => steerRelease(req, res, "approve"),
     "POST /release/decline": (req, res) => steerRelease(req, res, "decline"),
@@ -955,6 +999,12 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     server.listen(port, HOST, resolve);
   });
   actualPort = server.address().port;
+  async function stopWork() {
+    await host.shutdown();
+    await new Promise((resolve) => setImmediate(resolve)); // the runs' end hooks are queued behind the shutdown
+    await delivery.shutdown();
+    await meetings.shutdown();
+  }
   const uninstallProcessHandlers = runtime || runtimes ? installProcessHandlers(host) : () => {};
   return {
     url: `http://${HOST}:${actualPort}`,
@@ -966,10 +1016,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     pollRelease: () => autoRelease.poll().then(() => readyRelease?.poll()), // den-mvp/85: one look of each release timer, for a test
     pollCi: () => ciWatch.poll(), // one look of the CI watch now, for a test (its timer is off there)
     close: async () => {
-      await host.shutdown();
-      await new Promise((resolve) => setImmediate(resolve)); // the runs' end hooks are queued behind the shutdown
-      await delivery.shutdown();
-      await meetings.shutdown();
+      await stopWork();
+      updater?.stop();
       ciWatch.stop();
       autoRelease.stop();
       readyRelease?.stop();
@@ -1017,7 +1065,7 @@ if (startedDirectly()) {
   // den-mvp/88: the router's service token, written by den:install; none (or a bad file) means no service access.
   const { readServiceToken } = await import("../router/service-token.mjs");
   const serviceToken = await readServiceToken(denState);
-  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, runtime: createClaudeRuntime({ env: process.env, launcher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks });
+  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, runtime: createClaudeRuntime({ env: process.env, launcher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
   console.log(`bridge listening on ${bridge.url} (root ${root})`);
   // The only place the launch code is shown (ADR 0016 decision 6.2): once, in a URL fragment the browser never sends.
   console.log(`to steer, open (one use, 5 minutes): ${bridge.url}/#code=${bridge.newLaunchCode()}`);

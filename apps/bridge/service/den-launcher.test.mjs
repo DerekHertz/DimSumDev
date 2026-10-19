@@ -6,7 +6,7 @@ import { test, describe, beforeEach, afterEach, after, before } from "node:test"
 import assert from "node:assert/strict";
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { copyFile, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readdir, readlink, rm, symlink, writeFile } from "node:fs/promises";
 import { createServer } from "node:net";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -164,6 +164,37 @@ describe("the launcher (den-mvp/77)", () => {
     assert.equal(out.sha, shas[c1]);
     assert.equal(out.rolledBack, true);
     out.child.kill("SIGTERM");
+  });
+
+  describe("the UI link follows a rollback (den-mvp/86)", () => {
+    const uiLink = () => readlink(path.join(state, "ui", "current")).catch(() => null);
+    test("ui/current named the failed release: it names the release the bridge now runs, and the served UI is that release's", async () => {
+      await put(c1);
+      await releases.switchBridge(shas[c1]);
+      await releases.switchUi(shas[c1]); // a UI switch collects releases no link names, so c2 is made after it
+      await put(c2, "silent");
+      await releases.switchBridge(shas[c2]);
+      await releases.switchUi(shas[c2]);
+      assert.equal(await uiLink(), `../releases/${shas[c2].slice(0, 12)}`);
+      const out = await launcher({ checkMs: 800 }).launch();
+      assert.equal(out.rolledBack, true);
+      assert.equal(await uiLink(), `../releases/${shas[c1].slice(0, 12)}`);
+      assert.equal((await currentRelease(state, "ui")).sha, shas[c1]);
+      assert.equal((await currentRelease(state, "bridge")).sha, shas[c1]);
+      out.child.kill("SIGTERM");
+    });
+    test("a UI-only release (ui/current names a release the bridge never switched to) is left alone by a rollback", async () => {
+      await put(c1);
+      await put(c2, "silent");
+      await put(c3);
+      await releases.switchBridge(shas[c1]);
+      await releases.switchBridge(shas[c2]);
+      await releases.switchUi(shas[c3]);
+      const out = await launcher({ checkMs: 800 }).launch();
+      assert.equal(out.rolledBack, true);
+      assert.equal(await uiLink(), `../releases/${shas[c3].slice(0, 12)}`);
+      out.child.kill("SIGTERM");
+    });
   });
 
   test("after a failed update the same release is not started again", async () => {

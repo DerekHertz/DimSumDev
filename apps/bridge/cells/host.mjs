@@ -334,7 +334,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
 
   // The refusals that depend on no ticket. admit() applies them in this order; direct() asks them all before a
   // ticket is written.
-  const down = (runtime) => (!runtime ? refuse(503, "no runtime is configured") : shuttingDown ? refuse(503, "the bridge is shutting down") : null);
+  // den-mvp/86: while the bridge drains for an update it admits no new run (draining is the refusal text, or null). A step of a
+  // delivery or a meeting already under way is not new: the drain waits for those to finish.
+  let draining = null;
+  const down = (runtime, { step = false } = {}) => (!runtime ? refuse(503, "no runtime is configured") : shuttingDown ? refuse(503, "the bridge is shutting down") : draining && !step ? { ...refuse(503, draining), draining: true } : null);
   // den-mvp outcome 1: a host that cannot enforce the hardware limits starts no agent, and the refusal says what is missing.
   // Asked before a worktree or a ticket is made; the runtime checks again on its own launch path.
   const RESOURCE_LIMITS = ["memory", "processes", "storage"];
@@ -421,7 +424,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       if (step || !MEETING_PARTS.includes(part) || typeof file !== "string" || file.length > MEETING_FILE_MAX) return refuse(400, "a meeting run needs its part and its note");
       meeting = { part, file };
     }
-    const notUp = down(runtime);
+    const notUp = down(runtime, { step: Boolean(step || meeting) });
     if (notUp) return notUp;
     if (entry === "dispatch") {
       const gate = await checkGate(ref, selected);
@@ -1254,6 +1257,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // den-mvp/49: what the project switch looks at: each run's project and whether it is the den's own (desk, meeting, orchestrator).
     projectRuns: () => [...agents.values()].map((a) => ({ id: a.id, role: a.role, ref: a.ref, state: a.state, project: a.project ?? "den", control: isControl(a) })),
     snapshot: () => [...agents.values()].map(view),
+    busy: () => liveByRef.size > 0, // den-mvp/86: any run reserved or running
+    drain: (text) => void (draining = text || null), // den-mvp/86: the update's refusal text for a new run, or null to admit again
     capacity: capacityNow, // (lockedRefs) -> the capacity key the hub puts in the snapshot
     approvals: () => approvals.list(),
     transcripts: transcriptView,
