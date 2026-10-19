@@ -15,7 +15,7 @@ import { TALLY_ANCHOR } from "./scene/procedural/bindings.mjs";
 import { denEvents } from "./scene/procedural/events.mjs";
 import "./scene/procedural/den.css";
 import { ChipLayer } from "./scene/ChipLayer.jsx";
-import { MAX_PLUSH, sceneFromState, withPassCell } from "./scene/scene-from-state.mjs";
+import { MAX_PLUSH, sceneFromState, withPassPlacement } from "./scene/scene-from-state.mjs";
 import { useLiveState } from "./live.js";
 import { demoRequested, useDemoSnapshot, useHandoffs } from "./handoff-state.js";
 import { useMetrics } from "./metrics-state.js";
@@ -39,7 +39,7 @@ import { agentFor, pickedCard } from "./overlay/proximity-card.mjs";
 import { DESK_THREAD } from "./overlay/transcript-panel.mjs";
 import { Residents } from "./shell/Residents.jsx";
 import { deskActivity } from "./shell/desk-model.mjs";
-import { actorBindings, NAVIGATION_TARGETS, MESHY_STATION_LABELS } from "./scene/meshy/layout.mjs";
+import { actorBindings, NAVIGATION_TARGETS, MESHY_TEAM_LABELS } from "./scene/meshy/layout.mjs";
 import { MeetingLayer } from "./scene/MeetingLayer.jsx";
 import { claimOf, tableMeeting } from "./scene/meshy/meeting-table.mjs";
 import { RESIDENTS, RUNTIME_UNAVAILABLE, boundAgentKey } from './shell/resident-inventory.mjs';
@@ -148,12 +148,12 @@ export function App() {
   const closeTicket=useCallback(()=>{setSelected(null);document.querySelector('main[aria-label="Den scene"]')?.focus({preventScroll:true});},[]);
   const onExploreChange=useCallback(active=>{setExploring(active);setNearby(null);setPicked(null);if(active){setSelected(null);setTallyOpen(false);}},[]);
   const frontier=snapshot?.frontier ?? [];
-  const cells = useMemo(() => (snapshot ? sceneFromState(snapshot) : []), [snapshot]);
+  const placements = useMemo(() => (snapshot ? sceneFromState(snapshot) : []), [snapshot]);
   // Bao's crown always holds the Pass: an idle stand-in when no orchestrator work is active.
-  const sceneCells = useMemo(() => withPassCell(cells), [cells]);
+  const scenePlacements = useMemo(() => withPassPlacement(placements), [placements]);
   // den-mvp/64: a meeting's runs wear the meeting's own labels at the table, so their generic chips are left out.
   const tableRef = tableMeeting(snapshot?.meetings, now)?.ref ?? null;
-  const sceneChips=useMemo(()=>[...cells.filter(c=>c.ref!==tableRef),...frontier.map(ref=>({ref,cellType:'queued',pose:'idle'}))],[cells,frontier,tableRef]);
+  const sceneChips=useMemo(()=>[...placements.filter(c=>c.ref!==tableRef),...frontier.map(ref=>({ref,role:'queued',pose:'idle'}))],[placements,frontier,tableRef]);
   const handoffs = useHandoffs(snapshot);
   const { metrics, failed: metricsFailed, retry: retryMetrics } = useMetrics(metricsRevision);
   const dashboard = useMemo(() => dashboardModel(metrics, { error: metricsFailed }), [metrics, metricsFailed]);
@@ -292,12 +292,12 @@ export function App() {
                 <FrameCap />
                 <CameraRig store={camera} stage={stage} den={den} onModeChange={onExploreChange} onHint={setExploreHint} onCursorChange={setCursorFree} />
                 <Suspense fallback={null}>
-                  <MeshyDen snapshot={snapshot} bindings={bindings} onLoadState={setGardenLoad} cells={sceneCells} frontier={frontier} tally={tally} onOpenTally={openTally}
+                  <MeshyDen snapshot={snapshot} bindings={bindings} onLoadState={setGardenLoad} placements={scenePlacements} frontier={frontier} tally={tally} onOpenTally={openTally}
                     selected={selected} onSelect={selectTicket} stage={stage} onReady={onDenReady} onNearby={onNearby} picked={picked} onPick={pickPanda} zoneView={zoneView} onZoneClick={zoneClick} onOpenMeeting={openMeeting} />
                 </Suspense>
               </Canvas>
             </SceneBoundary>
-            <ChipLayer cells={sceneChips} labelsOverride={MESHY_STATION_LABELS} hearts={hearts} onToggleTally={toggleTally} tallyOpen={tallyOpen} tally={tally} tickets={snapshot?.tickets} selected={selected} onSelect={selectTicket} stage={stage} />
+            <ChipLayer placements={sceneChips} labelsOverride={MESHY_TEAM_LABELS} hearts={hearts} onToggleTally={toggleTally} tallyOpen={tallyOpen} tally={tally} tickets={snapshot?.tickets} selected={selected} onSelect={selectTicket} stage={stage} />
             <MeetingLayer snapshot={snapshot} stage={stage} claims={claims} onOpen={openMeeting} />
             <div className="den-crosshair" aria-hidden="true" hidden={!exploring || cursorFree}>+</div>
             {!den ? <p className="forest-loading" role={gardenLoad.status === 'error' ? 'alert' : 'status'}>{gardenLoad.message}<span>{gardenLoad.status === 'error' ? 'Your board controls are still available at the desk.' : 'Preparing Bao, the workspaces and their props.'}</span></p> : null}

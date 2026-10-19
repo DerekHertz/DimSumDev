@@ -9,7 +9,7 @@
 // write-lock path): the developer's implementation must match these, or say
 // so in their handoff if a different convention is picked.
 //
-//   1. `board claim <ref> <cellType> --mode <specify|verify>` is a new,
+//   1. `board claim <ref> <role> --mode <specify|verify>` is a new,
 //      declared flag on `claim` that records the calling agent's mode
 //      alongside its type, so `release` can later tell "qa in specify mode"
 //      apart from "qa in verify mode" or a plain claim with no mode.

@@ -2,12 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { withDen } from './den-test-helpers.mjs';
-import { planCells, poseFor, STATION_LABELS } from './bindings.mjs';
+import { planPlacements, poseFor, TEAM_LABELS } from './bindings.mjs';
 import { cameraConfig, wheelZoom, clampZoom } from './camera.mjs';
 import { createDenExplorer, isDenPositionBlocked } from './explorer.mjs';
 import { denEvents } from './events.mjs';
 
-const cell=(ref,cellType='developer',pose='working')=>({ref,cellType,pose});
+const placement=(ref,role='developer',pose='working')=>({ref,role,pose});
 
 test('the assembled village has Bao alone and finite, normalized skinning after compaction',()=>{
   withDen(den=>{
@@ -27,7 +27,7 @@ test('the assembled village has Bao alone and finite, normalized skinning after 
 
 test('board refreshes retain identity, transition poses, and remove resolved figures and queue baskets',()=>{
   withDen((den,controller)=>{
-    const first=cell('test/01');
+    const first=placement('test/01');
     controller.sync([first],['test/02'],[{counted:7,color:'qi'}]);
     const panda=controller.figures.get(first.ref).panda;
     controller.update(1/60);
@@ -41,23 +41,23 @@ test('board refreshes retain identity, transition poses, and remove resolved fig
   });
 });
 
-test('twelve tickets sharing a station have distinct places; synthetic Pass residents carry no ticket',()=>{
+test('twelve tickets sharing a team have distinct places; synthetic Pass residents carry no ticket',()=>{
   withDen((den,controller)=>{
-    const cells=Array.from({length:12},(_,i)=>cell('test/'+String(i+1).padStart(2,'0')));
-    const planned=planCells([...cells,{ref:'__pass',cellType:'orchestrator',synthetic:true}]);
+    const placements=Array.from({length:12},(_,i)=>placement('test/'+String(i+1).padStart(2,'0')));
+    const planned=planPlacements([...placements,{ref:'__pass',role:'orchestrator',synthetic:true}]);
     assert.equal(planned.length,12);
     assert.equal(new Set(planned.map(c=>c.placement.position.join(','))).size,12);
-    controller.sync(cells,[],[]);assert.equal(controller.figures.size,12);
-    for(const f of controller.figures.values())assert.equal(f.panda.model.userData.ticketRef,f.cell.ref);
-    controller.sync([cell('test/01','qa')],[],[]);
+    controller.sync(placements,[],[]);assert.equal(controller.figures.size,12);
+    for(const f of controller.figures.values())assert.equal(f.panda.model.userData.ticketRef,f.placement.ref);
+    controller.sync([placement('test/01','qa')],[],[]);
     assert.equal(controller.figures.size,1);
-    assert.equal(controller.figures.get('test/01').panda.model.userData.cellType,'qa');
+    assert.equal(controller.figures.get('test/01').panda.model.userData.role,'qa');
   });
 });
 
 test('reduced motion holds a pose without accumulating head tilt',()=>{
   withDen((den,controller)=>{
-    controller.sync([cell('test/01','qa','blocked')],[],[]);
+    controller.sync([placement('test/01','qa','blocked')],[],[]);
     controller.update(1/60,{reducedMotion:true});
     const head=controller.figures.get('test/01').panda.bones.Head.rotation.x;
     for(let i=0;i<120;i++)controller.update(1/60,{reducedMotion:true});
@@ -66,11 +66,11 @@ test('reduced motion holds a pose without accumulating head tilt',()=>{
   });
 });
 
-test('the default desktop and phone cameras contain every station label and the Tally',()=>{
+test('the default desktop and phone cameras contain every team label and the Tally',()=>{
   for(const [width,height] of [[1440,900],[375,667]]){
     const config=cameraConfig({width,height}),camera=new THREE.OrthographicCamera(config.left,config.right,config.top,config.bottom,config.near,config.far);
     camera.position.set(...config.position);camera.lookAt(...config.target);camera.updateMatrixWorld(true);
-    for(const l of STATION_LABELS){
+    for(const l of TEAM_LABELS){
       const p=new THREE.Vector3(l.x,l.y,l.z).project(camera);
       assert.ok(Math.abs(p.x)<=1&&Math.abs(p.y)<=1,l.id+' should fit');
     }
@@ -207,14 +207,14 @@ test('no panda perches on Bao: Pass roles stand on the ground beside the Pass, a
   withDen((den,controller)=>{
     const onBao=p=>{for(let o=p.model.parent;o;o=o.parent)if(o===den.hero.model)return true;return false;};
     assert.deepEqual(den.pandas.slice(1).filter(onBao).map(p=>p.model.name),[]);
-    const planned=planCells([cell('t/01','product'),cell('t/02','architect'),cell('t/03','orchestrator')]);
-    for(const c of planned)assert.ok(!['crown','left-shoulder','right-shoulder'].includes(c.placement.parent),c.cellType);
-    const at=role=>planned.find(c=>c.cellType===role).placement;
+    const planned=planPlacements([placement('t/01','product'),placement('t/02','architect'),placement('t/03','orchestrator')]);
+    for(const c of planned)assert.ok(!['crown','left-shoulder','right-shoulder'].includes(c.placement.parent),c.role);
+    const at=role=>planned.find(c=>c.role===role).placement;
     assert.ok(Math.abs(at('product').position[0]-(-4))<1.1&&Math.abs(at('product').position[2]-(-11))<1.1,'product beside the Pass');
     assert.ok(Math.abs(at('architect').position[0]-4)<1.1&&Math.abs(at('architect').position[2]-(-11))<1.1,'architect beside the Pass');
-    controller.sync([cell('t/03','orchestrator')],[],[]);
+    controller.sync([placement('t/03','orchestrator')],[],[]);
     assert.equal(controller.figures.size,0,'live orchestrator work shows on Bao, not as another panda');
-    controller.sync([cell('t/01','product')],[],[]);
+    controller.sync([placement('t/01','product')],[],[]);
     assert.equal(onBao(controller.figures.get('t/01').panda),false);
   });
 });

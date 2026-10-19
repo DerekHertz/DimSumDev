@@ -25,7 +25,7 @@
 .proximity-dock .proximity-card:has(.proximity-close) { position:relative; }
 .proximity-close { position:absolute; top:12px; right:12px; display:inline-flex; align-items:center; justify-content:center; width:32px; height:32px; border:1px solid var(--line); border-radius:var(--radius-m); background:transparent; color:var(--ink); cursor:pointer; }
 .den-entry button + button { margin-left:8px; }
-.proximity-station { margin:0; font-size:12px; }
+.proximity-team { margin:0; font-size:12px; }
 .proximity-state, .proximity-ticket, .proximity-tool, .proximity-pending { margin:8px 0; font-size:13px; overflow-wrap:anywhere; }
 .proximity-actions { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-top:16px; }
 .proximity-actions button { width:100%; padding:8px; border:1px solid var(--line); border-radius:8px; background:transparent; color:var(--ink); text-align:left; font:inherit; font-size:13px; }

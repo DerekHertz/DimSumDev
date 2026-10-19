@@ -46,7 +46,7 @@ def render_l1(scn):
     cam = bpy.data.objects["L1Cam"]; scn.camera = cam
     scn.render.filepath = D + "renders/l1-plush.png"; bpy.ops.render.render(write_still=True)
     top = lambda n: scn.objects[n].location + Vector((0, 0, 2.7))
-    cells = {n[3:]: _sp(scn, cam, top(n)) for n in
+    agents = {n[3:]: _sp(scn, cam, top(n)) for n in
              ("L1_orch-01", "L1_prod-01", "L1_arch-01", "L1_dev-02", "L1_scout-01", "L1_dev-03", "L1_qa-01", "L1_sec-01")}
     organs = {
         "brain": _sp(scn, cam, (0, 0.5, 24.5)), "heart": _sp(scn, cam, (-7.7, 1.3, 15.0)),
@@ -55,7 +55,7 @@ def render_l1(scn):
         "stem": _sp(scn, cam, (-12, -14, -0.4)), "skin": _sp(scn, cam, (-20, -2, 0.1)),
         "queue": _sp(scn, cam, (11.5, -10.5, 1.5)),
     }
-    return {"cells": cells, "organs": organs}
+    return {"cells": agents, "organs": organs}
 
 
 def render_l2(scn):
@@ -97,7 +97,7 @@ def render_l3(scn):
     untoon_scene()
     bpy.context.window.scene = scn
     face = math.radians(30)
-    place_cell("PCell_DevSad", "L3_dev03", (at.x, at.y, at.z), face)
+    place_agent("PCell_DevSad", "L3_dev03", (at.x, at.y, at.z), face)
     p = scn.objects["L3_dev03"]; p.rotation_euler = (math.radians(8), 0, face)   # a little slumped forward
     glow = contact_shadow("L3_Inflame", at.x, at.y + 0.3, 3.0)
     gm = bpy.data.materials.get("AlarmGlow")

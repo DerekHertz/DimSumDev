@@ -6,7 +6,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PITCH, defaultFrame, worldToScreen } from "./iso-projection.mjs";
 import * as layout from "./banquet-layout.mjs";
-import { stationLabels } from "./station-labels.mjs";
+import { teamLabels } from "./team-labels.mjs";
 
 // Namespace import: until the dressing exists, each test fails on its own missing export, not the whole file on import.
 const { BAMBOO_CLUSTERS, DORMANT_PADS, STALL_CENTERS, bambooStalks, stallCenterX, stallPlatform, stallWidth, stallYaw, stepStones } = layout;
@@ -25,11 +25,11 @@ const overlaps = (a, b) => Math.min(a.x1, b.x1) > Math.max(a.x0, b.x0) + 1e-9 &&
 const within = (p, r) => p.x > r.x0 && p.x < r.x1 && p.y > r.y0 && p.y < r.y1;
 
 // The kiosk counter's top face (as in default-framing.test.mjs) in world space.
-const counterPoints = (station) => {
-  const yaw = stallYaw(station), w = stallWidth(N);
+const counterPoints = (team) => {
+  const yaw = stallYaw(team), w = stallWidth(N);
   return [-1, 1].flatMap((x) => [-1, 1].map((z) => {
     const lx = x * w / 2, lz = z * 0.5;
-    return [stallCenterX(station, N) + lx * Math.cos(yaw) + lz * Math.sin(yaw), 0.5 + stallPlatform(station), STALL_CENTERS[station].z - lx * Math.sin(yaw) + lz * Math.cos(yaw)];
+    return [stallCenterX(team, N) + lx * Math.cos(yaw) + lz * Math.sin(yaw), 0.5 + stallPlatform(team), STALL_CENTERS[team].z - lx * Math.sin(yaw) + lz * Math.cos(yaw)];
   }));
 };
 
@@ -45,13 +45,13 @@ const sceneryRects = (frame) => [
 test("no stone, pad or bamboo stalk covers a kiosk counter at the default frame, at both sizes", () => {
   for (const size of SIZES) {
     const frame = defaultFrame(size);
-    const counters = Object.keys(STALL_CENTERS).map((station) => {
-      const pts = counterPoints(station);
-      return { station, r: rect(pts, frame), depth: pts.map(depth).reduce((a, b) => a + b, 0) / pts.length };
+    const counters = Object.keys(STALL_CENTERS).map((team) => {
+      const pts = counterPoints(team);
+      return { team, r: rect(pts, frame), depth: pts.map(depth).reduce((a, b) => a + b, 0) / pts.length };
     });
     for (const thing of sceneryRects(frame)) for (const c of counters) {
       if (thing.depth <= c.depth) continue; // behind the counter: drawn under it
-      assert.ok(!overlaps(thing.r, c.r), `${size.width}x${size.height}: ${thing.name} covers the ${c.station} counter`);
+      assert.ok(!overlaps(thing.r, c.r), `${size.width}x${size.height}: ${thing.name} covers the ${c.team} counter`);
     }
   }
 });
@@ -59,9 +59,9 @@ test("no stone, pad or bamboo stalk covers a kiosk counter at the default frame,
 test("no stone, pad or bamboo stalk covers a kiosk sign anchor at the default frame, at both sizes", () => {
   for (const size of SIZES) {
     const frame = defaultFrame(size);
-    const signs = stationLabels({}).filter((l) => STALL_CENTERS[l.station]).map((l) => ({ station: l.station, p: worldToScreen([l.x, l.y, l.z], frame) }));
+    const signs = teamLabels({}).filter((l) => STALL_CENTERS[l.team]).map((l) => ({ team: l.team, p: worldToScreen([l.x, l.y, l.z], frame) }));
     for (const thing of sceneryRects(frame)) for (const s of signs) {
-      assert.ok(!within(s.p, thing.r), `${size.width}x${size.height}: ${thing.name} covers the ${s.station} sign`);
+      assert.ok(!within(s.p, thing.r), `${size.width}x${size.height}: ${thing.name} covers the ${s.team} sign`);
     }
   }
 });
@@ -90,9 +90,9 @@ test("the Steamers and Front of House move reaches the screen: kiosk centres at 
     [{ width: 1440, height: 900 }, "steamers", 404, 508], [{ width: 1440, height: 900 }, "front-of-house", 1036, 508],
     [{ width: 375, height: 667 }, "steamers", 84, 360], [{ width: 375, height: 667 }, "front-of-house", 291, 360],
   ];
-  for (const [size, station, px, py] of table) {
-    const p = worldToScreen([stallCenterX(station, N), 0.5, STALL_CENTERS[station].z], defaultFrame(size));
-    assert.ok(Math.abs(p.x - px) <= 2 && Math.abs(p.y - py) <= 2, `${station} at ${size.width}: ${p.x.toFixed(1)}, ${p.y.toFixed(1)} vs ${px}, ${py}`);
+  for (const [size, team, px, py] of table) {
+    const p = worldToScreen([stallCenterX(team, N), 0.5, STALL_CENTERS[team].z], defaultFrame(size));
+    assert.ok(Math.abs(p.x - px) <= 2 && Math.abs(p.y - py) <= 2, `${team} at ${size.width}: ${p.x.toFixed(1)}, ${p.y.toFixed(1)} vs ${px}, ${py}`);
   }
 });
 

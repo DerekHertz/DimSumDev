@@ -1,4 +1,4 @@
-"""Cell-type pandas: one body, with personality from pose, expression, and a prop.
+"""Agent-type pandas: one body, with personality from pose, expression, and a prop.
 
 Run inside Blender after panda_build.py:
     exec(open(r"D:/claude_sessions/agent_office/design/3d/panda_build.py").read())
@@ -284,11 +284,11 @@ def qa(at):
     return p
 
 
-CELL_TYPES = [orchestrator, product, architect, developer, scout, security, qa]
+AGENT_TYPES = [orchestrator, product, architect, developer, scout, security, qa]
 
 
 def build_lineup():
     made = []
-    for fn, at in zip(CELL_TYPES, lineup_positions(len(CELL_TYPES))):
+    for fn, at in zip(AGENT_TYPES, lineup_positions(len(AGENT_TYPES))):
         made.append(fn(at).name)
     return made

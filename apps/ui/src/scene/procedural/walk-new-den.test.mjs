@@ -1,6 +1,6 @@
 // den-layout/04, rewritten for the village (den-mvp/25): walk mode in the den. The seam is the one the app uses:
 // createDenExplorer over the den that RestaurantDen assembles (the kit's village, wave 1 zones mounted on it).
-// Expected positions are literals from the kit's layout (stations, props, floor radius 28), not recomputed from the code under test.
+// Expected positions are literals from the kit's layout (teams, props, floor radius 28), not recomputed from the code under test.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
@@ -14,7 +14,7 @@ import { isDenPositionBlocked } from './walk.mjs';
 import { createReviewAgents } from '../../review/agents.mjs';
 import { mountExpansionPond } from '../expansion/pond.mjs';
 import { mountWorkZones } from '../expansion/work-zones.mjs';
-import { REVIEW_STATIONS, REVIEW_OBSTACLES, LANTERN_POSTS } from '../../review/site-plan.mjs';
+import { REVIEW_TEAMS, REVIEW_OBSTACLES, LANTERN_POSTS } from '../../review/site-plan.mjs';
 import { ZONES } from '../expansion/integration/zone-contract.mjs';
 
 function eventTarget() {
@@ -58,7 +58,7 @@ const FLOOR_RADIUS = 28;
 const WALKER_RADIUS = 0.26;
 
 // Flood fill over the explorer's own blocked() from the spawn, on a 0.25 m grid. Returns a predicate for the
-// reachable cells and the cell count.
+// reachable placements and the placement count.
 function reachableFrom(explorer, start) {
   const step = 0.25, half = Math.ceil(26 / step);
   const key = (i, j) => (i + half) * (2 * half + 1) + (j + half);
@@ -103,17 +103,17 @@ test('walk mode enters, moves with W and exits with Esc on the new den, with den
   });
 });
 
-test('the walker is blocked by each station\'s counter and posts, and by the Pass, from every side', () => {
-  assert.equal(REVIEW_STATIONS.length, 4);
+test('the walker is blocked by each team\'s counter and posts, and by the Pass, from every side', () => {
+  assert.equal(REVIEW_TEAMS.length, 4);
   withNewDenWalker(({ explorer }) => {
-    for (const s of REVIEW_STATIONS) {
+    for (const s of REVIEW_TEAMS) {
       // The prep counter (3 m wide, a metre or so deep, along the front) and the front posts are solid...
       for (const [lx, lz] of [[0, 0.65], [1.2, 0.65], [-1.2, 0.65], [1.6, 1.08], [-1.6, -1.08]]) {
-        assert.equal(explorer.blocked(s.x + lx, s.z + lz), true, `station at ${s.x},${s.z}: local ${lx},${lz} is walkable`);
+        assert.equal(explorer.blocked(s.x + lx, s.z + lz), true, `team at ${s.x},${s.z}: local ${lx},${lz} is walkable`);
       }
       // ...the floor behind the counter, where the role stands, is open, and so is the ground 1 m clear of its front.
-      assert.equal(explorer.blocked(s.x - 0.5, s.z - 0.5), false, `station at ${s.x},${s.z}: the working floor is walkable`);
-      assert.equal(explorer.blocked(s.x, s.z + 1.05 + WALKER_RADIUS + 1), false, `station at ${s.x},${s.z}: the space in front is walkable`);
+      assert.equal(explorer.blocked(s.x - 0.5, s.z - 0.5), false, `team at ${s.x},${s.z}: the working floor is walkable`);
+      assert.equal(explorer.blocked(s.x, s.z + 1.05 + WALKER_RADIUS + 1), false, `team at ${s.x},${s.z}: the space in front is walkable`);
     }
     for (const [x, z] of [[0, -8], [-1.2, -8], [1.2, -8], [-2.5, -10], [2.5, -10]]) assert.equal(explorer.blocked(x, z), true, `the Pass is walkable at ${x},${z}`);
   });
@@ -148,16 +148,16 @@ test('the spawn point is inside a walkable area of the village, clear of every o
     assert.equal(explorer.blocked(x, z), false, `spawn ${x},${z} is blocked`);
     assert.ok(Math.hypot(x, z) < FLOOR_RADIUS - 1, 'spawn is on the floor, away from its edge');
     assert.equal(isDenPositionBlocked(x, z, [...REVIEW_OBSTACLES, ...den.obstacles], 0.65), false, 'spawn is hemmed in');
-    for (const s of REVIEW_STATIONS) assert.ok(Math.hypot(x - s.x, z - s.z) > 3, `spawn is in the station at ${s.x},${s.z}`);
+    for (const s of REVIEW_TEAMS) assert.ok(Math.hypot(x - s.x, z - s.z) > 3, `spawn is in the team at ${s.x},${s.z}`);
   });
 });
 
-test('from the spawn the walker can reach every station, every leisure place and every wave 1 zone approach, across the pond bridge', () => {
+test('from the spawn the walker can reach every team, every leisure place and every wave 1 zone approach, across the pond bridge', () => {
   withNewDenWalker(({ explorer }) => {
     explorer.enter();
     const reach = reachableFrom(explorer, explorer.camera.position);
-    assert.ok(reach.size > 4000, 'the reachable area is large (a 2.1 m/s walker should cover most of the village): ' + reach.size + ' cells');
-    // Stations, leisure places and props are the kit's own positions.
+    assert.ok(reach.size > 4000, 'the reachable area is large (a 2.1 m/s walker should cover most of the village): ' + reach.size + ' placements');
+    // Teams, leisure places and props are the kit's own positions.
     for (const [x, z] of [[-14, -10], [14, -10], [-14, 0], [14, 0], [0, -10], [0, 9], [-14, 10], [-9, 19], [14, 18], [4, 20], [18, 10], [0, -20], [-10, -20], [14, -19]]) {
       assert.ok(reach.near(x, z, 3.0), `cannot get within 3 m of ${x},${z}`);
     }

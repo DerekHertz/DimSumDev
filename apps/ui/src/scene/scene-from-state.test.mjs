@@ -1,4 +1,4 @@
-// Ticket dimsumden-ui-v0/08, seam 3 (ADR 0011 decision 7): sceneFromState(snapshot) -> SceneCell[].
+// Ticket dimsumden-ui-v0/08, seam 3 (ADR 0011 decision 7): sceneFromState(snapshot) -> Placement[].
 // Table tests over snapshots. Expected values are literals from the ADR rules, not recomputed.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -22,8 +22,8 @@ const ticket = (n, over = {}) => ({
   ...over,
 });
 const snap = (tickets, frontier = []) => ({ schema: 1, seq: 1, tickets, frontier, usage: null, requests: [] });
-const claimedBy = (cell) => ({ role: cell, since: "2026-09-29T05:00:00.000Z" });
-const brief = (cells) => cells.map(({ ref, cellType, status, perch, pose }) => ({ ref, cellType, status, perch, pose }));
+const claimedBy = (placement) => ({ role: placement, since: "2026-09-29T05:00:00.000Z" });
+const brief = (placements) => placements.map(({ ref, role, status, perch, pose }) => ({ ref, role, status, perch, pose }));
 
 test("exports MAX_PLUSH = 12", async () => {
   assert.equal((await load()).MAX_PLUSH, 12);
@@ -55,9 +55,9 @@ test("each active status appears with status copied through unchanged", async ()
   ]);
 });
 
-test("output shape: exactly ref, cellType, status, perch, pose", async () => {
-  const [cell] = await scene(snap([ticket(1, { holder: claimedBy("developer") })]));
-  assert.deepEqual(Object.keys(cell).sort(), ["cellType", "perch", "pose", "ref", "status"]);
+test("output shape: exactly ref, role, status, perch, pose", async () => {
+  const [placement] = await scene(snap([ticket(1, { holder: claimedBy("developer") })]));
+  assert.deepEqual(Object.keys(placement).sort(), ["perch", "pose", "ref", "role", "status"]);
 });
 
 // pose rule order table
@@ -72,13 +72,13 @@ const poseCases = [
 ];
 for (const [name, over, frontier, pose] of poseCases) {
   test(`pose: ${name} -> ${pose}`, async () => {
-    const [cell] = await scene(snap([ticket(1, over)], frontier));
-    assert.equal(cell.pose, pose);
-    assert.ok(STATES.includes(cell.pose), "pose must be a director STATE");
+    const [placement] = await scene(snap([ticket(1, over)], frontier));
+    assert.equal(placement.pose, pose);
+    assert.ok(STATES.includes(placement.pose), "pose must be a director STATE");
   });
 }
 
-// cellType rule
+// role rule
 const typeCases = [
   ["holder.role wins over lastRole", { holder: claimedBy("qa"), lastRole: "developer" }, "qa"],
   ["lastRole when no holder", { lastRole: "security" }, "security"],
@@ -93,23 +93,23 @@ const typeCases = [
   ["null type -> developer", { type: null }, "developer"],
   ["lastRole beats type default", { type: "research", lastRole: "designer" }, "designer"],
 ];
-for (const [name, over, cellType] of typeCases) {
-  test(`cellType: ${name}`, async () => {
-    const [cell] = await scene(snap([ticket(1, { status: "blocked", ...over })]));
-    assert.equal(cell.cellType, cellType);
+for (const [name, over, role] of typeCases) {
+  test(`role: ${name}`, async () => {
+    const [placement] = await scene(snap([ticket(1, { status: "blocked", ...over })]));
+    assert.equal(placement.role, role);
   });
 }
 
-test("perch: station from cell type (ADR 0013), slot is 0-based index within the station in output order", async () => {
-  const cells = [
+test("perch: team from placement type (ADR 0013), slot is 0-based index within the team in output order", async () => {
+  const placements = [
     ["orchestrator", "orchestrator#0"], ["product", "product#0"], ["architect", "architect#0"],
     ["developer", "steamers#0"], ["scout", "steamers#1"],
     ["qa", "tea#0"], ["security", "pantry#0"],
     ["designer", "front-of-house#0"],
   ];
-  const tickets = cells.map(([cell], i) => ticket(i + 1, { status: "claimed", holder: claimedBy(cell) }));
+  const tickets = placements.map(([placement], i) => ticket(i + 1, { status: "claimed", holder: claimedBy(placement) }));
   const out = await scene(snap(tickets));
-  assert.deepEqual(out.map((c) => [c.cellType, c.perch]), cells);
+  assert.deepEqual(out.map((c) => [c.role, c.perch]), placements);
 });
 
 test("perch: slot counts per region are independent", async () => {
@@ -122,7 +122,7 @@ test("perch: slot counts per region are independent", async () => {
   assert.deepEqual(out.map((c) => c.perch), ["steamers#0", "tea#0", "steamers#1", "tea#1"]);
 });
 
-test("order: active tickets by ref; queued tickets get no cell (showcase-v1/04: baskets only)", async () => {
+test("order: active tickets by ref; queued tickets get no placement (showcase-v1/04: baskets only)", async () => {
   const out = await scene(snap([
     ticket(9, { status: "claimed", holder: claimedBy("developer") }),
     ticket(3, { status: "blocked", lastRole: "developer" }),
@@ -139,7 +139,7 @@ test("order does not depend on input ticket order", async () => {
   assert.deepEqual(out.map((c) => [c.ref, c.perch]), [["f/01-t", "steamers#0"], ["f/02-t", "steamers#1"]]);
 });
 
-test("cap: queued tickets add no cells, so 10 active plus 5 queued is 10 cells", async () => {
+test("cap: queued tickets add no placements, so 10 active plus 5 queued is 10 placements", async () => {
   const active = Array.from({ length: 10 }, (_, i) => ticket(i + 1, { holder: claimedBy("developer") }));
   const ready = Array.from({ length: 5 }, (_, i) => ticket(20 + i, { status: "ready-for-agent", ready: true }));
   const frontier = ready.map((t) => t.ref);
@@ -170,16 +170,16 @@ test("worked example from ADR 0011 decision 7", async () => {
     ticket(7, { ref: "dimsumden-ui-v0/07-ui-shell", status: "ready-for-agent", ready: false, blockedBy: [{ ref: "dimsumden-ui-v0/05-bridge-events", status: "ready-for-agent" }] }),
   ], ["dimsumden-ui-v0/04-bridge-state"]));
   assert.deepEqual(brief(out), [
-    { ref: "organism-infra/28-review-claims-keep-in-review", cellType: "security", status: "in-review", perch: "pantry#0", pose: "waiting_on_user" },
+    { ref: "organism-infra/28-review-claims-keep-in-review", role: "security", status: "in-review", perch: "pantry#0", pose: "waiting_on_user" },
   ]);
 });
 
-test("withPassCell: an idle orchestrator stands on Bao's crown when none is active, and never twice", async () => {
-  const { withPassCell } = await load();
-  const [pass] = withPassCell([]);
-  assert.deepEqual(pass, { ref: "__pass", cellType: "orchestrator", status: "idle", perch: "orchestrator#0", pose: "idle", synthetic: true });
-  const real = { ref: "f/01-t", cellType: "orchestrator", status: "claimed", perch: "orchestrator#0", pose: "working" };
-  assert.deepEqual(withPassCell([real]), [real]);
-  const dev = { ref: "f/02-t", cellType: "developer", status: "claimed", perch: "steamers#0", pose: "working" };
-  assert.deepEqual(withPassCell([dev]).map((c) => c.ref), ["f/02-t", "__pass"]);
+test("withPassPlacement: an idle orchestrator stands on Bao's crown when none is active, and never twice", async () => {
+  const { withPassPlacement } = await load();
+  const [pass] = withPassPlacement([]);
+  assert.deepEqual(pass, { ref: "__pass", role: "orchestrator", status: "idle", perch: "orchestrator#0", pose: "idle", synthetic: true });
+  const real = { ref: "f/01-t", role: "orchestrator", status: "claimed", perch: "orchestrator#0", pose: "working" };
+  assert.deepEqual(withPassPlacement([real]), [real]);
+  const dev = { ref: "f/02-t", role: "developer", status: "claimed", perch: "steamers#0", pose: "working" };
+  assert.deepEqual(withPassPlacement([dev]).map((c) => c.ref), ["f/02-t", "__pass"]);
 });

@@ -23,7 +23,7 @@ SRC = r"D:\web_downloads\panda\Meshy_AI_Chubby_Snorlax_Panda_0926191911_texture.
 WHITE = np.array((0.9, 0.86, 0.79)); BLACK = np.array((0.016, 0.014, 0.015))
 FUR_LAYERS = 14
 FUR_LEN = 0.045          # in model units (model is 2 units tall)
-CELL_SCALE_REF = 1.1     # fur strands are tuned at cell size
+AGENT_SCALE_REF = 1.1     # fur strands are tuned at agent size
 
 
 def _islands(bm):
@@ -200,7 +200,7 @@ def plush_panda(name, at=(0, 0, 0), scale=1.0, rot_z=0.0, fur=True):
             d.strength = FUR_LEN * i / FUR_LAYERS
             s.material_slots[0].link = 'OBJECT'
             # strands ~constant in world size: big Bao gets proportionally finer noise (capped)
-            strand = 380.0 * min(max(scale / CELL_SCALE_REF, 1.0), 4.0)
+            strand = 380.0 * min(max(scale / AGENT_SCALE_REF, 1.0), 4.0)
             s.material_slots[0].material = fur_material(i, FUR_LAYERS, bpy.data.images[base["atlas"]], strand)
     return p
 

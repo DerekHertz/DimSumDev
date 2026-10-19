@@ -9,7 +9,7 @@ import {createReviewAgents,findReviewPath} from './agents.mjs';
 import {createTraditionalGear} from './traditional-props.mjs';
 import {compactReviewGear} from './compact-gear.mjs';
 import {VILLAGE_PATHS} from '../scene/expansion/base-assets.mjs';
-import {REVIEW_STATIONS,ROLE_HOMES,BAO_HOME,BAO_SCALE,REVIEW_PLACES,REVIEW_OBSTACLES} from './site-plan.mjs';
+import {REVIEW_TEAMS,ROLE_HOMES,BAO_HOME,BAO_SCALE,REVIEW_PLACES,REVIEW_OBSTACLES} from './site-plan.mjs';
 
 function withAgents(run){
   const previous=globalThis.document;globalThis.document=canvasDocument();
@@ -67,7 +67,7 @@ test('greetings preserve a running task and gathering sends the existing roles t
   });
 });
 
-test('every role can circulate and reach its station without crossing a static obstacle',()=>{
+test('every role can circulate and reach its team without crossing a static obstacle',()=>{
   withAgents(agents=>{
     for(let i=0;i<600;i++){
       agents.update(0.1);
@@ -82,34 +82,34 @@ test('every role can circulate and reach its station without crossing a static o
     }
     for(const role of agents.actors.keys())assert.equal(agents.sendTask(role,'Check today’s special'),true);
     for(let i=0;i<1000;i++)agents.update(0.1);
-    for(const a of agents.actors.values())assert.equal(a.state,'needs-you',`${a.role} did not reach its station: ${JSON.stringify([...agents.actors.values()].map(a=>({role:a.role,state:a.state,p:[a.panda.model.position.x,a.panda.model.position.z],home:a.home,next:a.path[0]})))}`);
+    for(const a of agents.actors.values())assert.equal(a.state,'needs-you',`${a.role} did not reach its team: ${JSON.stringify([...agents.actors.values()].map(a=>({role:a.role,state:a.state,p:[a.panda.model.position.x,a.panda.model.position.z],home:a.home,next:a.path[0]})))}`);
     assert.ok(!agents.snapshot().events.some(e=>e.text.includes('could not find')));
   });
 });
 
-test('each station is the kit\'s asset at its mapped position, and its roles work inside it',()=>{
+test('each team is the kit\'s asset at its mapped position, and its roles work inside it',()=>{
   withAgents((agents,den)=>{
     const expected={steamers:[-14,-10],'front-of-house':[14,-10],tea:[-14,0],pantry:[14,0]};
-    REVIEW_STATIONS.forEach((s,i)=>{
+    REVIEW_TEAMS.forEach((s,i)=>{
       assert.deepEqual([s.x,s.z],expected[s.id]);
       assert.deepEqual(den.stalls[i].position.toArray(),[s.x,0,s.z]);
       assert.equal(den.stalls[i].userData.assetId,s.asset);
       for(const role of s.roles){
         const a=agents.actors.get(role);
-        assert.equal(a.station,{steamers:'Steamers','front-of-house':'Front of House',tea:'Tea',pantry:'Pantry'}[s.id]);
+        assert.equal(a.team,{steamers:'Steamers','front-of-house':'Front of House',tea:'Tea',pantry:'Pantry'}[s.id]);
         assert.ok(Math.abs(a.home[0]-s.x)<=1.9&&Math.abs(a.home[1]-s.z)<=1.4,`${role} works inside the ${s.id} pavilion, at ${a.home}`);
         assert.ok(!isDenPositionBlocked(a.home[0],a.home[1],agents.obstacles,0.65));
       }
     });
     // The counter is solid; the pavilion is entered from the promenade side.
-    for(const s of REVIEW_STATIONS)assert.ok(isDenPositionBlocked(s.x,s.z+0.65,agents.obstacles,0.65),`${s.id}: the counter is solid`);
+    for(const s of REVIEW_TEAMS)assert.ok(isDenPositionBlocked(s.x,s.z+0.65,agents.obstacles,0.65),`${s.id}: the counter is solid`);
     for(const [from,role] of [[[-7,-10],'developer'],[[-7,0],'qa'],[[7,0],'security'],[[7,-10],'designer']]){
       const route=findReviewPath(from,agents.actors.get(role).home,agents.obstacles);assert.ok(route,`${role} is reachable from the promenade at ${from}`);
     }
   });
 });
 
-test('routes between stations follow the promenades',()=>{
+test('routes between teams follow the promenades',()=>{
   withAgents(agents=>{
     // Steamers to Plating: the straight line crosses the Pass pavilion; the path is the promenade south of the Pass.
     const route=findReviewPath([-11.5,-10.5],[11.5,-10.5],agents.obstacles);
@@ -169,7 +169,7 @@ test('the den is the village: a finite radius-28 garden, and none of the old den
     const names=new Set();den.world.traverse(o=>names.add(o.name));
     for(const gone of ['Dim sum table','Tally abacus','Bamboo clearing','Faceted clearing','Stepping stone','Future restaurant plots','Bamboo leisure gardens','Mountain garden','Restaurant details','Bamboo steamer'])
       assert.ok(!names.has(gone),`${gone} is not rendered`);
-    for(const station of ['steamers pavilion','tea pavilion','pantry pavilion','front pavilion'])assert.ok(names.has(station),`${station} is rendered`);
+    for(const team of ['steamers pavilion','tea pavilion','pantry pavilion','front pavilion'])assert.ok(names.has(team),`${team} is rendered`);
     assert.ok(names.has('Bao’s welcoming Pass')&&names.has('Round-table pavilion'));
     assert.ok(REVIEW_OBSTACLES.length>40);
   });

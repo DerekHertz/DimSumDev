@@ -10,9 +10,9 @@ import { createApprovalReview } from "../overlay/approval-review.mjs";
 
 const clock = () => { let t = Date.UTC(2026, 9, 8, 12, 0, 0); return { now: () => t, advance: (ms) => { t += ms; } }; };
 const panda = (snapshot) => {
-  const [cell] = sceneFromState(snapshot);
-  const agent = snapshot.agents.find((a) => a.ref === cell.ref && a.role === cell.cellType);
-  return { id: "p", name: "dev-02", role: cell.cellType, position: { x: -2, z: 0 }, ref: cell.ref, agent };
+  const [placement] = sceneFromState(snapshot);
+  const agent = snapshot.agents.find((a) => a.ref === placement.ref && a.role === placement.role);
+  return { id: "p", name: "dev-02", role: placement.role, position: { x: -2, z: 0 }, ref: placement.ref, agent };
 };
 const viewer = { x: 0, z: 0, yaw: Math.PI / 2 };
 const cardOf = (snapshot) => cardFor([panda(snapshot)], snapshot.approvals, viewer);

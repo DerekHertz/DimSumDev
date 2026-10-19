@@ -2,7 +2,7 @@
 export const CONTRACT_VERSION=1;
 export const LIVE_ROLES=Object.freeze(['orchestrator','product','architect','developer','scout','qa','security','designer','herald']);
 export const ZONES=Object.freeze([
- {id:'repair',assetId:'zone-repair',label:'Repair & investigation',kind:'work',position:[-20,0,-1],radius:2.1,roles:['developer','qa'],conceptRoles:['debugger'],source:['tickets','agents','cells'],panel:'ticket',camera:{position:[-16,2.5,4],target:[-20,1.2,-1]},approach:[-17.3,0,-.1]},
+ {id:'repair',assetId:'zone-repair',label:'Repair & investigation',kind:'work',position:[-20,0,-1],radius:2.1,roles:['developer','qa'],conceptRoles:['debugger'],source:['tickets','agents','placements'],panel:'ticket',camera:{position:[-16,2.5,4],target:[-20,1.2,-1]},approach:[-17.3,0,-.1]},
  {id:'archive',assetId:'zone-archive',label:'Archive & brush garden',kind:'work',position:[11,0,-14],radius:1.6,roles:['designer','herald'],conceptRoles:['knowledge-keeper','docs-writer'],source:['library'],panel:'library',camera:{position:[15,2.2,-9],target:[11,1.2,-14]},approach:[9,0,-13.8]},
  {id:'release',assetId:'zone-release',label:'Release & dispatch',kind:'work',position:[20,0,5],radius:2.1,roles:['orchestrator','herald'],conceptRoles:['release-manager'],source:['deliveries'],panel:'delivery',camera:{position:[24,2.4,11],target:[20,1.3,5]},approach:[17.3,0,5]},
  {id:'pond',assetId:'zone-pond',label:'Koi pond & tea bridge',kind:'leisure',position:[-21,0,9],radius:2.4,roles:[],conceptRoles:[],source:[],panel:'leisure',camera:{position:[-17,2.5,14],target:[-21,.6,9]},approach:[-18.2,0,9]},

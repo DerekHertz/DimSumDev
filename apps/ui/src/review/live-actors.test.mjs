@@ -4,13 +4,13 @@
 // Contract these tests pin (the developer may add fields, not drop these):
 //   liveActorsFromSnapshot(snapshot, { now? }) -> LiveActor[]
 //   LiveActor = { role, ref, split, state, activity, bubble, task }
-//     role   one of the 9 cell types; scenery roles never appear (they stay simulated)
+//     role   one of the 9 roles; scenery roles never appear (they stay simulated)
 //     split  false for the first live agent of a role, true for each further one
 //     state  PR #162 actor state: 'working' | 'needs-you' | 'blocked'
 //     bubble the latest tool (name and summary) while it is younger than TOOL_BUBBLE_TTL_MS, else ''
 //     task   contains the ticket ref
 //   A role with no live process has no entry. Holder locks need a matching active
-//   snapshot.cells[] entry or snapshot.agents[] run; locks alone are not activity.
+//   snapshot.placements[] entry or snapshot.agents[] run; locks alone are not activity.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { liveActorsFromSnapshot, TOOL_BUBBLE_TTL_MS } from "./live-actors.mjs";
@@ -18,32 +18,32 @@ import { liveActorsFromSnapshot, TOOL_BUBBLE_TTL_MS } from "./live-actors.mjs";
 const T0 = Date.parse("2026-10-06T10:00:00.000Z");
 const iso = (ms) => new Date(ms).toISOString();
 
-const ticket = (ref, status, cell, extra = {}) => ({
+const ticket = (ref, status, placement, extra = {}) => ({
   ref,
   title: `${ref} title`,
   type: "feature",
   status,
-  holder: cell ? { role: cell, since: iso(T0 - 60_000) } : null,
-  lastRole: cell,
+  holder: placement ? { role: placement, since: iso(T0 - 60_000) } : null,
+  lastRole: placement,
   gate: null,
   blockedBy: [],
   ...extra,
 });
-const cellRow = (ref, cellType, tool, extra = {}) => ({
+const placementRow = (ref, role, tool, extra = {}) => ({
   id: `c-${ref}`,
   ref,
-  cellType,
+  role,
   state: "working",
   startedAt: iso(T0 - 60_000),
   lastEventAt: iso(T0),
   tool,
   ...extra,
 });
-const snap = (tickets, cells = tickets.filter(t=>t.holder).map(t=>cellRow(t.ref,t.holder.role,null))) => ({ tickets, cells });
+const snap = (tickets, placements = tickets.filter(t=>t.holder).map(t=>placementRow(t.ref,t.holder.role,null))) => ({ tickets, placements });
 const byRole = (actors, role) => actors.filter((a) => a.role === role);
 
 test("a bound agent maps to an actor of its role, working, with its ticket as the task", () => {
-  const s = snap([ticket("fx/01-a", "claimed", "developer")], [cellRow("fx/01-a", "developer", { name: "Read", summary: "docs/adr/0011.md" })]);
+  const s = snap([ticket("fx/01-a", "claimed", "developer")], [placementRow("fx/01-a", "developer", { name: "Read", summary: "docs/adr/0011.md" })]);
   const actors = liveActorsFromSnapshot(s, { now: T0 + 1000 });
   assert.equal(actors.length, 1);
   const [a] = actors;
@@ -55,14 +55,14 @@ test("a bound agent maps to an actor of its role, working, with its ticket as th
 });
 
 test("the bubble shows the agent's latest tool name and summary", () => {
-  const s = snap([ticket("fx/01-a", "claimed", "qa")], [cellRow("fx/01-a", "qa", { name: "Bash", summary: "npm test" })]);
+  const s = snap([ticket("fx/01-a", "claimed", "qa")], [placementRow("fx/01-a", "qa", { name: "Bash", summary: "npm test" })]);
   const [a] = liveActorsFromSnapshot(s, { now: T0 + 1000 });
   assert.ok(a.bubble.includes("Bash"));
   assert.ok(a.bubble.includes("npm test"));
 });
 
 test("a tool call older than the TTL no longer shows; one just inside it still does", () => {
-  const s = snap([ticket("fx/01-a", "claimed", "developer")], [cellRow("fx/01-a", "developer", { name: "Edit", summary: "src/x.mjs" })]);
+  const s = snap([ticket("fx/01-a", "claimed", "developer")], [placementRow("fx/01-a", "developer", { name: "Edit", summary: "src/x.mjs" })]);
   const inside = liveActorsFromSnapshot(s, { now: T0 + TOOL_BUBBLE_TTL_MS - 1 })[0];
   const outside = liveActorsFromSnapshot(s, { now: T0 + TOOL_BUBBLE_TTL_MS + 1 })[0];
   assert.ok(inside.bubble.includes("Edit"), "still shown just inside the TTL");
@@ -71,10 +71,10 @@ test("a tool call older than the TTL no longer shows; one just inside it still d
 });
 
 test("a newer tool call replaces the bubble immediately", () => {
-  const before = snap([ticket("fx/01-a", "claimed", "developer")], [cellRow("fx/01-a", "developer", { name: "Read", summary: "one.md" })]);
+  const before = snap([ticket("fx/01-a", "claimed", "developer")], [placementRow("fx/01-a", "developer", { name: "Read", summary: "one.md" })]);
   const after = snap(
     [ticket("fx/01-a", "claimed", "developer")],
-    [cellRow("fx/01-a", "developer", { name: "Grep", summary: "two" }, { lastEventAt: iso(T0 + 2000) })],
+    [placementRow("fx/01-a", "developer", { name: "Grep", summary: "two" }, { lastEventAt: iso(T0 + 2000) })],
   );
   const a = liveActorsFromSnapshot(before, { now: T0 + 1000 })[0];
   const b = liveActorsFromSnapshot(after, { now: T0 + 2500 })[0];
@@ -84,7 +84,7 @@ test("a newer tool call replaces the bubble immediately", () => {
 });
 
 test("a bound agent with no tool call yet has an empty bubble, not a stale or invented one", () => {
-  const s = snap([ticket("fx/01-a", "claimed", "architect")], [cellRow('fx/01-a','architect',null)]);
+  const s = snap([ticket("fx/01-a", "claimed", "architect")], [placementRow('fx/01-a','architect',null)]);
   const [a] = liveActorsFromSnapshot(s, { now: T0 });
   assert.equal(a.role, "architect");
   assert.equal(a.bubble, "");
@@ -104,8 +104,8 @@ test("the ticket's pose maps to the actor state: a gate or ready-for-human waits
 
 test("a second live agent of the same role is a split-off actor; the first stays the primary", () => {
   const s = snap([ticket("fx/01-a", "claimed", "developer"), ticket("fx/02-b", "claimed", "developer")], [
-    cellRow("fx/01-a", "developer", { name: "Read", summary: "a" }),
-    cellRow("fx/02-b", "developer", { name: "Write", summary: "b" }),
+    placementRow("fx/01-a", "developer", { name: "Read", summary: "a" }),
+    placementRow("fx/02-b", "developer", { name: "Write", summary: "b" }),
   ]);
   const devs = byRole(liveActorsFromSnapshot(s, { now: T0 + 1 }), "developer");
   assert.equal(devs.length, 2);
@@ -140,7 +140,7 @@ test("the 4 scenery pandas never come from live state, even if a holder names on
   assert.deepEqual(actors.map((a) => a.role), ["herald"]);
 });
 
-test("each of the 9 cell types binds to the matching role", () => {
+test("each of the 9 placement types binds to the matching role", () => {
   const roles = ["orchestrator", "product", "architect", "developer", "scout", "qa", "security", "designer", "herald"];
   const s = snap(roles.map((r, i) => ticket(`fx/${String(i + 1).padStart(2, "0")}-x`, "claimed", r)));
   const actors = liveActorsFromSnapshot(s, { now: T0 });
@@ -149,20 +149,20 @@ test("each of the 9 cell types binds to the matching role", () => {
 });
 
 test("when the agent's session ends, its panda is no longer bound", () => {
-  const live = snap([ticket("fx/01-a", "claimed", "developer")], [cellRow("fx/01-a", "developer", { name: "Read", summary: "a" })]);
+  const live = snap([ticket("fx/01-a", "claimed", "developer")], [placementRow("fx/01-a", "developer", { name: "Read", summary: "a" })]);
   assert.equal(liveActorsFromSnapshot(live, { now: T0 + 1 }).length, 1);
   // The lock is released: the ticket leaves the active set.
-  const released = snap([ticket("fx/01-a", "in-review", null, { lastRole: "developer" })], live.cells);
+  const released = snap([ticket("fx/01-a", "in-review", null, { lastRole: "developer" })], live.placements);
   assert.deepEqual(liveActorsFromSnapshot(released, { now: T0 + 1 }), []);
   // The bridge reports the session over while the ticket still shows the claim.
   for (const state of ["terminated", "done", "failed"]) {
-    const ended = snap([ticket("fx/01-a", "claimed", "developer")], [cellRow("fx/01-a", "developer", { name: "Read", summary: "a" }, { state })]);
+    const ended = snap([ticket("fx/01-a", "claimed", "developer")], [placementRow("fx/01-a", "developer", { name: "Read", summary: "a" }, { state })]);
     assert.deepEqual(liveActorsFromSnapshot(ended, { now: T0 + 1 }), [], `session state ${state} unbinds the panda`);
   }
 });
 
 test("the adapter is pure: same input and clock give the same output, and the snapshot is not mutated", () => {
-  const s = snap([ticket("fx/01-a", "claimed", "developer")], [cellRow("fx/01-a", "developer", { name: "Read", summary: "a" })]);
+  const s = snap([ticket("fx/01-a", "claimed", "developer")], [placementRow("fx/01-a", "developer", { name: "Read", summary: "a" })]);
   const frozen = JSON.stringify(s);
   const one = liveActorsFromSnapshot(s, { now: T0 + 1 });
   const two = liveActorsFromSnapshot(s, { now: T0 + 1 });
@@ -176,7 +176,7 @@ test("the adapter is pure: same input and clock give the same output, and the sn
 const agentRow = (ref, role, extra = {}) => ({
   id: `c-${ref}-${role}`, ref, role, mode: "direct", state: "working", startedAt: iso(T0 - 5000), lastEventAt: iso(T0), tool: null, ...extra,
 });
-const live = (tickets, agents, cells = []) => ({ tickets, cells, agents });
+const live = (tickets, agents, placements = []) => ({ tickets, placements, agents });
 
 test("a bridge agent on a ticket nobody has claimed binds its role's panda, working, with the ticket as its task", () => {
   const actors = liveActorsFromSnapshot(live([ticket("den/01-scout", "ready-for-agent", null)], [agentRow("den/01-scout", "scout")]), { now: T0 + 1000 });
@@ -238,7 +238,7 @@ test("two bridge agents of one role: the first by ref takes the role's panda, th
 });
 
 test("a ticket held by one role with a bridge agent of another role on it shows both", () => {
-  const s = live([ticket("fx/01-a", "in-review", "qa")], [agentRow("fx/01-a", "security")], [cellRow('fx/01-a','qa',null)]);
+  const s = live([ticket("fx/01-a", "in-review", "qa")], [agentRow("fx/01-a", "security")], [placementRow('fx/01-a','qa',null)]);
   assert.deepEqual(liveActorsFromSnapshot(s, { now: T0 }).map((a) => a.role).sort(), ["qa", "security"]);
 });
 

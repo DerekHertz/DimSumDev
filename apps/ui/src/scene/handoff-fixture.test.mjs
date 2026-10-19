@@ -11,8 +11,8 @@ test("the demo run hands over tea -> steamers, then steamers -> pantry", () => {
 });
 
 test("a queued ticket has a basket but no panda", () => {
-  const cells = sceneFromState(DEMO_STEPS[0]);
-  assert.deepEqual(cells.map((c) => c.ref), ["demo/01-add-login"]);
+  const placements = sceneFromState(DEMO_STEPS[0]);
+  assert.deepEqual(placements.map((c) => c.ref), ["demo/01-add-login"]);
   assert.ok(DEMO_STEPS[0].frontier.includes("demo/03-queued-idea"));
 });
 

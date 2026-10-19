@@ -4,7 +4,7 @@
 import { CHAIR, SEATS_MAX, SPECIALISTS, TOPIC_MAX_BYTES } from "../../../bridge/meetings/types.mjs";
 
 export { SEATS_MAX, SPECIALISTS };
-const USAGE_LIMIT = 90; // the bridge refuses a new run at this five-hour usage (cells/policy.mjs)
+const USAGE_LIMIT = 90; // the bridge refuses a new run at this five-hour usage (placements/policy.mjs)
 const LIVE = new Set(["running", "paused"]);
 const shortRef = (ref) => (typeof ref === "string" ? ref.slice(ref.indexOf("/") + 1) : "");
 const list = (snapshot) => (Array.isArray(snapshot?.meetings) ? snapshot.meetings.filter((m) => m && typeof m.id === "string" && Array.isArray(m.seats)) : []);
@@ -94,7 +94,7 @@ export function meetingRequests(snapshot) {
       const short = shortRef(m.ref);
       const briefed = m.state === "briefed";
       return {
-        key: `meeting:${m.id}`, kind: "meeting", id: m.id, ref: m.ref, short, role: CHAIR, station: "pass",
+        key: `meeting:${m.id}`, kind: "meeting", id: m.id, ref: m.ref, short, role: CHAIR, team: "pass",
         eyebrow: `Pass · Bao · ${short}`,
         title: briefed ? "A meeting's brief is ready" : "A meeting is waiting",
         reason: briefed ? meetingLine(m) : m.pause?.reason || "The meeting is paused.", reasonFallback: false, plain: true, // the bridge's own words

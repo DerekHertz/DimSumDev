@@ -2,9 +2,9 @@
 #   exec(open(r"<repo>/apps/ui/assets-src/panda/build_face.py").read())
 # Replaces the baked sleepy face with a face decal driven by a sprite atlas (spec: "Faces").
 # - Removes the baked eyelid slivers from PA_Panda (the black eye patches stay).
-# - Draws face-atlas.png: one cell per face frame, eyes and mouth only, transparent elsewhere.
+# - Draws face-atlas.png: one agent per face frame, eyes and mouth only, transparent elsewhere.
 # - Builds the "face" mesh: a thin shell lifted off the front of the head, skinned to the head bone,
-#   with UVs covering atlas cell 0. A renderer selects frame i by offsetting the texture by
+#   with UVs covering atlas agent 0. A renderer selects frame i by offsetting the texture by
 #   (col / cols, row / rows) in glTF UV space (v down), where col = i % cols and row = i // cols.
 #   The node's extras.faceAtlas carries {cols, rows, defaultFrame, frames: {name: index}}.
 import bpy
@@ -25,7 +25,7 @@ ATLAS_PNG = os.path.join(globals().get("PANDA_SRC", HERE), "face-atlas.png")
 X0, X1 = -0.34, 0.34
 Z0, Z1 = 0.20, 0.56
 LIFT = 0.004  # how far the decal floats off the head surface
-CELL_W, CELL_H = 256, 128
+AGENT_W, AGENT_H = 256, 128
 COLS, ROWS = 4, 3
 
 FRAMES = [
@@ -38,8 +38,8 @@ DEFAULT_FRAME = "neutral"
 # ---------- the atlas ----------
 
 def to_px(x, z):
-    """Head-front coordinates to cell pixels (origin top-left)."""
-    return (x - X0) / (X1 - X0) * CELL_W, (Z1 - z) / (Z1 - Z0) * CELL_H
+    """Head-front coordinates to agent pixels (origin top-left)."""
+    return (x - X0) / (X1 - X0) * AGENT_W, (Z1 - z) / (Z1 - Z0) * AGENT_H
 
 
 EYE_R = to_px(-0.225, 0.44)  # character right eye: viewer's left
@@ -54,12 +54,12 @@ PINK = (0.93, 0.55, 0.58)
 SHINE = (1.0, 1.0, 1.0)
 
 
-class Cell:
+class Agent:
     def __init__(self):
-        yy, xx = np.mgrid[0:CELL_H, 0:CELL_W].astype(np.float32) + 0.5
+        yy, xx = np.mgrid[0:AGENT_H, 0:AGENT_W].astype(np.float32) + 0.5
         self.x, self.y = xx, yy
         self.k = 1.0
-        self.rgba = np.zeros((CELL_H, CELL_W, 4), np.float32)
+        self.rgba = np.zeros((AGENT_H, AGENT_W, 4), np.float32)
 
     def scaled(self, cx, cy, k, draw):
         """Runs draw() with the canvas magnified k times about (cx, cy)."""
@@ -93,7 +93,7 @@ class Cell:
 
 
 def both(fn):
-    """Draws an eye on each side; fn(cell, cx, cy, s) gets s = +1 on the viewer's right."""
+    """Draws an eye on each side; fn(agent, cx, cy, s) gets s = +1 on the viewer's right."""
     return lambda c: [c.scaled(*eye, EYE_SCALE, lambda e=eye, s=s: fn(c, *e, s)) for eye, s in ((EYE_R, -1), (EYE_L, 1))]
 
 
@@ -210,20 +210,20 @@ FACES = {
 
 
 def draw_atlas():
-    atlas = np.zeros((ROWS * CELL_H, COLS * CELL_W, 4), np.float32)
+    atlas = np.zeros((ROWS * AGENT_H, COLS * AGENT_W, 4), np.float32)
     for i, name in enumerate(FRAMES):
-        c = Cell()
+        c = Agent()
         eyes, mouth = FACES[name]
         eyes(c)
         c.scaled(*MOUTH, MOUTH_SCALE, lambda: mouth(c))
         r, k = divmod(i, COLS)
-        atlas[r * CELL_H:(r + 1) * CELL_H, k * CELL_W:(k + 1) * CELL_W] = c.rgba
+        atlas[r * AGENT_H:(r + 1) * AGENT_H, k * AGENT_W:(k + 1) * AGENT_W] = c.rgba
     name = "face_atlas"
     img = bpy.data.images.get(name)
-    if img and tuple(img.size) != (COLS * CELL_W, ROWS * CELL_H):
+    if img and tuple(img.size) != (COLS * AGENT_W, ROWS * AGENT_H):
         bpy.data.images.remove(img)
         img = None
-    img = img or bpy.data.images.new(name, COLS * CELL_W, ROWS * CELL_H, alpha=True)
+    img = img or bpy.data.images.new(name, COLS * AGENT_W, ROWS * AGENT_H, alpha=True)
     img.alpha_mode = "STRAIGHT"
     img.pixels.foreach_set(np.flipud(atlas).ravel())  # Blender rows run bottom-up
     img.filepath_raw = ATLAS_PNG
@@ -268,7 +268,7 @@ def in_window(co):
 
 def build_decal(sc, body, rig, img):
     """Copies the frontmost head surface inside the window, lifts it along its normals and maps it
-    onto atlas cell 0."""
+    onto atlas agent 0."""
     bm = bmesh.new()
     bm.from_mesh(body.data)
     bm.faces.ensure_lookup_table()
@@ -302,7 +302,7 @@ def build_decal(sc, body, rig, img):
             co = loop.vert.co
             u = (co.x - X0) / (X1 - X0)
             t = (Z1 - co.z) / (Z1 - Z0)                     # 0 at the top of the window
-            loop[uv].uv = (u / COLS, 1.0 - t / ROWS)          # cell 0 is the atlas's top-left
+            loop[uv].uv = (u / COLS, 1.0 - t / ROWS)          # agent 0 is the atlas's top-left
     bm.free()
     me = bpy.data.meshes.get(FACE + "Mesh")
     if me:

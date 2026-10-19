@@ -68,7 +68,7 @@ test('reported idle or throttled agents do not inflate working counts, and forei
 
 test('a holder lock without a matching recognized live process keeps its resident idle',()=>{
  for(const runtime of ['claude','codex'])for(const state of [undefined,'done','mystery']){
-  const snapshot={tickets:[{ref:'work/01',status:'claimed',holder: { role:'developer',runtime}}],cells:[],agents:state?[{id:'a',ref:'work/01',role:'developer',runtime,state,capabilities:{send:true}}]:[]};
+  const snapshot={tickets:[{ref:'work/01',status:'claimed',holder: { role:'developer',runtime}}],placements:[],agents:state?[{id:'a',ref:'work/01',role:'developer',runtime,state,capabilities:{send:true}}]:[]};
   assert.equal(liveActorsFromSnapshot(snapshot).length,0);
   assert.equal(deskResidents(snapshot).find(r=>r.id===residentKey('developer',runtime)).state,'resident');
  }

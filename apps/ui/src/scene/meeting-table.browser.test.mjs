@@ -31,8 +31,8 @@ async function open(state) {
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
   const m = meeting(state);
-  const cell = { ref: REF, cellType: 'architect', state: 'working', lastEventAt: new Date().toISOString() };
-  const snapshot = { schema: 1, seq: 1, tickets: [{ ref: REF, title: m.title, status: 'ready-for-agent' }], frontier: [], usage: null, requests: [], agents: [], cells: [cell], meetings: [m] };
+  const placement = { ref: REF, role: 'architect', state: 'working', lastEventAt: new Date().toISOString() };
+  const snapshot = { schema: 1, seq: 1, tickets: [{ ref: REF, title: m.title, status: 'ready-for-agent' }], frontier: [], usage: null, requests: [], agents: [], placements: [placement], meetings: [m] };
   await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n` }));
   await page.route('**/state', (r) => r.fulfill({ json: snapshot }));
   await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));

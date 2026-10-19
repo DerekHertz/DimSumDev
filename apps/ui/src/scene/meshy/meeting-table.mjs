@@ -1,10 +1,10 @@
 // den-mvp/64: a meeting at Bao's table. Which meeting the table shows, where its seats are, what each seat says,
 // and the glide route a panda takes to its seat. Pure: the actors and the label layer read it; the snapshot decides.
 export const TABLE = Object.freeze({ x: 0, z: 3.15 }); // the shared dim sum table, in front of Bao (world.mjs: center)
-export const PLAZA_RING = 8; // the stone ring around the plaza; far stations join it before turning in
+export const PLAZA_RING = 8; // the stone ring around the plaza; far teams join it before turning in
 export const FAREWELL_MS = 6000; // how long Bao says what you chose before the table clears
 export const CLAIM_MAX = 80;
-export const GLIDE_SPEED = 1.5; // world units a second, about 8–10 s from the farthest station
+export const GLIDE_SPEED = 1.5; // world units a second, about 8–10 s from the farthest team
 
 const SEATED = new Set(["running", "paused", "briefed"]);
 const ENDED = new Set(["decided", "closed"]);

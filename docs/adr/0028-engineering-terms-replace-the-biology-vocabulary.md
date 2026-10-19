@@ -38,11 +38,11 @@ The acceptance grep (`genome|apoptosis|\bcell(s|-type)?\b|organism`, outside `do
 - tests that assert the old words are gone (for example the UI copy check in `apps/ui/src/overlay/floating-cards.test.mjs`, and the bridge's unknown-route check for `/cells`);
 - recorded runs, which stay as recorded: the demo replay (`apps/ui/src/demo/demo-fixture.mjs`) and the live transcripts under `apps/bridge/agents/fixtures/`;
 - Jev eval cases (`scripts/jev-evals/**/cases.jsonl`), which are labelled historical inputs: editing them would change the eval;
-- the UI code (`apps/ui`, `packages/character-director`) and the Blender scripts (`design/3d/`, `apps/ui/assets-src/**/*.py`): the scene's `cells` and `cellType` identifiers, the snapshot's `cells` field (the name `agents` is taken there), and their comments. The full-window shell (team-and-den-ux/04) renames them as it rebuilds that code. UI copy is already renamed;
+- object and collection names inside the `.blend` files that the Blender scripts look up (`PCell_*`, `Cell_*`, the `cells` collection): renaming them would break the scripts against the saved scenes. team-and-den-ux/04 renamed the rest of the UI code, `packages/character-director` and the Blender scripts (`cells` became `placements`, `cellType` became `role`, `station` became `team`, `--station-*` became `--team-*`);
 - file names that are records: ADR files such as `0001-subscription-cli-cells.md`;
 - "cell" in its other senses (a table cell, a grid cell, a goals-table cell).
 
-`station` is outside the acceptance grep. In prose and UI copy it becomes "team". In code, `station` identifiers (the scene layout, `STATION_HUE`, the `--station-*` colour tokens) stay as they are: the full-window shell (team-and-den-ux/04) rebuilds that code and renames them there.
+`station` is outside the acceptance grep. In prose and UI copy it becomes "team". In code, `station` identifiers (the scene layout, `STATION_HUE`, the `--station-*` colour tokens) were renamed to `team` by team-and-den-ux/04, ahead of its full-window shell.
 
 ## Consequences
 

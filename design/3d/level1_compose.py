@@ -1,13 +1,13 @@
-"""Compose the Level 1 hero frame from Bao, the set pieces and the cells.
+"""Compose the Level 1 hero frame from Bao, the set pieces and the agents.
 
     exec(open(r"D:/claude_sessions/agent_office/design/3d/level1_compose.py").read())
 
 Sample data (design brief §10): Brain + Muscles live, Liver / Heart / Memory /
-Immune / Stem dormant. One cell waits on the user (architect), dev-03 has failed
-tests, scout reads ahead, QA and security sit asleep at dormant stations.
+Immune / Stem dormant. One agent waits on the user (architect), dev-03 has failed
+tests, scout reads ahead, QA and security sit asleep at dormant teams.
 
-Every cell stands ON Bao: positions are in Bao's own units (L) and scaled with
-BAO_SCALE, so resizing Bao keeps every cell on its body part. Cells get a soft
+Every agent stands ON Bao: positions are in Bao's own units (L) and scaled with
+BAO_SCALE, so resizing Bao keeps every agent on its body part. Agents get a soft
 contact shadow instead of a mat.
 """
 import bpy, math
@@ -17,7 +17,7 @@ D = r"D:/claude_sessions/agent_office/design/3d/"
 for f in ("panda_build.py", "role_types.py", "toon.py", "level1.py", "level1_set.py", "dormant.py"):
     exec(open(D + f, encoding="utf-8").read())
 
-FACE_CAM = math.radians(30)   # cells face the isometric camera (az -60)
+FACE_CAM = math.radians(30)   # agents face the isometric camera (az -60)
 S = BAO_SCALE
 
 
@@ -71,8 +71,8 @@ for i, (x, y, s) in enumerate(((-31, 28, 1), (-13, 33, 2), (20, 32, 3), (-39, 5,
     bamboo_cluster(f"Grove{i}", x, y, n=6, h=15, seed=s)
 flowers()
 
-# cells, each on its body part, with a contact shadow
-cells = [
+# agents, each on its body part, with a contact shadow
+agents = [
     ("Cell_Orchestrator", "L1_orch-01", BRAIN[1]),
     ("Cell_Product", "L1_prod-01", BRAIN[0]),
     ("Cell_Architect", "L1_arch-01", BRAIN[2]),
@@ -82,8 +82,8 @@ cells = [
     ("Cell_QA", "L1_qa-01", QA_AT),
     ("Cell_Security", "L1_sec-01", (17.2, -12.6)),
 ]
-for src, name, (x, y) in cells:
-    place_cell(src, name, (x, y, footprint_top(x, y, 0.9, 0.9) + 0.02), FACE_CAM)
+for src, name, (x, y) in agents:
+    place_agent(src, name, (x, y, footprint_top(x, y, 0.9, 0.9) + 0.02), FACE_CAM)
     contact_shadow(f"Shadow_{name[3:]}", x, y + 0.15)
 
 # Stem: two sleeping cubs curled in the basket
@@ -92,7 +92,7 @@ for i, (dx, dy, rz) in enumerate(((-0.7, 0.1, 40), (0.8, -0.2, -30))):
     cub.scale = (0.55, 0.55, 0.55); cub.rotation_euler = (0, 0, math.radians(rz))
 
 
-# nervous system: qi ribbons draped from the Brain on Bao's head to the live Muscles cells
+# nervous system: qi ribbons draped from the Brain on Bao's head to the live Muscles agents
 def arc(a, b, lift, n=13):
     a, b = Vector(a), Vector(b); pts = []
     for i in range(n):

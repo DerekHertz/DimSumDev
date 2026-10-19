@@ -16,7 +16,7 @@ test('actual live garden and keyboard roster expose both crews while Codex actio
   // without spending its two cores on unasserted SwiftShader rasterisation.
   await lightenScene(page,{skipDraws:!process.env.RESIDENT_EVIDENCE_DIR,frameDelayMs:250});
   page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()==='POST')writes.push(r.url());});
-  const snapshot={schema:1,seq:1,tickets:[],frontier:[],usage:null,requests:[],agents:[],cells:[],meetings:[]};
+  const snapshot={schema:1,seq:1,tickets:[],frontier:[],usage:null,requests:[],agents:[],placements:[],meetings:[]};
   await page.route('**/events',r=>r.fulfill({contentType:'text/event-stream',body:`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`}));
   await page.route('**/state',r=>r.fulfill({json:snapshot}));await page.route('**/metrics',r=>r.fulfill({json:{throughput:{windows:[]},tokensByRole:{},incidentsByTool:{}}}));await page.route('**/session',r=>r.fulfill({status:404,json:{}}));
   await page.goto(server.resolvedUrls.local[0]);
@@ -84,7 +84,7 @@ test('mounted scene and roster keep concurrent runtime tasks and visitors separa
   server=await createServer({configFile:'apps/ui/vite.config.mjs',configLoader:'native',server:{port:0,host:'127.0.0.1'},logLevel:'silent'});await server.listen();
   browser=await chromium.launch(buildLaunchOptions());const page=await browser.newPage({viewport:{width:1200,height:900},reducedMotion:'reduce'});await lightenScene(page);
   const writes=[],errors=[];page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()==='POST')writes.push(r.url());});
-  const snapshot={schema:1,seq:1,tickets:[],frontier:[],usage:null,requests:[],cells:[],agents:[
+  const snapshot={schema:1,seq:1,tickets:[],frontier:[],usage:null,requests:[],placements:[],agents:[
    {id:'claude-dev',role:'developer',ref:'paired/01',state:'working'},
    {id:'codex-dev',role:'developer',runtime:'codex',ref:'paired/01',state:'working'},
    {id:'codex-visitor',role:'developer',runtime:'codex',ref:'paired/03',state:'waiting_on_user'},

@@ -1,26 +1,26 @@
-import { planCells, poseFor } from './bindings.mjs';
+import { planPlacements, poseFor } from './bindings.mjs';
 
 // Reconcile by ticket ref, so refreshes do not recreate skeletons or restart a panda's life.
 export function createLiveDenController(den,{onCreate=()=>{},onRemove=()=>{},ticketPandas=true}={}) {
   const figures=new Map();
   let elapsed=0;
   const baseObstacles=[...den.obstacles];
-  function sync(cells,frontier=[],rods=[]) {
+  function sync(placements,frontier=[],rods=[]) {
     // ticketPandas:false leaves live agents to the role pandas (den-layout/03): no panda per held ticket.
-    const planned=ticketPandas?planCells(cells):[],wanted=new Map(planned.map(c=>[c.ref,c]));
+    const planned=ticketPandas?planPlacements(placements):[],wanted=new Map(planned.map(c=>[c.ref,c]));
     for(const [ref,f] of figures){
-      if(!wanted.has(ref)||wanted.get(ref).cellType!==f.cell.cellType){
+      if(!wanted.has(ref)||wanted.get(ref).role!==f.placement.role){
         onRemove(ref);den.removeTicketPanda(f.panda);figures.delete(ref);
       }
     }
-    for(const cell of planned){
-      let f=figures.get(cell.ref);
+    for(const placement of planned){
+      let f=figures.get(placement.ref);
       if(!f){
-        const panda=den.createTicketPanda(cell.cellType,cell.placement);
-        panda.model.userData.ticketRef=cell.ref;
-        f={panda,cell};figures.set(cell.ref,f);onCreate(panda);
+        const panda=den.createTicketPanda(placement.role,placement.placement);
+        panda.model.userData.ticketRef=placement.ref;
+        f={panda,placement};figures.set(placement.ref,f);onCreate(panda);
       }
-      f.cell=cell;den.placeTicketPanda(f.panda,cell.placement);
+      f.placement=placement;den.placeTicketPanda(f.panda,placement.placement);
     }
     den.obstacles.splice(0,den.obstacles.length,...baseObstacles,...planned.filter(c=>c.placement.parent==='world').map(c=>({
       type:'circle',x:c.placement.position[0],z:c.placement.position[2],radius:0.32,
@@ -36,15 +36,15 @@ export function createLiveDenController(den,{onCreate=()=>{},onRemove=()=>{},tic
     }
     den.update(reducedMotion?0:delta,elapsed);
     for(const [ref,f] of figures){
-      const {panda,cell}=f;
-      const p=poseFor(cell.pose,elapsed,reducedMotion),b=panda.bones;
+      const {panda,placement}=f;
+      const p=poseFor(placement.pose,elapsed,reducedMotion),b=panda.bones;
       b.Root.rotation.x=p.root;
       // Head's breathing is supplied by the mixer's base clip each frame.
       b.Head.rotation.x+=p.head;f.headOffset=p.head;
       f.baseLids={};
-      if(cell.pose==='waiting_on_user'){
+      if(placement.pose==='waiting_on_user'){
         b.Shoulder_L.rotation.z=p.arm;b.Elbow_L.rotation.z=p.elbow;b.Wrist_L.rotation.z=p.wrist;
-      }else if(cell.pose==='blocked'){
+      }else if(placement.pose==='blocked'){
         b.Shoulder_L.rotation.x=0.14;b.Shoulder_R.rotation.x=0.14;
         b.Shoulder_L.rotation.z=-p.arm;b.Shoulder_R.rotation.z=p.arm;
         b.Elbow_L.rotation.z=-p.elbow;b.Elbow_R.rotation.z=p.elbow;

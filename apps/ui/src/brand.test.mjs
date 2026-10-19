@@ -31,10 +31,10 @@ test("--font-display names Long Cang; --font-sans stays Nunito with no Long Cang
   assert.doesNotMatch(sans, /Long Cang/);
 });
 
-test("the display font is used only by header title, station labels, the tally chip and the Tally card heading", () => {
+test("the display font is used only by header title, team labels, the tally chip and the Tally card heading", () => {
   const rules = [...css.matchAll(/([^{}]+)\{([^{}]*)\}/g)].map(([, sel, body]) => [sel.trim(), body]);
   const users = rules.filter(([, body]) => /font-family:\s*var\(--font-display\)/.test(body)).map(([sel]) => sel);
-  const allowed = [".logo-pill h1", ".station-label", ".chip-tally", ".tally-card h2"]; // den-scene-v1/05 spec-2: the card heading is the "Tally" word
+  const allowed = [".logo-pill h1", ".team-label", ".chip-tally", ".tally-card h2"]; // den-scene-v1/05 spec-2: the card heading is the "Tally" word
   for (const sel of users) assert.ok(allowed.includes(sel), `unexpected display-font rule: ${sel}`);
   for (const a of allowed) assert.ok(users.includes(a), `${a} uses the display font`);
 });
@@ -48,14 +48,14 @@ test("no number or data text uses the display font", () => {
 });
 
 // den-scene-v1/03: the noren sign replaced the visible pill; the anchor stays for screen readers.
-test("station labels are non-interactive anchors with no visible pill", () => {
-  const rule = css.match(/\.station-label\s*\{([^}]*)\}/)?.[1] ?? "";
+test("team labels are non-interactive anchors with no visible pill", () => {
+  const rule = css.match(/\.team-label\s*\{([^}]*)\}/)?.[1] ?? "";
   assert.doesNotMatch(rule, /background/);
   assert.match(rule, /pointer-events:\s*none/);
   assert.match(css, /--rice-paper:\s*#[0-9a-fA-F]{6}/);
 });
 
-test("station labels are rendered by the chip layer from the pure model, anchored per stall", () => {
-  assert.match(read("./scene/ChipLayer.jsx"), /station-label/);
-  assert.match(read("./scene/ChipLayer.jsx"), /stationLabels\(/);
+test("team labels are rendered by the chip layer from the pure model, anchored per stall", () => {
+  assert.match(read("./scene/ChipLayer.jsx"), /team-label/);
+  assert.match(read("./scene/ChipLayer.jsx"), /teamLabels\(/);
 });

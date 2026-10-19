@@ -17,7 +17,7 @@ import { cardFor } from "./proximity-card.mjs";
 const flush = () => new Promise((r) => setImmediate(r));
 const rejectWith = (status, reason) => Object.assign(new Error(reason), { status, reason });
 const viewer = { x: 0, z: 0, yaw: Math.PI / 2 };
-const panda = (over = {}) => ({ id: "scout", name: "The Scout", role: "scout", station: "Steamers", position: { x: -2, z: 0 }, ...over });
+const panda = (over = {}) => ({ id: "scout", name: "The Scout", role: "scout", team: "Steamers", position: { x: -2, z: 0 }, ...over });
 const residentCard = (over) => cardFor([panda(over)], [], viewer);
 
 function harness({ startTask } = {}) {

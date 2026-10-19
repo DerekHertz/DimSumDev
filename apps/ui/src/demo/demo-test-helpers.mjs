@@ -15,7 +15,7 @@ export function clock() {
 export function cardsOf(snapshot) {
   const viewer = { x: 0, z: 0, yaw: Math.PI / 2 };
   return (snapshot?.agents ?? []).map((agent) => cardFor(
-    [{ id: agent.id, name: agent.role, role: agent.role, station: "Den", position: { x: -2, z: 0 }, ref: agent.ref, state: agent.state, agent }],
+    [{ id: agent.id, name: agent.role, role: agent.role, team: "Den", position: { x: -2, z: 0 }, ref: agent.ref, state: agent.state, agent }],
     snapshot.approvals ?? [], viewer,
   )).filter(Boolean);
 }

@@ -121,9 +121,9 @@ test("pan clamps: no vertical pan at the default; about 1.9 units either way at 
   near(clampTarget([0, 0, 40], near55)[2], -2.9 + 1.872, 0.01, "clampTarget z");
 });
 
-test("MAX_STALL_CELLS includes the scene's active cap plus the other idle Steamers role", async () => {
-  const { MAX_STALL_CELLS } = await import("./banquet-layout.mjs");
+test("MAX_STALL_PLACEMENTS includes the scene's active cap plus the other idle Steamers role", async () => {
+  const { MAX_STALL_PLACEMENTS } = await import("./banquet-layout.mjs");
   const { MAX_PLUSH } = await import("./scene-from-state.mjs");
   assert.equal(MAX_PLUSH, 12);
-  assert.equal(MAX_STALL_CELLS, 13);
+  assert.equal(MAX_STALL_PLACEMENTS, 13);
 });

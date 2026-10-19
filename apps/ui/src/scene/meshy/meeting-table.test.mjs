@@ -72,7 +72,7 @@ test("Bao's label follows the meeting: listening, drafting, brief ready, waiting
   assert.deepEqual(baoLabel(meeting({ state: "closed", decisions: [] })), { text: "Closed", kind: "done" });
 });
 
-test("a route from a far station goes out along the plaza ring first; a near one goes straight", () => {
+test("a route from a far team goes out along the plaza ring first; a near one goes straight", () => {
   const seat = seatSpots(3)[0];
   const far = routeTo({ x: -11.2, z: -4.9 }, seat);
   assert.equal(far.length, 2);

@@ -64,8 +64,8 @@ describe("getApproval", () => {
 
   test("an id is encoded into one path segment", async () => {
     const { f, client } = clientOver(() => ok({}));
-    await client.getApproval("../cells");
-    assert.equal(f.calls[0].url, "/approvals/..%2Fcells");
+    await client.getApproval("../placements");
+    assert.equal(f.calls[0].url, "/approvals/..%2Fplacements");
   });
 });
 

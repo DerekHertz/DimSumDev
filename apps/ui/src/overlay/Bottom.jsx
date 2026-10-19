@@ -2,7 +2,7 @@
 // bottom-centre, timeline bottom-right. Numbers and copy: docs/design/2026-10-01-iso-den.md section 4.
 import { useEffect, useRef, useSyncExternalStore } from "react";
 import { LEVEL_ZOOM, levelOfZoom } from "../scene/camera-store.mjs";
-import { STATION_HUE, clockText, timelineMarkers } from "./overlay-model.mjs";
+import { TEAM_HUE, clockText, timelineMarkers } from "./overlay-model.mjs";
 
 const LEVELS = [
   { level: 1, label: "1 · Den" },
@@ -85,7 +85,7 @@ export function IntentBar() {
   );
 }
 
-const MARKER_COLOUR = { pass: `var(${STATION_HUE.pass})`, lantern: "var(--lantern-fill)", alarm: "var(--alarm)" };
+const MARKER_COLOUR = { pass: `var(${TEAM_HUE.pass})`, lantern: "var(--lantern-fill)", alarm: "var(--alarm)" };
 
 export function Timeline({ snapshot, now }) {
   const markers = timelineMarkers(snapshot, now);

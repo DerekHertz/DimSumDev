@@ -109,7 +109,7 @@ async function main() {
     const requested = [];
     page.on("request", (r) => requested.push(r.url()));
     await page.goto(`${bridge.url}/#code=${launchCode}`, { waitUntil: "load" });
-    await page.waitForSelector("[data-overlay=stations] .queue-row", { timeout: 15000 }).catch(() => {});
+    await page.waitForSelector("[data-overlay=teams] .queue-row", { timeout: 15000 }).catch(() => {});
 
     await check("font: Long Cang is self-hosted, no Google Fonts request", async () => {
       const loaded = await page.evaluate(async () => {
@@ -131,7 +131,7 @@ async function main() {
     });
 
     await check("queue: frontier in priority order", async () => {
-      const titles = await page.locator("[data-overlay=stations] .queue-rows").first().locator(".queue-title").allTextContents();
+      const titles = await page.locator("[data-overlay=teams] .queue-rows").first().locator(".queue-title").allTextContents();
       expectEqual(titles, EXPECTED_QUEUE_HEAD, "frontier titles");
     });
 
@@ -158,9 +158,9 @@ async function main() {
       expectEqual(req?.kind, "merge-approve", "request kind");
     });
 
-    // den-iso-v1/02: the orthographic camera. Observables are the four station signs (`.station-label`, placed by
+    // den-iso-v1/02: the orthographic camera. Observables are the four team signs (`.team-label`, placed by
     // projecting each kiosk's roof apex) and the Tally chip, measured against the scene box (`main.scene`).
-    // Expected values are literals: at the default zoom every station sign of the restaurant scene (site plan, den-layout/02) is in
+    // Expected values are literals: at the default zoom every team sign of the restaurant scene (site plan, den-layout/02) is in
     // view at 1440x900 and at 375x667; wheel zoom is exponential (zoom *= exp(deltaY / 1000), procedural/camera.mjs) so signs spread by 1/d; a drag of dx px shifts every
     // sign by dx px (an orthographic camera moves the whole scene rigidly).
     const sceneProbe = () =>
@@ -171,7 +171,7 @@ async function main() {
           return { x: r.left + r.width / 2 - scene.left, y: r.top + r.height / 2 - scene.top, left: r.left - scene.left, right: r.right - scene.left, top: r.top - scene.top, bottom: r.bottom - scene.top };
         };
         const signs = {},projected={};
-        for (const el of document.querySelectorAll(".chip-layer .station-label")) {
+        for (const el of document.querySelectorAll(".chip-layer .team-label")) {
           projected[el.textContent.trim()]=rel(el);
           if (getComputedStyle(el).visibility === "visible") signs[el.textContent.trim()] = rel(el);
         }
@@ -267,14 +267,14 @@ async function main() {
 
     // den-v1/03, back for den-layout/04: Enter the den switches to a first-person camera in the restaurant scene, WASD
     // moves it, Esc returns the diorama camera to the frame it left. Observables: the button's aria-pressed, the
-    // crosshair, and the station signs, which ChipLayer projects through whichever camera is live (the walker's
+    // crosshair, and the team signs, which ChipLayer projects through whichever camera is live (the walker's
     // perspective camera moves them; the diorama's does not).
     await check("walk: Enter the den, move with W, Esc returns the diorama to the same frame", async () => {
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.waitForTimeout(800); // the diorama's easing has finished
       const enter = page.getByRole("button", { name: "Enter the den" });
       await page.waitForFunction(() => !document.querySelector(".den-entry button")?.hasAttribute("aria-disabled"), null, { timeout: 15000 });
-      // Signs and chips both: at real frame rates (PW_GPU=1) the station signs leave the walker's view within a second.
+      // Signs and chips both: at real frame rates (PW_GPU=1) the team signs leave the walker's view within a second.
       const round = (p) => Object.fromEntries(Object.entries({ ...p.signs, ...p.chips }).map(([n, r]) => [n, [Math.round(r.x), Math.round(r.y)]]));
       const before = await sceneProbe();
       await enter.click();

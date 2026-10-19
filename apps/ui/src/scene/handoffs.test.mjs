@@ -3,33 +3,33 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import {
-  DUR_SLOW_MS, deriveHandoffs, lanternState, lerpAngle, stationBearing, susanLayout, trackedTickets, turnAngle,
+  DUR_SLOW_MS, deriveHandoffs, lanternState, lerpAngle, teamBearing, susanLayout, trackedTickets, turnAngle,
 } from "./handoffs.mjs";
 import { BAO, TABLE } from "./banquet-layout.mjs";
 
 const ticket = (n, over = {}) => ({
   ref: `f/${String(n).padStart(2, "0")}-t`, type: "feature", status: "ready-for-agent", holder: null, lastRole: null, gate: null, ...over,
 });
-const held = (cell) => ({ role: cell, since: "2026-09-29T05:00:00.000Z" });
+const held = (placement) => ({ role: placement, since: "2026-09-29T05:00:00.000Z" });
 const snap = (tickets, frontier = []) => ({ tickets, frontier });
 
-test("station change: qa specify then developer claims, ticket moves tea -> steamers", () => {
+test("team change: qa specify then developer claims, ticket moves tea -> steamers", () => {
   const before = snap([ticket(1, { status: "in-review", lastRole: "qa" })], []);
   const after = snap([ticket(1, { status: "claimed", holder: held("developer") })], []);
   assert.deepEqual(deriveHandoffs(before, after), [
-    { ref: "f/01-t", fromCell: "qa", toCell: "developer", from: "tea", to: "steamers", sameStation: false },
+    { ref: "f/01-t", fromPlacement: "qa", toPlacement: "developer", from: "tea", to: "steamers", sameTeam: false },
   ]);
 });
 
-test("same-station change: developer to scout is a handoff within steamers", () => {
+test("same-team change: developer to scout is a handoff within steamers", () => {
   const before = snap([ticket(1, { status: "claimed", holder: held("developer") })]);
   const after = snap([ticket(1, { status: "claimed", holder: held("scout") })]);
   assert.deepEqual(deriveHandoffs(before, after), [
-    { ref: "f/01-t", fromCell: "developer", toCell: "scout", from: "steamers", to: "steamers", sameStation: true },
+    { ref: "f/01-t", fromPlacement: "developer", toPlacement: "scout", from: "steamers", to: "steamers", sameTeam: true },
   ]);
 });
 
-test("same cell type is not a handoff (status change only)", () => {
+test("same placement type is not a handoff (status change only)", () => {
   const before = snap([ticket(1, { status: "claimed", holder: held("qa") })]);
   const after = snap([ticket(1, { status: "in-review", lastRole: "qa" })]);
   assert.deepEqual(deriveHandoffs(before, after), []);
@@ -50,7 +50,7 @@ test("no previous snapshot (first load) gives no handoffs", () => {
   assert.deepEqual(deriveHandoffs(null, snap([ticket(1, { status: "claimed", holder: held("qa") })])), []);
 });
 
-test("queued tickets are tracked too: a frontier ticket whose last cell changes hands over", () => {
+test("queued tickets are tracked too: a frontier ticket whose last placement changes hands over", () => {
   const before = snap([ticket(1, { lastRole: "qa" })], ["f/01-t"]);
   const after = snap([ticket(1, { lastRole: "developer" })], ["f/01-t"]);
   const [h] = deriveHandoffs(before, after);
@@ -70,7 +70,7 @@ test("several handoffs come out in ref order", () => {
   assert.deepEqual(deriveHandoffs(before, after).map((h) => h.ref), ["f/01-t", "f/02-t"]);
 });
 
-test("trackedTickets: active plus frontier, with station", () => {
+test("trackedTickets: active plus frontier, with team", () => {
   const t = trackedTickets(snap([
     ticket(1, { status: "claimed", holder: held("security") }),
     ticket(2, { lastRole: "qa" }),
@@ -78,23 +78,23 @@ test("trackedTickets: active plus frontier, with station", () => {
     ticket(4, { status: "resolved" }),
   ], ["f/02-t"]));
   assert.deepEqual([...t.entries()], [
-    ["f/01-t", { cellType: "security", station: "pantry" }],
-    ["f/02-t", { cellType: "qa", station: "tea" }],
+    ["f/01-t", { role: "security", team: "pantry" }],
+    ["f/02-t", { role: "qa", team: "tea" }],
   ]);
 });
 
-test("stationBearing: angle from the table toward each stall, +z is 0, +x is positive", () => {
-  assert.ok(Math.abs(stationBearing("cubs") + 0.5404195002705842) < 1e-9);
-  assert.ok(Math.abs(stationBearing("front-of-house") - Math.atan2(3.6, -1.4)) < 1e-9); // den-scene-v1/11: the Front of House kiosk stands at x 3.6
-  assert.ok(Math.abs(Math.abs(stationBearing("orchestrator")) - Math.PI) < 1e-9, "Bao's bearing follows BAO.position z -3.3, straight back from the table");
-  assert.ok(stationBearing("steamers") < 0 && stationBearing("tea") < 0);
-  assert.ok(stationBearing("pantry") > 0);
-  // Bao's own station (Pass cells) sits at the back of the table.
-  assert.ok(Math.abs(Math.abs(stationBearing("orchestrator")) - Math.PI) < 1e-9);
+test("teamBearing: angle from the table toward each stall, +z is 0, +x is positive", () => {
+  assert.ok(Math.abs(teamBearing("cubs") + 0.5404195002705842) < 1e-9);
+  assert.ok(Math.abs(teamBearing("front-of-house") - Math.atan2(3.6, -1.4)) < 1e-9); // den-scene-v1/11: the Front of House kiosk stands at x 3.6
+  assert.ok(Math.abs(Math.abs(teamBearing("orchestrator")) - Math.PI) < 1e-9, "Bao's bearing follows BAO.position z -3.3, straight back from the table");
+  assert.ok(teamBearing("steamers") < 0 && teamBearing("tea") < 0);
+  assert.ok(teamBearing("pantry") > 0);
+  // Bao's own team (Pass placements) sits at the back of the table.
+  assert.ok(Math.abs(Math.abs(teamBearing("orchestrator")) - Math.PI) < 1e-9);
 });
 
-test("susanLayout: baskets in one station never overlap and stay on the susan", () => {
-  const items = Array.from({ length: 8 }, (_, i) => ({ ref: `r${i}`, station: "steamers" }));
+test("susanLayout: baskets in one team never overlap and stay on the susan", () => {
+  const items = Array.from({ length: 8 }, (_, i) => ({ ref: `r${i}`, team: "steamers" }));
   const out = susanLayout(items);
   assert.equal(out.length, 8);
   for (const b of out) assert.ok(b.radius <= 0.95 && b.radius >= 0.3, `radius ${b.radius}`);
@@ -106,21 +106,21 @@ test("susanLayout: baskets in one station never overlap and stay on the susan", 
   }
 });
 
-test("susanLayout: a lone basket sits on its station's bearing at the outer ring", () => {
-  const [b] = susanLayout([{ ref: "r", station: "pantry" }]);
+test("susanLayout: a lone basket sits on its team's bearing at the outer ring", () => {
+  const [b] = susanLayout([{ ref: "r", team: "pantry" }]);
   assert.equal(b.ref, "r");
-  assert.ok(Math.abs(b.angle - stationBearing("pantry")) < 1e-9);
+  assert.ok(Math.abs(b.angle - teamBearing("pantry")) < 1e-9);
   assert.equal(b.radius, 0.85);
 });
 
 test("susanLayout is deterministic and keeps input order", () => {
-  const items = [{ ref: "a", station: "tea" }, { ref: "b", station: "tea" }, { ref: "c", station: "pantry" }];
+  const items = [{ ref: "a", team: "tea" }, { ref: "b", team: "tea" }, { ref: "c", team: "pantry" }];
   assert.deepEqual(susanLayout(items), susanLayout(items));
   assert.deepEqual(susanLayout(items).map((b) => b.ref), ["a", "b", "c"]);
 });
 
 test("susanLayout caps at 12 baskets", () => {
-  const items = Array.from({ length: 20 }, (_, i) => ({ ref: `r${i}`, station: "tea" }));
+  const items = Array.from({ length: 20 }, (_, i) => ({ ref: `r${i}`, team: "tea" }));
   assert.equal(susanLayout(items).length, 12);
 });
 
@@ -141,20 +141,20 @@ test("turnAngle: eases over dur-slow, and reduced motion jumps straight to the t
   assert.equal(turnAngle(0, 1, 10, true), 1);
 });
 
-test("lanternState: the stall of every waiting cell lights, and the bell lights for any", () => {
-  const cells = [
-    { cellType: "qa", pose: "waiting_on_user" },
-    { cellType: "developer", pose: "working" },
-    { cellType: "security", pose: "waiting_on_user" },
-    { cellType: "orchestrator", pose: "waiting_on_user" },
+test("lanternState: the stall of every waiting placement lights, and the bell lights for any", () => {
+  const placements = [
+    { role: "qa", pose: "waiting_on_user" },
+    { role: "developer", pose: "working" },
+    { role: "security", pose: "waiting_on_user" },
+    { role: "orchestrator", pose: "waiting_on_user" },
   ];
-  const s = lanternState(cells);
+  const s = lanternState(placements);
   assert.deepEqual([...s.stalls].sort(), ["pantry", "tea"]);
   assert.equal(s.bell, true);
 });
 
 test("lanternState: nothing waiting lights nothing", () => {
-  const s = lanternState([{ cellType: "developer", pose: "working" }, { cellType: "qa", pose: "done" }]);
+  const s = lanternState([{ role: "developer", pose: "working" }, { role: "qa", pose: "done" }]);
   assert.deepEqual([...s.stalls], []);
   assert.equal(s.bell, false);
   assert.deepEqual([...lanternState([]).stalls], []);
@@ -207,9 +207,9 @@ test("every handoff arc between two kiosks stays outside Bao's padded roam rect 
   const { handoffPath } = await import("./handoffs.mjs");
   const { STALL_CENTERS } = await import("./banquet-layout.mjs");
   const r = baoRect(roamObstacles());
-  const stations = Object.keys(STALL_CENTERS);
+  const teams = Object.keys(STALL_CENTERS);
   let arcs = 0;
-  for (const from of stations) for (const to of stations) {
+  for (const from of teams) for (const to of teams) {
     if (from === to) continue;
     arcs++;
     for (const p of handoffPath(from, to)) {

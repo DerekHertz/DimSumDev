@@ -13,7 +13,7 @@ import { liveActorsFromSnapshot } from '../../review/live-actors.mjs';
 import { REVIEW_SKIES } from '../../review/site-plan.mjs';
 import { agentFor, cardFor, pickedCard } from '../../overlay/proximity-card.mjs';
 
-// The den: the v5 kit's village (den-mvp/25: stations, promenades, bamboo, the six leisure places) with the role pandas
+// The den: the v5 kit's village (den-mvp/25: teams, promenades, bamboo, the six leisure places) with the role pandas
 // that walk it, mounted inside the app's canvas. The wrapping App owns the camera, the overlays and the board state.
 // The frontier baskets and the tally ride on the same den through the controller. Live agents show only as
 // the role pandas (agents.applyLive): the controller adds no ticket pandas and leaves residents alone.
@@ -31,12 +31,12 @@ function savedLook() {
   return { direction: loadReview()?.direction || 'traveler' };
 }
 
-export function RestaurantDen({ snapshot, cells, frontier, tally, selected, onSelect, onOpenTally, stage, onReady, onNearby, picked = null, onPick, zoneView = null, onZoneClick = null }) {
+export function RestaurantDen({ snapshot, placements, frontier, tally, selected, onSelect, onOpenTally, stage, onReady, onNearby, picked = null, onPick, zoneView = null, onZoneClick = null }) {
   const [den, setDen] = useState(null);
   const [dark, setDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches);
   const [look] = useState(savedLook);
   const live = useRef(null);
-  const inputs = useRef({}); inputs.current = { snapshot, cells, frontier, tally, selected, onSelect, onOpenTally, onNearby, picked, onPick, onZoneClick };
+  const inputs = useRef({}); inputs.current = { snapshot, placements, frontier, tally, selected, onSelect, onOpenTally, onNearby, picked, onPick, onZoneClick };
   const position = useRef(new THREE.Vector3()).current;
   const proximityElapsed = useRef(0);
   const { scene } = useThree();
@@ -81,8 +81,8 @@ export function RestaurantDen({ snapshot, cells, frontier, tally, selected, onSe
 
   useEffect(() => {
     const c = live.current?.controller;
-    if (c) c.sync(cells, frontier, tally?.rods);
-  }, [den, cells, frontier, tally]);
+    if (c) c.sync(placements, frontier, tally?.rods);
+  }, [den, placements, frontier, tally]);
 
   // Real agents drive the role pandas (den-layout/03). The adapter is re-run each second so a tool-call
   // bubble fades after its TTL without waiting for a new snapshot.
@@ -132,10 +132,10 @@ export function RestaurantDen({ snapshot, cells, frontier, tally, selected, onSe
           // den-v1 loop S4: card content only. A panda the board has not bound reads the newest bridge agent of its role.
           const agent = agentFor({ role: a.role, ref: a.live?.ref }, snap?.agents, boundRefs);
           // Board-driven pandas precede bridge-owned runs: keep their honest state/tool, with no invented handle.
-          const cell = a.live ? (snap?.cells ?? []).filter(row => row.ref === a.live.ref && (!row.cellType || row.cellType === a.role))
+          const placement = a.live ? (snap?.placements ?? []).filter(row => row.ref === a.live.ref && (!row.role || row.role === a.role))
             .reduce((latest, row) => !latest || Date.parse(row.lastEventAt) > Date.parse(latest.lastEventAt) ? row : latest, null) : null;
-          const tool = cell?.tool ?? null; // The card keeps the current tool after its floating bubble fades.
-          return { id, name: a.name, role: a.role, dispatchable: !a.concept, station: a.station, position: { x: position.x, z: position.z }, ref: a.live?.ref, state: a.live?.state, tool, agent };
+          const tool = placement?.tool ?? null; // The card keeps the current tool after its floating bubble fades.
+          return { id, name: a.name, role: a.role, dispatchable: !a.concept, team: a.team, position: { x: position.x, z: position.z }, ref: a.live?.ref, state: a.live?.state, tool, agent };
         });
         const camera = walking ? stage.explorer.camera : null;
         card = camera ? cardFor(pandas, snap?.approvals ?? [], { x: camera.position.x, z: camera.position.z, yaw: camera.rotation.y })

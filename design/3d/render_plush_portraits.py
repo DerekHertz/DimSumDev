@@ -1,6 +1,6 @@
-"""Transparent 3/4 portraits of the plush cell types and Bao, for the design system.
+"""Transparent 3/4 portraits of the plush agent types and Bao, for the design system.
 
-Run inside Blender (scene "Meshy" holds the PCell_* lineup and PlushTest):
+Run inside Blender (scene "Meshy" holds the PAgent_* lineup and PlushTest):
     exec(open(r"D:/claude_sessions/agent_office/design/3d/render_plush_portraits.py").read())
     bpy.app.timers.register(render_plush_portraits, first_interval=0.1)   # long: run off the MCP call
 Writes renders/portraits-plush/<type>.png and a done.txt marker.

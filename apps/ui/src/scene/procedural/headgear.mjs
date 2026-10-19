@@ -3,23 +3,23 @@
 // builds three.js meshes from them (gear-object.mjs). `params` use the three.js constructor argument names.
 // Frames: headgear in the panda's "hat" socket (origin on the crown, y up, front +z); the prop in its own frame
 // (long axis +y, face +z), which ROLE_PLACEMENT turns upright and positions in the role's paw socket; the scarf in the "body" bone frame (neck at y ~ 1). Colour comes only from
-// stationHue (station-tinted parts) or the neutral tokens below; panda fur is never tinted.
-import { stationHue } from "./station-hues.mjs";
+// teamHue (team-tinted parts) or the neutral tokens below; panda fur is never tinted.
+import { teamHue } from "./team-hues.mjs";
 
 export const ROLES = ["orchestrator", "product", "architect", "developer", "scout", "debugger", "qa", "security", "designer"];
 
-// The role's station hue key (station-hues.mjs). banquet-layout's stationOf keeps the Pass roles under their own
+// The role's team hue key (team-hues.mjs). banquet-layout's teamOf keeps the Pass roles under their own
 // names and sends the debugger to the cub row; the den map (den-map.md:40) makes the debugger a Steamers role.
-const ROLE_STATION = {
+const ROLE_TEAM = {
   orchestrator: "pass", product: "pass", architect: "pass",
   developer: "steamers", scout: "steamers", debugger: "steamers",
   qa: "tea", security: "pantry", designer: "front-of-house",
 };
-const stationOfRole = (role) => (typeof role === "string" && Object.hasOwn(ROLE_STATION, role) ? ROLE_STATION[role] : null);
+const teamOfRole = (role) => (typeof role === "string" && Object.hasOwn(ROLE_TEAM, role) ? ROLE_TEAM[role] : null);
 
 const NEUTRALS = { cream: "#f4ecd8", ink: "#1b1d20", wood: "#b98a55", glass: "#bfe3ee" };
 // Semantic result colours for the developer's test tablet (user verdict 2026-09-30: red "N failed", green "N passed").
-// The red is the design system's reserved alarm tone (light theme); neither is a station hue.
+// The red is the design system's reserved alarm tone (light theme); neither is a team hue.
 const SEMANTIC = { fail: "#c1291b", pass: "#3f9a4a" };
 const COLORS = { ...NEUTRALS, ...SEMANTIC };
 const MATTE = { roughness: 0.9, metalness: 0 };
@@ -31,19 +31,19 @@ export function materialProps(token) {
   return { ...MATTE };
 }
 
-const hueFor = (station, theme) => (station ? stationHue(station, theme) ?? stationHue(station, "light") : undefined);
+const hueFor = (team, theme) => (team ? teamHue(team, theme) ?? teamHue(team, "light") : undefined);
 
 // Builds the spec's parts for one role: `make({seg, tint})` returns parts with material tokens; `seg(crowd, hero)`
 // picks a segment count by level of detail. Colours are resolved here, in one place.
 function resolve(role, opts, make) {
-  const station = stationOfRole(role);
+  const team = teamOfRole(role);
   const theme = opts?.theme ?? "light";
   const hero = opts?.lod === "hero";
-  const hue = hueFor(station, theme);
+  const hue = hueFor(team, theme);
   const seg = (crowd, high) => (hero ? high : crowd);
   return make({ seg }).map((p) => {
-    const material = p.material === "station" && !hue ? "cream" : p.material;
-    return { ...p, material, color: material === "station" ? hue : COLORS[material] };
+    const material = p.material === "team" && !hue ? "cream" : p.material;
+    return { ...p, material, color: material === "team" ? hue : COLORS[material] };
   });
 }
 
@@ -66,9 +66,9 @@ const HEAD_Z = -0.15;
 const STRAP = { radius: 0.64, scale: [1, 1, 0.62] };
 
 const HEADGEAR = {
-  // Chef's toque: a station-hued band under a tall puffed crown. The tallest hat.
+  // Chef's toque: a team-hued band under a tall puffed crown. The tallest hat.
   orchestrator: ({ seg }) => [
-    part("toque:band", "cylinder", { radiusTop: 0.44, radiusBottom: 0.44, height: 0.2, radialSegments: seg(8, 16), openEnded: true }, [0, 0.0, HEAD_Z], "station"),
+    part("toque:band", "cylinder", { radiusTop: 0.44, radiusBottom: 0.44, height: 0.2, radialSegments: seg(8, 16), openEnded: true }, [0, 0.0, HEAD_Z], "team"),
     part("toque:puff", "lathe", { points: [[0.42, 0], [0.62, 0.2], [0.6, 0.5], [0.38, 0.62], [0, 0.64]], segments: seg(8, 16) }, [0, 0.1, HEAD_Z], "cream"),
   ],
   // Round spectacles: two ink rims and a bridge across the face.
@@ -101,15 +101,15 @@ const HEADGEAR = {
   qa: ({ seg }) => [
     part("douli:cone", "lathe", { points: [[0, 0.4], [0.35, 0.28], [0.7, 0.1], [1.0, -0.02]], segments: seg(8, 16) }, [0, -0.1, HEAD_Z], "wood"),
   ],
-  // Cap: a station-hued dome over the head and a short brim tilted down off the brow.
+  // Cap: a team-hued dome over the head and a short brim tilted down off the brow.
   security: ({ seg }) => [
-    part("cap:dome", "sphere", { radius: 0.68, widthSegments: seg(8, 16), heightSegments: seg(3, 6), thetaLength: HALF }, [0, -0.14, -0.12], "station", { scale: [1, 0.6, 0.75] }),
-    box("cap:brim", [0.8, 0.04, 0.4], [0, -0.14, 0.38], "station", { rotation: [0.15, 0, 0] }),
+    part("cap:dome", "sphere", { radius: 0.68, widthSegments: seg(8, 16), heightSegments: seg(3, 6), thetaLength: HALF }, [0, -0.14, -0.12], "team", { scale: [1, 0.6, 0.75] }),
+    box("cap:brim", [0.8, 0.04, 0.4], [0, -0.14, 0.38], "team", { rotation: [0.15, 0, 0] }),
   ],
-  // Beret: a flat station-hued disc worn to one side, with a stalk.
+  // Beret: a flat team-hued disc worn to one side, with a stalk.
   designer: ({ seg }) => [
-    part("beret:disc", "sphere", { radius: 0.72, widthSegments: seg(8, 16), heightSegments: seg(4, 8) }, [0.06, 0.0, HEAD_Z], "station", { scale: [1, 0.35, 1], rotation: [0, 0, -0.2] }),
-    box("beret:stalk", [0.08, 0.1, 0.08], [0.0, 0.27, HEAD_Z], "station"),
+    part("beret:disc", "sphere", { radius: 0.72, widthSegments: seg(8, 16), heightSegments: seg(4, 8) }, [0.06, 0.0, HEAD_Z], "team", { scale: [1, 0.35, 1], rotation: [0, 0, -0.2] }),
+    box("beret:stalk", [0.08, 0.1, 0.08], [0.0, 0.27, HEAD_Z], "team"),
   ],
 };
 
@@ -183,24 +183,24 @@ const PROPS = {
     ring("teacup:rim", 0.16, 0.02, 3, seg(8, 16), [0, 0.15, 0], "ink", { rotation: [HALF, 0, 0] }),
     ring("teacup:handle", 0.06, 0.015, 3, seg(6, 12), [0.17, 0.08, 0], "cream", {}, Math.PI),
   ],
-  // Pantry seal: a wooden grip over a station-hued stamp face.
+  // Pantry seal: a wooden grip over a team-hued stamp face.
   security: ({ seg }) => [
     part("seal:grip", "cylinder", { radiusTop: 0.07, radiusBottom: 0.1, height: 0.25, radialSegments: seg(8, 16) }, [0, 0.12, 0], "wood"),
-    part("seal:stamp", "cylinder", { radiusTop: 0.15, radiusBottom: 0.15, height: 0.06, radialSegments: seg(8, 16) }, [0, -0.04, 0], "station"),
+    part("seal:stamp", "cylinder", { radiusTop: 0.15, radiusBottom: 0.15, height: 0.06, radialSegments: seg(8, 16) }, [0, -0.04, 0], "team"),
   ],
   // Garnished plate.
   designer: ({ seg }) => [
     part("plate:dish", "cylinder", { radiusTop: 0.3, radiusBottom: 0.24, height: 0.05, radialSegments: seg(8, 16) }, [0, 0, 0], "cream"),
     // An ink rim so the cream plate keeps an edge against pale belly fur (designer review M1).
     ring("plate:rim", 0.3, 0.015, 3, seg(8, 16), [0, 0.025, 0], "ink", { rotation: [HALF, 0, 0] }),
-    part("plate:garnish", "sphere", { radius: 0.07, widthSegments: seg(6, 12), heightSegments: seg(3, 6) }, [0, 0.07, 0], "station"),
+    part("plate:garnish", "sphere", { radius: 0.07, widthSegments: seg(6, 12), heightSegments: seg(3, 6) }, [0, 0.07, 0], "team"),
   ],
 };
 
-// One scarf for every role: a wrap round the neck and a tail down the front, all station-hued.
+// One scarf for every role: a wrap round the neck and a tail down the front, all team-hued.
 const SCARF = ({ seg }) => [
-  part("scarf:wrap", "torus", { radius: 0.5, tubularSegments: seg(8, 16), radialSegments: seg(5, 8), tube: 0.13 }, [0, 0.98, -0.02], "station", { rotation: [HALF, 0, 0] }),
-  box("scarf:tail", [0.22, 0.5, 0.08], [0.18, 0.74, 0.56], "station"),
+  part("scarf:wrap", "torus", { radius: 0.5, tubularSegments: seg(8, 16), radialSegments: seg(5, 8), tube: 0.13 }, [0, 0.98, -0.02], "team", { rotation: [HALF, 0, 0] }),
+  box("scarf:tail", [0.22, 0.5, 0.08], [0.18, 0.74, 0.56], "team"),
 ];
 
 const specFor = (table) => (role, opts) => {

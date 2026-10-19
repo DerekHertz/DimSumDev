@@ -1,4 +1,4 @@
-// ADR 0013: the banquet market anchor model. Pure; no three, React or DOM. Cell type and slot index
+// ADR 0013: the banquet market anchor model. Pure; no three, React or DOM. Role and slot index
 // in, world position (where the plush's feet stand) out. Units are scene units, +z toward the camera.
 
 /**
@@ -51,7 +51,7 @@ const STALL_SPACING = 0.75;
 const STALL_BASE_SLOTS = 3;
 const COUNTER_Y = 0.6;
 
-/** The back stalls stand on a low platform so their cells rise above the front row's roofs (default camera). */
+/** The back stalls stand on a low platform so their placements rise above the front row's roofs (default camera). */
 export const BACK_PLATFORM = 0.5;
 /**
  * The front stalls carry a low roof. The eave is raised to 1.77 (user, 2026-10-01, den-scene-v1/09 round 2) so the
@@ -62,7 +62,7 @@ export const FRONT_ROOF = { eave: 1.77, rise: 0.4 };
 
 /**
  * Pass perches: extra orchestrators step -0.4 world x along the rail (away from the bell); extra product and architect
- * cells step -0.4 world z along the arm top. A fourth cell and beyond clamp to the last seat so nothing floats.
+ * placements step -0.4 world z along the arm top. A fourth placement and beyond clamp to the last seat so nothing floats.
  */
 const PASS = {
   orchestrator: { axis: 0, step: -0.39 }, // 0.39, not 0.4, so the third 0.44-wide panda (0.78 + 0.22 = 1.0) stays on the 2.0 rail
@@ -79,7 +79,7 @@ const STALLS = {
   cubs: { x: 0, z: 4.6, y: 0 },
 };
 
-const STATION = {
+const TEAM = {
   developer: "steamers", scout: "steamers",
   qa: "tea", security: "pantry", designer: "front-of-house",
 };
@@ -90,64 +90,64 @@ export const STALL_CENTERS = Object.fromEntries(
 );
 
 /** Each kiosk faces the table, capped to preserve its counter's default-camera sight line. */
-export function stallYaw(station) {
-  const { x, z } = STALL_CENTERS[station];
+export function stallYaw(team) {
+  const { x, z } = STALL_CENTERS[team];
   return Math.max(-0.52, Math.min(0.52, Math.atan2(-x, -z)));
 }
 
 /** Height of a stall's platform (0 for the front row) and the roof it carries, for the renderer. */
-export const stallPlatform = (station) => (STALLS[station]?.row === "back" ? BACK_PLATFORM : 0);
-export const stallRoof = (station) => (STALLS[station]?.row === "front" ? FRONT_ROOF : undefined);
-/** Counter top height in the world, where a stall's cells stand. */
-export const counterTop = (station) => STALLS[station].y;
+export const stallPlatform = (team) => (STALLS[team]?.row === "back" ? BACK_PLATFORM : 0);
+export const stallRoof = (team) => (STALLS[team]?.row === "front" ? FRONT_ROOF : undefined);
+/** Counter top height in the world, where a stall's placements stand. */
+export const counterTop = (team) => STALLS[team].y;
 
-export function stationOf(cellType) {
-  if (PASS[cellType]) return cellType;
-  return STATION[cellType] ?? "cubs";
+export function teamOf(role) {
+  if (PASS[role]) return role;
+  return TEAM[role] ?? "cubs";
 }
 
-/** "steamers#2" -> { station: "steamers", slot: 2 } */
+/** "steamers#2" -> { team: "steamers", slot: 2 } */
 export function parsePerch(perch) {
-  const [station, slot] = perch.split("#");
-  return { station, slot: Number(slot) };
+  const [team, slot] = perch.split("#");
+  return { team, slot: Number(slot) };
 }
 
-/** Width of a stall's front: three fixed slots, then it widens by one slot per extra cell. */
+/** Width of a stall's front: three fixed slots, then it widens by one slot per extra placement. */
 export function stallWidth(count) {
   return Math.max(STALL_BASE_SLOTS, count) * STALL_SPACING;
 }
 
 /** A stall widens outward, away from x=0, so its inner edge (and the space around Bao) stays fixed. */
-export function stallCenterX(station, count = STALL_BASE_SLOTS) {
-  const stall = STALLS[station];
+export function stallCenterX(team, count = STALL_BASE_SLOTS) {
+  const stall = STALLS[team];
   const extra = stallWidth(count) - stallWidth(STALL_BASE_SLOTS);
   return stall.x + Math.sign(stall.x) * extra / 2;
 }
 
-/** Twelve active cells (scene-from-state MAX_PLUSH) plus the other idle Steamers role. */
-export const MAX_STALL_CELLS = 13;
+/** Twelve active placements (scene-from-state MAX_PLUSH) plus the other idle Steamers role. */
+export const MAX_STALL_PLACEMENTS = 13;
 
-/** Outer edge (|x|) of the widest stall: Steamers holding every cell. The camera must be able to reach it. */
-export const WIDEST_STALL_EDGE = Math.abs(stallCenterX("steamers", MAX_STALL_CELLS)) + stallWidth(MAX_STALL_CELLS) / 2;
+/** Outer edge (|x|) of the widest stall: Steamers holding every placement. The camera must be able to reach it. */
+export const WIDEST_STALL_EDGE = Math.abs(stallCenterX("steamers", MAX_STALL_PLACEMENTS)) + stallWidth(MAX_STALL_PLACEMENTS) / 2;
 
 /**
- * @param {string} cellType
- * @param {number} slot 0-based index within the station
- * @param {number} [count] cells in the station; only matters past three, when the slots widen
+ * @param {string} role
+ * @param {number} slot 0-based index within the team
+ * @param {number} [count] placements in the team; only matters past three, when the slots widen
  */
-export function placeCell(cellType, slot, count = STALL_BASE_SLOTS) {
-  const pass = PASS[cellType];
+export function placeRole(role, slot, count = STALL_BASE_SLOTS) {
+  const pass = PASS[role];
   if (pass) {
-    const at = seatAtRest(cellType);
+    const at = seatAtRest(role);
     at[pass.axis] += pass.step * Math.min(slot, PASS_SEATS - 1);
     return { x: at[0], y: at[1], z: at[2] };
   }
-  const stall = STALLS[stationOf(cellType)];
+  const stall = STALLS[teamOf(role)];
   const n = Math.max(STALL_BASE_SLOTS, count, slot + 1);
-  const station = stationOf(cellType);
+  const team = teamOf(role);
   const offset = (slot - (n - 1) / 2) * STALL_SPACING;
-  const yaw = STALL_CENTERS[station] ? stallYaw(station) : 0;
-  return { x: stallCenterX(station, n) + offset * Math.cos(yaw), y: stall.y, z: stall.z - offset * Math.sin(yaw) };
+  const yaw = STALL_CENTERS[team] ? stallYaw(team) : 0;
+  return { x: stallCenterX(team, n) + offset * Math.cos(yaw), y: stall.y, z: stall.z - offset * Math.sin(yaw) };
 }
 
 export const MAX_BASKETS = 8;
@@ -179,10 +179,10 @@ const PLATFORM_HALF_DEPTH = 0.65; // a kiosk's platform reaches 0.65 front and b
 const PLATFORM_MARGIN = 0.15; // and 0.15 past each end of the counter
 
 /** A point's distance into a footprint, in the footprint's own frame: negative inside, positive outside. */
-const clearOfKiosk = (station, x, z) => {
-  const yaw = stallYaw(station);
-  const dx = x - stallCenterX(station);
-  const dz = z - STALL_CENTERS[station].z;
+const clearOfKiosk = (team, x, z) => {
+  const yaw = stallYaw(team);
+  const dx = x - stallCenterX(team);
+  const dz = z - STALL_CENTERS[team].z;
   const lx = dx * Math.cos(yaw) - dz * Math.sin(yaw);
   const lz = dx * Math.sin(yaw) + dz * Math.cos(yaw);
   const hx = (stallWidth(STALL_BASE_SLOTS) + 2 * PLATFORM_MARGIN) / 2;

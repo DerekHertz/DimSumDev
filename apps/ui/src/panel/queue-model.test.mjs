@@ -1,7 +1,7 @@
 // dimsumden-ui-v0/09: queue and selected-ticket view-models (ADR 0011 decision 8: pure .mjs, tested under node --test).
 // Interface pinned by these tests:
 //   queueModel(snapshot) -> { frontier: Row[], inFlight: Row[], empty: boolean }
-//   Row: { ref, title, priorityLabel, bumped, bumpLabel, cellType, status, blocked, blockedText, blockedReason }
+//   Row: { ref, title, priorityLabel, bumped, bumpLabel, role, status, blocked, blockedText, blockedReason }
 //   detailModel(snapshot, ref|null) -> { kind: "none"|"missing-handoff"|"handoff", message?, ref?, title?, status?, holder?, handoff? }
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -65,13 +65,13 @@ test("an unbumped row has no bump label", () => {
   assert.equal(queueModel(fixture).frontier[0].bumpLabel ?? null, null);
 });
 
-test("row carries title, ref, status and the cell type (holder, else last cell)", () => {
+test("row carries title, ref, status and the placement type (holder, else last placement)", () => {
   const q = queueModel(fixture);
   const claimed = q.inFlight.find((r) => r.ref === "fx/04-claimed");
   assert.equal(claimed.title, "Being built");
   assert.equal(claimed.status, "claimed");
-  assert.equal(claimed.cellType, "developer");
-  assert.equal(q.inFlight.find((r) => r.ref === "fx/05-blocked").cellType, "qa");
+  assert.equal(claimed.role, "developer");
+  assert.equal(q.inFlight.find((r) => r.ref === "fx/05-blocked").role, "qa");
 });
 
 test("a blocked row names its blocker with status and shows the reason", () => {
@@ -124,7 +124,7 @@ test("selecting a ticket shows its latest handoff text, path and mtime", () => {
   assert.equal(d.handoff.truncated, false);
 });
 
-test("the detail names the holder when a cell holds the ticket", () => {
+test("the detail names the holder when a placement holds the ticket", () => {
   assert.match(String(detailModel(withHandoff, "fx/10-with").holder), /security/);
 });
 

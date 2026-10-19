@@ -1,4 +1,4 @@
-"""Cell-type pandas on the plush body: same hats, props and personalities, new fuzzy panda.
+"""Agent-type pandas on the plush body: same hats, props and personalities, new fuzzy panda.
 
 Run inside Blender after plush.py and role_types.py (for mat, obj_from_bm, sphere, cyl, dome,
 fan, scroll_sheet, solid, PAL):
@@ -15,7 +15,7 @@ what is set down beside each panda.
 import bpy, bmesh, math
 from mathutils import Vector
 
-CELL_SCALE = 1.1          # a sitting cell panda is ~2.2 tall
+AGENT_SCALE = 1.1          # a sitting agent panda is ~2.2 tall
 HC = Vector((0, -0.02, 0.42))
 
 
@@ -35,7 +35,7 @@ def _band(name, parent, blue, radius=0.64, z=0.42):
 
 def p_orchestrator(at, name="PCell_Orchestrator"):
     """The Abbot: melon-skin cap with a jade knot, folding fan open in its paw."""
-    p = plush_panda(name, at, CELL_SCALE)
+    p = plush_panda(name, at, AGENT_SCALE)
     obj_from_bm(f"{name}_Cap", dome(0.6, 0.38), mat("Brain", PAL["brain"], 0.55, 0.4), p,
                 loc=(0, -0.02, 0.44), scale=(1.06, 1.0, 0.9))
     obj_from_bm(f"{name}_Knot", sphere(0.08), mat("Jade", PAL["jade"], 0.25), p, loc=(0, -0.02, 0.98), subsurf=0)
@@ -46,7 +46,7 @@ def p_orchestrator(at, name="PCell_Orchestrator"):
 
 def p_product(at, name="PCell_Product"):
     """The Storyteller: an open scroll of what users want, held out in both paws."""
-    p = plush_panda(name, at, CELL_SCALE)
+    p = plush_panda(name, at, AGENT_SCALE)
     obj_from_bm(f"{name}_Scroll", scroll_sheet(1.1, 0.5), mat("Paper", PAL["paper"], 0.8), p,
                 loc=(0, -0.86, -0.18), rot=(math.radians(-8), 0, 0), subsurf=1)
     for s in (-1, 1):
@@ -57,7 +57,7 @@ def p_product(at, name="PCell_Product"):
 
 def p_architect(at, name="PCell_Architect"):
     """The Scholar: futou official's hat with long wings, a blueprint roll in one paw."""
-    p = plush_panda(name, at, CELL_SCALE)
+    p = plush_panda(name, at, AGENT_SCALE)
     ink = mat("HatInk", PAL["ink"], 0.4, 0.3)
     obj_from_bm(f"{name}_Hat", dome(0.64, 0.12), ink, p, loc=(0, 0.0, 0.42), scale=(1.0, 0.95, 0.95))
     obj_from_bm(f"{name}_HatTop", sphere(0.3), ink, p, loc=(0, 0.12, 0.98), scale=(0.95, 0.8, 0.85))
@@ -73,7 +73,7 @@ def p_architect(at, name="PCell_Architect"):
 
 def p_developer(at, name="PCell_Developer", tablet_tilt=62):
     """The Maker: headphones, a tablet held on the belly, milk tea within reach."""
-    p = plush_panda(name, at, CELL_SCALE)
+    p = plush_panda(name, at, AGENT_SCALE)
     blue = mat("Muscles", PAL["muscles"], 0.35, 0.2)
     _band(f"{name}_Band", p, blue)
     for s in (-1, 1):
@@ -98,7 +98,7 @@ def p_developer(at, name="PCell_Developer", tablet_tilt=62):
 
 def p_scout(at, name="PCell_Scout"):
     """The Wanderer: straw douli hat, a paper lantern on a bamboo stick over its shoulder."""
-    p = plush_panda(name, at, CELL_SCALE)
+    p = plush_panda(name, at, AGENT_SCALE)
     bm = bmesh.new()
     bmesh.ops.create_cone(bm, cap_ends=True, segments=64, radius1=0.98, radius2=0.0, depth=0.5)
     obj_from_bm(f"{name}_Hat", bm, mat("Straw", PAL["straw"], 0.9, 0.3), p, loc=(0, -0.05, 1.02),
@@ -116,7 +116,7 @@ def p_scout(at, name="PCell_Scout"):
 
 def p_security(at, name="PCell_Security"):
     """The Gatekeeper: door-god helmet with a plume, a round woven shield on its paw."""
-    p = plush_panda(name, at, CELL_SCALE)
+    p = plush_panda(name, at, AGENT_SCALE)
     green = mat("Immune", PAL["immune"], 0.45, 0.3)
     obj_from_bm(f"{name}_Helmet", dome(0.66, 0.14), green, p, loc=(0, -0.02, 0.42), scale=(1.0, 0.94, 0.9))
     bm = bmesh.new()
@@ -136,7 +136,7 @@ def p_security(at, name="PCell_Security"):
 
 def p_qa(at, name="PCell_QA"):
     """The Taster: jade tasting bowl and chopsticks, a jade cloth headband."""
-    p = plush_panda(name, at, CELL_SCALE)
+    p = plush_panda(name, at, AGENT_SCALE)
     bowl = dome(0.26, 0.0)
     for v in bowl.verts: v.co.z = -v.co.z
     obj_from_bm(f"{name}_Bowl", solid(bowl, 0.02), mat("Liver", PAL["liver"], 0.25), p,

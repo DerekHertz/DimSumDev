@@ -105,7 +105,7 @@ export function deliveryRequests(snapshot) {
       const visual = d.pause?.kind === "visual-verdict";
       const preview = visual && d.ui === true; // the verdict comes before the push, on a preview (ADR 0026 decision 5)
       return {
-        key: `delivery:${d.id}`, kind: "delivery", id: d.id, ref: d.ref, short, role: "orchestrator", station: "pass",
+        key: `delivery:${d.id}`, kind: "delivery", id: d.id, ref: d.ref, short, role: "orchestrator", team: "pass",
         eyebrow: `Pass · Bao · ${short}`,
         title: preview ? `${short} waits for your verdict on its preview` : visual ? `${short} waits for your visual verdict` : AFTER_MERGE[d.pause?.kind] ? `${short} ${AFTER_MERGE[d.pause.kind]}` : `${short} delivery is waiting`,
         reason: d.pause?.reason || "The delivery is paused.", reasonFallback: false, plain: true, // the bridge's own words, not a quote

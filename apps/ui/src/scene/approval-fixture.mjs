@@ -50,7 +50,7 @@ export function createApprovalDemo({ now = Date.now, refuse = null, schedule = s
 
   function build() {
     snapshot = {
-      schema: 1, seq: ++serial, tickets: [ticket], frontier: [], usage: null, requests: [], cells: [],
+      schema: 1, seq: ++serial, tickets: [ticket], frontier: [], usage: null, requests: [], placements: [],
       agents: [{
         id: AGENT_ID, ref: REF, role: "developer", state: agentState, tool: "Bash",
         capabilities: { approve: true, send: true },

@@ -9,7 +9,7 @@
 // Two levers, both applied through a page init script, so nothing in the app changes:
 //  - skipDraws: draw calls become no-ops. The scene graph, React tree, raycasting (CPU) and every DOM node the tests
 //    read are unchanged; only the pixels are never rasterised. Tests that need pixels or a real render (smoke --url,
-//    station-hues-live) do not use this helper.
+//    team-hues-live) do not use this helper.
 //  - frameDelayMs: each requestAnimationFrame callback is held back this long, so the render loop's JS leaves the
 //    main thread idle between frames. The delay lives in the page's own world; Playwright's actionability checks run
 //    in its utility world and are not slowed by it.

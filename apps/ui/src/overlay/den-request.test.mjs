@@ -30,7 +30,7 @@ describe("Needs you: a permission request the bridge holds", () => {
     assert.equal(r.key, "approval:a-1");
     assert.equal(r.ref, "den/02-scout");
     assert.equal(r.role, "scout");
-    assert.equal(r.station, "steamers");
+    assert.equal(r.team, "steamers");
     assert.equal(r.eyebrow, "Scout · den/02-scout");
     assert.equal(r.title, "Wants to read a file"); // organism-infra/230: what is asked, in plain words
     assert.deepEqual(r.preview, ["/home/u/den/package.json"]);
@@ -72,7 +72,7 @@ describe("Needs you: a permission request the bridge holds", () => {
   });
 
   test("it comes before the board's gates, and the count covers both", () => {
-    const tickets = [{ ref: "den-v1/09-thing", title: "A thing", status: "in-progress", gate: "merge", holder: { cellType: "orchestrator", since: "2026-10-10T23:00:00Z" } }];
+    const tickets = [{ ref: "den-v1/09-thing", title: "A thing", status: "in-progress", gate: "merge", holder: { role: "orchestrator", since: "2026-10-10T23:00:00Z" } }];
     const gatesOnly = needsYouModel({ tickets }, NOW);
     const both = needsYouModel(snap({ tickets }), NOW);
     assert.equal(both.count, gatesOnly.count + 1);
@@ -179,8 +179,8 @@ describe("transcript: the waiting row says what is asked and can be answered", (
 
 describe("overview: a picked panda gets the card walk mode shows", () => {
   const pandas = [
-    { id: "scout", name: "Scout", role: "scout", station: "Steamers", position: { x: -7.5, z: -4.5 }, agent: agent() },
-    { id: "qa", name: "Taster", role: "qa", station: "Tea & Pantry", position: { x: 6, z: 2 } },
+    { id: "scout", name: "Scout", role: "scout", team: "Steamers", position: { x: -7.5, z: -4.5 }, agent: agent() },
+    { id: "qa", name: "Taster", role: "qa", team: "Tea & Pantry", position: { x: 6, z: 2 } },
   ];
 
   test("the card is the one walking up to that panda gives, whatever the distance", () => {

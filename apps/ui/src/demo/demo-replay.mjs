@@ -2,7 +2,7 @@
 // the den already reads, advancing with an injected clock. Pure and DOM-free; it makes no request.
 //
 // State at a time depends only on the clock: tick() works out which events have passed since start() and rebuilds the
-// state from them, so a late tick catches up in one call. Stamps (cells[].lastEventAt, ticket holder.since, approval
+// state from them, so a late tick catches up in one call. Stamps (placements[].lastEventAt, ticket holder.since, approval
 // expiresAt, transcript at) are the event time rebased onto the pass's start, so they stay constant between events.
 import { DEMO_FIXTURE } from "./demo-fixture.mjs";
 import { appendTranscript } from "../state/transcript-buffer.mjs";
@@ -22,7 +22,7 @@ function reduce(events, count, base, loops) {
   const stamp = (at) => new Date(base + at).toISOString();
   const tickets = new Map();
   const agents = new Map();
-  const cells = new Map();
+  const placements = new Map();
   const acks = new Map();
   let approvals = [];
   let transcripts = {};
@@ -59,15 +59,15 @@ function reduce(events, count, base, loops) {
           // den-v1 loop: a run that ended carries its reply and the cost the CLI reported, as a bridge row does.
           ...(e.reply !== undefined ? { reply: e.reply } : {}), ...(e.costUsd !== undefined ? { costUsd: e.costUsd } : {}),
         });
-        const cell = cells.get(`${e.ref}|${e.role}`);
-        cells.set(`${e.ref}|${e.role}`, { ref: e.ref, cellType: e.role, state: e.state, tool: cell?.tool ?? null, lastEventAt: stamp(e.at) });
+        const placement = placements.get(`${e.ref}|${e.role}`);
+        placements.set(`${e.ref}|${e.role}`, { ref: e.ref, role: e.role, state: e.state, tool: placement?.tool ?? null, lastEventAt: stamp(e.at) });
         break;
       }
       case "tool": {
         if (!agent) break;
         const tool = { name: e.name, summary: e.summary };
         agents.set(agent.id, { ...agent, tool });
-        cells.set(`${agent.ref}|${agent.role}`, { ref: agent.ref, cellType: agent.role, state: agent.state, tool, lastEventAt: stamp(e.at) });
+        placements.set(`${agent.ref}|${agent.role}`, { ref: agent.ref, role: agent.role, state: agent.state, tool, lastEventAt: stamp(e.at) });
         if (e.input !== undefined || e.result !== undefined) {
           line(agent.id, { kind: "tool", name: e.name, summary: e.summary, status: "done", input: e.input, result: e.result }, e.at);
         }
@@ -104,7 +104,7 @@ function reduce(events, count, base, loops) {
     schema: 1, seq: count, tickets: list,
     frontier: list.filter((t) => t.ready && !t.holder).map((t) => t.ref),
     usage: null, requests: [], sessions: [],
-    agents: [...agents.values()], approvals, cells: [...cells.values()],
+    agents: [...agents.values()], approvals, placements: [...placements.values()],
   };
   return { running: true, loops, index: count, snapshot, transcripts, acks };
 }

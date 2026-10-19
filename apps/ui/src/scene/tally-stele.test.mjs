@@ -7,7 +7,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { TALLY, BAO, TABLE, CUB_BASKET, CUB_BASKET_RADIUS, STALL_CENTERS, placeCell, stallCenterX, stallWidth, stallYaw, tallyAnchor } from "./banquet-layout.mjs";
+import { TALLY, BAO, TABLE, CUB_BASKET, CUB_BASKET_RADIUS, STALL_CENTERS, placeRole, stallCenterX, stallWidth, stallYaw, tallyAnchor } from "./banquet-layout.mjs";
 import { roamObstacles } from "./roam.mjs";
 import { YAW, defaultFrame, worldToScreen } from "./iso-projection.mjs";
 import { EAVE_Y } from "./stall-roof.mjs";
@@ -71,11 +71,11 @@ test("from the default frame the abacus covers only floor: its top is below Bao'
   const bao = rectOf(boxPoints(bx, by, bz, s, s, s * 0.875));
   assert.ok(!overlap(box, table), "abacus box overlaps the table");
   assert.ok(!overlap(box, bao), "abacus box overlaps Bao");
-  for (const station of ["pantry", "front-of-house"]) {
+  for (const team of ["pantry", "front-of-house"]) {
     // the kiosk body: footprint (width + 0.3, depth 1.3) from the floor to the eave
-    const yaw = stallYaw(station), cx = stallCenterX(station, 3), cz = STALL_CENTERS[station].z, hw = (stallWidth(3) + 0.3) / 2;
+    const yaw = stallYaw(team), cx = stallCenterX(team, 3), cz = STALL_CENTERS[team].z, hw = (stallWidth(3) + 0.3) / 2;
     const body = rectOf(boxPoints(0, EAVE_Y / 2, 0, hw, EAVE_Y / 2, 0.65).map(([x, y, z]) => [cx + x * Math.cos(yaw) + z * Math.sin(yaw), y, cz - x * Math.sin(yaw) + z * Math.cos(yaw)]));
-    assert.ok(!overlap(box, body), `abacus box overlaps the ${station} kiosk`);
+    assert.ok(!overlap(box, body), `abacus box overlaps the ${team} kiosk`);
   }
 });
 
@@ -98,7 +98,7 @@ test("the abacus's screen box does not overlap any Pass perch, the Steamers/Fron
   ];
   for (const [type, slots] of perches) {
     for (const s of slots) {
-      const p = placeCell(type, s, type === "cub" ? 8 : 3);
+      const p = placeRole(type, s, type === "cub" ? 8 : 3);
       const q = project(p.x, p.y, p.z);
       const hit = q.x > b.x0 && q.x < b.x1 && q.y > b.y0 && q.y < b.y1;
       assert.ok(!hit, `${type}#${s} perch projects onto the abacus`);

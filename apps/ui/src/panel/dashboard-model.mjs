@@ -61,7 +61,7 @@ export function dashboardModel(metrics, { error = false } = {}) {
         measure: "tickets resolved",
         rows: windows.map((w) => ({ label: windowLabel(w.start), value: Number(w.resolved) || 0, valueText: String(Number(w.resolved) || 0) })),
       }),
-      makeChart({ id: "tokens", title: "Tokens per resolved ticket by cell type", orientation: "horizontal", measure: "tokens per ticket", rows: tokenRows }),
+      makeChart({ id: "tokens", title: "Tokens per resolved ticket by placement type", orientation: "horizontal", measure: "tokens per ticket", rows: tokenRows }),
       makeChart({ id: "incidents", title: "Incidents per ticket by tool", orientation: "horizontal", measure: "incidents per ticket", rows: incidentRows }),
     ],
   };

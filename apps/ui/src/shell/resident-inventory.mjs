@@ -13,7 +13,7 @@ const roles = [
  ['qa','The Taster','Tea'],['security','The Guardian','Pantry'],['designer','The Stylist','Front of House'],['herald','The Herald','Front of House'],
  ['debugger','The Debugger','Steamers'],['release-manager','The Drummer','Festival'],['knowledge-keeper','The Librarian','Library'],['docs-writer','The Painter','Library'],['stem-cub','The Cub','Cubs'],
 ];
-export const RESIDENTS = Object.freeze(roles.flatMap(([role,name,station]) => {
+export const RESIDENTS = Object.freeze(roles.flatMap(([role,name,team]) => {
  const dispatchable=DISPATCHABLE_ROLES.includes(role);
- return (dispatchable?['claude','codex']:['claude']).map(runtime=>Object.freeze({id:residentKey(role,runtime),role,name:role==='orchestrator'&&runtime==='codex'?'Jiao':name,station,runtime,dispatchable}));
+ return (dispatchable?['claude','codex']:['claude']).map(runtime=>Object.freeze({id:residentKey(role,runtime),role,name:role==='orchestrator'&&runtime==='codex'?'Jiao':name,team,runtime,dispatchable}));
 }));

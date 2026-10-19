@@ -127,7 +127,7 @@ test("empty and whitespace input give no blocks", () => {
 
 test("a real handoff-shaped document parses without throwing", () => {
   const doc = [
-    "```json", '{"cell": "qa", "mode": "specify"}', "```", "",
+    "```json", '{"placement": "qa", "mode": "specify"}', "```", "",
     "# Title", "", "## Section", "", "- `a.mjs`: covers **AC1**", "- [link](https://x.example)", "",
     "Trailing paragraph.",
   ].join("\n");

@@ -5,32 +5,32 @@ import { gatesModel } from "../panel/gates-model.mjs";
 import { checksView, deliveryRequests } from "./delivery-model.mjs";
 import { meetingRequests } from "./meeting-model.mjs";
 import { queueModel } from "../panel/queue-model.mjs";
-import { cellTypeOf, sceneFromState } from "../scene/scene-from-state.mjs";
-import { stationOf } from "../scene/banquet-layout.mjs";
+import { roleOf, sceneFromState } from "../scene/scene-from-state.mjs";
+import { teamOf } from "../scene/banquet-layout.mjs";
 import { toolVerb, reasonText, detailLabel } from "./thread-model.mjs";
 
-export const STATION_NAME = {
+export const TEAM_NAME = {
   pass: "Pass", steamers: "Steamers", tea: "Tea", pantry: "Pantry", "front-of-house": "Front of House",
   cubs: "Cubs", library: "Library", drum: "Drum",
 };
-/** Open stations, in the order the card lists them. */
-export const OPEN_STATIONS = ["pass", "steamers", "tea", "pantry", "front-of-house"];
-/** Stations not built yet, drawn as dashed pills. Cubs shows how many are asleep instead of "coming online". */
-export const DORMANT_STATIONS = ["cubs", "library", "drum"];
-/** The one-character mark of each station (tokens.json: Pass 传, Steamers 蒸, Tea 茶, Pantry 仓, Front of House 堂, Cubs 崽, Library 书, Drum 鼓). */
-export const STATION_GLYPH = {
+/** Open teams, in the order the card lists them. */
+export const OPEN_TEAMS = ["pass", "steamers", "tea", "pantry", "front-of-house"];
+/** Teams not built yet, drawn as dashed pills. Cubs shows how many are asleep instead of "coming online". */
+export const DORMANT_TEAMS = ["cubs", "library", "drum"];
+/** The one-character mark of each team (tokens.json: Pass 传, Steamers 蒸, Tea 茶, Pantry 仓, Front of House 堂, Cubs 崽, Library 书, Drum 鼓). */
+export const TEAM_GLYPH = {
   pass: "传", steamers: "蒸", tea: "茶", pantry: "仓", "front-of-house": "堂", cubs: "崽", library: "书", drum: "鼓",
 };
-/** The station colour tokens (CSS custom properties) of each open station. */
-export const STATION_HUE = {
-  pass: "--station-pass", steamers: "--station-steamers", tea: "--station-tea", pantry: "--station-pantry", "front-of-house": "--station-front",
+/** The team colour tokens (CSS custom properties) of each open team. */
+export const TEAM_HUE = {
+  pass: "--team-pass", steamers: "--team-steamers", tea: "--team-tea", pantry: "--team-pantry", "front-of-house": "--team-front",
 };
 
 const PASS_TYPES = new Set(["orchestrator", "product", "architect"]);
 
-/** A cell type's station id: the three Pass types share "pass"; anything unknown is a cub. */
-export function stationIdOf(cellType) {
-  const s = stationOf(cellType);
+/** A role's team id: the three Pass types share "pass"; anything unknown is a cub. */
+export function teamIdOf(role) {
+  const s = teamOf(role);
   return PASS_TYPES.has(s) ? "pass" : s;
 }
 
@@ -74,7 +74,7 @@ function permissionRequests(snapshot, nowMs) {
     const role = typeof agent.role === "string" ? agent.role : "";
     const ref = typeof agent.ref === "string" ? agent.ref : "";
     const tool = typeof a.tool === "string" && a.tool ? a.tool : "a tool";
-    const station = stationIdOf(role);
+    const team = teamIdOf(role);
     const name = titled(role);
     out.push({
       key: `approval:${a.id}`,
@@ -82,7 +82,7 @@ function permissionRequests(snapshot, nowMs) {
       ref,
       short: shortRef(ref),
       role,
-      station,
+      team,
       eyebrow: [name, ref].filter(Boolean).join(" · "),
       // organism-infra/230: the card leads with what is asked in plain words and why; the command is the detail under it.
       title: `Wants to ${toolVerb(a.tool)}`,
@@ -92,7 +92,7 @@ function permissionRequests(snapshot, nowMs) {
       preview: typeof a.summary === "string" && a.summary ? [a.summary] : [],
       expires: expiresText(a.expiresAt, nowMs),
       age: null,
-      card: { id: null, name, role, station, ref: ref || null, agentId: agent.id, state: agent.state, approval: a, actions: { Q: on, E: on } },
+      card: { id: null, name, role, team, ref: ref || null, agentId: agent.id, state: agent.state, approval: a, actions: { Q: on, E: on } },
     });
   }
   return out;
@@ -121,12 +121,12 @@ export function ciRequests(snapshot) {
     .filter((p) => Number.isInteger(p?.number) && CI_NEXT[p.state] && !delivered.has(p.number))
     .map((p) => {
       const role = p.route === "security" ? "security" : "orchestrator";
-      const station = stationIdOf(role);
+      const team = teamIdOf(role);
       const jobs = Array.isArray(p.jobs) ? p.jobs : [];
       const short = `PR #${p.number}`;
       return {
-        key: `ci:${p.number}`, kind: "ci", ref: null, short, role, station,
-        eyebrow: `${STATION_NAME[station]} · ${role === "security" ? "security" : "Bao"} · ${short}`,
+        key: `ci:${p.number}`, kind: "ci", ref: null, short, role, team,
+        eyebrow: `${TEAM_NAME[team]} · ${role === "security" ? "security" : "Bao"} · ${short}`,
         title: `${short} is red${p.state === "asks-user" ? " again on the same commit" : ""}: ${jobs.map((j) => j.name).join(", ") || "a check failed"}`,
         reason: jobs.map((j) => `${j.name}: ${j.reason}`).join("; ") || "A check failed.", reasonFallback: false, plain: true,
         next: typeof p.bao === "string" && p.bao ? `${CI_NEXT[p.state]} ${p.bao}.` : CI_NEXT[p.state], rowText: `${short} · red`, preview: typeof p.title === "string" && p.title ? [p.title] : [], detailLabel: "The pull request",
@@ -145,10 +145,10 @@ export function ticketRequests(snapshot) {
     .map((t) => {
       const short = shortRef(t.ref);
       const role = "orchestrator";
-      const station = stationIdOf(role);
+      const team = teamIdOf(role);
       return {
-        key: `ticket:${t.ref}`, kind: "ticket", ref: t.ref, short, role, station,
-        eyebrow: `${STATION_NAME[station]} · ${short}`,
+        key: `ticket:${t.ref}`, kind: "ticket", ref: t.ref, short, role, team,
+        eyebrow: `${TEAM_NAME[team]} · ${short}`,
         title: `${short} waits for your answer: ${t.title || "untitled"}`,
         reason: "Approve sends it to the queue. Decline closes it with your reason.", reasonFallback: false, plain: true,
         rowText: `${short} · approve?`, preview: typeof t.text === "string" && t.text ? [t.text] : [], detailLabel: "The ticket",
@@ -163,11 +163,11 @@ export function routerStopRequests(snapshot) {
     .filter((r) => r?.kind === "router-stop" && r.state === "pending" && typeof r.id === "string")
     .map((r) => {
       const role = "orchestrator";
-      const station = stationIdOf(role);
+      const team = teamIdOf(role);
       const short = typeof r.ref === "string" ? shortRef(r.ref) : "router";
       return {
-        key: `router-stop:${r.id}`, kind: "router-stop", id: r.id, ref: r.ref ?? null, short, role, station,
-        eyebrow: `${STATION_NAME[station]} · router · ${short}`,
+        key: `router-stop:${r.id}`, kind: "router-stop", id: r.id, ref: r.ref ?? null, short, role, team,
+        eyebrow: `${TEAM_NAME[team]} · router · ${short}`,
         title: typeof r.note === "string" && r.note ? r.note : "The router stopped and needs you.",
         reason: "The router will not act on this itself. Dismiss it once you have seen it; it comes back if it is still true.", reasonFallback: false, plain: true,
         rowText: `${short} · router stop`, preview: [], detailLabel: "The router stop", age: null,
@@ -180,8 +180,8 @@ export function needsYouModel(snapshot, nowMs) {
   const gates = gatesModel(snapshot).cards.map((card) => {
     const t = byRef.get(card.ref);
     const gate = card.approveKind.replace(/-approve$/, "");
-    const role = cellTypeOf(t);
-    const station = stationIdOf(role);
+    const role = roleOf(t);
+    const team = teamIdOf(role);
     const short = shortRef(card.ref);
     return {
       key: card.ref,
@@ -190,8 +190,8 @@ export function needsYouModel(snapshot, nowMs) {
       short,
       gate,
       role,
-      station,
-      eyebrow: `${STATION_NAME[station]} · ${role} · ${short}`,
+      team,
+      eyebrow: `${TEAM_NAME[team]} · ${role} · ${short}`,
       title: `${short} wants ${gate} approval`,
       rowText: `${short} · ${gate}`,
       preview: [`${card.approveKind} ${card.ref}`, card.title],
@@ -216,21 +216,21 @@ export function stepRequest(requests, key, dir) {
   return keyOf(requests[(i + dir + requests.length) % requests.length]);
 }
 
-/** Pills for the open stations and the dormant ones, the "N open · M ready" summary, and every frontier row (228: the list scrolls, it is not cut). */
-export function stationsModel(snapshot) {
-  const cells = snapshot ? sceneFromState(snapshot) : [];
+/** Pills for the open teams and the dormant ones, the "N open · M ready" summary, and every frontier row (228: the list scrolls, it is not cut). */
+export function teamsModel(snapshot) {
+  const placements = snapshot ? sceneFromState(snapshot) : [];
   const count = {};
   const waiting = {};
-  for (const c of cells) {
-    const id = stationIdOf(c.cellType);
+  for (const c of placements) {
+    const id = teamIdOf(c.role);
     count[id] = (count[id] ?? 0) + 1;
     if (c.pose === "waiting_on_user") waiting[id] = true;
   }
-  const open = OPEN_STATIONS.map((id) => ({ id, name: STATION_NAME[id], glyph: STATION_GLYPH[id], count: count[id] ?? 0, waiting: Boolean(waiting[id]) }));
-  const dormant = DORMANT_STATIONS.map((id) => ({
+  const open = OPEN_TEAMS.map((id) => ({ id, name: TEAM_NAME[id], glyph: TEAM_GLYPH[id], count: count[id] ?? 0, waiting: Boolean(waiting[id]) }));
+  const dormant = DORMANT_TEAMS.map((id) => ({
     id,
-    name: STATION_NAME[id],
-    glyph: STATION_GLYPH[id],
+    name: TEAM_NAME[id],
+    glyph: TEAM_GLYPH[id],
     text: id === "cubs" ? `${count.cubs ?? 0} asleep` : "coming online",
   }));
   const queue = snapshot ? queueModel(snapshot).frontier : [];

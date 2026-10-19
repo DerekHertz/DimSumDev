@@ -4,7 +4,7 @@
 //   beadCount(value, scale)                       -> integer 0..10
 //   tallyRods(usage, dashboardModel, nowMs)       -> { rods, caption, sampledText }
 //     rod = { id, label, kind: "usage"|"metric", counted, color, valueText, statusText, mark80, ariaLabel, valueNow }
-//     color is a design-token name: "qi" | "station-steamers" | "alarm"
+//     color is a design-token name: "qi" | "team-steamers" | "alarm"
 //   beadSlide(prevCounted, nextCounted, { reducedMotion }) -> { animate, durationMs }
 //   abacusLayout()                                -> { rodYs, labelColumnRight, beadSpan, mark80X, beadX(counted) }
 //     frame-local units, origin at the frame centre, +x right, +y up.
@@ -112,12 +112,12 @@ test("value text: usage as a percent, Served in tickets, Tokens reuse the k form
   assert.equal(none.served.counted, 0);
 });
 
-test("bead colours: qi for 5 h, Week and Served; station-steamers for Tokens; alarm for Spills", () => {
+test("bead colours: qi for 5 h, Week and Served; team-steamers for Tokens; alarm for Spills", () => {
   const m = byId(rods(usage(79, 41)));
   assert.equal(m["five-hour"].color, "qi");
   assert.equal(m.week.color, "qi");
   assert.equal(m.served.color, "qi");
-  assert.equal(m.tokens.color, "station-steamers");
+  assert.equal(m.tokens.color, "team-steamers");
   assert.equal(m.spills.color, "alarm");
 });
 
@@ -127,7 +127,7 @@ test("usage rods past 95 percent turn their counted beads alarm; 95 itself stays
   assert.equal(hot["five-hour"].counted, 10);
   assert.equal(hot.week.color, "qi", "Week is 41, so it stays qi");
   assert.equal(hot.served.color, "qi");
-  assert.equal(hot.tokens.color, "station-steamers");
+  assert.equal(hot.tokens.color, "team-steamers");
   const weekHot = byId(rods(usage(50, 100)));
   assert.equal(weekHot.week.color, "alarm");
   assert.equal(weekHot["five-hour"].color, "qi");

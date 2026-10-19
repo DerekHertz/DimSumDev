@@ -22,7 +22,7 @@ export function meshMotion(time,index=0,reduced=false){
   return {lift:.007*(1+Math.sin(phase)),roll:.008*Math.sin(phase*.7),turn:.024*Math.sin(phase*.35)};
 }
 
-export const MESHY_STATION_LABELS = Object.freeze([
+export const MESHY_TEAM_LABELS = Object.freeze([
  {id:'pass',text:'The Pass',x:0,y:6.8,z:-17.4},
  {id:'steamers',text:'Steamers',x:-20.2,y:6.8,z:-11.9},
  {id:'front-of-house',text:'Front of House',x:21,y:6.8,z:5},

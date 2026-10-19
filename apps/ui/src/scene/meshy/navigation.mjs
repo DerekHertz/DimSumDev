@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 const STEP_UP=.30,STEP_DOWN=.42,BODY_HEIGHT=2.04;
-// Clip a triangle to an X/Z cell while retaining interpolated elevation. This is
+// Clip a triangle to an X/Z placement while retaining interpolated elevation. This is
 // built once from the actual local models; walking never raycasts millions of triangles.
 function clip(points,axis,bound,greater){
  const out=[];
@@ -11,7 +11,7 @@ function clip(points,axis,bound,greater){
  }
  return out;
 }
-export function createSurfaceNavigation(objects,{cell=.18,floorRadius=29,floorCenter={x:0,z:-1},baseY=0}={}){
+export function createSurfaceNavigation(objects,{placement=.18,floorRadius=29,floorCenter={x:0,z:-1},baseY=0}={}){
  const columns=new Map(),point=new THREE.Vector3(),ab=new THREE.Vector3(),ac=new THREE.Vector3(),normal=new THREE.Vector3();let triangles=0;
  const key=(x,z)=>`${x},${z}`;
  for(const root of objects){
@@ -24,12 +24,12 @@ export function createSurfaceNavigation(objects,{cell=.18,floorRadius=29,floorCe
     const triangle=[0,1,2].map(j=>point.fromBufferAttribute(attr,indices?indices.getX(i+j):i+j).applyMatrix4(mesh.matrixWorld).clone());
     const low=Math.min(...triangle.map(v=>v.y)),high=Math.max(...triangle.map(v=>v.y));
     if(high<.08||low>7)continue;
-    const minX=Math.floor(Math.min(...triangle.map(v=>v.x))/cell),maxX=Math.floor(Math.max(...triangle.map(v=>v.x))/cell),minZ=Math.floor(Math.min(...triangle.map(v=>v.z))/cell),maxZ=Math.floor(Math.max(...triangle.map(v=>v.z))/cell);
+    const minX=Math.floor(Math.min(...triangle.map(v=>v.x))/placement),maxX=Math.floor(Math.max(...triangle.map(v=>v.x))/placement),minZ=Math.floor(Math.min(...triangle.map(v=>v.z))/placement),maxZ=Math.floor(Math.max(...triangle.map(v=>v.z))/placement);
     ab.subVectors(triangle[1],triangle[0]);ac.subVectors(triangle[2],triangle[0]);normal.crossVectors(ab,ac).normalize();const supports=Math.abs(normal.y)>.70;
     for(let x=minX;x<=maxX;x++)for(let z=minZ;z<=maxZ;z++){
-     if(Math.hypot((x+.5)*cell-floorCenter.x,(z+.5)*cell-floorCenter.z)>floorRadius)continue;
+     if(Math.hypot((x+.5)*placement-floorCenter.x,(z+.5)*placement-floorCenter.z)>floorRadius)continue;
      let polygon=triangle;
-     for(const [axis,bound,greater]of [['x',x*cell,true],['x',(x+1)*cell,false],['z',z*cell,true],['z',(z+1)*cell,false]]){polygon=clip(polygon,axis,bound,greater);if(!polygon.length)break;}
+     for(const [axis,bound,greater]of [['x',x*placement,true],['x',(x+1)*placement,false],['z',z*placement,true],['z',(z+1)*placement,false]]){polygon=clip(polygon,axis,bound,greater);if(!polygon.length)break;}
      if(!polygon.length)continue;
      const id=key(x,z);let column=columns.get(id);if(!column)columns.set(id,column={surfaces:[],spans:[]});
      const bottom=Math.min(...polygon.map(v=>v.y)),top=Math.max(...polygon.map(v=>v.y));column.spans.push([bottom,top]);
@@ -44,7 +44,7 @@ export function createSurfaceNavigation(objects,{cell=.18,floorRadius=29,floorCe
   const merged=[];for(const span of column.spans.sort((a,b)=>a[0]-b[0])){const last=merged.at(-1);if(last&&span[0]<=last[1]+.025)last[1]=Math.max(last[1],span[1]);else merged.push(span);}
   column.spans=merged;
  }
- const columnAt=(x,z)=>columns.get(key(Math.floor(x/cell),Math.floor(z/cell)));
+ const columnAt=(x,z)=>columns.get(key(Math.floor(x/placement),Math.floor(z/placement)));
  function groundAt(x,z,previous=0,radius=.26){
   const center=columnAt(x,z),surfaces=[baseY,...(center?.surfaces||[])];
   const candidates=surfaces.filter(y=>y<=previous+STEP_UP+.015&&y>=previous-STEP_DOWN-.015).sort((a,b)=>b-a);
@@ -61,5 +61,5 @@ export function createSurfaceNavigation(objects,{cell=.18,floorRadius=29,floorCe
   }
   return null;
  }
- return {groundAt,cell,columns:columns.size,triangles,stepUp:STEP_UP,stepDown:STEP_DOWN,bodyHeight:BODY_HEIGHT};
+ return {groundAt,placement,columns:columns.size,triangles,stepUp:STEP_UP,stepDown:STEP_DOWN,bodyHeight:BODY_HEIGHT};
 }
