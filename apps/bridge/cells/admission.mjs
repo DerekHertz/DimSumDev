@@ -266,6 +266,7 @@ export function createAdmission({ root, governed = governedPrefixes() }) {
   return {
     ready, admit, settle, reconcile, approve, transfer, capability, ownerOf, setAllowlist, changeRuntime, checkScopes, checkReturned,
     allowlist: () => allow,
+    intentOf: (id) => intents.get(id) ?? null,
     active: () => [...held.values()],
     uncertain: () => [...uncertainIds].map((id) => intents.get(id)).filter(Boolean),
     runtimeOf: (ref, project = "den") => runtimes.get(keyOf(project, ref)) ?? null,

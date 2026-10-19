@@ -3,6 +3,7 @@ import { test, describe, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { createFakeRuntime } from "./runtime.mjs";
 import { makeBridge, DISPATCH_REF, NO_GATE_REF, until } from "./host-test-helpers.mjs";
 import { FEATURE } from "../bridge-fixture.mjs";
@@ -73,5 +74,46 @@ describe("runtime allowlist and ownership over HTTP", () => {
     assert.equal(t.bridge.host.admission.ownerOf(HUMAN).epoch, 2);
     assert.equal((await t.dispatch("developer", DISPATCH_REF)).status, 201);
     assert.equal((await t.post("/tickets/transfer", { ref: DISPATCH_REF, owner: "jiao" })).status, 409);
+  });
+});
+
+describe("scopes, capabilities, returned changes and reconcile in the running bridge", () => {
+  test("a start with a governed scope or a stale coordinator capability is refused, and an unscoped start is the intended default", async () => {
+    t = await makeBridge();
+    const bad = await t.bridge.host.start({ ref: DISPATCH_REF, role: "developer", scopes: [".claude/agents"] });
+    assert.equal(bad.status, 403);
+    const stale = await t.bridge.host.start({ ref: DISPATCH_REF, role: "developer", capability: { actor: "jiao", ref: DISPATCH_REF, root: DISPATCH_REF, epoch: 0 } });
+    assert.equal(stale.status, 403);
+    assert.equal(t.fake.spawns.length, 0);
+    const cap = t.bridge.host.admission.capability("bao", DISPATCH_REF);
+    assert.ok((await t.bridge.host.start({ ref: DISPATCH_REF, role: "developer", capability: cap, scopes: ["docs"] })).ok !== false);
+  });
+  test("a run that returns a change outside its admitted scope fails", async () => {
+    t = await makeBridge();
+    const r = await t.bridge.host.start({ ref: DISPATCH_REF, role: "developer", scopes: ["apps/ui"] });
+    assert.notEqual(r.ok, false, JSON.stringify(r));
+    await until(() => t.fake.spawns[0]);
+    const cwd = t.fake.spawns[0].args.cwd;
+    const git = (...a) => execFileSync("git", ["-c", "user.name=t", "-c", "user.email=t@t", ...a], { cwd });
+    await writeFile(path.join(cwd, "stray.txt"), "x");
+    git("add", "stray.txt");
+    git("commit", "-m", "stray");
+    t.fake.spawns[0].exit();
+    const ended = async () => (await t.state()).agents?.find((a) => a.ref === DISPATCH_REF);
+    await until(async () => (await ended())?.state === "failed");
+    assert.match((await ended()).reason, /returned-out-of-scope: stray\.txt/);
+  });
+  test("POST /admission/reconcile clears the attempt a crash left unconfirmed", async () => {
+    t = await makeBridge({
+      preWrite: async (root) => {
+        const dir = path.join(root, ".scratch", "_run");
+        await mkdir(dir, { recursive: true });
+        await writeFile(path.join(dir, "admission.jsonl"), JSON.stringify({ event: "intent", id: "i-aaaaaaaaaaaaaaaa", ref: DISPATCH_REF, project: "den", runtime: "claude", entry: "start" }) + "\n");
+      },
+    });
+    assert.equal((await t.dispatch("developer", DISPATCH_REF)).status, 409);
+    assert.equal((await t.post("/admission/reconcile", { id: "i-aaaaaaaaaaaaaaaa", outcome: "maybe" })).status, 400);
+    assert.equal((await t.post("/admission/reconcile", { id: "i-aaaaaaaaaaaaaaaa", outcome: "never-started" })).status, 200);
+    assert.equal((await t.dispatch("developer", DISPATCH_REF)).status, 201);
   });
 });

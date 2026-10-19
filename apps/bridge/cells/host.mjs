@@ -20,6 +20,7 @@
 // session of a run that has ended (see "follow-ups" below).
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
 import { hasSecret } from "../../../scripts/exposure.mjs";
@@ -100,7 +101,13 @@ const NO_CONNECTIONS = parseCatalog({ connections: [] });
 
 // den-mvp outcome 4: `library` is the catalog of connections and its record (library/library.mjs). Without one, an agent is
 // started with no connection and every connection tool is refused.
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }) }) {
+// The files a run changed between two commits (paths relative to its worktree).
+async function gitChangedFiles(dir, from, to) {
+  const { stdout } = await new Promise((resolve, reject) => execFile("git", ["diff", "--name-only", "-z", from, to], { cwd: dir, maxBuffer: 4 << 20 }, (err, out) => (err ? reject(err) : resolve({ stdout: String(out) }))));
+  return stdout.split("\0").filter(Boolean);
+}
+
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -763,6 +770,18 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       const published = await (await workspacesOf(agent.project)).publish(agent.workspace).catch((err) => console.error(`bridge: could not create the branch ${agent.branch}: ${err?.message ?? err}`));
       if (published === null) agent.branch = null;
       agent.sha = published?.sha ?? (published === null ? agent.startSha ?? null : null);
+    }
+    // codex-residents/05: what the run returned is checked against the scopes it was admitted with, before it is final.
+    // A run admitted with a scope that returns a change outside it, or on a governed path, failed. An unscoped run (the
+    // delivery gate already holds governed changes for the user) is not failed by this check.
+    const intent = agent.intentId ? admission.intentOf(agent.intentId) : null;
+    if (intent?.scopes && agent.sha && agent.startSha && agent.sha !== agent.startSha && agent.workspace?.dir) {
+      const files = await changedFiles(agent.workspace.dir, agent.startSha, agent.sha).catch((err) => (console.error(`bridge: could not list the changes of ${agent.id}: ${err?.message ?? err}`), null));
+      const bad = files ? await admission.checkReturned({ scopes: intent.scopes, changed: files }) : [];
+      if (bad.length > 0) {
+        agent.doneOk = false;
+        agent.reason = `returned-out-of-scope: ${bad.slice(0, 5).map((b) => `${b.path} (${b.why})`).join(", ")}`;
+      }
     }
     finalize(agent);
     // den-mvp/43: a meeting take has no follow-up, so its worktree goes with it; unsaved work is kept on a wip/ branch.

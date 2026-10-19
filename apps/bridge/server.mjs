@@ -440,6 +440,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     "POST /tickets/approve": (req, res) => steerTicket(req, res, "approve"),
     "POST /tickets/transfer": steerTransfer,
     "POST /admission/runtime": steerAllowlist,
+    "POST /admission/reconcile": steerReconcile,
     "POST /tickets/decline": (req, res) => steerTicket(req, res, "decline"),
     "POST /checks": (req, res) => postChecks(req, res),
     "POST /den-tools/:tool": (req, res) => denTool(req, res),
@@ -938,6 +939,13 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     if (!body) return;
     const result = await host.admission.setAllowlist(body.allow);
     reply(res, result.ok ? 200 : result.status, result.ok ? { allow: result.allow } : { error: result.error });
+  }
+  // POST /admission/reconcile: { id, outcome: "ended" | "never-started" }. Clears an attempt a crash left unconfirmed.
+  async function steerReconcile(req, res) {
+    const body = await readJsonObject(req, res);
+    if (!body) return;
+    const result = await host.admission.reconcile(body.id, body.outcome);
+    reply(res, result.ok ? 200 : result.status, result.ok ? { id: body.id } : { error: result.error });
   }
   // POST /build/rollback (ADR 0026 decision 7): the user's roll back. Only `to` is read: the release the button showed as
   // previous. Anything else, and a den that runs from the checkout, is a 409 and nothing changes.

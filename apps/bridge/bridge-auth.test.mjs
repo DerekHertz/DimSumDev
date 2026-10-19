@@ -7,7 +7,7 @@
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { readFile, stat } from "node:fs/promises";
+import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { startBridge } from "./server.mjs";
 import { SHA_A, SHA_B, SHA_C, liveReleases } from "./build/release-test-helpers.mjs";
@@ -44,6 +44,7 @@ const BODIES = {
   "POST /tickets/decline": { real: { ref: `${FEATURE}/06-human`, note: "not now" }, bogus: { ref: `${FEATURE}/99-nope`, note: "no" } },
   "POST /tickets/transfer": { real: { ref: `${FEATURE}/08-plain`, owner: "jiao" }, bogus: { ref: `${FEATURE}/08-plain`, owner: "nobody" } },
   "POST /admission/runtime": { real: { allow: "both" }, bogus: { allow: "none" } },
+  "POST /admission/reconcile": { real: { id: "i-crashed00000000", outcome: "ended" }, bogus: { id: "i-none", outcome: "ended" } },
   "POST /projects/active": { real: { slug: "den" }, bogus: { slug: "nope" } },
   "POST /requests": {
     real: { kind: "dispatch-approve", ref: DISPATCH_REF },
@@ -201,6 +202,9 @@ beforeEach(async () => {
   };
   const checks = { run: async () => ({}), recent: async () => [], running: () => [] };
   denState = path.join(fx.root, ".den-state"); // empty: the bridge serves the checkout's build until a test makes releases
+  // codex-residents/05: an attempt a crash left unconfirmed, for the reconcile row.
+  await mkdir(path.join(fx.root, ".scratch", "_run"), { recursive: true });
+  await writeFile(path.join(fx.root, ".scratch", "_run", "admission.jsonl"), `${JSON.stringify({ event: "intent", id: "i-crashed00000000", ref: `${FEATURE}/99-crashed`, project: "den", runtime: "claude", entry: "start" })}\n`);
   bridge = await startBridge({ root: fx.root, port: 0, auth: { launchCode: CODE }, gitHost, denState, checks, ...(fake ? { runtime: fake } : {}) });
   token = await login(bridge);
 });
