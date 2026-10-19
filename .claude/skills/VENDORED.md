@@ -13,11 +13,11 @@ Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with 
 | tdd, diagnosing-bugs, prototype, research | as-is | none |
 | wayfinder, resolving-merge-conflicts, writing-for-agents | as-is | none |
 | handoff | **adapted** | Model-invocable. Writes to the board (`.scratch/<feature>/handoffs/`) instead of the OS temp dir. Fixed sections, 60-line cap. |
-| implement | **adapted** | Model-invocable. Claims the ticket via organism-protocol, delegates verbose output to `scout`, never merges, ends with /handoff. |
+| implement | **adapted** | Model-invocable. Claims the ticket via team-protocol, delegates verbose output to `scout`, never merges, ends with /handoff. |
 | to-tickets | **adapted** | Model-invocable (orchestrator). Step 4 is a pass gate. |
 | to-spec | **adapted** | Model-invocable (product). |
 | code-review | **adapted** | Adds a Pro token-budget note (sonnet sub-agents, diff command not pasted, current ticket only). |
-| organism-protocol | **new** | Shared cell rules: board, claims, gates, apoptosis, token hygiene. |
+| team-protocol | **new** | Shared agent rules: board, claims, gates, hand off and exit, token hygiene. |
 | asset-critique | **new** | Visual critique rounds for rigged glb assets; `scripts/measure-glb.mjs` measures per-bone proportions. |
 
 ## ponytail

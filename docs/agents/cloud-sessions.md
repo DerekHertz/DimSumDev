@@ -1,11 +1,11 @@
-# Running the organism in a cloud session
+# Running the org in a cloud session
 
 A living log of what works and what costs too much when the orchestrator runs in a claude.ai/code cloud container. Update it at the end of each cloud session. Numbers come from `.scratch/usage.jsonl`.
 
 ## What works
 
 - **Board branch:** the board is a separate private repo (see `issue-tracker.md`); the environment setup must clone it into `.scratch/`. Each cloud session commits board writes (tickets, handoffs, `usage.jsonl`) to its own branch of the board repo and opens a draft PR there; the user merges it at the end. A new session, cloud or local, starts from `main`.
-- **Cell start:** `node scripts/cell-start.mjs --base <sha> --detach` works in the cloud for reviewers.
+- **Agent start:** `node scripts/cell-start.mjs --base <sha> --detach` works in the cloud for reviewers.
 - **Risk-check through scout:** a scout in a temporary detached worktree runs `npm ci` and `npm run risk-check -- origin/main...HEAD`, and also checks for merge conflicts. It costs about 11k tokens and 18 s.
 - **PRs:** the GitHub MCP tools open, watch and squash-merge PRs; `gh` is not available. After you subscribe to a PR, a `check_suite.completed` event arrives when CI finishes, so there is no need to poll.
 - **Browser checks:** set `PW_CHROMIUM_PATH` (below) and the full test suite, `smoke:ui` included, runs green in the cloud (the font is self-hosted since PR 83). The user's browser check stays the visual verdict.
@@ -28,9 +28,9 @@ A living log of what works and what costs too much when the orchestrator runs in
 - **Jev behind the proxy:** Node's built-in fetch ignores `HTTPS_PROXY`, so `jev.mjs` gets a 403 and falls back. Run it with `NODE_USE_ENV_PROXY=1` (or set that in the environment).
 - **gitleaks is not installed:** security falls back to a pattern grep; CI still runs gitleaks. Install it in the environment's setup script to fix.
 - **Stale local `main`:** the cloud clone's local `main` can lag, so run `node scripts/risk-check.mjs origin/main...HEAD` rather than the `main...HEAD` default.
-- **Board commits from cells:** the worktree guard blocks a cell from running `git` in the main checkout, so cells can't commit board files there. The orchestrator commits what they leave behind. Until that's fixed, the stop hook flags the uncommitted files while a cell is running.
-- **board CLI:** `claim <ref> <cellType>` takes the cell type as a positional argument, not a flag. Every item in a handoff's `pending` list must be `{item, owner}`, or `release` refuses the handoff. qa hit the same State-block check (it was missing `mode`) and had to publish its handoff as `-2`.
-- **Resuming a finished cell loses its worktree:** after a cell returns, its worktree is cleaned up, so a resumed cell (SendMessage) runs in the main checkout and `cell-start` refuses. Re-dispatch a fresh cell instead of resuming.
+- **Board commits from agents:** the worktree guard blocks an agent from running `git` in the main checkout, so agents can't commit board files there. The orchestrator commits what they leave behind. Until that's fixed, the stop hook flags the uncommitted files while an agent is running.
+- **board CLI:** `claim <ref> <cellType>` takes the role as a positional argument, not a flag. Every item in a handoff's `pending` list must be `{item, owner}`, or `release` refuses the handoff. qa hit the same State-block check (it was missing `mode`) and had to publish its handoff as `-2`.
+- **Resuming a finished agent loses its worktree:** after an agent returns, its worktree is cleaned up, so a resumed agent (SendMessage) runs in the main checkout and `cell-start` refuses. Re-dispatch a fresh agent instead of resuming.
 
 ## Worth considering
 
@@ -57,11 +57,11 @@ The working commands used npm_config_cache=/workspace/.npm and PW_CHROMIUM_PATH=
 
 Codex CLI 0.159.0-alpha.3 supports account/rateLimits/read through app-server JSON-RPC after initialize/initialized. Temporary sqlite_home avoided a read-only state directory; the outer namespace needed supported execution approval. The account usage request then failed at chatgpt.com/backend-api/wham/usage because the network proxy blocked that domain. The environment draft adds api.github.com and chatgpt.com; saving a draft does not itself change runtime access. No credentials or account response secrets were copied. No live usage percentages were obtained; manual figures are attributed to the user.
 
-Cells did not inherit the writable npm cache automatically; cell-start must receive the environment binding from setup. Subagent tools did not expose token/duration metrics, so telemetry must not substitute placeholder zero counts. Existing board and handoff guards correctly refused overlapping claims, cross-claim handoff overwrites, and stale release state.
+Agents did not inherit the writable npm cache automatically; cell-start must receive the environment binding from setup. Subagent tools did not expose token/duration metrics, so telemetry must not substitute placeholder zero counts. Existing board and handoff guards correctly refused overlapping claims, cross-claim handoff overwrites, and stale release state.
 
 Parallel 02/81 verification confirmed that a narrow added filesystem grant creates a `.git` marker in the granted temporary root. A test that requires no Git ancestor then fails even outside `/workspace`. The user approved supported unsandboxed verification with fresh, unmarked per-ticket temporary directories under `/home/agent`; full suites passed 1320/1320 and 1344/1344. Keep this temporary binding local to the test command, retain platform guards, and do not weaken the ancestry assertion.
 
-The user requested cheaper Codex cells after inherited-model dispatch exhausted the window quickly. Dispatch now explicitly selects `gpt-6.1-sol` at medium effort for developer, QA, designer and security, and `gpt-6-luna` at low effort for scout. Use focused prompts without conversation forks and capture test output to files. Exact per-cell quota attribution remains unavailable. The live Codex quota probe reached initialization but returned a sanitized RPC authentication failure; user-reported readings remain the source.
+The user requested cheaper Codex agents after inherited-model dispatch exhausted the window quickly. Dispatch now explicitly selects `gpt-6.1-sol` at medium effort for developer, QA, designer and security, and `gpt-6-luna` at low effort for scout. Use focused prompts without conversation forks and capture test output to files. Exact per-agent quota attribution remains unavailable. The live Codex quota probe reached initialization but returned a sanitized RPC authentication failure; user-reported readings remain the source.
 
 ## Mods (sleep-guard, mods trial)
 

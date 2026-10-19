@@ -90,7 +90,7 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     const res = await t.post("/agents", { ref: DISPATCH_REF, role: "architect" });
     assert.equal(res.status, 201, res.text);
     const { args } = t.fake.spawns[0];
-    assert.doesNotMatch(args.prompt, /claim the ticket|organism-protocol skill: claim/, "57's architect stopped on EROFS claiming");
+    assert.doesNotMatch(args.prompt, /claim the ticket|team-protocol skill: claim/, "57's architect stopped on EROFS claiming");
     assert.match(args.prompt, /The board is read-only to you: run no board command/);
     assert.match(args.prompt, new RegExp(`for ticket ${DISPATCH_REF}`));
     assert.match(args.prompt, /that last message is your handoff/);

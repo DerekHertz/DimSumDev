@@ -1,8 +1,8 @@
 # Process hygiene: servers, test runners, and stale locks
 
-Cells start processes: dev servers, `node --test` runs, headless browsers. If a cell ends without stopping them, they keep ports open and use memory, and a stuck test runner can hang `npm test` for the next cell. On 2026-09-27, one ticket left 14 orphaned processes behind.
+Agents start processes: dev servers, `node --test` runs, headless browsers. If an agent ends without stopping them, they keep ports open and use memory, and a stuck test runner can hang `npm test` for the next agent. On 2026-09-27, one ticket left 14 orphaned processes behind.
 
-## Rules for cells
+## Rules for agents
 
 1. **Spawn so you can kill the whole tree.**
    - `child.kill()` on a process started through `npm run` or with `shell: true` kills only the outer shell (`sh` on Linux, `cmd.exe` on Windows), and the real `node` process keeps running.
@@ -16,8 +16,8 @@ Cells start processes: dev servers, `node --test` runs, headless browsers. If a 
    Match the output against your script or port; `ss -ltnp` shows which PID holds a port.
 4. **Kill by PID, one at a time, and only your own.** Never bulk-kill by name: other sessions, and the user, run `node` too. If a kill is denied, list the PIDs under `Environment issues` in your report and stop. Don't retry another way.
 5. **Tests must exit.** A test that spawns a server must also prove the server is gone afterward. `npm test` hanging after its tests report `ok` counts as a failing test.
-6. **Release your lock last, even when blocked.** If you end without releasing it, the orchestrator asks the user before deleting it. Never delete another cell's lock.
+6. **Release your lock last, even when blocked.** If you end without releasing it, the orchestrator asks the user before deleting it. Never delete another agent's lock.
 
 ## For the orchestrator
 
-When a cell returns, check for leftover processes from its worktree or ticket (the query in rule 3) and for its `.lock`. Show the user what you found, with PIDs, command lines and the lock owner. Kill or release only with their yes, and only the items you listed.
+When an agent returns, check for leftover processes from its worktree or ticket (the query in rule 3) and for its `.lock`. Show the user what you found, with PIDs, command lines and the lock owner. Kill or release only with their yes, and only the items you listed.

@@ -1,5 +1,7 @@
 # Character director is a pure package, not part of the scene renderer; distant cells sample it at a reduced rate
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Context.** The character director maps cell state, handoff events, perch anchors, a reduced-motion flag and time to clip, face-frame and root-transform commands (`spec.md`, "Character director"). It is the one seam the animation testing plan is built around, and user story 31 asks for it "as a pure module with no renderer dependency, so that I can test it quickly." No app code exists yet, so this ADR also sets the first UI package layout, and answers the update-rate question `spec.md` left open for Level 1's up to 30 cells.
 
 **Decision.**

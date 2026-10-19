@@ -34,8 +34,8 @@ The baseline is computed once, at go-live, and frozen in the row, so later rows 
 **Baseline** (weighted tokens per resolved ticket against the last 10 tickets before go-live, bounce rate no worse). Computed from `.scratch/usage.jsonl`:
 
 - *Rows.* `kind:"resolved"` (one per resolved ticket, in file order, which is chronological; `bounces` is its bounce count), joined by ticket key (`feature/NN-slug`, as `jev-report.mjs` keys it) to `kind:"cell"` rows. Lines that are not valid JSON are skipped (line 1182 of the file was corrupt, with terminal colour codes inside a `usage` row). Rows with `backfill: true` and `cell_backfill` rows are ignored.
-- *Which tickets.* The last 10 `resolved` rows before the go-live `config` row that have at least one `cell` row with `tokens` above 0 and belong to the use case's class: for `verify` and `tier`, at least one `developer` cell row; for `route` and `wake`, any ticket with tokens; for qa done-check, at least one `qa` cell with a `verify` mode. The trial's tickets are chosen by the same class rule.
-- *Weighting.* A ticket's weighted tokens are the sum, over its `cell` rows, of `tokens` times the weight of the row's model: haiku 0.5, sonnet 1, opus 2 (the user's weights, ADR 0010 decision 10; the build ticket checks the Haiku 5.5 price). The model is the row's `model` field with the `claude-` prefix and version dropped (`claude-sonnet-5-5` is sonnet); when the field is absent, the genome default: scout haiku, designer, debugger and orchestrator opus, every other cell sonnet. Few cell rows carry a model today, so a Haiku dispatch logged without `--model` counts as sonnet; build ticket F makes the orchestrator pass `--model` to `log-cell.mjs` on every dispatch. Jev's own cost is API credit, not plan tokens, and is reported beside the measure, not in it. The orchestrator's own tokens are not logged (ADR 0019), so a saving there is not in the measure.
+- *Which tickets.* The last 10 `resolved` rows before the go-live `config` row that have at least one `cell` row with `tokens` above 0 and belong to the use case's class: for `verify` and `tier`, at least one `developer` agent row; for `route` and `wake`, any ticket with tokens; for qa done-check, at least one `qa` agent with a `verify` mode. The trial's tickets are chosen by the same class rule.
+- *Weighting.* A ticket's weighted tokens are the sum, over its `cell` rows, of `tokens` times the weight of the row's model: haiku 0.5, sonnet 1, opus 2 (the user's weights, ADR 0010 decision 10; the build ticket checks the Haiku 5.5 price). The model is the row's `model` field with the `claude-` prefix and version dropped (`claude-sonnet-5-5` is sonnet); when the field is absent, the role definition default: scout haiku, designer, debugger and orchestrator opus, every other agent sonnet. Few agent rows carry a model today, so a Haiku dispatch logged without `--model` counts as sonnet; build ticket F makes the orchestrator pass `--model` to `log-cell.mjs` on every dispatch. Jev's own cost is API credit, not plan tokens, and is reported beside the measure, not in it. The orchestrator's own tokens are not logged (ADR 0019), so a saving there is not in the measure.
 - *Statistic.* The median of weighted tokens per ticket is the measure; the mean is shown beside it, since one ticket can dominate (`den-scene-v1/11` alone weighed about 2.1M of the window then).
 - *Bounce rate.* The sum of `bounces` over the same 10 tickets. "No worse" is a trial total at or below the baseline total.
 - *Keep needs both:* trial median weighted tokens at or below the baseline median, and trial bounces at or below the baseline bounces. Where a use case cannot move tokens (wake, priority, scope, route's orchestrator saving), its entry says so and names its own measure.
@@ -46,12 +46,12 @@ The baseline is computed once, at go-live, and frozen in the row, so later rows 
 
 ### route, new-ticket half (live after preparation, then trial)
 
-- **Start date:** the go-live `config` row, written only after the replay bar below. **Mode:** live. The orchestrator proposes Jev's pick as the first-cell proposal when it is not `other` and has confidence at or above the floor; below it, the orchestrator decides and shows both. The user approves every dispatch. The bounce half stays advisory.
+- **Start date:** the go-live `config` row, written only after the replay bar below. **Mode:** live. The orchestrator proposes Jev's pick as the first-agent proposal when it is not `other` and has confidence at or above the floor; below it, the orchestrator decides and shows both. The user approves every dispatch. The bounce half stays advisory.
 - **Before go-live (build ticket A):** normalize advisory-outcome aliases (`qa` to `qa-specify`, `developer` to `developer-direct`; true agreement is 27 of 39 labelled tickets, 69%); add `security` to the labels; prepend a code-built header to `state` (ticket Type, files touched, gated-path flags, relay defaults; jev-1.13 has a 32k-token window); sharpen the criteria text; build an atomic yes/no version composed in code. Replay both versions on the 39 labelled tickets, keep the higher, and go live only at 80% agreement or more.
-- **Sent to TypeSafe:** the ticket markdown and the code-built header. **Touches:** the orchestrator's first-cell proposal for a ready-for-agent ticket, and one `jev-advisory-outcome` row per dispatch (orchestrator pick, Jev pick, the user's choice, bounced).
-- **Measure:** the **override rate**: dispatches where the user chose a cell other than Jev's pick, out of the trial's 10. The saving (the Opus judgment the orchestrator no longer spends) is not in `usage.jsonl`; the shared token measure is shown as a guard.
+- **Sent to TypeSafe:** the ticket markdown and the code-built header. **Touches:** the orchestrator's first-agent proposal for a ready-for-agent ticket, and one `jev-advisory-outcome` row per dispatch (orchestrator pick, Jev pick, the user's choice, bounced).
+- **Measure:** the **override rate**: dispatches where the user chose an agent other than Jev's pick, out of the trial's 10. The saving (the Opus judgment the orchestrator no longer spends) is not in `usage.jsonl`; the shared token measure is shown as a guard.
 - **Baseline:** the last 10 resolved tickets with tokens; the override reference is the replay's disagreement rate.
-- **Kill condition (safety miss):** a pick that would skip a required cell (for example a dispatch of Jev's `developer-direct` on a ticket that needed qa tests), or a ticket whose wrong first cell is named as the cause of a bounce. At the verdict, also 4 or more overrides in 10.
+- **Kill condition (safety miss):** a pick that would skip a required agent (for example a dispatch of Jev's `developer-direct` on a ticket that needed qa tests), or a ticket whose wrong first agent is named as the cause of a bounce. At the verdict, also 4 or more overrides in 10.
 - **Confidence floor:** 0.8. Reason: confidence did not separate agreement in the advisory data, so there is no evidence to move the default. Revisit at the verdict.
 
 ### verify (live)
@@ -67,7 +67,7 @@ The baseline is computed once, at go-live, and frozen in the row, so later rows 
 ### wake (live)
 
 - **Start date:** the go-live `config` row. **Mode:** live. An `informational` label suppresses a wake that the code rules did not already require; the prelude (`jev-wake-prelude.mjs`) still wakes on every code-decidable condition and on the always-wake list: any user-authored comment, `Scope added`, any `--verdict` comment, an unknown author, a `_requests` row (ADR 0015 Amendment 2). Live despite ADR 0019 decision 5.
-- **Sent to TypeSafe:** the ticket header (title and status line) and the new comment, each at most 4,000 characters, only for a comment from a known cell type with no verdict and no scope text. `_requests` rows and handoffs are never sent. **Touches:** the orchestrator's session-start prelude.
+- **Sent to TypeSafe:** the ticket header (title and status line) and the new comment, each at most 4,000 characters, only for a comment from a known role with no verdict and no scope text. `_requests` rows and handoffs are never sent. **Touches:** the orchestrator's session-start prelude.
 - **Measure:** safety only. The count of missed wakes is the judge; the count of suppressed wakes is shown beside it. Suppressed wakes save no plan tokens that `usage.jsonl` sees.
 - **Baseline:** none.
 - **Kill condition (safety miss):** one missed wake: an `informational` input after which the board shows the orchestrator later acted on it (a claim, comment or resolution traceable to it). If the trial ends with fewer than 5 suppressions, it has shown nothing and the verdict is the user's.
@@ -106,16 +106,16 @@ The baseline is computed once, at go-live, and frozen in the row, so later rows 
 - **Start date:** after verify's keep verdict. **Mode:** live under the trial, escalate-only (it may only raise). Ticket 74 needs criteria written (build step).
 - **What it does:** Jev judges the acceptance criteria from the criteria, the test output and, after ticket 42, the diff. `fail` raises (light verify to full verify, full verify back to the developer); `pass` changes nothing.
 - **Sent to TypeSafe:** the ticket markdown and the test output; the diff only after `security` review 42. Never handoff text.
-- **Measure and baseline:** the shared measure over tickets with a `qa` verify cell; the last 10 such tickets before its go-live.
+- **Measure and baseline:** the shared measure over tickets with a `qa` verify agent; the last 10 such tickets before its go-live.
 - **Kill condition (safety miss):** a `pass` on a ticket whose criteria were not met, found later at security, in review or by a bounce. Because `pass` changes nothing, this is a missed escalation, not a lowering.
 - **Confidence floor:** 0.8 for `fail`; `pass` at any confidence changes nothing.
 
 ### handoff trimming (after done-check; blocked on security review 42)
 
 - **Start date:** none. **Mode:** none. **Blocked:** it sends handoff text, which ADR 0010 decision 9 denies. It needs `security` review 42 and a recorded extension of decision 9 before any call, shadow included. Bounce routing waits on the same review.
-- **Sent to TypeSafe (proposed):** the previous cell's handoff, truncated. **Touches:** what the next cell reads at the start of its run.
-- **Measure and baseline:** the shared measure over developer-class tickets (the saving is in the next cell's input tokens).
-- **Kill condition (safety miss):** a trimmed handoff that dropped a fact the next cell then needed (a bounce or an incident traced to it), judged from the handoffs.
+- **Sent to TypeSafe (proposed):** the previous agent's handoff, truncated. **Touches:** what the next agent reads at the start of its run.
+- **Measure and baseline:** the shared measure over developer-class tickets (the saving is in the next agent's input tokens).
+- **Kill condition (safety miss):** a trimmed handoff that dropped a fact the next agent then needed (a bounce or an incident traced to it), judged from the handoffs.
 - **Confidence floor:** 0.8, with the fail-open rule that any doubt sends the untrimmed handoff.
 
 ### finding information (not a Jev call; ADR 0015 Amendment 2, ADR 0014 Amendment 1)

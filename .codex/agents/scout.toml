@@ -1,5 +1,5 @@
 name = "scout"
-description = "Cheap read-only helper that runs verbose work (full test runs, log digging, codebase surveys, doc or web lookups) and returns only a short summary. Use it to keep other cells' context small."
+description = "Cheap read-only helper that runs verbose work (full test runs, log digging, codebase surveys, doc or web lookups) and returns only a short summary. Use it to keep other agents' context small."
 model = "gpt-6-luna"
 model_reasoning_effort = "low"
 developer_instructions = '''

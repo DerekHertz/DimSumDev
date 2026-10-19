@@ -3,7 +3,7 @@ name: pipeline-retro
 description: Find repeated hiccups in the relay (handoff, board, guard, CI failures) and turn each into one fix, preferring code over wording. Orchestrator only. Use at the end of every orchestrator session, after every 3 resolved tickets, or when the user asks what keeps going wrong.
 ---
 
-Run this in the main orchestrator session. The goal is fewer repeat failures per ticket, not a complete record. Wording has already failed twice this project: a rule that existed in a skill was still broken by most cells. So prefer a code fix whenever one exists.
+Run this in the main orchestrator session. The goal is fewer repeat failures per ticket, not a complete record. Wording has already failed twice this project: a rule that existed in a skill was still broken by most agents. So prefer a code fix whenever one exists.
 
 ## 1. Gather (since the last retro)
 
@@ -37,18 +37,18 @@ A cause is a candidate if it has happened 3 or more times in all, counting incid
 Pick the first fix that applies:
 
 1. **Code:** the board, a script, or a CLI flag can refuse or automate it. Examples: `board release` writing the resolved row, `--verdict` refusing without a lock. File a ticket.
-2. **Dispatch template:** the orchestrator's own prompt caused it. Examples: a paraphrased schema, a missing path. Edit the orchestrator genome.
-3. **Genome or skill wording:** only when neither 1 nor 2 fits. Put the fix in the one place the cell will read at the moment it acts, and don't duplicate it elsewhere.
+2. **Dispatch template:** the orchestrator's own prompt caused it. Examples: a paraphrased schema, a missing path. Edit the orchestrator role definition.
+3. **Role definition or skill wording:** only when neither 1 nor 2 fits. Put the fix in the one place the agent will read at the moment it acts, and don't duplicate it elsewhere.
 4. **Nothing:** a genuine guardrail that did its job, or a one-off. Say so.
 
 A fix that already failed as wording goes to code, or to the user as an open question. It never gets a second wording.
 
 ## 3b. Look beyond the incidents
 
-These three checks need no repeat count. Limit them to the genomes and skills of the cells that ran since the last retro, and propose at most three items in total.
+These three checks need no repeat count. Limit them to the role definitions and skills of the agents that ran since the last retro, and propose at most three items in total.
 
-- **Steering-file trim:** a rule in a genome, a skill or `CLAUDE.md` that a script, hook or board command now enforces, or that names something removed, does nothing. Propose deleting it.
-- **Review-side rules:** when a developer keeps missing a judgement rule, propose moving it to the genome of the cell that reviews the work (`qa` verify or `security`). Do not reword it in the developer genome.
+- **Steering-file trim:** a rule in a role definition, a skill or `CLAUDE.md` that a script, hook or board command now enforces, or that names something removed, does nothing. Propose deleting it.
+- **Review-side rules:** when a developer keeps missing a judgement rule, propose moving it to the role definition of the agent that reviews the work (`qa` verify or `security`). Do not reword it in the developer role definition.
 - **Missing guardrail:** when no existing check could have caught an incident, propose the check (a hook, a CI step, a board refusal) as a code fix, even at a count of one.
 
 ## 4. Report and apply
@@ -56,6 +56,6 @@ These three checks need no repeat count. Limit them to the genomes and skills of
 Show the user one table: cause, tool, count, tickets affected, proposed fix and its kind. Keep it under 15 rows. Ask with AskUserQuestion which fixes to apply.
 
 - Show a second table for step 1b: ticket, status, recommendation, reason. Run `board unpark` or `board close` only on the tickets the user picks.
-- Apply approved genome and skill edits on `main` and commit them (`.claude/` edits are user-gated; the yes covers them).
+- Apply approved role definition and skill edits on `main` and commit them (`.claude/` edits are user-gated; the yes covers them).
 - File approved code fixes as tickets.
 - Append one `{"kind":"retro","ts","window_from","items","fixes":[{"cause","tool","kind","ref"}]}` row, where `ref` is the commit or ticket. Don't rewrite old incident rows. The next retro reads `fixes` to check whether each fix held.

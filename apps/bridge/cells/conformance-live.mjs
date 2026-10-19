@@ -41,7 +41,7 @@ description: Live-check probe role (throwaway)
 tools: Read, Write
 model: ${model}
 ---
-You are a conformance probe in a throwaway repository. There is no board${ticket ? "" : ", no ticket file"} and no organism-protocol skill here: skip every claim, hand-off and board step you are asked for, and do not look for them.
+You are a conformance probe in a throwaway repository. There is no board${ticket ? "" : ", no ticket file"} and no team-protocol skill here: skip every claim, hand-off and board step you are asked for, and do not look for them.
 
 Do exactly this, in this order, and nothing else:
 ${ticket ? `- Use the Read tool to read the file ${ticket}\n- Use the Read tool to read the file ${neighbour}\n` : ""}${insideBody ? `- Use the Write tool to create the file ${INSIDE_FILE} in your current working directory with exactly this content: ${insideBody}\n` : ""}- Use the Write tool to create the file ${target} with exactly this content: ${body}

@@ -155,7 +155,7 @@ test("validateReceipt accepts a non-empty tool_refusals array with the documente
 
 // --- Criterion: validateState's pending convention -------------------------
 // Per the ticket, a non-empty `pending` is valid only when each item is
-// explicitly handed to a named next cell (organism-protocol's relay
+// explicitly handed to a named next cell (team-protocol's relay
 // convention), and the check must not hardcode relay names (so a
 // not-yet-invented cell type still satisfies it as long as it's named).
 // We treat "named" as: each pending item is an object carrying a non-empty

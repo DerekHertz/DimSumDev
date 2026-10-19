@@ -50,7 +50,7 @@ model: ${over.model ?? "sonnet"}
 effort: ${over.effort ?? "high"}
 color: green
 skills:
-  - organism-protocol
+  - team-protocol
 organism:
   station: tea-pantry
   purpose: Sample.

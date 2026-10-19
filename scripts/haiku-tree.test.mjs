@@ -65,14 +65,14 @@ test("the orchestrator is on Sonnet and preloads only what every run uses", () =
   const o = front("orchestrator");
   assert.equal(o.model, "sonnet");
   assert.equal(o.effort, "high");
-  assert.deepEqual(o.skills, ["organism-protocol", "grilling", "domain-modeling"]);
+  assert.deepEqual(o.skills, ["team-protocol", "grilling", "domain-modeling"]);
   assert.match(o.body, /node scripts\/usage\.mjs/);
   assert.doesNotMatch(o.body, /with `usage-watch`|from `usage-watch`/);
 });
 
 test("the architect reads codebase-design and domain-modeling when used, not preloaded", () => {
   const a = front("architect");
-  assert.deepEqual(a.skills, ["organism-protocol", "ponytail"]);
+  assert.deepEqual(a.skills, ["team-protocol", "ponytail"]);
   assert.match(a.body, /codebase-design/);
   assert.match(a.body, /domain-modeling/);
 });
@@ -101,13 +101,13 @@ test("grill-me and grill-with-docs are gone and nothing names them", () => {
   for (const f of files) assert.doesNotMatch(readFileSync(f, "utf8"), /grill-me|grill-with-docs/, path.relative(ROOT, f));
 });
 
-test("organism-protocol carries the pstack lines and did not grow", () => {
-  const s = read(".claude/skills/organism-protocol/SKILL.md");
+test("team-protocol carries the pstack lines and did not grow", () => {
+  const s = read(".claude/skills/team-protocol/SKILL.md");
   assert.match(s, /fresh subagent/i);
   assert.match(s, /resume[^\n]*(local state|costly)/i);
   assert.match(s, /idempotent/i);
   assert.match(s, /prove[^\n]*by running/i);
-  assert.ok(s.split("\n").length - 1 < 104, "organism-protocol is preloaded into every cell; it must stay under its old 104 lines");
+  assert.ok(s.split("\n").length - 1 < 104, "team-protocol is preloaded into every cell; it must stay under its old 104 lines");
 });
 
 test("qa verify has a blast-radius step: what the change breaks beyond the diff, proved by running code", () => {

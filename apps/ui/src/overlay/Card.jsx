@@ -1,4 +1,4 @@
-// The collapsible card of the right-hand column (den-scene-v1/07), shared by Needs you, Stations & queue and Library.
+// The collapsible card of the right-hand column (den-scene-v1/07), shared by Needs you, Teams & queue and Library.
 function Chevron() {
   return (
     <svg className="card-chevron" viewBox="0 0 16 16" width="16" height="16" aria-hidden="true">

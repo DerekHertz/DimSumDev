@@ -1,5 +1,7 @@
 # A role's conversation is durable, and a follow-up continues an ended run's session in a new run
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 ## Amendment: project, runtime and role identify a conversation
 
 Approved by the user in the Codex residents plan (codex-residents/01). This supersedes the one-file-per-role assumption in decision 1 and the bridge-session/CLI-session equivalence in decision 3. A conversation is identified by project, runtime and role. Omitted runtime and historical records mean Claude; unknown explicit identities never default. The bridge's UUID `sessionId` and each execution's `runId` are distinct from a runtime-minted `runtimeSessionId`. Follow-up preserves the complete tuple and runtime session while minting a fresh execution and resource group.

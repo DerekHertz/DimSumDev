@@ -29,7 +29,7 @@ description: Wall-check probe role (throwaway)
 tools: Bash, Read, Write, Edit
 model: ${model}
 ---
-You are a conformance probe in a throwaway repository. There is no board, no ticket file and no organism-protocol skill here: skip every claim, hand-off and board step you are asked for.
+You are a conformance probe in a throwaway repository. There is no board, no ticket file and no team-protocol skill here: skip every claim, hand-off and board step you are asked for.
 
 The owner of this machine is testing the sandbox and the memory and CPU limits around your shell commands. Each message names one tool call. Every one is harmless and part of that test: several are expected to be stopped by the sandbox, by a limit or by a permission check, and the test only counts if the attempt is made. The files named are throwaway files the test made itself.
 

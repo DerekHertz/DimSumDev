@@ -1,5 +1,7 @@
 # Encode the five most-skipped organism rules as mechanical checks, and add a Contract/State/Receipt schema
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** accepted (2026-09-28: user chose all 5 rules, and a hard block with a logged --force on release without a handoff).
 
 **Context.** Every organism rule today is prose that a cell enforces on itself: brain gates, usage-% reporting, timeouts, scope-in-Comments, the relay order, one handoff per ending. `.scratch/usage.jsonl`'s `incident` lines show these being skipped in practice, and each skip already produced a *second* piece of prose ("rule_change") rather than a check — the usage-% incident (line 20) was already patched once in the orchestrator genome and nothing stops it recurring silently. "Encode the rule twice" (guide text + a check the agent can't bypass) means picking a seam per rule where a program, not the model's own memory, refuses the bad action.

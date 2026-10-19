@@ -1,5 +1,5 @@
 // The floating cards over the scene (den-scene-v1/07, digest 2026-10-01-iso-den.md section 4): the logo pill top-left,
-// and on the right a Needs you card and a Stations & queue card, each collapsible from its header.
+// and on the right a Needs you card and a Teams & queue card, each collapsible from its header.
 // Agent text (ticket titles) is untrusted: everything renders as React text nodes, never as HTML.
 import { QueueButton, QueueDrawer } from "./QueueDrawer.jsx";
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
@@ -613,11 +613,11 @@ export function StationsCard({ snapshot, open, onToggle, busy, placeholder, onZo
     <Card
       id="stations"
       overlay="stations"
-      label="Stations & queue"
+      label="Teams & queue"
       edge="line"
       open={open}
       onToggle={onToggle}
-      title="Stations & queue"
+      title="Teams & queue"
       aside={<span className="card-summary">{m.summary}</span>}
       busy={busy}
     >
@@ -665,7 +665,7 @@ export function StationsCard({ snapshot, open, onToggle, busy, placeholder, onZo
 }
 
 /**
- * The right-hand column. Needs you opens by itself while something waits, until the user toggles it; Stations & queue,
+ * The right-hand column. Needs you opens by itself while something waits, until the user toggles it; Teams & queue,
  * Meetings and Library start closed. Under 600 px all start closed and opening one closes the others.
  */
 export function Cards({ snapshot, ownBuild = null, now, connection, placeholder, camera, steering, onAnswer, onOpenThread = null, onOpenTicket = null, demo = false, libraryRequest = 0, focusRequest = null }) {
@@ -700,7 +700,7 @@ export function Cards({ snapshot, ownBuild = null, now, connection, placeholder,
   }, [focusRequest]);
 
   // den-mvp/62: the Queue drawer, over the scene and this column. A ticket row uses the same Run and Deliver controls as
-  // Stations & queue; a Needs-you row opens the Needs you card, where acting stays.
+  // Teams & queue; a Needs-you row opens the Needs you card, where acting stays.
   const [queueOpen, setQueueOpen] = useState(false);
   const queueButton = useRef(null);
   const closeQueue = () => { setQueueOpen(false); queueButton.current?.focus({ preventScroll: true }); };

@@ -361,9 +361,9 @@ test("Needs you collapses and reopens from its header (aria-expanded flips, body
   }
 });
 
-// ---- Stations & queue ----------------------------------------------------------------------------------------
+// ---- Teams & queue ----------------------------------------------------------------------------------------
 
-test("Stations & queue is closed by default and opens from its header (criterion: collapsible, default closed)", { timeout: 90000 }, withApp({}, async ({ stations }) => {
+test("Teams & queue is closed by default and opens from its header (criterion: collapsible, default closed)", { timeout: 90000 }, withApp({}, async ({ stations }) => {
   assert.equal(await header(stations).getAttribute("aria-expanded"), "false");
   assert.equal(await stations.locator('[data-station-pill="steamers"]').isVisible(), false);
   await header(stations).click();
@@ -433,34 +433,34 @@ test("summary and queue: '5 open · N ready', 'Next on the susan', rows with a P
   }
 });
 
-test("clicking an open station pill zooms to that station (level 2 · Station becomes current)", { timeout: 90000 }, withApp({}, async ({ stations, zoom }) => {
+test("clicking an open station pill zooms to that station (level 2 · Team becomes current)", { timeout: 90000 }, withApp({}, async ({ stations, zoom }) => {
   await header(stations).click();
   await stations.locator('[data-station-pill="tea"]').click();
-  await zoom.getByRole("button", { name: "2 · Station" }).waitFor({ state: "visible" });
-  assert.equal(await zoom.getByRole("button", { name: "2 · Station" }).getAttribute("aria-current"), "true");
+  await zoom.getByRole("button", { name: "2 · Team" }).waitFor({ state: "visible" });
+  assert.equal(await zoom.getByRole("button", { name: "2 · Team" }).getAttribute("aria-current"), "true");
   assert.ok((await zoomValue(zoom)) < 1, "closer than the Level 1 framing");
 }));
 
 // ---- Zoom switcher and free zoom -----------------------------------------------------------------------------
 
-test("zoom switcher labels are exactly 1 · Den, 2 · Station, 3 · Panda, 4 · Workspace; Level 1 is current in qi; + and - have aria-labels (criterion: labels)", { timeout: 90000 }, withApp({}, async ({ page, zoom }) => {
+test("zoom switcher labels are exactly 1 · Den, 2 · Team, 3 · Panda, 4 · Workspace; Level 1 is current in qi; + and - have aria-labels (criterion: labels)", { timeout: 90000 }, withApp({}, async ({ page, zoom }) => {
   const nav = page.getByRole("navigation", { name: "Zoom level" });
   assert.equal(await nav.count(), 1);
   const levels = await zoom.locator("button").evaluateAll((bs) => bs.map((b) => b.textContent.trim()).filter((t) => /^\d ·/.test(t)));
-  assert.deepEqual(levels, ["1 · Den", "2 · Station", "3 · Panda", "4 · Workspace"]);
+  assert.deepEqual(levels, ["1 · Den", "2 · Team", "3 · Panda", "4 · Workspace"]);
   assert.equal(await zoom.getByRole("button", { name: "Zoom in" }).count(), 1);
   assert.equal(await zoom.getByRole("button", { name: "Zoom out" }).count(), 1);
   const den = zoom.getByRole("button", { name: "1 · Den" });
   assert.equal(await den.getAttribute("aria-current"), "true");
   assert.equal(await colourOf(den), await token(page, "qi"), "current level is qi");
-  assert.equal(await colourOf(zoom.getByRole("button", { name: "2 · Station" })), await token(page, "ink-muted"));
+  assert.equal(await colourOf(zoom.getByRole("button", { name: "2 · Team" })), await token(page, "ink-muted"));
   assert.equal(await zoomValue(zoom), 1, "starts at the Level 1 framing");
 }));
 
 test("clicking a level makes it current and dollies in (Level 3 is closer than Level 2, which is closer than Level 1)", { timeout: 90000 }, withApp({}, async ({ zoom }) => {
-  await zoom.getByRole("button", { name: "2 · Station" }).click();
+  await zoom.getByRole("button", { name: "2 · Team" }).click();
   const two = await zoomValue(zoom);
-  assert.equal(await zoom.getByRole("button", { name: "2 · Station" }).getAttribute("aria-current"), "true");
+  assert.equal(await zoom.getByRole("button", { name: "2 · Team" }).getAttribute("aria-current"), "true");
   await zoom.getByRole("button", { name: "3 · Panda" }).click();
   const three = await zoomValue(zoom);
   assert.equal(await zoom.getByRole("button", { name: "3 · Panda" }).getAttribute("aria-current"), "true");
@@ -671,7 +671,7 @@ test("every control is keyboard-reachable in the garden-then-desk tab order with
     for (const name of ["needs-you", "stations", "zoom"]) assert.ok(first(name) >= 0, `${name} is reachable by Tab; saw ${overlaySeq}`);
     assert.ok(first("zoom") < first("needs-you") && first("needs-you") < first("stations"), `tab order follows garden controls then Needs you and Stations; saw ${overlaySeq}`);
     const labels = seen.filter((s) => s.overlay === "zoom").map((s) => s.text);
-    for (const want of ["1 · Den", "2 · Station", "3 · Panda", "4 · Workspace", "Zoom in", "Zoom out"]) assert.ok(labels.includes(want), `Tab reaches ${want}`);
+    for (const want of ["1 · Den", "2 · Team", "3 · Panda", "4 · Workspace", "Zoom in", "Zoom out"]) assert.ok(labels.includes(want), `Tab reaches ${want}`);
     const inCards = seen.filter((s) => s.overlay);
     assert.ok(inCards.length >= 10, `walked ${inCards.length} overlay stops`);
     for (const s of inCards) {

@@ -6,7 +6,7 @@ import { STATION_HUE, clockText, timelineMarkers } from "./overlay-model.mjs";
 
 const LEVELS = [
   { level: 1, label: "1 · Den" },
-  { level: 2, label: "2 · Station" },
+  { level: 2, label: "2 · Team" },
   { level: 3, label: "3 · Panda" },
   { level: 4, label: "4 · Workspace" },
 ];

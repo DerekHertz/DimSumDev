@@ -1,5 +1,7 @@
 # 0013: Banquet market layout
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 Status: accepted (2026-09-29, showcase-v1/01; decided there in place of character-animation/14)
 
 ## Context

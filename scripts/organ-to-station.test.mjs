@@ -69,34 +69,34 @@ test("no bare word 'organ'/'organs' remains in scope except 'was: organ' notes (
   assert.deepEqual(hits(/\borgans?\b/i, { allowNotes: true }), []);
 });
 
-test("every genome declares organism.station with its station value (criterion 2)", () => {
+test("every role definition declares org.team with its team value (criterion 2; ADR 0028 renamed organism.station)", () => {
   for (const [name, station] of Object.entries(STATION_OF)) {
     const fm = frontmatter(name);
-    assert.match(fm, new RegExp(`^\\s+station:\\s*${station}\\s*$`, "m"), `${name}.md station: ${station}`);
+    assert.match(fm, new RegExp(`^\\s+team:\\s*${station}\\s*$`, "m"), `${name}.md team: ${station}`);
   }
 });
 
-test("no genome frontmatter keeps an 'organ:' key (criterion 2)", () => {
+test("no role definition frontmatter keeps an 'organ:' key (criterion 2)", () => {
   for (const name of Object.keys(STATION_OF)) {
     assert.doesNotMatch(frontmatter(name), /^\s+organ:/m, `${name}.md still has organ:`);
   }
 });
 
-test("cell prose uses station names, not Brain/Muscles/Immune/Skin cell (criterion 1)", () => {
+test("agent prose uses team names, not Brain/Muscles/Immune/Skin cell (criterion 1)", () => {
   assert.deepEqual(hits(/\b(Brain|Muscles|Immune|Skin) (cell|organ)\b|\((Brain|Muscles|Immune|Skin)\)/), []);
   const qa = fs.readFileSync(path.join(ROOT, ".claude", "agents", "qa.md"), "utf8");
-  assert.match(qa, /\*\*qa\*\* cell of the Tea (&|and) Pantry station/i);
+  assert.match(qa, /\*\*qa\*\* agent of the Tea (&|and) Pantry team/i);
   const orch = fs.readFileSync(path.join(ROOT, ".claude", "agents", "orchestrator.md"), "utf8");
-  assert.match(orch, /cell of the (Pass|The Pass) station/i);
+  assert.match(orch, /agent of the (Pass|The Pass) team/i);
 });
 
 test("'Brain gate' is renamed to 'Pass gate' everywhere in scope (criterion 3)", () => {
   assert.deepEqual(hits(/brain gates?/i), []);
-  const proto = fs.readFileSync(path.join(ROOT, ".claude", "skills", "organism-protocol", "SKILL.md"), "utf8");
+  const proto = fs.readFileSync(path.join(ROOT, ".claude", "skills", "team-protocol", "SKILL.md"), "utf8");
   assert.match(proto, /## Pass gates/);
 });
 
-test("CLAUDE.md Cells section names the stations", () => {
+test("CLAUDE.md Agents section names the teams", () => {
   const md = fs.readFileSync(path.join(ROOT, "CLAUDE.md"), "utf8");
   assert.match(md, /\(Pass\)/);
   assert.match(md, /\(Steamers\)/);

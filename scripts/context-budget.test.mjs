@@ -18,7 +18,7 @@
 //   budgetFor fallbacks and validation   -> "unknown role ...", "invalid entry ...", "missing/unparseable file ..." tests
 //   hook, cell-start, context.mjs share it -> context-budget.tiers.test.mjs, cell-start-context-config.test.mjs,
 //                                            context-cell-state.test.mjs
-//   organism-protocol "Context budget" gated edit, thresholds re-evaluation -> human-verified
+//   team-protocol "Context budget" gated edit, thresholds re-evaluation -> human-verified
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
