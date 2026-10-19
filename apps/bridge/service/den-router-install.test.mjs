@@ -66,7 +66,7 @@ describe("den:install and the router", () => {
   test("install writes den-router.service beside den.service and enables and starts it", async () => {
     assert.equal(service.ROUTER_UNIT_NAME, ROUTER_UNIT_NAME);
     await den().install();
-    assert.deepEqual(readdirSync(unitDir).sort(), [ROUTER_UNIT_NAME, UNIT_NAME].sort());
+    assert.deepEqual(readdirSync(unitDir).sort(), [ROUTER_UNIT_NAME, service.SLICE_NAME, UNIT_NAME].sort());
     for (const call of ["enable den-router.service", "restart den-router.service"]) assert.ok(sysCalls.includes(call), `${call} in ${sysCalls.join(" | ")}`);
     const unit = await readFile(path.join(unitDir, ROUTER_UNIT_NAME), "utf8");
     assert.match(unit, /^Restart=on-failure$/m);

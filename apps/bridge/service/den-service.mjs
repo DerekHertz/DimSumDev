@@ -18,6 +18,8 @@ import { clearUpdateFailure, createReleases, currentRelease, isOlder, readUpdate
 import { ensureServiceToken } from "../../router/service-token.mjs";
 
 export const UNIT_NAME = "den.service";
+export const SLICE_NAME = "den.slice"; // the bound around the whole den; copied as is, it holds no machine value
+const SLICE = fileURLToPath(new URL("./den.slice", import.meta.url));
 export const PORT = 4317;
 const TEMPLATE = fileURLToPath(new URL("./den.service", import.meta.url));
 const LAUNCHER = fileURLToPath(new URL("./den-launcher.mjs", import.meta.url));
@@ -83,6 +85,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
   stateDir ??= path.join(env.XDG_STATE_HOME || path.join(home, ".local", "state"), "den");
   unitDir ??= path.join(env.XDG_CONFIG_HOME || path.join(home, ".config"), "systemd", "user");
   const unitFile = path.join(unitDir, UNIT_NAME);
+  const sliceFile = path.join(unitDir, SLICE_NAME);
   const routerUnitFile = path.join(unitDir, ROUTER_UNIT_NAME);
   const ntfyFile = path.join(stateDir, "ntfy-url");
   bus ??= findUserBus(env);
@@ -225,9 +228,10 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
         await switchNamed(state.sha);
         return `ui and bridge at ${state.sha.slice(0, 12)}`;
       }],
-      [`write ${launcher} and ${unitFile}`, async () => {
+      [`write ${launcher}, ${sliceFile} and ${unitFile}`, async () => {
         // The launcher lives outside every release; only install writes it, from the checkout's own copy.
         await put(launcher, (tmp) => copyFile(LAUNCHER, tmp));
+        await put(sliceFile, (tmp) => copyFile(SLICE, tmp));
         await put(unitFile, (tmp) => writeFile(tmp, renderUnit(template, { node, checkout: repo, state: stateDir, searchPath: env.PATH })));
       }],
       ["write the router's service token and phone push address", async () => {

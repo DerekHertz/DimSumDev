@@ -222,3 +222,57 @@ describe("the dispatch ref is still checked", () => {
     assert.notEqual(blocked.ref, DISPATCH_REF);
   });
 });
+
+// The kernel review (2026-10-18): a remote connection is a way out of the wall, like a host. A run with either gets the read
+// limit, which closes the home folder to the shell and reopens only what the work needs: the project, the Node install, git's
+// own config and the Playwright browsers. Before this, a remote connection with no host left all of home readable but the
+// credential stores, and a host grant closed the Node install and ~/.gitconfig that npm test and git commit need.
+describe("any way out brings the read limit, with the project and the toolchain reopened", () => {
+  const HOME = "/home/u";
+  const ROOT = "/home/u/den";
+  const NODE = "/home/u/.nvm/versions/node/v22.0.0";
+  const MAIN_GIT = "/home/u/den/.git";
+  const OPEN = [WT, "/home/u/den/node_modules", MAIN_GIT, NODE, "/home/u/.gitconfig", "/home/u/.cache/ms-playwright"];
+  const limited = (options) => settingsFor("developer", { root: ROOT, mainGit: MAIN_GIT, home: HOME, toolchain: NODE, credentials: ["~/.ssh"], ...options });
+
+  test("a remote connection with no host closes home to the shell and reopens the worktree, the project's packages and .git, and the toolchain", () => {
+    const s = limited({ remote: true });
+    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
+    assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), [...OPEN].sort());
+    assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, true);
+    assert.deepEqual(s.sandbox.network.allowedDomains, [], "a connection opens no host to the shell");
+  });
+
+  // Live probe 2026-10-18: reopening the project root, which holds the worktree, left the worktree read-only and every command failed.
+  test("the project root itself is never reopened", () => {
+    assert.equal(limited({ remote: true }).sandbox.filesystem.allowRead.includes(ROOT), false);
+  });
+
+  test("a granted host reopens the same paths", () => {
+    const s = limited({ grants: [{ kind: "host", value: "registry.npmjs.org" }] });
+    assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), [...OPEN].sort());
+  });
+
+  test("with no way out, home stays readable but the credential stores, as before", () => {
+    const s = limited({});
+    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/.ssh"]);
+    assert.equal(s.sandbox.filesystem.allowRead, undefined);
+    assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, undefined);
+  });
+
+  test("a role that cannot write gets the limit too", () => {
+    const s = settingsFor("scout", { root: ROOT, mainGit: MAIN_GIT, home: HOME, toolchain: NODE, remote: true });
+    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
+    assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), OPEN.filter((p) => p !== WT).sort());
+  });
+
+  test("a reopened path that would reach a credential store refuses the run", () => {
+    assert.throws(() => compileCeiling("developer", { worktree: WT, root: ROOT, home: HOME, toolchain: "/home/u/.local/state/den", remote: true }), TypeError, "a toolchain on the den's state");
+  });
+
+  test("toolchain and remote take only their plain shapes", () => {
+    for (const bad of ["relative/node", "/home/u/../x", "/a b", 7]) assert.throws(() => compileCeiling("developer", { worktree: WT, toolchain: bad }), TypeError, String(bad));
+    assert.throws(() => compileCeiling("developer", { worktree: WT, remote: "yes" }), TypeError);
+    assert.throws(() => buildClaudeArgs({ sessionId: SID, agent: "developer", wall: { hosts: [] }, readOpen: ["/x"] }), TypeError, "readOpen needs the read limit");
+  });
+});

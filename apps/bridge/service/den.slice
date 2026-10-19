@@ -1,0 +1,8 @@
+# The whole den in one bound (the kernel review, 2026-10-18). systemd reads a dash in a slice name as nesting, so the bridge
+# (den.service) and every group it starts (den-agents, den-checks, den-guard) sit in here. Their own limits add up to more than
+# this machine has; this one keeps a runaway den from taking the WSL VM with it. An OOM kill in here takes a run first: the
+# start gate gives every run a score of 500, the bridge keeps the user manager's 100. `npm run den:install` writes it as is.
+[Slice]
+MemoryMax=75%
+MemorySwapMax=0
+TasksMax=4096
