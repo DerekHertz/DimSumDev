@@ -210,15 +210,36 @@ describe("den:install and den:update", () => {
     assert.deepEqual(sysCalls, ["show-environment", "restart den.service"]);
   });
 
-  test("update refuses when the checkout's own build code is behind main, and changes nothing (friction F15)", async () => {
-    await den().install();
+  const boxChange = async () => {
     await mkdir(path.join(origin, "apps", "bridge", "build"), { recursive: true });
-    await writeFile(path.join(origin, "apps", "bridge", "build", "box.mjs"), "// new wrapper\n");
+    await writeFile(path.join(origin, "apps", "bridge", "build", "box.mjs"), `// new wrapper ${Date.now()} ${Math.random()}\n`);
     git(origin, "add", "-A");
     git(origin, "commit", "-q", "-m", "box change");
+  };
+
+  test("a checkout on main that is only behind is fast-forwarded, nothing is built, and the update asks to be run again (friction F15)", async () => {
+    await den().install();
+    await boxChange();
+    await writeFile(path.join(checkout, "local-note.txt"), "uncommitted\n");
     const boxesBefore = boxCalls.length;
     sysCalls.length = 0;
-    await assert.rejects(den().update("--main"), /apps\/bridge\/build\/box\.mjs.*git pull --ff-only/);
+    await assert.rejects(den().update("--main"), (err) => err.rerun === true && /fast-forwarded/.test(err.message));
+    assert.equal(git(checkout, "rev-parse", "HEAD"), git(origin, "rev-parse", "HEAD"), "the checkout is at main");
+    assert.equal(existsSync(path.join(checkout, "local-note.txt")), true, "an uncommitted file stays");
+    assert.equal(boxCalls.length, boxesBefore, "no release was built with the old code");
+    assert.deepEqual(sysCalls, ["show-environment"], "nothing was restarted");
+    await den().update("--main");
+    assert.equal(link("bridge", "current"), `../releases/${git(origin, "rev-parse", "HEAD").slice(0, 12)}`);
+  });
+
+  test("update refuses when the checkout's own build code differs and the checkout is not on main, and changes nothing (friction F15)", async () => {
+    await den().install();
+    await boxChange();
+    git(checkout, "switch", "-q", "-c", "side");
+    const boxesBefore = boxCalls.length;
+    sysCalls.length = 0;
+    await assert.rejects(den().update("--main"), (err) => !err.rerun && /apps\/bridge\/build\/box\.mjs.*git pull --ff-only/.test(err.message));
+    git(checkout, "switch", "-q", "main");
     assert.equal(boxCalls.length, boxesBefore, "no release was built");
     assert.deepEqual(sysCalls, ["show-environment"], "nothing was restarted");
     git(checkout, "pull", "-q", "--ff-only");
