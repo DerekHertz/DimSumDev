@@ -7,7 +7,7 @@ import definitions from './role-props.mjs';
 function fixture(){
  const body=new T.Mesh(new T.BoxGeometry(2,3,1),new T.MeshStandardMaterial());body.position.y=1.5;
  const den={residents:new T.Group(),pandaRigs:new Map(),propManifest:definitions,roleWorkspaces:{workspaces:new Map()},walkWorld:{floorRadius:70,obstacles:[],navigation:{groundAt:()=>.26}}};
- den.createPanda=role=>{const rig=createBalancedPandaRig(body);rig.model.scale.setScalar(.68);rig.model.userData={roleId:role,actorKey:role};den.pandaRigs.set(rig.model,{rig});return{model:rig.model,rig};};
+ den.createPanda=(role,{runtime='claude'}={})=>{const rig=createBalancedPandaRig(body);rig.model.scale.setScalar(.68);rig.model.userData={roleId:role,actorKey:role,runtime};den.pandaRigs.set(rig.model,{rig});return{model:rig.model,rig};};
  den.destroyPanda=model=>{den.pandaRigs.get(model)?.rig.dispose();den.pandaRigs.delete(model);};
  for(const[i,d]of definitions.entries()){const panda=den.createPanda(d.id);panda.model.position.set((i%7-3)*3,.26,-8-Math.floor(i/7)*4);den.residents.add(panda.model);den.roleWorkspaces.workspaces.set(d.id,{person:panda.model});}
  den.routineSpots=[{id:'tea',kind:'tea',position:new T.Vector3(0,.26,-2),face:new T.Vector3(0,.26,-3)},{id:'pond',kind:'pond',position:new T.Vector3(3,.26,-2),face:new T.Vector3(3,.26,-3)},{id:'greeting',kind:'greeting',position:new T.Vector3(-3,.26,-2),face:new T.Vector3(-3,.26,-3)}];
@@ -21,6 +21,18 @@ test('visitors retain live identities and own skeletons, and release them when t
   assert.notEqual(visitor.panda.rig.skeleton,resident.panda.rig.skeleton);assert.equal(visitor.live.ref,'work/2');
   const before=visitor.panda.model.position.clone();actors.update(.1);assert.ok(visitor.panda.model.position.distanceTo(before)>0);assert.notEqual(visitor.panda.rig.bones.Hip_L.quaternion.w,1,'walking deforms the legs');
   actors.applyLive([]);assert.equal(den.pandaRigs.size,14);assert.equal(visitor.panda.model.parent,null);
+ }finally{f.dispose();}
+});
+test('split visitors and meeting copies inherit runtime appearance without replacing actor identity',()=>{
+ const f=fixture();try{
+  const {actors}=f,resident=actors.actors.get('developer');resident.panda.model.userData.runtime='codex';
+  actors.applyLive([{role:'developer',ref:'work/1'},{role:'developer',ref:'work/2'}]);
+  const visitor=actors.actors.get('developer#work/2');
+  assert.equal(visitor.panda.model.userData.runtime,'codex');assert.equal(visitor.panda.model.userData.actorKey,'developer#work/2');
+  actors.applyMeeting({id:'meeting/1',ref:'work/meeting',state:'running',seats:[{role:'developer'}]});
+  const guest=actors.actors.get('meeting:developer');
+  assert.equal(guest.panda.model.userData.runtime,'codex');assert.equal(guest.panda.model.userData.actorKey,'meeting:developer');
+  assert.notEqual(guest.panda.rig.skeleton,resident.panda.rig.skeleton);
  }finally{f.dispose();}
 });
 function advance(actors,seconds,reduced=false){for(let t=0;t<seconds;t+=.1)actors.update(.1,reduced);}

@@ -19,12 +19,14 @@ now authored in `stylized-structures.mjs` and `crafted-architecture.mjs` with th
 approved handcrafted-miniature detail: curved tiles, rounded timber, lattice
 openings, lanterns and furnished interiors at consistent walking scale.
 
-`role-outfits.mjs` applies the approved fourteen role assignments using shared
-fitted vest/scarf geometry, per-role tint materials, and seven selected local
-headwear pieces. Developer retains headphones. The Release Manager wears a
-narrow forehead wrap with a compact knot. Visitors clone their resident's outfit.
-`render-role-portraits.mjs` uses that same outfit factory for fourteen cached
-512px WebP portraits (about 315 KiB total), including the original role tools.
+`role-outfits.mjs` applies Grove workwear to ten dispatchable role factories,
+including the runner wardrobe prepared for resident integration. Claude uses
+cream-main fabric and Codex station-colour-main fabric, with isolated materials,
+role headwear and paw tools on the shared animated rig. Existing scenery roles
+retain their wardrobe. Visitors and meeting copies inherit resident appearance.
+`render-role-portraits.mjs` uses the same appearance factory for fifteen cached
+512px WebP portraits and accepts `{runtime: 'codex'}` for offline authoring.
+Grove Claude portraits are refreshed; existing scenery caches remain intact.
 The profile panel uses ordinary images and creates no additional WebGL canvases.
 
 `sources.json` is an offline provenance catalog relative to the original

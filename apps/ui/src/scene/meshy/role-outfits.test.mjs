@@ -4,8 +4,8 @@ import {Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Vector3} from 'thr
 import {ROLE_OUTFITS, createRoleOutfit, completeRoleOutfits} from './role-outfits.mjs';
 import {createRoleHeadwear} from './role-headwear.mjs';
 
-const ROLES = ['orchestrator','product','architect','developer','scout','debugger','qa','security','designer','herald','release-manager','knowledge-keeper','docs-writer','stem-cub'];
-const HEADWEAR = ['orchestrator','architect','designer','scout','knowledge-keeper','release-manager','stem-cub'];
+const ROLES = ['orchestrator','product','architect','developer','scout','runner','debugger','qa','security','designer','herald','release-manager','knowledge-keeper','docs-writer','stem-cub'];
+const HEADWEAR = ['orchestrator','product','architect','developer','scout','runner','qa','security','designer','herald','knowledge-keeper','release-manager','stem-cub'];
 function templates() {
   const make = name => {
     const group = new Group(); group.name = name;
@@ -17,22 +17,22 @@ function templates() {
 function meshes(group) { const result=[]; group.traverse(node=>{if(node.isMesh)result.push(node);});return result; }
 
 test('the approved wardrobe assigns exactly one vest or scarf to each canonical permanent role', () => {
-  assert.equal(ROLE_OUTFITS.length,14);
+  assert.equal(ROLE_OUTFITS.length,15);
   assert.deepEqual(ROLE_OUTFITS.map(row=>row.id).sort(),[...ROLES].sort());
-  assert.equal(new Set(ROLE_OUTFITS.map(row=>row.id)).size,14);
+  assert.equal(new Set(ROLE_OUTFITS.map(row=>row.id)).size,15);
   for(const row of ROLE_OUTFITS){
     assert.ok(['vest','scarf'].includes(row.clothing),row.id);
     assert.match(row.color,/^#[0-9a-f]{6}$/i,row.id+' has an explicit fabric color');
     assert.ok(row.headwear===null||typeof row.headwear==='string'&&row.headwear.length>0,row.id);
   }
   assert.deepEqual(ROLE_OUTFITS.filter(row=>row.headwear).map(row=>row.id).sort(),[...HEADWEAR].sort());
-  assert.equal(ROLE_OUTFITS.find(row=>row.id==='developer').headwear,null,'the Developer keeps headphones without an added hat');
+  assert.equal(ROLE_OUTFITS.find(row=>row.id==='developer').headwear,'headphones','the Developer has padded headphones without an added hat');
 });
 
 test('all role outfits reuse fitted template geometry and isolate fabric tints without mutating the originals', () => {
   const fitted=templates();
   for(const spec of ROLE_OUTFITS){
-    const original=spec.clothing==='scarf'?fitted.scarf:spec.id==='security'?fitted.securityVest:fitted.vest;
+    const original=spec.clothing==='scarf'?fitted.scarf:fitted.vest;
     const originalMesh=meshes(original)[0],outfit=createRoleOutfit(spec.id,fitted);
     assert.equal(outfit.userData.outfitRole,spec.id);
     assert.equal(outfit.userData.clothing,spec.clothing);
@@ -43,20 +43,20 @@ test('all role outfits reuse fitted template geometry and isolate fabric tints w
     assert.equal(originalMesh.material.color.getHexString(),'888888','source templates retain their color');
     assert.equal(original.parent,null,'source templates are not moved by the outfit factory');
     assert.ok(new Box3().setFromObject(outfit).getSize(new Vector3()).toArray().every(value=>Number.isFinite(value)&&value>0));
-    if(spec.id==='developer')assert.ok(outfit.getObjectByName('Wardrobe · developer-headphones'),'Developer keeps its fitted headphones');
+    if(spec.id==='developer')assert.ok(outfit.getObjectByName('Role headwear · developer').userData.cues.includes('Padded headphones'),'Developer has its approved padded headphone silhouette');
   }
   assert.throws(()=>createRoleOutfit('unknown-role',fitted),/Unknown role/);
-  assert.throws(()=>createRoleOutfit('developer',{vest:fitted.vest}),/headphones/i,'missing approved pieces must not silently create partial outfits');
+  assert.throws(()=>createRoleOutfit('developer',{}),/Missing fitted vest/i,'missing fitted fabric must not silently create partial outfits');
 });
 
-test('only the seven selected roles receive headwear and their meshes stay inside Bao local head space', () => {
+test('approved role headwear and spectacles stay inside Bao local head space', () => {
   for(const role of ROLES){
     const headwear=createRoleHeadwear(role);
     if(!HEADWEAR.includes(role)){assert.equal(headwear,null,role+' has no added headwear');continue;}
     assert.ok(headwear?.isGroup,role);
     const bounds=new Box3().setFromObject(headwear),size=bounds.getSize(new Vector3());
     assert.ok(bounds.min.y>=2.2&&bounds.max.y<=3.75,`${role}: headwear must fit the crown of the 3-unit Bao body`);
-    assert.ok(size.x<=2&&size.z<=1.6,role+' must not become an oversized silhouette');
+    assert.ok(size.x<=(role==='qa'?2.4:2)&&size.z<=(role==='qa'?2.1:1.6),role+' must not become an oversized silhouette');
     assert.ok(Math.abs(bounds.getCenter(new Vector3()).x)<.4,role+' remains centered on the head');
     const parts=meshes(headwear);
     assert.ok(parts.length<=8,role+' remains batched for the browser');

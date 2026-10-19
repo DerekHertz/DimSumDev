@@ -1,11 +1,14 @@
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+import {GROVE_ROLES} from './grove-style.mjs';
+import {createGroveHeadwear} from './grove-headwear.mjs';
 
-const SELECTED = new Set(['orchestrator','architect','designer','scout','knowledge-keeper','release-manager','stem-cub']);
+const SELECTED = new Set(['knowledge-keeper','release-manager','stem-cub']);
 
 // Bao-local coordinates: feet=0, crown approximately3, front=+Z.
-// Only the seven approved headwear assignments are constructed.
-export function createRoleHeadwear(roleId) {
+// Scenery headwear keeps its established geometry; dispatchable roles use Grove.
+export function createRoleHeadwear(roleId,options={}) {
+  if(GROVE_ROLES[roleId])return createGroveHeadwear(roleId,options);
   if (!SELECTED.has(roleId)) return null;
   const source = new T.Group();
   const material = color => new T.MeshStandardMaterial({color,roughness:.88});
@@ -20,28 +23,10 @@ export function createRoleHeadwear(roleId) {
   const badge=(mat=m.ivory)=>{const disc=add(new T.CylinderGeometry(.06,.06,.009,24),m.gold,[0,.08,.4]);disc.rotation.x=Math.PI/2;orb(.047,m.ink,[0,.08,.408],[1,1,.08]);const inset=box([.047,.047,.005],mat,[0,.08,.418]);inset.rotation.z=Math.PI/4;};
   const stitches=(mat,y=.04)=>{for(let i=0;i<40;i++){const a=i/40*Math.PI*2;const stitch=box([.006,.016,.005],mat,[Math.sin(a)*.463,y,Math.cos(a)*.393]);stitch.rotation.set(0,a,.35);}};
   const scholar=(mat)=>{band(mat,.04,.1);crown(mat,.18);box([.62,.18,.42],mat,[0,.19,-.05]).rotation.x=-.16;for(const x of[-.3,.3])tube([[x,.11,.19],[x,.31,.13],[x,.32,-.24]],.005,m.gold);stitches(m.gold,.055);badge();};
-  if(roleId==='orchestrator'){
-    crown(m.ivory,.32);band(m.jade,.04,.1);
-    for(let i=0;i<12;i++){const a=i/12*Math.PI*2;tube(Array.from({length:13},(_,j)=>{const t=.31+j/12*(Math.PI/2-.31);return[Math.cos(a)*.465*Math.cos(t),.32*Math.sin(t),Math.sin(a)*.395*Math.cos(t)];}),.012,m.ivory);}
-    badge();stitches(m.gold);
-  } else if(roleId==='architect'||roleId==='knowledge-keeper') {
-    scholar(roleId==='architect'?m.indigo:m.ink);
-    if(roleId==='knowledge-keeper'){
-      for(const x of[-.35,.35]){const tail=box([.16,.46,.027],m.ink,[x,-.12,-.17]);tail.rotation.set(0,x<0?-.2:.2,x<0?-.25:.25);}
-      orb(.033,m.jade,[0,.08,.423],[1,1,.35]);
-    }
-  } else if(roleId==='designer') {
-    crown(m.rose,.27,.53,.44).rotation.z=-.15;band(m.ink,.025,.075);stitches(m.gold,.025);orb(.027,m.rose,[.06,.27,-.03]);
-    for(let i=0;i<6;i++){const a=i/6*Math.PI*2;orb(.044,m.jade,[-.33+Math.cos(a)*.038,.2+Math.sin(a)*.038,.31],[.55,1,.25]).rotation.z=-a;}
-    orb(.022,m.gold,[-.33,.2,.32]);
-  } else if(roleId==='scout') {
-    band(m.leather,.09,.11,.49,.4);
-    for(const x of[-.2,.2]){
-      ring(.143,.025,m.gold,[x,.16,.34],[1,.8,1],true).rotation.x=-.43;
-      orb(.125,m.blue,[x,.16,.35],[1,.77,.18]).rotation.x=-.43;
-      ring(.15,.025,m.leather,[x,.145,.315],[1,.8,1],true).rotation.x=-.43;
-    }
-    tube([[-.06,.15,.36],[0,.16,.37],[.06,.15,.36]],.012,m.gold);
+  if(roleId==='knowledge-keeper') {
+    scholar(m.ink);
+    for(const x of[-.35,.35]){const tail=box([.16,.46,.027],m.ink,[x,-.12,-.17]);tail.rotation.set(0,x<0?-.2:.2,x<0?-.25:.25);}
+    orb(.033,m.jade,[0,.08,.423],[1,1,.35]);
   } else if(roleId==='stem-cub') {
     band(m.ivory,.025,.12);
     const points=[[.43,0],[.39,.14],[.31,.29],[.23,.39],[.13,.46],[.06,.5],[.007,.53]].map(p=>new T.Vector2(...p));

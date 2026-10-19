@@ -1,14 +1,15 @@
 import * as T from 'three';
 import {createRoleHeadwear} from './role-headwear.mjs';
 import {box,cyl,orb,line} from './garden.mjs';
+import {GROVE_ROLES,rolePalette,clothBuilder} from './grove-style.mjs';
 
 // Shared fits and fixed role IDs keep the resident, visitor and cached portrait in agreement.
 export const ROLE_OUTFITS = Object.freeze([
-  ['orchestrator','vest','#d9d3bd','bao-cap'], ['product','scarf','#668f83',null],
-  ['architect','vest','#59656b','scholar-cap'], ['developer','vest','#456b9a',null],
-  ['scout','vest','#b89c60','goggles'], ['debugger','scarf','#637c8d',null],
-  ['qa','scarf','#92a483',null], ['security','vest','#35564f',null],
-  ['designer','scarf','#94758b','lotus-beret'], ['herald','scarf','#b5594b',null],
+  ['orchestrator','vest','#674698','chef-toque'], ['product','vest','#674698','spectacles'],
+  ['architect','vest','#674698','spectacles-and-pencil'], ['developer','vest','#2759a2','headphones'],
+  ['scout','vest','#2759a2','goggles'], ['runner','vest','#2759a2','tied-headband'], ['debugger','scarf','#637c8d',null],
+  ['qa','vest','#006e54','woven-douli'], ['security','vest','#326a2d','brim-cap'],
+  ['designer','vest','#00658b','beret'], ['herald','vest','#00658b','folded-headband'],
   ['release-manager','vest','#b97a53','festival-band'], ['knowledge-keeper','vest','#487a80','archive-hat'],
   ['docs-writer','scarf','#59678b',null], ['stem-cub','vest','#9aafc6','nightcap'],
 ].map(([id,clothing,color,headwear])=>Object.freeze({id,clothing,color,headwear})));
@@ -20,6 +21,7 @@ function recolor(clone,color,flat=false) {
     const recolorMaterial=source=>{
       const copy=source.clone();
       if(flat){copy.map=null;copy.color.set(color);}
+      else if(!source.map){copy.color.set(color);}
       else{
         const tint=new T.Color(color);copy.color.set('#ffffff');
         copy.onBeforeCompile=shader=>{
@@ -34,6 +36,48 @@ function recolor(clone,color,flat=false) {
     };
     node.material=Array.isArray(node.material)?node.material.map(recolorMaterial):recolorMaterial(node.material);
   });
+}
+
+function groveDetails(role,palette,runtime){
+  const b=clothBuilder(palette),{box,orb,ring,tube,closure}=b;
+  const cuffs=[];
+  const folded=role==='orchestrator'&&runtime==='codex';
+  const collar=clothBuilder(palette);
+  // The open jacket leaves the approved belly and the original fur visible.
+  if(folded){
+    const panel=(from,to,key,width)=>{
+      const start=new T.Vector3(...from),end=new T.Vector3(...to),direction=end.clone().sub(start);
+      const mesh=collar.box([direction.length(),width,.045],key,start.add(end).multiplyScalar(.5).toArray());
+      mesh.quaternion.setFromUnitVectors(new T.Vector3(1,0,0),direction.normalize());
+    };
+    for(const sign of[-1,1]){
+      panel([sign*.66,2.13,.29],[sign*.29,2.05,.67],'main',.17);
+      panel([sign*.29,2.05,.67],[-sign*.06,1.98,.85],'main',.17);
+    }
+    panel([-.55,2.13,.42],[.08,1.98,.89],'accent',.095);
+  }else{
+    collar.tube([[-.68,2.10,.27],[-.50,2.06,.57],[0,1.99,.81],[.50,2.06,.57],[.68,2.10,.27]],.085,'main');
+    collar.tube([[-.58,2.13,.34],[-.36,2.06,.68],[.06,1.99,.85],[.49,2.08,.56]],.055,'accent');
+  }
+  for(const sign of[-1,1]){
+    tube([[sign*.91,1.30,.04],[sign*.76,1.30,.64],[sign*.50,1.30,.91],[sign*.16,1.30,1.04]],.022,'main');
+    const tail=box([folded?.15:.19,.32,.045],sign<0?'main':'accent',[sign*.12,1.85,.91]);tail.rotation.z=sign*(folded?.45:.30);
+    const sleeve=clothBuilder(palette);
+    const cuff=sleeve.ring(.28,.040,'main',[sign*1.10,1.45,-.035],[1.2,.75,1]);cuff.rotation.y=Math.PI/2;cuff.rotation.z=-sign*.82;
+    const edge=sleeve.ring(.28,.016,'accent',[sign*1.13,1.415,-.035],[1.2,.75,1]);edge.rotation.y=Math.PI/2;edge.rotation.z=-sign*.82;
+    cuffs.push(sleeve.finish('Grove cuff · '+(sign>0?'L':'R'),{attachBone:'Elbow_'+(sign>0?'L':'R')}));
+  }
+  closure([0,1.99,.93]);
+  if(role==='orchestrator'&&runtime==='claude')orb(.15,'main',[.46,1.68,.91],[1,1,.15]);
+  else box([.26,.25,.035],'main',[.46,1.70,.91]);
+  box([.24,.025,.04],'accent',[.46,1.82,.935]);
+  for(let i=0;i<2;i++){
+    const pen=box([.018,.18,.018],role==='orchestrator'&&runtime==='codex'?'cream':'wood',[.40+i*.07,1.88,.94]);pen.rotation.z=i*.1;
+    box([.025,.025,.02],'bamboo',[-.50,1.63+i*.17,.93]);
+  }
+  if(role==='orchestrator'&&runtime==='codex')box([.12,.24,.02],'cream',[.50,1.89,.92]).rotation.z=-.12;
+  const result=b.finish('Grove collar, cuffs and pocket',{groveRole:role,runtime});
+  result.add(collar.finish(folded?'Folded collar':'Curved shawl collar'),...cuffs);return result;
 }
 
 function roleAccessories(group,id) {
@@ -53,21 +97,19 @@ function roleAccessories(group,id) {
 }
 
 /** Clone the fitted template, sharing geometry and textures; only tint materials differ. */
-export function createRoleOutfit(roleId,{vest,scarf,securityVest,headphones}={}) {
+export function createRoleOutfit(roleId,{vest,scarf,securityVest,headphones}={}, {runtime='claude'}={}) {
   const spec=ROLE_OUTFITS.find(row=>row.id===roleId);
   if(!spec)throw Error('Unknown role outfit: '+roleId);
-  const template=spec.clothing==='scarf'?scarf:roleId==='security'&&securityVest?securityVest:vest;
+  if(!['claude','codex'].includes(runtime))throw Error('Unknown panda runtime: '+runtime);
+  const grove=Boolean(GROVE_ROLES[roleId]),palette=grove?rolePalette(roleId,runtime):null;
+  const template=spec.clothing==='scarf'?scarf:!grove&&roleId==='security'&&securityVest?securityVest:vest;
   if(!template)throw Error('Missing fitted '+spec.clothing+' template for '+roleId);
   const group=new T.Group();group.name='Role outfit · '+roleId;
-  const garment=template.clone(true);recolor(garment,spec.color,spec.clothing==='scarf');
+  const garment=template.clone(true);recolor(garment,palette?.main||spec.color,spec.clothing==='scarf');
   group.add(garment);
-  const headwear=createRoleHeadwear(roleId);if(headwear)group.add(headwear);
-  roleAccessories(group,roleId);
-  if(roleId==='developer'){
-    if(!headphones)throw Error('Missing fitted Developer headphones');
-    group.add(headphones.clone(true));
-  }
-  group.userData={outfitRole:roleId,clothing:spec.clothing,headwear:spec.headwear};
+  const headwear=createRoleHeadwear(roleId,{runtime});if(headwear)group.add(headwear);
+  if(grove)group.add(groveDetails(roleId,palette,runtime));else roleAccessories(group,roleId);
+  group.userData={outfitRole:roleId,clothing:spec.clothing,headwear:spec.headwear,runtime,...(palette?{palette}:{})};
   return group;
 }
 
@@ -78,12 +120,12 @@ export function completeRoleOutfits(den) {
     scarf:resident('qa')?.getObjectByName('Wardrobe · qa-scarf'),
     securityVest:resident('security')?.getObjectByName('Wardrobe · security-vest'),
     headphones:resident('developer')?.getObjectByName('Wardrobe · developer-headphones')};
-  const staged=ROLE_OUTFITS.map(spec=>{
+  const staged=ROLE_OUTFITS.filter(spec=>spec.id!=='runner'||resident('runner')).map(spec=>{
     const person=resident(spec.id);if(!person)throw Error('Missing role resident: '+spec.id);
-    return {person,outfit:createRoleOutfit(spec.id,templates)};
+    return {person,outfit:createRoleOutfit(spec.id,templates,{runtime:person.userData.runtime||'claude'})};
   });
   for(const template of Object.values(templates))template?.removeFromParent();
   for(const{person,outfit}of staged)person.add(outfit);
-  den.roleOutfits={loaded:ROLE_OUTFITS.map(spec=>spec.id),headwear:ROLE_OUTFITS.filter(spec=>spec.headwear).map(spec=>spec.id)};
+  den.roleOutfits={loaded:staged.map(({person})=>person.userData.roleId),headwear:staged.filter(({outfit})=>outfit.userData.headwear).map(({person})=>person.userData.roleId)};
   return den.roleOutfits;
 }
