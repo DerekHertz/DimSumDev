@@ -88,7 +88,7 @@ describe("dispatch: a fake-runtime agent starts, streams events, and is killed (
     assert.equal(a.ref, DISPATCH_REF);
     assert.equal(a.role, "architect");
     assert.match(a.sessionId, UUID_RE);
-    assert.equal(a.runtime, t.fake.id);
+    assert.equal(a.runtime, "claude");
     assert.equal(a.state, "working");
     assert.equal(a.resume, null, "resume is null while the process runs");
     assert.ok(!Number.isNaN(Date.parse(a.startedAt)));

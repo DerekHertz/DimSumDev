@@ -43,25 +43,30 @@ test("the fake runtime sees a bridge-derived project on a den run, a target run 
   const dir = projectRepo();
   assert.deepEqual(await addProject(denState, { slug: "acme", path: dir, board: { kind: "markdown" } }), { ok: true });
   const pluginDir = path.join(t.fx.root, ".claude");
+  const recipeFile = path.join(pluginDir, "agents", "architect.md");
 
   const den = await t.post("/agents", { ref: DISPATCH_REF, role: "architect" });
   assert.equal(den.status, 201, den.text);
-  assert.deepEqual(t.fake.spawns.at(-1).args.project, { control: true, root: t.fx.root, pluginDir });
+  assert.deepEqual(t.fake.spawns.at(-1).args.project, { control: true, root: t.fx.root, pluginDir, recipeFile });
   t.fake.spawns.at(-1).exit();
   await until(async () => (await t.state()).agents.find((a) => a.id === den.body.agent.id)?.state !== "working", { what: "the den run to end" });
 
   assert.equal((await t.post("/projects/active", { slug: "acme" })).status, 200);
-  // A client-supplied project in the body changes nothing: the bridge derives it.
-  const started = await t.post("/agents", { ref: "pf/01-first", role: "architect", project: { control: true, root: "/tmp", pluginDir: "/tmp/.claude" } });
+  // The selector accepts an onboarded slug, never client-supplied execution paths.
+  const count = t.fake.spawns.length;
+  const forged = await t.post("/agents", { ref: "pf/01-first", role: "architect", project: { control: true, root: "/tmp", pluginDir: "/tmp/.claude" } });
+  assert.equal(forged.status, 400, forged.text);
+  assert.equal(t.fake.spawns.length, count);
+  const started = await t.post("/agents", { ref: "pf/01-first", role: "architect", project: "acme" });
   assert.equal(started.status, 201, started.text);
-  assert.deepEqual(t.fake.spawns.at(-1).args.project, { control: false, root: dir, pluginDir });
+  assert.deepEqual(t.fake.spawns.at(-1).args.project, { control: false, root: dir, pluginDir, recipeFile });
   t.fake.spawns.at(-1).exit();
   await until(async () => (await t.state()).agents.find((a) => a.id === started.body.agent.id)?.state !== "working", { what: "the target run to end" });
 
   const follow = await t.post("/conversations/architect/message", { text: "and then?", runId: started.body.agent.id });
   assert.equal(follow.status, 201, follow.text);
   assert.equal(follow.body.resumed, true);
-  assert.deepEqual(t.fake.spawns.at(-1).args.project, { control: false, root: dir, pluginDir });
+  assert.deepEqual(t.fake.spawns.at(-1).args.project, { control: false, root: dir, pluginDir, recipeFile });
 });
 
 test("a target run started with host.start gets the target flags from the real runtime", async () => {
