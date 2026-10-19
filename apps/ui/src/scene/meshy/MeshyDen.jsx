@@ -6,6 +6,7 @@ import {createMeshyActors} from './actors.mjs';
 import {liveActorsFromSnapshot} from '../../review/live-actors.mjs';
 import {agentFor,cardFor,pickedCard} from '../../overlay/proximity-card.mjs';
 import {TABLE,seatSpots,seated,tableMeeting} from './meeting-table.mjs';
+import {sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 
 // Native R3F scene. App remains the sole owner of live state, actions and panels.
 export function MeshyDen({snapshot,cells,frontier,tally,selected,onSelect,onOpenTally,stage,onReady,onNearby,picked=null,onPick,zoneView=null,onZoneClick=null,onLoadState,bindings=null,onOpenMeeting=null}){
@@ -36,8 +37,10 @@ export function MeshyDen({snapshot,cells,frontier,tally,selected,onSelect,onOpen
  useEffect(()=>{live.current?.agents.setSelected(selected??null);},[den,selected]);
  useFrame((_,delta)=>{
   const l=live.current;if(!l)return;const dt=Math.min(delta,.1);l.agents.update(dt,l.media.matches);l.elapsed=(l.elapsed||0)+(l.media.matches?0:dt);l.den.ambient.pose(l.elapsed,null,l.media.matches);l.den.garden.assets.tea.koi.update(dt,l.media.matches);l.den.world.updateMatrixWorld(true);
-  const figures=l.agents.liveFigures();for(const ref of l.anchored)if(!figures.has(ref)){stage.anchors.delete(ref);l.anchored.delete(ref);}
-  for(const [ref,{model}]of figures){stage.anchors.set(ref,model.localToWorld(new THREE.Vector3(0,3.4,0)));l.anchored.add(ref);}
+  const figures=l.agents.liveFigures(),anchorsNow=new Map();
+  for(const [key,{model,ref,runtime}]of figures){const at=model.localToWorld(new THREE.Vector3(0,3.4,0));anchorsNow.set(key,at);if(runtime==='claude')anchorsNow.set(ref,at);}
+  for(const key of l.anchored)if(!anchorsNow.has(key)){stage.anchors.delete(key);l.anchored.delete(key);}
+  for(const [key,at]of anchorsNow){stage.anchors.set(key,at);l.anchored.add(key);}
   for(const [ref,basket]of l.den.frontier)stage.anchors.set(ref,basket.localToWorld(new THREE.Vector3(0,.6,0)));
   const anchors=stage.meetingAnchors??(stage.meetingAnchors=new Map());anchors.clear();
   if(l.meeting)for(const [role,model]of l.agents.seatModels())anchors.set(role,model.localToWorld(new THREE.Vector3(0,3.4,0)));
@@ -48,11 +51,12 @@ export function MeshyDen({snapshot,cells,frontier,tally,selected,onSelect,onOpen
   l.proximity+=dt;if(l.proximity<.1)return;l.proximity=0;
   let card=null;const walking=!!stage.explorer?.active,pick=walking?null:inputs.current.picked;
   if(walking||pick!=null){
-   const snap=inputs.current.snapshot,boundRefs=new Set([...l.agents.actors.values()].map(a=>a.live?.ref).filter(Boolean));
+   const snap=inputs.current.snapshot,boundRefs=new Set([...l.agents.actors.values()].filter(a=>a.live).map(a=>boundAgentKey(a.live)));
    const pandas=[...l.agents.actors].map(([id,a])=>{
-    const position=a.panda.model.getWorldPosition(new THREE.Vector3()),agent=agentFor({role:a.role,ref:a.live?.ref},snap?.agents,boundRefs);
-    const cell=a.live?(snap?.cells||[]).filter(row=>row.ref===a.live.ref&&(!row.cellType||row.cellType===a.role)).reduce((last,row)=>!last||Date.parse(row.lastEventAt)>Date.parse(last.lastEventAt)?row:last,null):null;
-    return {id,name:a.name,role:a.role,station:a.station,position:{x:position.x,z:position.z},ref:a.live?.ref,state:a.live?.state,tool:cell?.tool??null,agent};
+    const identity={role:a.role,runtime:a.runtime,projectId:a.live?.projectId,agentId:a.live?.agentId,ref:a.live?.ref};
+    const position=a.panda.model.getWorldPosition(new THREE.Vector3()),agent=agentFor(identity,snap?.agents,boundRefs);
+    const cell=a.live?(snap?.cells||[]).filter(row=>row.ref===a.live.ref&&sameResident({...row,role:row.cellType||a.role},identity)).reduce((last,row)=>!last||Date.parse(row.lastEventAt)>Date.parse(last.lastEventAt)?row:last,null):null;
+    return {id,name:a.name,...identity,station:a.station,position:{x:position.x,z:position.z},ref:a.live?.ref,state:a.live?.state||'resident',tool:cell?.tool??null,agent};
    });
    const camera=walking?stage.explorer.camera:null;
    card=camera?cardFor(pandas,snap?.approvals||[],{x:camera.position.x,z:camera.position.z,yaw:camera.rotation.y}):pickedCard(pandas,snap?.approvals||[],pick);

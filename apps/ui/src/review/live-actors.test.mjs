@@ -9,8 +9,8 @@
 //     state  PR #162 actor state: 'working' | 'needs-you' | 'blocked'
 //     bubble the latest tool (name and summary) while it is younger than TOOL_BUBBLE_TTL_MS, else ''
 //     task   contains the ticket ref
-//   A role with no live agent has no entry. An agent is live while its ticket holds a lock
-//   (snapshot.tickets[].holder) and its snapshot.cells[] entry (matched by ref) is not ended.
+//   A role with no live process has no entry. Holder locks need a matching active
+//   snapshot.cells[] entry or snapshot.agents[] run; locks alone are not activity.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { liveActorsFromSnapshot, TOOL_BUBBLE_TTL_MS } from "./live-actors.mjs";
@@ -39,7 +39,7 @@ const cellRow = (ref, cellType, tool, extra = {}) => ({
   tool,
   ...extra,
 });
-const snap = (tickets, cells = []) => ({ tickets, cells });
+const snap = (tickets, cells = tickets.filter(t=>t.holder).map(t=>cellRow(t.ref,t.holder.cell,null))) => ({ tickets, cells });
 const byRole = (actors, role) => actors.filter((a) => a.role === role);
 
 test("a bound agent maps to an actor of its role, working, with its ticket as the task", () => {
@@ -84,7 +84,7 @@ test("a newer tool call replaces the bubble immediately", () => {
 });
 
 test("a bound agent with no tool call yet has an empty bubble, not a stale or invented one", () => {
-  const s = snap([ticket("fx/01-a", "claimed", "architect")], []);
+  const s = snap([ticket("fx/01-a", "claimed", "architect")], [cellRow('fx/01-a','architect',null)]);
   const [a] = liveActorsFromSnapshot(s, { now: T0 });
   assert.equal(a.role, "architect");
   assert.equal(a.bubble, "");
@@ -238,7 +238,7 @@ test("two bridge agents of one role: the first by ref takes the role's panda, th
 });
 
 test("a ticket held by one role with a bridge agent of another role on it shows both", () => {
-  const s = live([ticket("fx/01-a", "in-review", "qa")], [agentRow("fx/01-a", "security")]);
+  const s = live([ticket("fx/01-a", "in-review", "qa")], [agentRow("fx/01-a", "security")], [cellRow('fx/01-a','qa',null)]);
   assert.deepEqual(liveActorsFromSnapshot(s, { now: T0 }).map((a) => a.role).sort(), ["qa", "security"]);
 });
 

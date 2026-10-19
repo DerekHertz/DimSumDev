@@ -41,6 +41,7 @@ import { deskActivity } from "./shell/desk-model.mjs";
 import { actorBindings, NAVIGATION_TARGETS, MESHY_STATION_LABELS } from "./scene/meshy/layout.mjs";
 import { MeetingLayer } from "./scene/MeetingLayer.jsx";
 import { claimOf, tableMeeting } from "./scene/meshy/meeting-table.mjs";
+import { RESIDENTS, RUNTIME_UNAVAILABLE, boundAgentKey } from './shell/resident-inventory.mjs';
 
 class SceneBoundary extends Component {
   state={error:null};
@@ -209,10 +210,11 @@ export function App() {
     return () => { current = false; };
   }, [claimKey, bridge, inDemo, steering.state]); // eslint-disable-line react-hooks/exhaustive-deps
   const residentCard = useCallback(row => {
-    const boundRefs=new Set([...bindings.values()].map(actor=>actor.ref));
+    const boundRefs=new Set([...bindings.values()].map(boundAgentKey));
     return pickedCard([{...row,agent:agentFor(row,snapshot?.agents,boundRefs)}],snapshot?.approvals,row.id);
   },[bindings,snapshot?.agents,snapshot?.approvals]);
   const residentTalkState = useCallback(row => {
+    if(row.runtime==='codex')return {enabled:false,reason:RUNTIME_UNAVAILABLE};
     if(inDemo)return {enabled:false,reason:'Leave the demo to talk to a panda.'};
     if(connection.phase!=='live')return {enabled:false,reason:'Reconnect to the den to open a conversation.'};
     const card=residentCard(row);
@@ -231,7 +233,7 @@ export function App() {
     else {setPicked(row.id);setNearby(card);message.openFrom(card);}
   },[residentTalkState,residentCard,stage,approval.review,message.composer,message.openFrom,transcript.close,transcript.openFor,unpick]);
   const viewResidentWork = useCallback(row => {
-    if(!row.ref)return;
+    if(row.runtime==='codex'||!row.ref)return;
     navigateDesk('pandas');selectTicket(row.ref);
   },[navigateDesk,selectTicket]);
   const [zoneNotice, setZoneNotice] = useState(null);
@@ -347,7 +349,7 @@ export function App() {
             client={bridge} signedIn={steering.state !== "none"} demo={inDemo} />
         </aside>
       </div>
-      <footer className="forest-page-footer"><span>DIM SUM DEV <span aria-hidden="true">·</span> A place for good work.</span><span>14 residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}</span></footer>
+      <footer className="forest-page-footer"><span>DIM SUM DEV <span aria-hidden="true">·</span> A place for good work.</span><span>{RESIDENTS.length} residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}</span></footer>
       {denDemo.active ? <DemoStrip loops={denDemo.loops} /> : null}
       <DemoAnnouncer text={denDemo.announcement} />
     </div>

@@ -1,4 +1,5 @@
 import { LIVE_ROLES } from '../../review/live-actors.mjs';
+import { residentKey, sameResident } from '../../shell/resident-inventory.mjs';
 export const canonicalRole = id => ({release:'release-manager',keeper:'knowledge-keeper',writer:'docs-writer',cub:'stem-cub'}[id] || id);
 export const RESIDENT_HEIGHT = 2.04;
 export const PLAYER_EYE_HEIGHT = 1.82;
@@ -6,12 +7,12 @@ export const WALK_START = Object.freeze({x:0,z:34,yaw:0,pitch:.04,groundY:.26,ey
 export const NAVIGATION_TARGETS = Object.freeze({pass:[0,2,-17.4],center:[0,2,0],steamers:[-20.2,1,-11.9],'front-of-house':[21,1,5],front:[21,1,5],tea:[20.2,1,-11.9],pantry:[20.2,1,-11.9],library:[-21,1,6],gate:[0,1,34],training:[0,1,25.6],festival:[-26,1,20],dining:[-10,1,20.5],pavilion:[10.5,1,20.5],games:[-10,1,20.5]});
 export function actorBindings(live=[],previous=new Map()) {
   const next=new Map();
-  for(const role of LIVE_ROLES){
-    const rows=live.filter(a=>a.role===role),old=previous.get(role);
-    const primary=rows.find(a=>a.ref===old?.ref)||rows[0];
+  for(const runtime of ['claude','codex'])for(const role of LIVE_ROLES){
+    const key=residentKey(role,runtime),rows=live.filter(a=>sameResident(a,{role,runtime,projectId:a.projectId})),old=previous.get(key);
+    const primary=rows.find(a=>a.ref===old?.ref&&sameResident(a,old))||rows[0];
     if(!primary)continue;
-    next.set(role,primary);
-    for(const row of rows)if(row!==primary)next.set(`${role}#${row.ref}`,row);
+    next.set(key,primary);
+    for(const row of rows)if(row!==primary)next.set(`${key}#${row.ref}`,row);
   }
   return next;
 }
