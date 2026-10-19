@@ -29,6 +29,10 @@ test('ten approved pairs invert fabric and closures without modifying templates 
   if(role!=='orchestrator')assert.deepEqual(natural('claude'),natural('codex'),role+' tools retain natural materials');
  });
  assert.throws(()=>createRoleOutfit('product',fitted,{runtime:'unknown'}),/runtime/i);
+ const bao=createRoleOutfit('orchestrator',fitted),jiao=createRoleOutfit('orchestrator',fitted,{runtime:'codex'});
+ assert.ok(bao.getObjectByName('Curved shawl collar'));
+ assert.ok(jiao.getObjectByName('Folded collar'));
+ assert.equal(jiao.getObjectByName('Curved shawl collar'),undefined);
 });
 test('headwear and props carry approved silhouettes with practical crown and paw bounds',()=>{
  for(const role of roles)for(const runtime of ['claude','codex']){

@@ -42,9 +42,23 @@ function groveDetails(role,palette,runtime){
   const b=clothBuilder(palette),{box,orb,ring,tube,closure}=b;
   const cuffs=[];
   const folded=role==='orchestrator'&&runtime==='codex';
+  const collar=clothBuilder(palette);
   // The open jacket leaves the approved belly and the original fur visible.
-  tube([[-.68,2.10,.27],[-.50,2.06,.57],[0,1.99,.81],[.50,2.06,.57],[.68,2.10,.27]],.085,'main');
-  tube([[-.58,2.13,.34],[-.36,2.06,.68],[.06,1.99,.85],[.49,2.08,.56]],.055,'accent');
+  if(folded){
+    const panel=(from,to,key,width)=>{
+      const start=new T.Vector3(...from),end=new T.Vector3(...to),direction=end.clone().sub(start);
+      const mesh=collar.box([direction.length(),width,.045],key,start.add(end).multiplyScalar(.5).toArray());
+      mesh.quaternion.setFromUnitVectors(new T.Vector3(1,0,0),direction.normalize());
+    };
+    for(const sign of[-1,1]){
+      panel([sign*.66,2.13,.29],[sign*.29,2.05,.67],'main',.17);
+      panel([sign*.29,2.05,.67],[-sign*.06,1.98,.85],'main',.17);
+    }
+    panel([-.55,2.13,.42],[.08,1.98,.89],'accent',.095);
+  }else{
+    collar.tube([[-.68,2.10,.27],[-.50,2.06,.57],[0,1.99,.81],[.50,2.06,.57],[.68,2.10,.27]],.085,'main');
+    collar.tube([[-.58,2.13,.34],[-.36,2.06,.68],[.06,1.99,.85],[.49,2.08,.56]],.055,'accent');
+  }
   for(const sign of[-1,1]){
     tube([[sign*.91,1.30,.04],[sign*.76,1.30,.64],[sign*.50,1.30,.91],[sign*.16,1.30,1.04]],.022,'main');
     const tail=box([folded?.15:.19,.32,.045],sign<0?'main':'accent',[sign*.12,1.85,.91]);tail.rotation.z=sign*(folded?.45:.30);
@@ -62,7 +76,8 @@ function groveDetails(role,palette,runtime){
     box([.025,.025,.02],'bamboo',[-.50,1.63+i*.17,.93]);
   }
   if(role==='orchestrator'&&runtime==='codex')box([.12,.24,.02],'cream',[.50,1.89,.92]).rotation.z=-.12;
-  const result=b.finish('Grove collar, cuffs and pocket',{groveRole:role,runtime});result.add(...cuffs);return result;
+  const result=b.finish('Grove collar, cuffs and pocket',{groveRole:role,runtime});
+  result.add(collar.finish(folded?'Folded collar':'Curved shawl collar'),...cuffs);return result;
 }
 
 function roleAccessories(group,id) {
