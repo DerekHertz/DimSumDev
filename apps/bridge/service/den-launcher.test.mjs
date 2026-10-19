@@ -24,6 +24,7 @@ import { fileURLToPath } from "node:url";
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 appendFileSync(path.join(root, "starts.log"), process.pid + "\\n");
 process.on("SIGTERM", () => process.exit(143));
+process.on("SIGUSR2", () => appendFileSync(path.join(root, "usr2.log"), process.pid + "\\n"));
 if (${JSON.stringify(mode)} === "crash") process.exit(1);
 if (${JSON.stringify(mode)} === "silent") setInterval(() => {}, 1000);
 else if (${JSON.stringify(mode)} === "redirect") http.createServer((req, res) => { if (req.url === "/ok") res.end("ok"); else { res.writeHead(302, { location: "/ok" }); res.end(); } }).listen(Number(process.env.PORT), "127.0.0.1");
@@ -282,6 +283,27 @@ describe("the launcher (den-mvp/77)", () => {
         assert.ok(done.code === 143 || done.code === 0 || done.signal === "SIGTERM", `a stop is a clean exit, got ${JSON.stringify(done)}`);
         assert.equal(alive(pid), false, "the bridge does not outlive the launcher");
       } finally {
+        proc.kill("SIGKILL");
+      }
+    });
+
+    test("a SIGUSR2 (npm run den:link) reaches the bridge and stops nothing", async () => {
+      await put(c2);
+      await releases.switchBridge(shas[c2]);
+      const proc = spawn(process.execPath, [LAUNCHER], { cwd: repo, env: { PATH: process.env.PATH, DEN_STATE_DIR: state, PORT: String(port) }, stdio: "ignore" });
+      const usr2 = path.join(state, "releases", shas[c2].slice(0, 12), "usr2.log");
+      try {
+        for (let i = 0; i < 100 && !(await answers(port)); i += 1) await wait(50);
+        assert.equal(await answers(port), true);
+        const [pid] = starts(c2);
+        proc.kill("SIGUSR2");
+        for (let i = 0; i < 40 && !existsSync(usr2); i += 1) await wait(50);
+        assert.equal(existsSync(usr2) ? readFileSync(usr2, "utf8").trim() : "", String(pid), "the bridge got the signal");
+        assert.equal(alive(proc.pid), true, "the launcher is still running");
+        assert.equal(await answers(port), true, "the den still answers");
+      } finally {
+        proc.kill("SIGTERM");
+        await wait(300);
         proc.kill("SIGKILL");
       }
     });
