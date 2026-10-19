@@ -63,6 +63,7 @@ function loadBoard(root) {
         feature: f.name,
         num: Number(m[1]),
         title: shorten(title),
+        needsUser: /^user acts\b/i.test(header(text, "Type")),
         status: header(text, "Status").split(/\s+/)[0].toLowerCase(),
         priority: priority ? Number(priority[1]) : 2,
         blockedBy: header(text, "Blocked by"),
@@ -103,7 +104,8 @@ export async function readQueue(root) {
     if (t.lock !== null || t.status === "claimed" || t.status === "in-review") {
       const parts = (t.lock ?? "").split(/\s+/).filter(Boolean);
       inFlight.push({ ...row(t), cell: parts[0] ?? null, mode: parts[2] === "specify" || parts[2] === "verify" ? parts[2] : null });
-    } else if (t.status === "ready-for-human") {
+    } else if (t.status === "ready-for-human" || (t.status === "ready-for-agent" && t.needsUser)) {
+      // den-mvp/105: a `user acts` ticket needs the user, not an agent, so it waits on the user.
       waitingOnUser.push(row(t));
     } else {
       const open = blockerRefs(t, byKey).filter((b) => !GONE.has(tickets.get(b).status));

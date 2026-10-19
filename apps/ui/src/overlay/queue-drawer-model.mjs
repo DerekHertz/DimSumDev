@@ -21,7 +21,7 @@ export function queueDrawerModel(snapshot, nowMs) {
     depths.set(ref, d);
     return d;
   };
-  const stateOf = (t) => (openBlockers(t).length ? "waiting" : t.status === "in-review" ? "review" : YOU.has(t.status) ? "you" : "ready");
+  const stateOf = (t) => (openBlockers(t).length ? "waiting" : t.status === "in-review" ? "review" : YOU.has(t.status) || (t.status === "ready-for-agent" && t.type === "user") ? "you" : "ready");
   const row = (t) => ({
     ref: t.ref,
     short: shortRef(t.ref),

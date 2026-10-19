@@ -250,3 +250,14 @@ test("AC5 npm run queue is wired to scripts/queue.mjs", () => {
   const pkg = JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8"));
   assert.match(pkg.scripts.queue ?? "", /scripts\/queue\.mjs/);
 });
+
+test("den-mvp/105 a user acts ticket at ready-for-agent waits on the user, is not ready, proposed or ranked", () => {
+  const root = boardRoot();
+  ticket(root, "alpha/401-user", { type: "user acts", title: "User does it" });
+  ticket(root, "alpha/402-agent", { title: "Agent does it" });
+  const q = readJson(root);
+  assert.deepEqual(refs(q.waitingOnUser), ["alpha/401-user"]);
+  assert.deepEqual(refs(q.ready), ["alpha/402-agent"]);
+  assert.deepEqual(q.ready.map((r) => r.rank), [1]);
+  assert.deepEqual(refs(q.proposed), ["alpha/402-agent"]);
+});
