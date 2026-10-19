@@ -28,7 +28,11 @@ import { isBrowserFile } from "./test-split.mjs";
 export const TEST_FILE_RE = /\.(test|spec)\.[cm]?[jt]sx?$/;
 const NAME_RE = /\b(?:test|it|describe|suite)(?:\.\w+)*\s*\(\s*(["'`])((?:(?!\1)[^\\\n]|\\.)*)\1/g;
 const ASSERT_RE = /\b(?:assert(?:\.\w+)*|expect|t\.assert\.\w+)\s*\(/g;
-const SKIP_RE = /\b(?:test|it|describe|suite)\.(?:skip|todo|only)\b|\bt\.(?:skip|todo)\s*\(|\b(?:skip|todo|only)\s*:\s*(?!false\b)\S/;
+// A skip/todo/only key counts only where an object key can stand (after "{", "," or at a line start), and is read with
+// strings emptied, so a test title like "new admissions only: ..." is not one.
+const SKIP_RE = /\b(?:test|it|describe|suite)\.(?:skip|todo|only)\b|\bt\.(?:skip|todo)\s*\(|(?:^|[{,])\s*(?:skip|todo|only)\s*:\s*(?!false\b)\S/;
+const LINE_STRING_RE = /"(?:\\.|[^"\\])*"|'(?:\\.|[^'\\])*'|`(?:\\.|[^`\\])*`/g;
+const addsSkip = (line) => SKIP_RE.test(line.replace(LINE_STRING_RE, (m) => m[0] + m[0]));
 const EARLY_RETURN_RE = /^\s*(?:if\s*\(.*\)\s*)?return\s*;?\s*$/;
 const STRICT_NAME_RE = /^(?:not)?(?:deep)?strictEqual$/i;
 const CALL_RE = /\b(assert(?:\.\w+)*|expect|t\.assert\.\w+)\s*\(\s*([^,)]*)/g;
@@ -187,7 +191,7 @@ function staticHits(cwd, base, head) {
     const addedAll = new Set(hs.flatMap((h) => h.added.map((l) => l.trim())));
     for (const h of hs) {
       for (const l of h.added) {
-        if (SKIP_RE.test(l)) add(c.path, `skip, todo or only added: ${l.trim()}`);
+        if (addsSkip(l)) add(c.path, `skip, todo or only added: ${l.trim()}`);
         if (EARLY_RETURN_RE.test(l)) add(c.path, `early return added: ${l.trim()}`);
       }
       const paired = Math.min(h.removed.length, h.added.length);
