@@ -1,5 +1,5 @@
 // den-mvp/88 (ADR 0027): the router's decision, a pure function. No process, no clock, no network.
-//   decide({ order, tickets, state, usage, stops, downForMs }) -> { actions, stops, waiting }
+//   decide({ order, tickets, state, usage, stops, downForMs, changed }) -> { actions, stops, waiting }
 //   order     parseOrder's result: { entries: [{ ref: "fx/1", notBeside: [] }] } (short refs)
 //   tickets   the board as scripts/batch-groups.mjs reads it: [{ ref: "fx/01-slug", text, locked }]
 //   state     the bridge's GET /state, or null when the bridge does not answer. Read: capacity { room, refs: [{ ref, kind }] },
@@ -7,6 +7,8 @@
 //   usage     what `scripts/usage.mjs --live` printed ({ "5-hour": { percent }, source, stale?, unknown? }), or { error } when it failed
 //   stops     keys already recorded on the board (an array): a stop whose key is in it is not returned again
 //   downForMs how long the bridge has not answered (the runner measures it)
+//   changed   Map of delivery id -> the files its branch changed (the runner reads git). A delivery missing from it holds
+//             the files its ticket names; a delivery on a resolved or closed ticket holds nothing.
 //   actions   [{ type: "start", ref: <full board ref> } | { type: "resume", id }], in the order to run them
 //   stops(out) [{ key, kind, ref?, text }]: kind is the pause kind verbatim, or "bridge-down" | "usage-reading"
 //   waiting   null, or a string that says why nothing was started (a wait is never a stop)
@@ -187,5 +189,24 @@ describe("pairing by files (from 83)", () => {
     assert.deepEqual(starts(run({ order: order("1", "2"), tickets: [tk(1, { ...none, status: "claimed" }), tk(2, { paths: P("y") })], state: bridge({ room: 1, deliveries: [dl(1)] }) })), []);
     // a candidate with unknown files is not started beside a running ticket
     assert.deepEqual(starts(run({ order: order("1", "2", "3"), tickets: [tk(1, { status: "claimed", paths: P("x") }), tk(2, none), tk(3, { paths: P("z") })], state: bridge({ room: 1, deliveries: [dl(1)] }) })), [full(3)]);
+  });
+  test("a paused delivery holds the files its branch changed, not 'everything', when its ticket names none", () => {
+    const tickets = [tk(1, { status: "in-review", paths: [] }), tk(2, { paths: P("y") }), tk(3, { paths: P("x") })];
+    const state = bridge({ room: 2, deliveries: [dl(1, "paused", "failed-twice")] });
+    assert.deepEqual(starts(run({ order: order("2", "3"), tickets, state })), [], "without the diff it holds everything");
+    assert.deepEqual(starts(run({ order: order("2", "3"), tickets, state, changed: new Map([["d-1", P("x")]]) })), [full(2)]);
+    assert.deepEqual(starts(run({ order: order("2", "3"), tickets, state, changed: new Map([["d-1", []]]) })), [full(2), full(3)], "an empty diff holds nothing");
+  });
+  test("a delivery whose ticket is resolved or closed holds nothing", () => {
+    for (const status of ["resolved", "closed"]) {
+      const r = run({ order: order("2"), tickets: [tk(1, { status, paths: [] }), tk(2, { paths: P("y") })], state: bridge({ room: 1, deliveries: [dl(1, "paused", "no-commit")] }) });
+      assert.deepEqual(starts(r), [full(2)], status);
+    }
+  });
+  test("a directory or glob path overlaps the files under it", () => {
+    const state = bridge({ room: 1, deliveries: [dl(1)] });
+    const holder = tk(1, { status: "claimed", paths: ["apps/b/server.mjs"] });
+    for (const p of ["apps/b/", "apps/*.mjs", "apps/b/server.mjs"]) assert.deepEqual(starts(run({ order: order("2"), tickets: [holder, tk(2, { paths: [p] })], state })), [], p);
+    assert.deepEqual(starts(run({ order: order("2"), tickets: [holder, tk(2, { paths: ["apps/bb/"] })], state })), [full(2)]);
   });
 });

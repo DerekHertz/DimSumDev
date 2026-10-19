@@ -14,7 +14,7 @@ import http from "node:http";
 import { mkdtemp, rm, stat, readFile, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createBridgeClient, readLiveUsage, cachedReading } from "./client.mjs";
+import { createBridgeClient, readLiveUsage, cachedReading, readChangedFiles } from "./client.mjs";
 import { ensureServiceToken, readServiceToken, serviceTokenPath } from "./service-token.mjs";
 
 describe("the bridge client", () => {
@@ -172,5 +172,29 @@ describe("the service token file", () => {
     } finally {
       await rm(empty, { recursive: true, force: true });
     }
+  });
+});
+
+describe("readChangedFiles", () => {
+  const A = "a".repeat(40);
+  const B = "b".repeat(40);
+  test("diffs each open delivery's base against its candidate, else its branch; skips finished or unreadable ones", async () => {
+    const calls = [];
+    const git = async (cwd, args) => {
+      calls.push(args);
+      if (args.includes("den/bad")) throw new Error("unknown revision");
+      return "apps/x.mjs\napps/y.mjs\n";
+    };
+    const out = await readChangedFiles("/root", [
+      { id: "d-1", state: "paused", base: A, candidate: { sha: B }, branch: "den/one" },
+      { id: "d-2", state: "running", base: A, branch: "den/two" },
+      { id: "d-3", state: "merged", base: A, branch: "den/three" },
+      { id: "d-4", state: "paused", base: A, branch: "den/bad" },
+      { id: "d-5", state: "paused", base: "main", branch: "den/five" },
+      { id: "d-6", state: "paused", base: A, branch: "--output=x" },
+    ], { git });
+    assert.deepEqual([...out.keys()], ["d-1", "d-2"]);
+    assert.deepEqual(out.get("d-1"), ["apps/x.mjs", "apps/y.mjs"]);
+    assert.deepEqual(calls.map((a) => a.slice(2, 4)), [[A, B], [A, "den/two"], [A, "den/bad"]]);
   });
 });

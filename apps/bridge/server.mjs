@@ -29,6 +29,7 @@ import { createMeetingLog } from "./meetings/log.mjs";
 import { TOPIC_MAX_BYTES } from "./meetings/types.mjs";
 import { DEN_FEATURE, DESK_REF, TASK_MAX_BYTES } from "./cells/policy.mjs";
 import { BoardError, comment, createTicket, isBoardCell, modeAllowed, resolve, resolveShortRef, setOffRelay } from "../organism-infra/board-service.mjs";
+import { appendToOrder } from "../router/order.mjs";
 import { cleanText } from "./cells/approvals.mjs";
 
 // den-mvp/55: Bao's board_file batch. The allow is matched against the whole batch as the user saw it (cleaned the way
@@ -127,7 +128,7 @@ function installProcessHandlers(host) {
 // it the watch only reads its record, so a test never reaches the git host by the timer.
 // den-mvp/34: checks (delivery/checks.mjs) runs ci.yml's checks here: before a delivery pushes, and on POST /checks for an
 // open pull request. With none, a delivery skips them and POST /checks is a 503.
-export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, usage: usageOption, usageByRuntime = {}, checks: checksOption = null } = {}) {
+export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, usage: usageOption, usageByRuntime = {}, checks: checksOption = null } = {}) {
   let actualPort = port;
   const git = gitHost ?? createGitHost(root);
   // den-mvp/10 and 11: the den's own build, when it is served from release folders: previews, go-live and roll back. The
@@ -854,7 +855,20 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
       if (!(err instanceof BoardError)) throw err;
       return reply(res, 409, { error: `not changed: ${err.message}` });
     }
-    reply(res, 200, { ref: body.ref, status: action === "approve" ? "ready-for-agent" : "closed" });
+    // ADR 0027: the router starts only tickets in the work order, so an approval lists the ticket last there. A `user acts`
+    // ticket (the snapshot keeps the type's first word: "user") needs the user, not an agent, and is not listed. A failed
+    // write leaves the ticket approved and unlisted.
+    let ordered = false;
+    if (action === "approve" && ticket.type !== "user") {
+      try {
+        const next = appendToOrder(await readFile(orderFile, "utf8").catch((err) => (err.code === "ENOENT" ? "" : Promise.reject(err))), body.ref);
+        if (next !== null) await writeFile(orderFile, next);
+        ordered = true;
+      } catch (err) {
+        console.error(`bridge: could not add ${body.ref} to the work order: ${err?.message ?? err}`);
+      }
+    }
+    reply(res, 200, { ref: body.ref, status: action === "approve" ? "ready-for-agent" : "closed", ...(action === "approve" ? { ordered } : {}) });
   }
   // POST /build/rollback (ADR 0026 decision 7): the user's roll back. Only `to` is read: the release the button showed as
   // previous. Anything else, and a den that runs from the checkout, is a 409 and nothing changes.
