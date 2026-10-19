@@ -21,7 +21,7 @@ export function deliverState({ ticket, snapshot, steer, inflight } = {}) {
   return { show: true, enabled: true, reason: null };
 }
 
-const STEP_WORDS = { developer: "the developer is working", qa: "qa is verifying the commit", security: "security is reviewing the commit", check: "running the scripted checks", tests: "running the checks on this machine", preview: "building the preview", "go-live": "putting the change live", publish: "opening the pull request", ci: "waiting for the checks", merge: "merging", resolve: "closing the ticket" };
+const STEP_WORDS = { developer: "the developer is working", "code-reviewer": "the code reviewer is reading the commit", qa: "qa is verifying the commit", security: "security is reviewing the commit", check: "running the scripted checks", tests: "running the checks on this machine", preview: "building the preview", "go-live": "putting the change live", publish: "opening the pull request", ci: "waiting for the checks", merge: "merging", resolve: "closing the ticket" };
 
 /** One line saying where a delivery stands. */
 export function deliveryLine(d) {
@@ -38,6 +38,7 @@ export function deliveryFacts(d) {
   const e = d?.evidence ?? {};
   const out = [];
   if (d?.candidate?.sha) out.push(`commit ${d.candidate.sha.slice(0, 7)}`);
+  if (e.review) out.push(`code review ${e.review}`);
   if (e.qa) out.push(`qa ${e.qa}`);
   if (e.risk) out.push(e.risk.clean ? "risk check clean" : `risk check: ${e.risk.hits} hit${e.risk.hits === 1 ? "" : "s"}`);
   if (e.tests) out.push(`checks here ${e.tests.state}`);

@@ -67,7 +67,8 @@ export async function makeBridge({ runtimeConfig = {}, policy, preWrite, noRunti
   const { createFakeRuntime } = await loadRuntime();
   const fx = root ? { root, cleanup: async () => {} } : await makeStateFixture({ git: !noGit });
   if (preWrite) await preWrite(fx.root);
-  const fake = createFakeRuntime(runtimeConfig);
+  // team-and-den-ux/02: a delivery's code reviewer passes by itself unless a test asks to drive it (answer: {}).
+  const fake = createFakeRuntime({ answer: { "code-reviewer": "Read the diff.\nVERDICT: pass" }, ...runtimeConfig });
   const bridge = await startBridge({
     root: fx.root,
     port: 0,

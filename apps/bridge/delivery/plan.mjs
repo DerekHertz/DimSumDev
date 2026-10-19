@@ -5,7 +5,10 @@
 //   nextStep(job) -> { kind: "run", role, mode?, at, since, fix? }      start an agent at commit `at`
 //                  | { kind: "guard" | "check" | "tests" | "preview" | "sync" | "publish" | "ci" | "merge" | "go-live" | "resolve" }   a bridge operation
 //                  | { kind: "pause", pause, reason, next }             wait for the user
-//   job = { base, candidate: { sha } | null, bounces, visual, localChecks?, evidence: { qa, security, risk, tests, preview, verdict, pr, ci, live } }
+//   job = { base, candidate: { sha } | null, bounces, visual, localChecks?, evidence: { review, qa, security, risk, tests, preview, verdict, pr, ci, live } }
+// team-and-den-ux/02 (ADR 0029 decisions 2 and 6): the code reviewer reads every candidate's diff, then qa checks its behaviour,
+// whatever the reviewer said, so one fix round carries both reviews' findings. They run one after the other until
+// team-and-den-ux/18 lets two nodes of one ticket run at once.
 // den-mvp/34: with localChecks, the bridge runs the checks of ci.yml here (delivery/checks.mjs) after the scripted risk
 // check and before security and the push. A red run goes back to the developer like a review's bounce; GitHub CI stays
 // the merge gate.
@@ -61,20 +64,21 @@ export function nextStep(job) {
   if (!c) return { kind: "run", role: "developer", at: job.startAt ?? job.base, since: job.base };
   const ev = job.evidence ?? {};
   const now = (e) => (e && e.sha === c.sha ? e : null);
-  const [qa, security, risk, pr, ci] = [now(ev.qa), now(ev.security), now(ev.risk), now(ev.pr), now(ev.ci)];
+  const [review, qa, security, risk, pr, ci] = [now(ev.review), now(ev.qa), now(ev.security), now(ev.risk), now(ev.pr), now(ev.ci)];
   const [preview, verdict, live, tests, sync, guard] = [now(ev.preview), now(ev.verdict), now(ev.live), now(ev.tests), now(ev.sync), now(ev.guard)];
 
   // The user declined this commit: the developer runs again with their note, however many times. Not a bounce.
   if (verdict?.ok === false) return { kind: "run", role: "developer", at: c.sha, since: job.base, fix: true };
+  if (!review) return { kind: "run", role: "code-reviewer", at: c.sha, since: job.base };
+  // den-mvp/70: the test guard hits go to the verifier, so it runs first. A hit blocks nothing by itself.
+  if (job.testGuard === true && !guard) return { kind: "guard" };
+  if (!qa) return { kind: "run", role: "qa", mode: "verify", at: c.sha, since: job.base };
   // A preview that did not build is a failed check, like a reviewer's bounce.
-  const bounced = [qa, security].find((e) => e?.verdict === "bounce") ?? (preview?.ok === false ? preview : undefined) ?? (tests?.state === "red" ? tests : undefined);
+  const bounced = [review, qa, security].find((e) => e?.verdict === "bounce") ?? (preview?.ok === false ? preview : undefined) ?? (tests?.state === "red" ? tests : undefined);
   if (bounced) {
     if (job.bounces >= MAX_BOUNCES) return pause("failed-twice", "the review sent the work back twice", "Read the findings on the ticket, then Resume for one more round or close the delivery.");
     return { kind: "run", role: "developer", at: c.sha, since: job.base, fix: true };
   }
-  // den-mvp/70: the test guard hits go to the verifier, so it runs first. A hit blocks nothing by itself.
-  if (job.testGuard === true && !guard) return { kind: "guard" };
-  if (!qa) return { kind: "run", role: "qa", mode: "verify", at: c.sha, since: job.base };
   if (!risk) return { kind: "check" };
   if (risk.secret) return pause("possible-secret", "the change adds a line or a file that looks like a secret; nothing was pushed", "Look at the commit yourself. Close the delivery if it holds a secret.");
   if (job.localChecks === true) {

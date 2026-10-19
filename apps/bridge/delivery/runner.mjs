@@ -1,9 +1,10 @@
 // den-mvp outcome 3 (spec sections 4 and 8, ADR 0024): the delivery runner. Starting a delivery on a ticket is the
-// user's approval of the ordinary path for it: a developer, an independent qa verify, the scripted risk check, security
+// user's approval of the ordinary path for it: a developer, the code reviewer and an independent qa verify (ADR 0029), the scripted risk check, security
 // when that check or the changed paths ask for it, then a pull request and a merge once the required checks are green.
 // The plan (plan.mjs) says what is next; this module does it, records it, and stops at the first thing that is the
 // user's. It starts agents only through the host's internal entry, so usage, enforcement, room and the wall apply to
-// every step as to any run. It holds no timer and polls nothing: it moves when a run ends, when a git-host call
+// every step as to any run. Push, pull request, merge and resolve are the release manager's steps (ADR 0029 decision 5):
+// the bridge runs them and the op log names the release manager. It holds no timer and polls nothing: it moves when a run ends, when a git-host call
 // returns, or on the user's click.
 //
 //   createDelivery({ host, board, git, log, readTicket, onChange, build?, checks? }) -> {
@@ -84,6 +85,11 @@ const testFindings = (rec) => {
 // den-mvp/49: until delivery carries a project, its claim, handoffs, push, PR and merge are the control checkout's.
 export const DEN_ONLY = "Deliver runs on the den project only, for now; switch the active project to the den first";
 
+// The evidence slot each reviewing role's verdict fills.
+const EVIDENCE_OF = { "code-reviewer": "review", qa: "qa", security: "security" };
+// The bridge's steps that belong to the release manager (ADR 0029 decision 5).
+const RELEASE_STEPS = new Set(["push", "pr", "merge", "resolve"]);
+
 export function createDelivery({ host, board, git, log, readTicket, activeProject = async () => "den", onChange = () => {}, build = null, checks = null, ciWaitMs = 15000 }) {
   const jobs = new Map(); // id -> job; insertion order is snapshot order
   let mergeChain = Promise.resolve(); // merges go one at a time
@@ -104,7 +110,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       id: j.id, ref: j.ref, title: j.title, state: j.state, step: j.step, pause: j.pause, base: j.base, branch: j.branch,
       candidate: j.candidate ? { sha: j.candidate.sha } : null, bounces: j.bounces, live: j.live ? { runId: j.live.runId, role: j.live.role, mode: j.live.mode } : null,
       evidence: {
-        qa: now(j.evidence.qa)?.verdict ?? null, security: now(j.evidence.security)?.verdict ?? null,
+        review: now(j.evidence.review)?.verdict ?? null, qa: now(j.evidence.qa)?.verdict ?? null, security: now(j.evidence.security)?.verdict ?? null,
         risk: risk ? { clean: risk.clean, hits: risk.hits, security: risk.security, userMerge: risk.userMerge } : null,
         ci: now(j.evidence.ci)?.state ?? null,
         // den-mvp/70: what the test guard flagged on this commit, for the verifier to accept or bounce.
@@ -155,6 +161,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
   };
   // A side effect: its intent is written first, its outcome after. A failure rejects, and the job is not advanced.
   async function op(job, name, detail, fn) {
+    if (RELEASE_STEPS.has(name)) detail = { ...detail, by: "release-manager" };
     await log.op(job.id, name, "intent", detail);
     try {
       const result = await fn();
@@ -221,7 +228,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     if ([...jobs.values()].some((j) => j.ref === ref && live(j))) return refuse(409, "this ticket already has a delivery; resume or close it");
     const job = {
       id: `d-${randomBytes(8).toString("hex")}`, ref, title: ticket.title ?? "", type: ticket.type, visual: VISUAL_TYPES.includes(ticket.type), state: "running", pause: null, step: null,
-      base, ...(startAt ? { startAt, from: input.from.slice(0, 100) } : {}), branch: null, candidate: null, evidence: { qa: null, security: null, risk: null, tests: null, pr: null, ci: null, verdict: null, preview: null, live: null }, localChecks: Boolean(checks), testGuard: typeof git.guard === "function", bounces: 0, declines: 0, findings: null, ciRerun: null, ciBounced: null,
+      base, ...(startAt ? { startAt, from: input.from.slice(0, 100) } : {}), branch: null, candidate: null, evidence: { review: null, qa: null, security: null, risk: null, tests: null, pr: null, ci: null, verdict: null, preview: null, live: null }, localChecks: Boolean(checks), testGuard: typeof git.guard === "function", bounces: 0, declines: 0, findings: null, ciRerun: null, ciBounced: null,
       live: null, claimed: false, runs: [], pr: null, startedAt: new Date().toISOString(), updatedAt: null, gen: 0,
     };
     jobs.set(job.id, job);
@@ -338,15 +345,20 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       const verdict = readVerdict(run.report);
       if (run.sha !== run.startSha) return giveUp("changed-commit", `the ${role} run changed the commit it was reviewing, so its verdict is not counted`, "Resume to review again.");
       if (!verdict) return giveUp("no-verdict", `the ${role} run ended without a verdict line`, "Read its report in the thread, then Resume to review again.");
-      job.evidence[role === "qa" ? "qa" : "security"] = { sha: run.startSha, runId, verdict };
+      job.evidence[EVIDENCE_OF[role]] = { sha: run.startSha, runId, verdict };
       if (verdict === "bounce") {
-        job.bounces += 1;
-        job.findings = run.report;
+        // ADR 0029 decision 6: the code reviewer and qa may both bounce one commit; that is one fix round, with both reports.
+        if (job.bouncedAt === run.startSha && job.findings) job.findings += `\n\n---\n\n${run.report}`;
+        else {
+          job.bounces += 1;
+          job.bouncedAt = run.startSha;
+          job.findings = run.report;
+        }
       }
     }
     await save(job);
     try {
-      const reviewed = role === "developer" ? null : job.evidence[role === "qa" ? "qa" : "security"].verdict;
+      const reviewed = role === "developer" ? null : job.evidence[EVIDENCE_OF[role]].verdict;
       await op(job, "release", { runId }, () => board.handoff(job.ref, { role, mode, runId, sha: run.sha, branch: run.branch, verdict: reviewed, report: run.report }));
       job.claimed = false;
     } catch (err) {
@@ -477,13 +489,14 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     [
       `Delivered from the den for ticket \`${job.ref}\`.`, "",
       `- Commit: \`${job.candidate.sha}\``,
+      ...(job.evidence.review?.sha === job.candidate.sha ? [`- Code review: ${job.evidence.review.verdict} (run ${job.evidence.review.runId})`] : []),
       `- qa verify: ${job.evidence.qa.verdict} (run ${job.evidence.qa.runId})`,
       `- Risk check: ${job.evidence.risk.clean ? "clean" : `${job.evidence.risk.hits} hit(s)`}${job.evidence.risk.userMerge ? "; touches a guardrail, bridge or check path: the user reviews and merges" : ""}`,
       // The local run is advisory (the commit's own test scripts ran it), so only its state and counts are written here.
       ...(job.evidence.guard?.sha === job.candidate.sha ? guardLines(job.evidence.guard.hits) : []),
       ...(job.evidence.tests?.sha === job.candidate.sha ? [`- Checks run on the den's machine (advisory; GitHub CI is the gate): ${job.evidence.tests.state}${job.evidence.tests.flaky?.length ? `, ${job.evidence.tests.flaky.length} test(s) passed only when run again` : ""} (record \`${job.evidence.tests.record}\`)`] : []),
       ...(job.evidence.security?.sha === job.candidate.sha ? [`- Security review: ${job.evidence.security.verdict} (run ${job.evidence.security.runId})`] : []),
-      "", "The handoffs are on the board. The bridge opened this pull request; no agent holds git-host credentials.",
+      "", "The handoffs are on the board. The bridge opened this pull request as the release manager's step; no agent holds git-host credentials.",
     ].join("\n");
 
   // The candidate on the remote branch and its pull request. What is already there is found first, so a repeat adds nothing.

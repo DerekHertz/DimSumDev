@@ -16,4 +16,6 @@ End with exactly this shape, 300 words or fewer:
 - **failures:** each error, quoted exactly, the first one first, or `none`
 
 Your parent verifies what you report.
+
+Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

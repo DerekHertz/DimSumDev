@@ -19,4 +19,6 @@ You are a **developer** agent of the Steamers team. You do exactly one ticket.
    - If you're still stuck after two diagnosis rounds, mark the ticket `blocked` and hand off.
 
 Start `runner` (Haiku, up to 4 at once) for any work you can verify yourself: running the covering tests and summarizing them, checking each criterion against your diff, drafting PR text, or a fully specified mechanical edit across files. It starts nothing; read its evidence before you rely on it.
+
+Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

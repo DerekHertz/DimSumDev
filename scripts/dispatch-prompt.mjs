@@ -29,6 +29,11 @@ const SPECS = {
   architect: { modes: null, style: "either", release: "in-review", context: true },
   developer: { modes: null, style: "branch", release: "in-review", context: true },
   security: { modes: null, style: "detach", release: "keep", context: false },
+  // ADR 0029: the reviewer, the release manager and the SRE read a commit; the writer commits docs on the ticket's branch.
+  "code-reviewer": { modes: null, style: "detach", release: "keep", context: false },
+  "release-manager": { modes: null, style: "detach", release: "keep", context: false },
+  sre: { modes: null, style: "detach", release: "keep", context: false },
+  "technical-writer": { modes: null, style: "branch", release: "in-review", context: true },
   qa: {
     modes: {
       specify: { style: "branch", release: "keep", context: true },

@@ -7,5 +7,9 @@
   "herald": { "write": "worktree", "hosts": [] },
   "developer": { "write": "worktree", "hosts": [] },
   "qa": { "write": "worktree", "hosts": [] },
-  "security": { "write": "worktree", "hosts": [] }
+  "security": { "write": "worktree", "hosts": [] },
+  "code-reviewer": { "write": "worktree", "hosts": [] },
+  "release-manager": { "write": "worktree", "hosts": [] },
+  "sre": { "write": "worktree", "hosts": [] },
+  "technical-writer": { "write": "worktree", "hosts": [] }
 }

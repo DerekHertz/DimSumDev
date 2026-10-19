@@ -27,6 +27,8 @@ test("Deliver is offered for a software ticket, once, and says why it is off", (
 
 test("a delivery's line says where it stands, and its facts are what the bridge recorded", () => {
   assert.equal(deliveryLine(d()), "The developer is working");
+  assert.equal(deliveryLine(d({ step: "code-reviewer" })), "The code reviewer is reading the commit"); // team-and-den-ux/02
+  assert.deepEqual(deliveryFacts(d({ candidate: { sha: SHA }, evidence: { review: "bounce", qa: "pass" } })).slice(0, 3), ["commit bbbbbbb", "code review bounce", "qa pass"]);
   assert.equal(deliveryLine(d({ step: "ci", pr: { number: 7 } })), "Waiting for the checks (#7)");
   assert.equal(deliveryLine(paused("ci-red")), "Waiting: because ci-red");
   assert.equal(deliveryLine(d({ state: "merged", pr: { number: 7 } })), "Merged as #7");

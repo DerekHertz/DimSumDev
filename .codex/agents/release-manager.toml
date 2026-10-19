@@ -16,4 +16,6 @@ Rules:
 - A change on the user-merge list (`apps/bridge/delivery/plan.mjs`, `USER_MERGE_PATHS`) is the user's to merge. Prepare it; never ask the bridge to merge it.
 - CI configuration is never pushed by the bridge. Say so and stop if a fix needs one.
 - Read only what the job needs. Facts about merged work come from `git log` and the delivery record, not memory.
+
+Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

@@ -321,13 +321,40 @@ test("AGENTS.md on disk is generated from CLAUDE.md, not the 5-line stub", async
 
 // ---------- hooks: Codex documents no project-dir variable ----------
 
-test(".codex/hooks.json finds the repo with git rev-parse, not $CLAUDE_PROJECT_DIR", () => {
+test(".codex/hooks.json walks up to the den root, not a nested repo, and does not use $CLAUDE_PROJECT_DIR", () => {
   const text = readFileSync(path.join(ROOT, ".codex/hooks.json"), "utf8");
   assert.ok(!/CLAUDE_PROJECT_DIR/.test(text), "Codex does not set CLAUDE_PROJECT_DIR");
   const hooks = JSON.parse(text).hooks;
   const cmds = Object.values(hooks).flatMap((evs) => evs.flatMap((e) => e.hooks.map((h) => h.command)));
   assert.ok(cmds.length >= 2);
-  for (const c of cmds) assert.match(c, /git rev-parse --show-toplevel/);
+  for (const c of cmds) {
+    assert.doesNotMatch(c, /git rev-parse --show-toplevel/, "show-toplevel picks a nested repo (.scratch, a client project)");
+    assert.match(c, /dirname/);
+  }
   assert.ok(cmds.some((c) => c.includes("scripts/session-start.mjs")));
   assert.ok(cmds.some((c) => c.includes("scripts/notify.mjs")));
+});
+
+// ---------- den-mvp/104 ----------
+
+test("every generated role body carries the Codex caveat about instruction-only tool limits", async () => {
+  const { render } = await mod();
+  const body = parseToml(render(SAMPLE())).developer_instructions;
+  assert.match(body, /Codex caveat/);
+  assert.match(body, /instructions, not enforced/);
+  assert.match(body, /read-only or workspace-write sandbox and approvals on/);
+});
+
+test("skills are mirrored from git ls-files: an untracked file is never copied", () => {
+  const { dir, w } = fixture();
+  try {
+    const g = (...a) => execFileSync("git", a, { cwd: dir, encoding: "utf8" });
+    g("init", "-q");
+    g("add", ".claude");
+    w(".claude/skills/one/stray.md", "untracked\n");
+    const r = run(dir);
+    assert.equal(r.status, 0, out(r));
+    assert.ok(existsSync(path.join(dir, ".agents/skills/one/SKILL.md")));
+    assert.ok(!existsSync(path.join(dir, ".agents/skills/one/stray.md")), "untracked file was mirrored");
+  } finally { rmSync(dir, { recursive: true, force: true }); }
 });

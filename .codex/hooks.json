@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/scripts/session-start.mjs\"",
+            "command": "d=\"$PWD\"; while [ ! -f \"$d/scripts/session-start.mjs\" ] && [ \"$d\" != / ]; do d=$(dirname \"$d\"); done; node \"$d/scripts/session-start.mjs\"",
             "timeout": 20
           }
         ]
@@ -17,7 +17,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"$(git rev-parse --show-toplevel)/scripts/notify.mjs\"",
+            "command": "d=\"$PWD\"; while [ ! -f \"$d/scripts/notify.mjs\" ] && [ \"$d\" != / ]; do d=$(dirname \"$d\"); done; node \"$d/scripts/notify.mjs\"",
             "timeout": 15
           }
         ]

@@ -16,4 +16,6 @@ qa reviews the same commit for behaviour (it runs the app and the tests). You re
 5. Report. In a den delivery, end your last message with `VERDICT: pass` or `VERDICT: bounce`, naming the candidate commit, then the findings as `file:line` with one line of why. In a terminal relay, write it with `board comment <ref> --verdict pass|bounce "<text>"` and hand off.
 
 Agent instructions and ADRs (CLAUDE.md, `.claude/agents/`, `.claude/skills/`, `docs/adr/`) are reviewed the same way: the Spec axis checks them against the ticket, and the Standards axis checks them against `writing-for-agents` and the ADR format.
+
+Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

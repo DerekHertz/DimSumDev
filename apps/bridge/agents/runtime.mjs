@@ -42,6 +42,8 @@ const CAPABILITIES = { spawn: true, stop: true, approve: true, send: false, hand
 //   config: spawnDelayMs, stdinCloseEnds, sigtermEnds, sigkillEnds, failSpawn, failSend (all mutable at runtime.config);
 //           send: true turns the send capability on (off by default, as before den-v1 loop S5)
 //   spawns: one record per spawn() call { args, handle, calls, exited, sent, emit(event), exit({ code, signal }) }
+//   answer: { <role>: <reply> } - a run of that role replies and ends by itself, and is kept in `answered`, not `spawns`
+//           (team-and-den-ux/02: tests written before the code reviewer step keep their spawn numbers)
 //   peakLive: the most spawned-and-not-yet-exited processes at once
 export function createFakeRuntime(options = {}) {
   const config = { spawnDelayMs: 0, stdinCloseEnds: true, sigtermEnds: true, sigkillEnds: true, failSpawn: false, failSend: false, send: false, ...options };
@@ -53,12 +55,17 @@ export function createFakeRuntime(options = {}) {
     capabilities: { ...CAPABILITIES, send: config.send === true, handover: config.handover !== false },
     config,
     spawns,
+    answered: [],
     peakLive: 0,
     resumeCommand: (sessionId) => `fake-claude --resume ${sessionId}`,
     async spawn(args) {
       if (config.failSpawn) throw new Error("fake runtime: spawn failed");
       const record = makeRecord(args, `fake-${(counter += 1)}`, config, () => (live -= 1));
-      spawns.push(record);
+      const reply = config.answer?.[args?.role];
+      if (typeof reply === "string") {
+        runtime.answered.push(record);
+        setImmediate(() => { record.emit({ type: "reply", text: reply }); record.emit({ type: "done", ok: true }); });
+      } else spawns.push(record);
       live += 1;
       runtime.peakLive = Math.max(runtime.peakLive, live);
       if (config.spawnDelayMs > 0) await new Promise((r) => setTimeout(r, config.spawnDelayMs));

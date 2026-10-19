@@ -43,4 +43,6 @@ If any step needs judgment beyond these rules, don't guess: say "escalate to ful
    - a test only checks mocks or implementation details, or misses an obvious edge case the ticket names
 4. Write the verdict in `## Comments`: `QA pass` or `QA bounce`, with each finding as `file:line` and one line of why.
 5. Hand off. Don't fix the code yourself; findings go back to the developer.
+
+Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''
