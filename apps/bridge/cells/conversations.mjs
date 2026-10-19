@@ -1,11 +1,11 @@
-// den-mvp outcome 2 (spec section 5): the durable conversation, one per role for this project, kept as append-only
-// files at .scratch/_run/conversations/<role>.jsonl. Every transcript entry the host records goes here as it happens,
+// Durable conversations are scoped by project, canonical runtime and role. The den/Claude file keeps its legacy
+// location at .scratch/_run/conversations/<role>.jsonl. Every transcript entry the host records goes here as it happens,
 // tagged with the run that made it and that run's ticket, so the thread a role has with the user outlives the run, a
 // reload and a bridge restart, and two runs of one role stay apart. A changed entry is appended again as a patch
 // under the same run and id; a read folds them, oldest first.
 //
-//   append(role, { runId, ref, id, ...fields })   one entry, or a patch to one already written
-//   read(role, { before?, limit? }) -> { entries, more, before }
+//   append(role, { runId, ref, id, ...fields }, { project?, runtime? })   entry or patch
+//   read(role, { before?, limit?, project?, runtime? }) -> { entries, more, before }
 //       the newest `limit` entries that end at position `before` (default: the end); `before` in the answer is the
 //       position to ask with for the page above it, and `more` says whether there is one
 //
@@ -13,6 +13,7 @@
 // plain data only. Nothing read here is authority for anything; it is shown, never run.
 import { mkdir, chmod, appendFile, open } from "node:fs/promises";
 import path from "node:path";
+import { runtimeId, validProject } from "./identity.mjs";
 import { cleanText } from "./approvals.mjs";
 import {
   AGENT_ID_RE, APPROVAL_ID_RE, APPROVAL_NOTE_MAX, CONVERSATION_PAGE, CONVERSATION_PAGE_MAX, CONVERSATION_READ_BYTES, DIRECT_MODE, MODES,
@@ -62,24 +63,31 @@ const KINDS = {
 export function validateEntry(raw) {
   if (!isObject(raw) || !AGENT_ID_RE.test(raw.runId) || typeof raw.ref !== "string" || !REF_RE.test(raw.ref)) return null;
   if (!Number.isInteger(raw.id) || raw.id < 0 || !validTs(raw.at) || !Object.hasOwn(KINDS, raw.kind)) return null;
+  const identified = Object.hasOwn(raw, "runtime") || Object.hasOwn(raw, "project");
+  if (identified && (!runtimeId(raw.runtime) || !validProject(raw.project))) return null;
   const fields = KINDS[raw.kind](raw);
-  return fields === null ? null : { runId: raw.runId, ref: raw.ref, id: raw.id, at: raw.at, kind: raw.kind, ...fields };
+  return fields === null ? null : { runId: raw.runId, ref: raw.ref, id: raw.id, at: raw.at, kind: raw.kind, ...(identified ? { runtime: raw.runtime, project: raw.project } : {}), ...fields };
 }
 
-export function createConversations(root) {
+export function createConversations(root, { projectForRun = () => "den" } = {}) {
   const dir = path.join(root, ".scratch", "_run", "conversations");
-  const fileOf = (role) => path.join(dir, `${role}.jsonl`);
-  const ensured = new Map(); // role -> the promise that its file exists with the right mode
-  const chains = new Map(); // role -> the tail of its append queue
+  const tuple = (role, { runtime, project = "den" } = {}) => {
+    const selected = runtimeId(runtime);
+    if (!ROLES.includes(role) || !selected || !validProject(project)) throw new TypeError("conversations: invalid identity");
+    return { runtime: selected, project, key: `${project}/${selected}/${role}`, file: path.join(dir, ...(project === "den" && selected === "claude" ? [] : ["projects", project, selected]), `${role}.jsonl`) };
+  };
+  const ensured = new Map(); // tuple -> the promise that its file exists with the right mode
+  const chains = new Map(); // tuple -> the tail of its append queue
 
   // Dir 0700, file 0600, set explicitly so a pre-existing looser mode is tightened too.
-  const ensure = (role) => {
+  const ensure = ({ key: role, file }) => {
     if (!ensured.has(role)) {
       ensured.set(role, (async () => {
-        await mkdir(dir, { recursive: true, mode: 0o700 });
-        await chmod(dir, 0o700);
-        await appendFile(fileOf(role), "", { mode: 0o600 });
-        await chmod(fileOf(role), 0o600);
+        const parent = path.dirname(file);
+        await mkdir(parent, { recursive: true, mode: 0o700 });
+        for (let current = parent; current.startsWith(dir); current = path.dirname(current)) await chmod(current, 0o700);
+        await appendFile(file, "", { mode: 0o600 });
+        await chmod(file, 0o600);
       })().catch((err) => {
         ensured.delete(role);
         throw err;
@@ -89,10 +97,10 @@ export function createConversations(root) {
   };
 
   // The last CONVERSATION_READ_BYTES of the file, cut at a line start: a thread older than that is not read back.
-  async function tail(role) {
+  async function tail(file) {
     let handle;
     try {
-      handle = await open(fileOf(role), "r");
+      handle = await open(file, "r");
     } catch {
       return "";
     }
@@ -110,35 +118,44 @@ export function createConversations(root) {
 
   return {
     dir,
-    // Appends are serialised per role so lines land in the order they were issued. The promise rejects on a failed write.
-    append(role, entry) {
-      if (!ROLES.includes(role)) return Promise.reject(new TypeError("conversations: unknown role"));
-      const run = (chains.get(role) ?? Promise.resolve()).then(async () => {
-        await ensure(role);
-        await appendFile(fileOf(role), JSON.stringify(entry) + "\n");
+    // Appends are serialised per tuple; the promise rejects on a failed write.
+    append(role, entry, selectors) {
+      let selected;
+      try { selected = tuple(role, selectors); } catch (err) { return Promise.reject(err); }
+      const run = (chains.get(selected.key) ?? Promise.resolve()).then(async () => {
+        await ensure(selected);
+        await appendFile(selected.file, JSON.stringify({ ...entry, runtime: selected.runtime, project: selected.project }) + "\n");
       });
-      chains.set(role, run.catch(() => {}));
+      chains.set(selected.key, run.catch(() => {}));
       return run;
     },
-    async read(role, { before, limit } = {}) {
-      if (!ROLES.includes(role)) throw new TypeError("conversations: unknown role");
-      await chains.get(role); // a page asked for right after an entry was recorded holds that entry
-      const folded = new Map(); // "<runId> <id>" -> merged raw entry, in first-seen order
-      for (const line of (await tail(role)).split("\n")) {
-        if (!line.trim()) continue;
-        let raw;
-        try {
-          raw = JSON.parse(line);
-        } catch {
-          continue;
+    async read(role, { before, limit, ...selectors } = {}) {
+      const selected = tuple(role, selectors);
+      await chains.get(selected.key);
+      const legacy = tuple(role);
+      await chains.get(legacy.key);
+      const folded = new Map();
+      const files = selected.runtime === "claude" && selected.file !== legacy.file ? [legacy.file, selected.file] : [selected.file];
+      for (const file of files) {
+        const local = new Map();
+        for (const line of (await tail(file)).split("\n")) {
+          let raw;
+          try { raw = JSON.parse(line); } catch { continue; }
+          if (!isObject(raw) || typeof raw.runId !== "string" || !Number.isInteger(raw.id)) continue;
+          const explicit = Object.hasOwn(raw, "runtime") || Object.hasOwn(raw, "project");
+          if (explicit) {
+            const expectedProject = file === legacy.file ? "den" : selected.project;
+            const expectedRuntime = file === legacy.file ? "claude" : selected.runtime;
+            if (raw.runtime !== expectedRuntime || raw.project !== expectedProject || raw.runtime !== selected.runtime || raw.project !== selected.project) continue;
+          } else if (file !== legacy.file || selected.runtime !== "claude" || (projectForRun(raw.runId) ?? "den") !== selected.project) continue;
+          const key = `${raw.runId} ${raw.id}`;
+          const known = local.get(key);
+          local.set(key, known ? { ...known, ...Object.fromEntries(PATCHABLE.filter((k) => Object.hasOwn(raw, k)).map((k) => [k, raw[k]])) } : raw);
         }
-        if (!isObject(raw) || typeof raw.runId !== "string" || !Number.isInteger(raw.id)) continue;
-        const key = `${raw.runId} ${raw.id}`;
-        // A patch changes how an entry turned out (PATCHABLE), never what it is, whose it is or what it said.
-        const known = folded.get(key);
-        folded.set(key, known ? { ...known, ...Object.fromEntries(PATCHABLE.filter((k) => Object.hasOwn(raw, k)).map((k) => [k, raw[k]])) } : raw);
+        for (const [key, raw] of local) folded.set(key, raw);
       }
       const all = [...folded.values()].map(validateEntry).filter(Boolean);
+      if (files.length > 1) all.sort((a, b) => a.at.localeCompare(b.at) || a.runId.localeCompare(b.runId) || a.id - b.id);
       const size = Number.isInteger(limit) && limit > 0 ? Math.min(limit, CONVERSATION_PAGE_MAX) : CONVERSATION_PAGE;
       const end = Number.isInteger(before) && before >= 0 ? Math.min(before, all.length) : all.length;
       const start = Math.max(0, end - size);

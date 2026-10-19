@@ -1,5 +1,11 @@
 # A role's conversation is durable, and a follow-up continues an ended run's session in a new run
 
+## Amendment: project, runtime and role identify a conversation
+
+Approved by the user in the Codex residents plan (codex-residents/01). This supersedes the one-file-per-role assumption in decision 1 and the bridge-session/CLI-session equivalence in decision 3. A conversation is identified by project, runtime and role. Omitted runtime and historical records mean Claude; unknown explicit identities never default. The bridge's UUID `sessionId` and each execution's `runId` are distinct from a runtime-minted `runtimeSessionId`. Follow-up preserves the complete tuple and runtime session while minting a fresh execution and resource group.
+
+The den/Claude role file remains in place. Other tuples use `conversations/projects/<project>/<runtime>/<role>.jsonl`. Legacy Claude history is attributed through validated saved run metadata and read without relocation; missing run metadata belongs to den. Histories may be read for any onboarded project, but ordinary execution still requires the active project. Query/body runtime and project selectors do not grant cross-project or cross-runtime authority.
+
 **Status:** proposed with the build (den-mvp outcome 2, `.scratch/den-mvp/spec.md` section 5). The user accepts it by merging the PR. It amends ADR 0016: decision 3 (two routes), decision 4 (the approval view and the transcript entries) and amendment 12 (messages).
 
 **Context.** The den showed a live transcript per agent, kept in memory: it was lost on a bridge restart, and when a run ended there was no way to continue it except a new task that knew nothing. The user asked to talk to a panda and come back to it (spec stories 2 to 5), to see why an agent asks before granting anything (story 10), and to know that a stop or a note arrived (organism-infra/230, signed off 2026-10-12).

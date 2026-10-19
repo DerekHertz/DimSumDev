@@ -1,5 +1,6 @@
 import { DESK_THREAD } from './transcript-panel.mjs';
 import { DESK_REF } from '../../../bridge/cells/policy.mjs';
+import { sameResident, runtimeOf, boundAgentKey, RUNTIME_UNAVAILABLE, LIVE_AGENT_STATES } from '../shell/resident-inventory.mjs';
 
 // den-v1/04: pure proximity selection. Positions and yaw use the walk core's world coordinates.
 // The scene supplies {id, name, role, station, position:{x,z}, ref?, state?, tool?, agent?} per panda.
@@ -27,10 +28,11 @@ export function costLabel(usd) {
 // den-v1 loop S4: which bridge agent a panda's card reads. A panda the board binds to a ticket (`ref`) reads that
 // ticket's agent of its role, or none. Any other panda reads the newest agent of its role that no bound panda shows:
 // a den-started agent runs before it claims its ticket, and its result outlives the claim. Live comes before ended.
-export function agentFor({ role, ref } = {}, agents, boundRefs = new Set()) {
+export function agentFor(identity = {}, agents, boundRefs = new Set()) {
   if (!Array.isArray(agents)) return null;
-  const mine = (row) => !!row?.id && row.role === role && (ref ? row.ref === ref : !boundRefs.has(row.ref));
-  return agents.findLast((row) => mine(row) && !ENDED.includes(row.state)) ?? agents.findLast(mine) ?? null;
+  const {ref}=identity;
+  const mine = (row) => !!row?.id && sameResident(row,identity) && (identity.agentId ? row.id===identity.agentId : ref ? row.ref === ref : !boundRefs.has(boundAgentKey(row))&&!boundRefs.has(row.ref));
+  return agents.findLast((row) => mine(row) && LIVE_AGENT_STATES.includes(row.state)) ?? agents.findLast(mine) ?? null;
 }
 
 export function cardFor(scenePandas, approvals, viewer) {
@@ -55,8 +57,11 @@ export function pickedCard(scenePandas, approvals, id) {
 }
 
 function cardOf(nearest, approvals) {
-  const agent = nearest.agent?.id && !ENDED.includes(nearest.agent.state) ? nearest.agent : null;
-  const past = !agent && nearest.agent?.id ? nearest.agent : null; // den-v1 loop S4: the newest agent has ended
+  const runtime=runtimeOf(nearest),unknownState=nearest.agent?.id&&!LIVE_AGENT_STATES.includes(nearest.agent.state)&&!ENDED.includes(nearest.agent.state),unavailable=runtime==='codex'?RUNTIME_UNAVAILABLE:runtime===null?'Runtime identity unavailable.':unknownState?'Agent state unavailable.':null;
+  // A reported Codex run can be shown, but legacy Claude endpoints cannot act on it.
+  if(unavailable){const actions=Object.fromEntries(['Q','E','R','T'].map(key=>[key,{enabled:false,reason:unavailable}]));return {...nearest,runtime,agentId:null,threadId:null,start:false,approval:null,actions,last:null};}
+  const agent = nearest.agent?.id && LIVE_AGENT_STATES.includes(nearest.agent.state) ? nearest.agent : null;
+  const past = nearest.agent?.id && ENDED.includes(nearest.agent.state) ? nearest.agent : null; // den-v1 loop S4: the newest agent has ended
   const cost = past ? costLabel(past.costUsd) : null;
   const approval = agent ? approvals.find(a => a.agentId === agent.id && (a.status ?? a.state ?? 'pending') === 'pending' && !a.decision) ?? null : null;
   const action = reason => ({ enabled: !reason, reason });
@@ -66,7 +71,7 @@ function cardOf(nearest, approvals) {
   const start = !agent && state === 'resident' && START_ROLES.includes(nearest.role);
   // den-mvp/30: Bao's thread always opens. With no live run it is the desk's: its last desk run, else the empty desk. An
   // ended run on another ticket (a meeting, an old task) is not followed up from here; its worktree may be gone.
-  const desk = nearest.role === 'orchestrator';
+  const desk = nearest.role === 'orchestrator' && runtime === 'claude';
   const actions = {
     // The QERT row (live den run, 2026-10-10): A and D walk, so no action sits on them.
     Q: action(permissionReason), E: action(permissionReason),
@@ -75,7 +80,7 @@ function cardOf(nearest, approvals) {
     T: action(start ? null : inactive || (agent.capabilities?.send !== true ? 'runtime cannot send messages' : null)),
   };
   return {
-    id: nearest.id, name: nearest.name, role: nearest.role, station: nearest.station,
+    id: nearest.id, name: nearest.name, role: nearest.role, station: nearest.station, runtime, projectId:nearest.projectId,
     agentId: agent?.id ?? null, threadId: agent?.id ?? (desk ? (past?.ref === DESK_REF ? past.id : DESK_THREAD) : past?.id ?? null), ref: agent?.ref ?? nearest.ref ?? null, start,
     state, tool: agent ? agent.tool ?? null : nearest.agent ? null : nearest.tool ?? null, approval, actions,
     last: past ? {

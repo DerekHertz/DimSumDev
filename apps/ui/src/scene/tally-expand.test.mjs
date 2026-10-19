@@ -152,10 +152,10 @@ for (const key of ["Enter", "Space"]) {
   });
 }
 
-test("a quiet den with fourteen resting residents does not block the pill: it still opens the card", { timeout: 90000 }, async () => {
+test("a quiet den with twenty-five resting residents does not block the pill: it still opens the card", { timeout: 90000 }, async () => {
   const { page, pill, context } = await openApp({ quiet: true });
   try {
-    assert.match(await page.getByLabel("Garden activity").innerText(), /0 working[\s\S]*14 resting/, "quiet state retains the resident activity legend");
+    assert.match(await page.getByLabel("Garden activity").innerText(), /0 working[\s\S]*25 resting/, "quiet state retains the resident activity legend");
     await pill.click();
     await dialogOf(page).waitFor({ state: "visible" });
   } finally {

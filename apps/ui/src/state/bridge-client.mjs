@@ -71,7 +71,7 @@ export function createBridgeClient({ fetch }) {
     // den-mvp outcome 2: one message into a role's conversation. The bridge sends it to the run named (or the role's
     // live run), or starts a follow-up run that continues an ended run's session: the answer says which
     // ({ runId, messageId, resumed, agent? }).
-    async converse(role, { text, runId } = {}) {
+    async converse(role, { text, runId, runtime, project } = {}) {
       if (typeof role !== "string" || !role) throw failure(0, "Pick a panda first.");
       const trimmed = typeof text === "string" ? text.trim() : "";
       if (!trimmed) throw failure(0, "Write a message first.");
@@ -79,16 +79,18 @@ export function createBridgeClient({ fetch }) {
       const body = await call(`/conversations/${encodeURIComponent(role)}/message`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ text: trimmed, ...(typeof runId === "string" && runId ? { runId } : {}) }),
+        body: JSON.stringify({ text: trimmed, ...(typeof runId === "string" && runId ? { runId } : {}), ...(runtime === undefined ? {} : { runtime }), ...(project === undefined ? {} : { project }) }),
       });
       if (body == null) throw failure(200, "The bridge sent an unreadable answer.");
       return body;
     },
     // A page of a role's durable conversation, oldest first: { entries, more, before }. `before` asks for the page above.
-    async getConversation(role, { before, limit } = {}) {
+    async getConversation(role, { before, limit, runtime, project } = {}) {
       const query = new URLSearchParams();
       if (Number.isInteger(before) && before >= 0) query.set("before", String(before));
       if (Number.isInteger(limit) && limit > 0) query.set("limit", String(limit));
+      if (runtime !== undefined) query.set("runtime", runtime);
+      if (project !== undefined) query.set("project", project);
       const body = await call(`/conversations/${encodeURIComponent(role)}${query.size ? `?${query}` : ""}`, { method: "GET" });
       if (!body || !Array.isArray(body.entries)) throw failure(200, "The bridge sent an unreadable answer.");
       return body;
@@ -127,7 +129,7 @@ export function createBridgeClient({ fetch }) {
       return body ?? { ok: true };
     },
     // den-v1 loop S1: start a task for one role. The bridge writes the ticket and answers { agent, ticket }.
-    async startTask(role, { text, grants } = {}) {
+    async startTask(role, { text, grants, runtime, project } = {}) {
       if (typeof role !== "string" || !role) throw failure(0, "Pick a panda first.");
       const trimmed = typeof text === "string" ? text.trim() : "";
       if (!trimmed) throw failure(0, "Write a task first.");
@@ -135,18 +137,18 @@ export function createBridgeClient({ fetch }) {
       const body = await call("/tasks", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(Array.isArray(grants) && grants.length ? { role, text: trimmed, grants } : { role, text: trimmed }),
+        body: JSON.stringify({ role, text: trimmed, ...(Array.isArray(grants) && grants.length ? { grants } : {}), ...(runtime === undefined ? {} : { runtime }), ...(project === undefined ? {} : { project }) }),
       });
       if (body == null) throw failure(200, "The bridge sent an unreadable answer.");
       return body;
     },
     // organism-infra/228: run one frontier ticket as one role. One request per call: a refusal (409, 429, 503) rejects
     // { status, reason } with the bridge's text and is never retried here; pressing Run again is the retry.
-    async dispatch(ref, { role } = {}) {
+    async dispatch(ref, { role, runtime, project } = {}) {
       const body = await call("/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ref, role }),
+        body: JSON.stringify({ ref, role, ...(runtime === undefined ? {} : { runtime }), ...(project === undefined ? {} : { project }) }),
       });
       if (body == null) throw failure(200, "The bridge sent an unreadable answer.");
       return body;

@@ -156,6 +156,7 @@ describe("the result: reply, cost and the run's own totals", () => {
       tokens: 6 + 1736 + 6274 + 573, ms: a.durationMs, outcome: "done",
       input_tokens: 6, cache_creation_input_tokens: 1736, cache_read_input_tokens: 6274, output_tokens: 573,
       cost_usd: 0.34, cli_ms: 3692, turns: 3, source: "bridge", agent: agent.id,
+      runtime: "claude", project: "den", runtime_session_id: agent.sessionId,
     });
     assert.equal((await bridgeRows()).length, 1, "one row per run");
   });

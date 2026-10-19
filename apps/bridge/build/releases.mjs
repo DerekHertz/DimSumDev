@@ -13,7 +13,8 @@
 // and fixed names; a link's target is read back only if it is exactly `../releases/<sha12>`.
 import { execFile, spawn } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
-import { mkdir, readFile, readdir, readlink, rename, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
+import { mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { mkdir, open, readFile, readdir, readlink, rename, rm, stat, symlink, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 const SHA_RE = /^(?:[0-9a-f]{40}|[0-9a-f]{64})$/;
@@ -25,10 +26,14 @@ const BUILD = "build.json";
 const LIVE = "live.json";
 const FAILED = "failed.json";
 const DOWNGRADE = "downgrade.json";
+const LOCK_FILE = "releases.lock";
+const HOLDS = "holds"; // holds/<sha12>.<pid>: a release made and waiting for its switch, in a process that is alive
+const LOCK_WAIT_MS = 25 * 60 * 1000; // a build may take 20 minutes (build/box.mjs); a second process waits for it
+const LOCK_POLL_MS = 25;
 const TAG_RE = /^v\d+\.\d+\.\d+$/;
 export const UI_DIST = path.join("apps", "ui", "dist");
 
-/** A refusal with a stable `code`: bad-sha, not-on-main, needs-update, build, missing, conflict, git, older. */
+/** A refusal with a stable `code`: bad-sha, not-on-main, needs-update, build, missing, conflict, git, older, locked. */
 export class ReleaseError extends Error {
   constructor(code, message) {
     super(message);
@@ -212,7 +217,7 @@ const npmCi = (cwd) => run("npm", ["ci", "--ignore-scripts", "--no-audit", "--no
 });
 
 // `repo` is the checkout the commits come from; `box` is a build box (build/box.mjs); `npm` and `archive` are seams for tests.
-export function createReleases({ stateDir, repo, box, npm = npmCi, main = "main", archive = extractArchive } = {}) {
+export function createReleases({ stateDir, repo, box, npm = npmCi, main = "main", archive = extractArchive, lockWaitMs = LOCK_WAIT_MS } = {}) {
   if (typeof stateDir !== "string" || !path.isAbsolute(stateDir)) throw new TypeError("createReleases: stateDir must be an absolute path");
   const releasesDir = path.join(stateDir, "releases");
   const depsDir = path.join(stateDir, "deps");
@@ -223,16 +228,55 @@ export function createReleases({ stateDir, repo, box, npm = npmCi, main = "main"
   function hold(sha) {
     const id = checkSha(sha).slice(0, 12);
     held.set(id, (held.get(id) ?? 0) + 1);
+    // den-mvp/16: also a marker file, so another process's collect() leaves it alone while this process's pid is alive.
+    const marker = path.join(stateDir, HOLDS, `${id}.${process.pid}`);
+    try {
+      mkdirSync(path.dirname(marker), { recursive: true });
+      writeFileSync(marker, "");
+    } catch {}
     let done = false;
     return () => {
       if (done) return;
       done = true;
+      if (!held.has(id) || held.get(id) <= 1) rmSync(marker, { force: true });
       if (held.get(id) > 1) held.set(id, held.get(id) - 1);
       else held.delete(id);
     };
   }
 
   const git = (args) => run("git", ["-C", repo, ...args]);
+
+  // den-mvp/16: a lock file taken around linking and collecting releases (releases.lock) and one around making each release (making-<sha12>.lock), so the
+  // bridge and `npm run den:update` (two processes) cannot remove each other's work. It holds the owner's pid. A lock
+  // whose owner is gone is taken over; one held by a live process (another maker, or this process) is waited for, and
+  // after `lockWaitMs` the caller is refused with code `locked`. The lock is not re-entrant: take it once per operation.
+  async function locked(fn, name = LOCK_FILE) {
+    const file = path.join(stateDir, name);
+    await mkdir(stateDir, { recursive: true });
+    const end = Date.now() + lockWaitMs;
+    for (;;) {
+      try {
+        const handle = await open(file, "wx");
+        await handle.writeFile(`${process.pid}\n`);
+        await handle.close();
+        break;
+      } catch (err) {
+        if (err.code !== "EEXIST") throw err;
+      }
+      const owner = Number.parseInt(await readFile(file, "utf8").catch(() => ""), 10);
+      if (Number.isInteger(owner) && owner !== process.pid && !alive(owner)) {
+        await rm(file, { force: true });
+        continue;
+      }
+      if (Date.now() > end) throw new ReleaseError("locked", `another process is making or switching a release in ${stateDir} (${name}, pid ${Number.isInteger(owner) ? owner : "unknown"}); try again when it is done`);
+      await new Promise((resolve) => setTimeout(resolve, LOCK_POLL_MS));
+    }
+    try {
+      return await fn();
+    } finally {
+      await rm(file, { force: true });
+    }
+  }
 
   async function onMain(sha) {
     try {
@@ -263,7 +307,10 @@ export function createReleases({ stateDir, repo, box, npm = npmCi, main = "main"
     return { lock, packages };
   }
 
-  async function build(sha, signal, tag) {
+  // Making takes a lock of its own for the one release, so a roll back or a switch never waits behind a build (den-build.mjs).
+  const build = (sha, signal, tag) => locked(() => buildLocked(sha, signal, tag), `making-${sha.slice(0, 12)}.lock`);
+
+  async function buildLocked(sha, signal, tag) {
     const id = sha.slice(0, 12);
     const dir = path.join(releasesDir, id);
     const have = await completeRelease(stateDir, id);
@@ -364,6 +411,11 @@ export function createReleases({ stateDir, repo, box, npm = npmCi, main = "main"
   /** Deletes every complete release that no link of either pair points to and nobody holds. */
   async function collect() {
     const keep = new Set(held.keys());
+    for (const name of await readdir(path.join(stateDir, HOLDS)).catch(() => [])) {
+      const [id, pid] = name.split(".");
+      if (alive(Number.parseInt(pid, 10))) keep.add(id);
+      else await rm(path.join(stateDir, HOLDS, name), { force: true });
+    }
     for (const pair of PAIRS) for (const name of ["current", "previous"]) keep.add(await linkedId(stateDir, pair, name));
     for (const name of await readdir(releasesDir).catch(() => [])) {
       if (keep.has(name) || !(await completeRelease(stateDir, name))) continue;
@@ -371,7 +423,9 @@ export function createReleases({ stateDir, repo, box, npm = npmCi, main = "main"
     }
   }
 
-  async function switchPair(pair, sha, { downgrade = false } = {}) {
+  const switchPair = (pair, sha, options) => locked(() => switchPairLocked(pair, sha, options));
+
+  async function switchPairLocked(pair, sha, { downgrade = false } = {}) {
     checkSha(sha);
     const id = sha.slice(0, 12);
     const release = await completeRelease(stateDir, id);
@@ -404,7 +458,9 @@ export function createReleases({ stateDir, repo, box, npm = npmCi, main = "main"
   const switchBridge = (sha, { downgrade = false } = {}) => switchPair("bridge", sha, { downgrade });
 
   /** Swaps ui/current and ui/previous. `to` names the release the caller saw as previous (its sha, or its 12 characters); anything else is a conflict. */
-  async function rollbackUi(to) {
+  const rollbackUi = (to) => locked(() => rollbackLocked(to));
+
+  async function rollbackLocked(to) {
     if (typeof to !== "string" || !(SHA_RE.test(to) || SHA12_RE.test(to))) throw new ReleaseError("bad-sha", "a roll back names the release to return to by its commit id");
     const want = to.slice(0, 12);
     const [cur, prev] = await Promise.all(["current", "previous"].map((name) => linkedId(stateDir, "ui", name)));

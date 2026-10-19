@@ -3,13 +3,13 @@ import assert from 'node:assert/strict';
 import * as T from 'three';
 import {createMeshyActors} from './actors.mjs';
 import {createBalancedPandaRig, WADDLE} from './panda-rig.mjs';
-import definitions from './role-props.mjs';
+import {RESIDENTS as definitions,boundAgentKey} from '../../shell/resident-inventory.mjs';
 function fixture(){
  const body=new T.Mesh(new T.BoxGeometry(2,3,1),new T.MeshStandardMaterial());body.position.y=1.5;
  const den={residents:new T.Group(),pandaRigs:new Map(),propManifest:definitions,roleWorkspaces:{workspaces:new Map()},walkWorld:{floorRadius:70,obstacles:[],navigation:{groundAt:()=>.26}}};
  den.createPanda=(role,{runtime='claude'}={})=>{const rig=createBalancedPandaRig(body);rig.model.scale.setScalar(.68);rig.model.userData={roleId:role,actorKey:role,runtime};den.pandaRigs.set(rig.model,{rig});return{model:rig.model,rig};};
  den.destroyPanda=model=>{den.pandaRigs.get(model)?.rig.dispose();den.pandaRigs.delete(model);};
- for(const[i,d]of definitions.entries()){const panda=den.createPanda(d.id);panda.model.position.set((i%7-3)*3,.26,-8-Math.floor(i/7)*4);den.residents.add(panda.model);den.roleWorkspaces.workspaces.set(d.id,{person:panda.model});}
+ for(const[i,d]of definitions.entries()){const panda=den.createPanda(d.role,{runtime:d.runtime});panda.model.userData.actorKey=d.id;panda.model.position.set((i%7-3)*3,.26,-8-Math.floor(i/7)*4);den.residents.add(panda.model);den.roleWorkspaces.workspaces.set(d.id,{person:panda.model});}
  den.routineSpots=[{id:'tea',kind:'tea',position:new T.Vector3(0,.26,-2),face:new T.Vector3(0,.26,-3)},{id:'pond',kind:'pond',position:new T.Vector3(3,.26,-2),face:new T.Vector3(3,.26,-3)},{id:'greeting',kind:'greeting',position:new T.Vector3(-3,.26,-2),face:new T.Vector3(-3,.26,-3)}];
  let feeds=0;den.feedKoi=()=>feeds++;
  const actors=createMeshyActors(den);return{den,actors,get feeds(){return feeds;},dispose(){actors.dispose();for(const model of [...den.pandaRigs.keys()])den.destroyPanda(model);body.geometry.dispose();body.material.dispose();}};
@@ -20,19 +20,33 @@ test('visitors retain live identities and own skeletons, and release them when t
   const resident=actors.actors.get('developer'),visitor=actors.actors.get('developer#work/2');
   assert.notEqual(visitor.panda.rig.skeleton,resident.panda.rig.skeleton);assert.equal(visitor.live.ref,'work/2');
   const before=visitor.panda.model.position.clone();actors.update(.1);assert.ok(visitor.panda.model.position.distanceTo(before)>0);assert.notEqual(visitor.panda.rig.bones.Hip_L.quaternion.w,1,'walking deforms the legs');
-  actors.applyLive([]);assert.equal(den.pandaRigs.size,14);assert.equal(visitor.panda.model.parent,null);
+  actors.applyLive([]);assert.equal(den.pandaRigs.size,25);assert.equal(visitor.panda.model.parent,null);
  }finally{f.dispose();}
 });
-test('split visitors and meeting copies inherit runtime appearance without replacing actor identity',()=>{
+test('split visitors inherit matching runtime and meetings keep Claude participants',()=>{
  const f=fixture();try{
-  const {actors}=f,resident=actors.actors.get('developer');resident.panda.model.userData.runtime='codex';
-  actors.applyLive([{role:'developer',ref:'work/1'},{role:'developer',ref:'work/2'}]);
-  const visitor=actors.actors.get('developer#work/2');
-  assert.equal(visitor.panda.model.userData.runtime,'codex');assert.equal(visitor.panda.model.userData.actorKey,'developer#work/2');
+  const {actors}=f,resident=actors.actors.get('developer'),codex=actors.actors.get('codex:developer');
+  actors.applyLive([{role:'developer',ref:'work/1'},{role:'developer',runtime:'codex',ref:'work/1'},{role:'developer',runtime:'codex',ref:'work/2'}]);
+  const visitor=actors.actors.get('codex:developer#work/2');
+  assert.equal(visitor.panda.model.userData.runtime,'codex');assert.equal(visitor.panda.model.userData.actorKey,'codex:developer#work/2');
+  assert.equal(codex.live.ref,'work/1');assert.notEqual(visitor.panda.rig.skeleton,codex.panda.rig.skeleton);
   actors.applyMeeting({id:'meeting/1',ref:'work/meeting',state:'running',seats:[{role:'developer'}]});
   const guest=actors.actors.get('meeting:developer');
-  assert.equal(guest.panda.model.userData.runtime,'codex');assert.equal(guest.panda.model.userData.actorKey,'meeting:developer');
+  assert.equal(guest.panda.model.userData.runtime,'claude');assert.equal(guest.panda.model.userData.actorKey,'meeting:developer');
+  assert.equal(codex.seat,undefined);
   assert.notEqual(guest.panda.rig.skeleton,resident.panda.rig.skeleton);
+ }finally{f.dispose();}
+});
+test('same-ticket runtime pairs have independent selection and live anchors',()=>{
+ const f=fixture();try{
+  const {actors}=f,claude={role:'developer',runtime:'claude',ref:'work/01'},codex={role:'developer',runtime:'codex',ref:'work/01'};
+  actors.applyLive([claude,codex]);actors.setSelected({...codex});
+  assert.equal(actors.actors.get('codex:developer').panda.model.userData.selected,true);
+  assert.equal(actors.actors.get('developer').panda.model.userData.selected,false);
+  const figures=actors.liveFigures();assert.equal(figures.size,2);
+  assert.equal(figures.get(boundAgentKey(codex)).model,actors.actors.get('codex:developer').panda.model);
+  assert.equal(figures.get(boundAgentKey(claude)).model,actors.actors.get('developer').panda.model);
+  actors.setSelected('work/01');assert.equal(actors.actors.get('codex:developer').panda.model.userData.selected,false,'legacy ticket selection remains Claude');
  }finally{f.dispose();}
 });
 function advance(actors,seconds,reduced=false){for(let t=0;t<seconds;t+=.1)actors.update(.1,reduced);}
@@ -98,7 +112,7 @@ test('work interrupts a held excursion, releases its spot, and returns the same 
   const {actors}=f;advance(actors,4);const a=[...actors.actors.values()].find(a=>a.routine),key=a.role,p=a.panda.model;
   actors.hold(key);const at=p.position.clone(),paw=a.panda.rig.bones.Shoulder_L.quaternion.clone();advance(actors,5);assert.deepEqual(p.position,at);assert.ok(a.panda.rig.bones.Shoulder_L.quaternion.equals(paw));
   actors.applyLive([{role:key,ref:'work/1',state:'blocked',activity:'Waiting for input'}]);assert.equal(a.routine,null);assert.equal(a.state,'blocked');assert.equal(a.live.ref,'work/1');
-  actors.hold(null);advance(actors,100);assert.ok(p.position.distanceTo(a.home)<.01);assert.equal(actors.liveFigures().get('work/1').model,p);assert.equal(a.routine,null);
+  actors.hold(null);advance(actors,100);assert.ok(p.position.distanceTo(a.home)<.01);assert.equal(actors.liveFigures().get(boundAgentKey(a.live)).model,p);assert.equal(a.routine,null);
  }finally{f.dispose();}
 });
 test('holding a tea visitor pauses the sip and its visit clock until the same card closes',()=>{
@@ -149,7 +163,7 @@ test('busy residents keep working while independent meeting guests walk, sit and
   const still=guest.panda.rig.bones.Chest.scale.clone();actors.update(1,true);assert.deepEqual(guest.panda.rig.bones.Chest.scale,still);
   actors.applyMeeting(null);actors.update(.1);assert.equal(guest.leaving,true);
   actors.applyMeeting({id:'meeting/2',ref:'work/next',state:'running',seats:[{role:'developer'}]});
-  assert.equal(actors.actors.get('meeting:developer'),guest,'a returning guest joins the next meeting without leaking a copy');assert.equal(den.pandaRigs.size,15);
-  actors.applyMeeting(null);actors.update(.1,true);assert.equal(actors.actors.has('meeting:developer'),false);assert.equal(den.pandaRigs.size,14);
+  assert.equal(actors.actors.get('meeting:developer'),guest,'a returning guest joins the next meeting without leaking a copy');assert.equal(den.pandaRigs.size,26);
+  actors.applyMeeting(null);actors.update(.1,true);assert.equal(actors.actors.has('meeting:developer'),false);assert.equal(den.pandaRigs.size,25);
  }finally{f.dispose();}
 });

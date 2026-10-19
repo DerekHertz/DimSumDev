@@ -122,7 +122,7 @@ export function createHub(root, { agents = () => [], approvals = () => [], trans
     async snapshot() {
       await refresh();
       const lockedRefs = current.tickets.filter((t) => t.holder).map((t) => t.ref);
-      return { ...current, agents: agents(), approvals: approvals(), transcripts: transcripts(), capacity: capacity(lockedRefs), deliveries: deliveries(), meetings: meetings(), ci: ci(), checks: await checks(), build: await build(), release: release(), readyRelease: readyRelease(), wall: wall(), seq };
+      return { ...current, agents: agents(), approvals: approvals(), transcripts: transcripts(), capacity: await capacity(lockedRefs), deliveries: deliveries(), meetings: meetings(), ci: ci(), checks: await checks(), build: await build(), release: release(), readyRelease: readyRelease(), wall: wall(), seq };
     },
     // An agent change goes out at once (no debounce, no 2 s net): { type: "agent", agent: object | null }; so do
     // { type: "approval", approval } and { type: "transcript", agentId, entry }.

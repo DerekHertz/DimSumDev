@@ -295,11 +295,12 @@ export function createReviewAgents(den,createBao,{direction='traveler',onChange=
   function applyLive(liveActors=[]){
     const primary=new Map(),wanted=new Map();
     for(const l of liveActors){
-      if(!LIVE_ROLES.includes(l.role)||!actors.has(l.role))continue;
+      if(!LIVE_ROLES.includes(l.role)||!actors.has(l.role)||(l.runtime!==undefined&&l.runtime!=='claude'))continue;
       if(!l.split&&!primary.has(l.role))primary.set(l.role,l);else wanted.set(`${l.role}#${l.ref}`,l);
     }
     for(const role of LIVE_ROLES){
       const a=actors.get(role),l=primary.get(role);
+      if(!a)continue;
       if(l)bind(a,l);else if(a.live)unbind(a);
     }
     for(const key of [...splits.keys()])if(!wanted.has(key))removeSplit(key);

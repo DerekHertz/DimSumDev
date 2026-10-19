@@ -22,6 +22,9 @@ export function runRow(run, ts = new Date().toISOString()) {
       ...(run.cliMs == null ? {} : { cli_ms: run.cliMs }),
       ...(run.turns == null ? {} : { turns: run.turns }),
       source: "bridge", agent: run.agentId,
+      ...(run.runtime === undefined ? {} : { runtime: run.runtime }),
+      ...(run.project === undefined ? {} : { project: run.project }),
+      ...(run.runtimeSessionId === undefined ? {} : { runtime_session_id: run.runtimeSessionId }),
       ...(u.final ? {} : { tokens_partial: true }),
     },
   });

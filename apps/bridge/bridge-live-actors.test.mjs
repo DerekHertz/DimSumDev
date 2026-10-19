@@ -11,11 +11,20 @@ import { createReviewAgents } from "../ui/src/review/agents.mjs";
 import { createBao } from "../ui/src/scene/procedural/bao.mjs";
 import { createDenScene } from "../ui/src/scene/procedural/den-scene.mjs";
 import { canvasDocument } from "../ui/src/scene/procedural/den-test-helpers.mjs";
+import { createFakeRuntime } from "./cells/runtime.mjs";
 
-async function liveSnapshot(lock) {
-  const fx = await makeStateFixture({ lock });
-  const bridge = await startBridge({ root: fx.root, port: 0 });
+async function liveSnapshot(lock, { withProcess = false } = {}) {
+  const fx = await makeStateFixture({ lock, git: withProcess });
+  // The existing fake process exercises Claude's presentation identity, not an unknown runtime.
+  const runtime = withProcess ? { ...createFakeRuntime(), id: "claude" } : null;
+  const bridge = await startBridge({ root: fx.root, port: 0, ...(runtime ? { runtime } : {}) });
   try {
+    if (runtime) {
+      const started = await bridge.host.start({ ref: `${FEATURE}/09-claimed`, role: "developer" });
+      assert.equal(started.ok, true, JSON.stringify(started));
+      assert.equal(runtime.spawns.length, 1, "the bridge owns a matching fixture process before fetching /state");
+      runtime.spawns[0].emit({ type: "tool-start", name: "Read", summary: "live actor fixture" });
+    }
     const res = await fetch(`${bridge.url}/state`);
     assert.equal(res.status, 200);
     return await res.json();
@@ -25,11 +34,16 @@ async function liveSnapshot(lock) {
   }
 }
 
-test("a locked ticket in the bridge's real /state binds the holder's panda at its station", async () => {
-  const snapshot = await liveSnapshot(true);
+test("a locked ticket with a matching live process in the bridge's real /state binds the holder's panda at its station", async () => {
+  const snapshot = await liveSnapshot(true, { withProcess: true });
+  const liveAgent = snapshot.agents.find(agent => agent.ref === `${FEATURE}/09-claimed` && agent.role === "developer");
+  assert.ok(liveAgent?.id, "the HTTP payload contains the matching bridge-run agent");
+  assert.equal(liveAgent.runtime, "claude");
+  assert.equal(liveAgent.state, "working");
+  assert.deepEqual(liveAgent.tool, { name: "Read", summary: "live actor fixture" }, "the HTTP payload contains ingested process telemetry");
   const actors = liveActorsFromSnapshot(snapshot, { now: Date.now() });
   const dev = actors.find((a) => a.role === "developer");
-  assert.ok(dev, "the developer lock produces a live actor");
+  assert.ok(dev, "the developer lock and matching live process produce a live actor");
   assert.equal(dev.ref, `${FEATURE}/09-claimed`);
   assert.equal(dev.state, "working");
   assert.equal(dev.split, false);
@@ -51,6 +65,14 @@ test("a locked ticket in the bridge's real /state binds the holder's panda at it
     den?.dispose();
     globalThis.document = previous;
   }
+});
+
+test("a locked ticket without a live process in the bridge's real /state binds no panda", async () => {
+  const snapshot = await liveSnapshot(true);
+  assert.equal(snapshot.tickets.find(ticket => ticket.ref === `${FEATURE}/09-claimed`).holder.cell, "developer", "the real claim lock remains present");
+  assert.deepEqual(snapshot.agents, [], "the HTTP payload contains no bridge-run process");
+  assert.deepEqual(snapshot.cells ?? [], [], "the HTTP payload contains no external live-cell telemetry");
+  assert.deepEqual(liveActorsFromSnapshot(snapshot, { now: Date.now() }), []);
 });
 
 test("a bridge with no lock binds no panda: every role keeps idle wandering", async () => {

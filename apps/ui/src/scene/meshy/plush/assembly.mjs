@@ -59,10 +59,11 @@ export function createDenScene(){
  const groveLane=[{x:11.8,z:-7.3},{x:10.5,z:-12},{x:10.5,z:-21.3},{x:14.1,z:-21.3},{x:16,z:-18.4}];ribbon(groveLane,1.45);
  const groveReturn=[{x:28.1,z:-16.4},{x:31,z:-17.1},{x:32,z:-10},{x:31,z:-3},{x:28.4,z:3},{x:27.7,z:10.5}];ribbon(groveReturn,1.25);
  for(const place of places.filter(p=>p.id!=='bao')){const at=door(place,.30);const landing=cyl(paths,.84,.035,[at.x,GROUND+.022,at.z],'stone');landing.scale.z=.70;}
- const welcome=group('Bao’s welcome circle and small garden seats');
- cyl(welcome,3.0,.025,[0,GROUND+.015,-.6],'jadeLight');const ring=k.ring(welcome,3.04,.065,[0,GROUND+.04,-.6],'stone');ring.rotation.x=Math.PI/2;
- for(const x of[-2.2,2.2]){cyl(welcome,.53,.25,[x,GROUND+.14,.8],'timber');box(welcome,[.93,.14,.80],[x,GROUND+.32,.8],x<0?'coral':'jade',.10);}
- box(welcome,[1.35,.12,.69],[2.1,GROUND+.78,-1.4],'paleWood');for(const x of[1.62,2.58])beam(welcome,[x,GROUND,-1.4],[x,GROUND+.72,-1.4],.045,'timber');teaSet(welcome,[2.1,GROUND+.85,-1.4],.75);
+ const welcome=group('Bao and Jiao’s welcome circle and small garden seats');
+ const welcomeFurniture=[{id:'west-seat',position:[-3.8,GROUND+.20,.8],size:[1.06,.4,1.06]},{id:'east-seat',position:[3.8,GROUND+.20,.8],size:[1.06,.4,1.06]},{id:'tea-shelf',position:[0,GROUND+.45,-2.8],size:[1.35,.9,.69]}];
+ cyl(welcome,4.2,.025,[0,GROUND+.015,-.6],'jadeLight');const ring=k.ring(welcome,4.24,.065,[0,GROUND+.04,-.6],'stone');ring.rotation.x=Math.PI/2;
+ for(const seat of welcomeFurniture.slice(0,2)){const x=seat.position[0];cyl(welcome,.53,.25,[x,GROUND+.14,.8],'timber');box(welcome,[.93,.14,.80],[x,GROUND+.32,.8],'lilac',.10);}
+ box(welcome,[1.35,.12,.69],[0,GROUND+.78,-2.8],'paleWood');for(const x of[-.48,.48])beam(welcome,[x,GROUND,-2.8],[x,GROUND+.72,-2.8],.045,'timber');teaSet(welcome,[0,GROUND+.85,-2.8],.75);
  for(const x of[-2.2,2.2])beam(welcome,[x,GROUND,-3.1],[x,3.6,-3.1],.07,'jadeDeep');tube(welcome,[[-2.2,3.6,-3.1],[0,3.85,-3.1],[2.2,3.6,-3.1]],.06,'jadeDeep');
  sign(welcome,'WELCOME TO THE DEN',[0,3.55,-3.02],3.2);for(const x of[-1.9,1.9])lantern(welcome,[x,3.47,-3.1],.70);
  const grounds=createGardenInfill({places,walks,connectors,extraWalks:[groveLane,groveReturn],ground:GROUND});root.add(grounds.root);
@@ -79,7 +80,7 @@ export function createDenScene(){
  root.updateMatrixWorld(true);
  const footprints=Object.entries(assets).map(([id,asset])=>{const b=new T.Box3().setFromObject(asset.root);return{id,min:b.min.toArray(),max:b.max.toArray()};});
  function setRoofs(visible){for(const asset of Object.values(assets)){asset.setRoofVisible?.(visible);asset.setShadeVisible?.(visible);}assets.library.setCutaway(!visible);}
- return{root,assets,landscape,westMountains,places,walks,connectors,footprints,ground,grounds,paths,planting,welcome,
+ return{root,assets,landscape,westMountains,places,walks,connectors,footprints,ground,grounds,paths,planting,welcome,welcomeFurniture,
   setRoofs,
   worldPoint(id,point){return assets[id].root.localToWorld(new T.Vector3(...point));},
   dispose(){Object.values(assets).forEach(a=>a.dispose());westMountains.removeFromParent();landscape.dispose();grounds.dispose();k.dispose();root.removeFromParent();},
