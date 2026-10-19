@@ -162,21 +162,26 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
       const {createGardenNavigation}=await import('/src/scene/meshy/garden-navigation.mjs');
       const {gardenRoute}=await import('/src/scene/meshy/garden-route.mjs');
       const world=_roots.get(document.querySelector('canvas')).store.getState().scene.getObjectByName('Dim Sum Dev · plush bamboo garden');
-      const roles=[],skeletons=new Set(),tools=[],assets={};let landscape;
+      const roles=[],actorKeys=[],skeletons=new Set(),tools=[],claudeTools=[],assets={};let landscape;
       world.traverse(n=>{
-        if(n.userData.actorKey)roles.push(n);
+        if(n.userData.actorKey){roles.push(n);actorKeys.push(n.userData.actorKey);if(n.userData.runtime==='claude')n.traverse(child=>{if(child.userData.tool)claudeTools.push(child.userData.tool);});}
         if(n.isSkinnedMesh)skeletons.add(n.skeleton);
         if(n.userData.tool)tools.push(n.userData.tool);
         if(n.userData.placeId==='grove')landscape={root:n};else if(n.userData.placeId)assets[n.userData.placeId]={root:n};
       });
       const nav=createGardenNavigation({root:world,assets,landscape});
+      const coordinatorTools=Object.fromEntries(roles.filter(n=>n.userData.roleId==='orchestrator').map(n=>{const tools=new Set();n.traverse(child=>{if(child.userData.tool)tools.add(child.userData.tool);});return [n.userData.actorKey,[...tools]];}));
       const routes=roles.map(n=>({role:n.userData.roleId,out:gardenRoute(nav,n.position,{x:-3.5,z:3.15}).length,home:gardenRoute(nav,{x:-3.5,y:.26,z:3.15},n.position).length}));
       const table=world.getObjectByName('Round table and legs');let bounds;table.traverse(n=>{if(!n.isMesh)return;n.geometry.computeBoundingBox();const b=n.geometry.boundingBox.clone().applyMatrix4(n.matrixWorld);if(bounds)bounds.union(b);else bounds=b;});const tableSize=bounds.getSize(table.position.clone()).toArray();
-      return {roles:roles.map(n=>n.userData.roleId),tools,skeletons:skeletons.size,routes,tableSize,susan:!!world.getObjectByName('Lazy susan'),places:world.userData.presentationLayout.structurePositions};
+      return {roles:roles.map(n=>n.userData.roleId),actorKeys,tools,claudeTools,coordinatorTools,skeletons:skeletons.size,routes,tableSize,susan:!!world.getObjectByName('Lazy susan'),places:world.userData.presentationLayout.structurePositions};
     });
-    assert.equal(new Set(scene.roles).size,14);
-    assert.equal(new Set(scene.tools).size,14,'each permanent role has a distinct paw tool');
-    assert.equal(scene.skeletons,29,'14 residents and 15 scenery pandas have independent skeletons');
+    assert.equal(new Set(scene.roles).size,15);
+    assert.equal(new Set(scene.actorKeys).size,25,'each permanent runtime resident has a distinct actor key');
+    assert.equal(new Set(scene.claudeTools).size,15,'each Claude permanent role has a distinct paw tool');
+    assert.equal(new Set(scene.tools).size,16,'Jiao adds her distinct approved coordinator tool');
+    assert.ok(scene.tools.includes('Order notebook'));
+    assert.deepEqual(scene.coordinatorTools,{orchestrator:['Bamboo fan'],'codex:orchestrator':['Order notebook']},'Bao and Jiao keep their distinct approved tools');
+    assert.equal(scene.skeletons,40,'25 residents and 15 scenery pandas have independent skeletons');
     assert.equal(scene.places.length,10);
     assert.deepEqual(scene.routes.filter(r=>!r.out||!r.home),[],'every workstation connects to the meeting and back over actual walking surfaces');
     assert.ok(scene.tableSize[0]>=4&&scene.tableSize[1]>=1&&scene.tableSize[2]>=2.3,'the batched meeting table and legs remain visible');
@@ -192,14 +197,14 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
   } finally { await context.close(); }
 });
 
-test("phone garden and desk remain separate and all fourteen permanent residents can be browsed without horizontal overflow", { timeout: 90000 }, async () => {
+test("phone garden and desk remain separate and all twenty-five permanent residents can be browsed without horizontal overflow", { timeout: 90000 }, async () => {
   const { context, page, errors } = await openGarden({ viewport: { width: 390, height: 844 } });
   try {
     await ready(page);
     await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Pandas', exact: true }).click();
     const residents = page.getByRole('list', { name: 'Residents and visitors' });
     await residents.waitFor({ state: 'visible' });
-    assert.equal(await residents.getByRole('button').count(), 14, 'quiet snapshots keep every role at home');
+    assert.equal(await residents.getByRole('button').count(), 25, 'quiet snapshots keep every runtime resident at home');
     const layout = await page.evaluate(() => {
       const garden = document.querySelector('main.scene').getBoundingClientRect();
       const desk = document.querySelector('aside[aria-label="Your desk"]').getBoundingClientRect();
@@ -221,7 +226,7 @@ test("a failed model load explains the garden failure and leaves live desk navig
     assert.match(await alert.innerText(), /Your board controls are still available at the desk/);
     assert.equal(await page.locator('.den-entry button').getAttribute('aria-disabled'), 'true');
     await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Pandas', exact: true }).click();
-    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 14);
+    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 25);
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
@@ -263,10 +268,10 @@ test("clicking the physical Library replaces portrait profiles and an open Bao t
   try {
     await ready(page);
     await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Pandas', exact: true }).click();
-    await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /The Maker/ }).click();
+    await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
     await page.getByRole('region', { name: 'Panda profiles' }).getByRole('heading', { name: 'The Maker', exact: true }).waitFor({ state: 'visible' });
     assert.equal(await page.getByRole('region', { name: 'Selected panda' }).count(), 0, 'portrait selection stays in its profile');
-    await page.getByRole('button', { name: /Talk to Bao/ }).click();
+    await page.getByRole('region', { name: 'Welcome' }).getByRole('button', { name: /Talk to Bao/ }).click();
     await page.locator('.transcript-panel').waitFor({ state: 'visible' });
     // Click the actual roof at the authored Library position, using the same camera projection as the garden.
     const box = await page.locator('.forest-canvas').boundingBox();
@@ -290,7 +295,7 @@ test("a failed required wardrobe cannot report the garden ready with incomplete 
     assert.equal(await page.locator('.den-entry button').getAttribute('aria-disabled'), 'true', 'an incomplete required model set cannot enable walking');
     assert.match(await alert.innerText(), /board controls are still available/);
     await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Pandas', exact: true }).click();
-    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 14);
+    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 25);
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
@@ -320,15 +325,16 @@ test("portrait profiles keep real work and visitor identities, and route explici
   try {
     let profiles = await openProfiles(page);
     const portraits = profiles.getByRole('list', { name: 'Residents and visitors' });
-    assert.equal(await portraits.getByRole('button').count(), 14);
-    assert.equal(await portraits.locator('img').count(), 14, 'each resident has a portrait image');
+    assert.equal(await portraits.getByRole('button').count(), 25);
+    assert.equal(await portraits.locator('img').count(), 25, 'each resident has a portrait image');
     await page.waitForFunction(() => [...document.querySelectorAll('.forest-portrait-choice img')].every(image => image.complete && image.naturalWidth > 0));
     const roleIds = ['orchestrator', 'product', 'architect', 'developer', 'scout', 'debugger', 'qa', 'security', 'designer', 'herald', 'release-manager', 'knowledge-keeper', 'docs-writer', 'stem-cub'];
+    const codexPortraitPaths = ['/den/portraits/codex-orchestrator.webp', '/den/portraits/codex-product.webp', '/den/portraits/codex-architect.webp', '/den/portraits/codex-developer.webp', '/den/portraits/codex-scout.webp', '/den/portraits/codex-runner.webp', '/den/portraits/codex-qa.webp', '/den/portraits/codex-security.webp', '/den/portraits/codex-designer.webp', '/den/portraits/codex-herald.webp'];
     const portraitPaths = await portraits.locator('img').evaluateAll(images => images.map(image => new URL(image.currentSrc).pathname));
-    assert.equal(new Set(portraitPaths).size, 14, 'each role uses its own cached dressed-Bao portrait');
-    assert.deepEqual(portraitPaths.toSorted(), roleIds.map(role => `/den/portraits/${role}.webp`).toSorted());
+    assert.equal(new Set(portraitPaths).size, 25, 'each runtime resident uses its own cached portrait');
+    assert.deepEqual(portraitPaths.toSorted(), [...roleIds.map(role => `/den/portraits/${role}.webp`), '/den/portraits/runner.webp', ...codexPortraitPaths].toSorted());
     assert.ok(portraitPaths.includes('/den/portraits/release-manager.webp'), 'the corrected Release Manager wrap has its own portrait');
-    await portraits.getByRole('button', { name: /^The Maker,/ }).click();
+    await portraits.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
     assert.equal(await profiles.getByRole('heading', { name: 'The Maker', exact: true }).isVisible(), true);
     assert.equal(await page.getByRole('region', { name: 'Selected panda' }).count(), 0, 'portrait selection does not open the scene card');
     assert.equal(await profiles.getByRole('button', { name: /View work/ }).isDisabled(), true);
@@ -344,23 +350,23 @@ test("portrait profiles keep real work and visitor identities, and route explici
     await page.keyboard.press('Escape');
     await composer.waitFor({ state: 'hidden' });
     profiles = await openProfiles(page);
-    await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^Bao,/ }).click();
+    await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^Bao, orchestrator, Claude, .*current project identity unavailable, At home$/ }).click();
     await profiles.getByRole('button', { name: 'Talk to Bao', exact: true }).click();
     await page.locator('.transcript-meta code').filter({ hasText: /^desk$/ }).waitFor({ state: 'visible' });
     await page.getByRole('button', { name: 'Close conversation' }).click();
 
     profiles = await openProfiles(page);
     await page.evaluate(next => window.__pushGardenSnapshot(next), profileLive());
-    await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^The Maker, Working$/ }).click();
+    await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^The Maker, developer, Claude, current project identity unavailable, Working$/ }).click();
     await profiles.getByText(/Read: work\/02-maker tool details/).waitFor({ state: 'visible' });
     assert.match(await profiles.locator('.forest-profile-task').innerText(), /work\/02-maker[\s\S]*Maker-specific task/);
-    assert.equal(await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 15, 'a second live role gets a distinct visitor portrait');
+    assert.equal(await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 26, 'a second live role gets a distinct visitor portrait');
     await profiles.getByRole('button', { name: 'Talk to Maker', exact: true }).click();
     await page.locator('.transcript-meta code').filter({ hasText: /^c-maker-current$/ }).waitFor({ state: 'visible' });
     assert.match(await page.locator('.transcript-log').innerText(), /Conversation for c-maker-current/);
     await page.getByRole('button', { name: 'Close conversation' }).click();
     profiles = await openProfiles(page);
-    await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /visitor on work\/03-visitor/ }).click();
+    await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^The Maker, developer, Claude, .*visitor on work\/03-visitor, Working$/ }).click();
     await profiles.getByRole('button', { name: /View work/ }).click();
     const ticket = page.getByRole('dialog', { name: 'Ticket details' });
     await ticket.waitFor({ state: 'visible' });
@@ -371,9 +377,9 @@ test("portrait profiles keep real work and visitor identities, and route explici
     profiles = await openProfiles(page);
     await page.evaluate(next => window.__pushGardenSnapshot(next), profileLive(3, true));
     const endedResidents = profiles.getByRole('list', { name: 'Residents and visitors' });
-    await endedResidents.getByRole('button', { name: /visitor on work\/03-visitor/ }).waitFor({ state: 'hidden' });
-    await endedResidents.getByRole('button', { name: 'The Maker, At home', exact: true }).click();
-    assert.equal(await endedResidents.getByRole('button').count(), 14, 'the ended visitor is removed before opening the resident’s past conversation');
+    await endedResidents.getByRole('button', { name: /^The Maker, developer, Claude, .*visitor on work\/03-visitor, Working$/ }).waitFor({ state: 'hidden' });
+    await endedResidents.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
+    assert.equal(await endedResidents.getByRole('button').count(), 25, 'the ended visitor is removed before opening the resident’s past conversation');
     await profiles.getByRole('button', { name: 'Talk to Maker', exact: true }).click();
     await page.locator('.transcript-meta code').filter({ hasText: /^c-maker-past$/ }).waitFor({ state: 'visible' });
     assert.match(await page.locator('.transcript-log').innerText(), /Conversation for c-maker-past/);
@@ -388,7 +394,7 @@ test("read-only and scenery-role profiles explain disabled Talk and work actions
   try {
     const profiles = await openProfiles(page);
     const portraits = profiles.getByRole('list', { name: 'Residents and visitors' });
-    await portraits.getByRole('button', { name: /^The Maker,/ }).click();
+    await portraits.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
     const talk = profiles.getByRole('button', { name: 'Talk to Maker', exact: true });
     assert.equal(await talk.isDisabled(), true);
     assert.match(await profiles.innerText(), /read-only[\s\S]*Sign in to start/);

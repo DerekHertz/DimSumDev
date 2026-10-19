@@ -6,13 +6,15 @@ import {chromium} from 'playwright';
 import {buildLaunchOptions} from '../../../ci-cd/launch-options.mjs';
 import {lightenScene} from '../../../ci-cd/light-scene.mjs';
 
-test('actual live garden and keyboard roster expose both crews while Codex actions stay unavailable',{timeout:180000},async()=>{
+test('actual live garden and keyboard roster expose both crews while Codex actions stay unavailable',{timeout:180000},async t=>{
  let server,browser;
  try{
   server=await createServer({configFile:'apps/ui/vite.config.mjs',configLoader:'native',server:{port:0,host:'127.0.0.1'},logLevel:'silent'});await server.listen();
   browser=await chromium.launch(buildLaunchOptions());
   const page=await browser.newPage({viewport:{width:1440,height:1000},reducedMotion:'reduce'}),errors=[],writes=[];
-  await lightenScene(page,{skipDraws:false,frameDelayMs:250});
+  // Pixel evidence uses real draws. CI asserts the same mounted world and actions
+  // without spending its two cores on unasserted SwiftShader rasterisation.
+  await lightenScene(page,{skipDraws:!process.env.RESIDENT_EVIDENCE_DIR,frameDelayMs:250});
   page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()==='POST')writes.push(r.url());});
   const snapshot={schema:1,seq:1,tickets:[],frontier:[],usage:null,requests:[],agents:[],cells:[],meetings:[]};
   await page.route('**/events',r=>r.fulfill({contentType:'text/event-stream',body:`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`}));
@@ -23,7 +25,7 @@ test('actual live garden and keyboard roster expose both crews while Codex actio
    const fiber=performance.getEntriesByType('resource').find(r=>r.name.includes('/@react-three_fiber.js'));
    const {_roots}=await import(fiber.name),state=_roots.get(document.querySelector('canvas')).store.getState();
    const world=state.scene.getObjectByName('Dim Sum Dev · plush bamboo garden'),pandas={};
-   world.traverse(p=>{if(p.userData.actorKey)pandas[p.userData.actorKey]=p;});window.pairedProbe={state,world,pandas};
+   world.traverse(p=>{if(p.userData.actorKey)pandas[p.userData.actorKey]=p;});window.pairedProbe={state,world,pandas,mountedFrame:state.gl.info.render.frame};
    return Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,{runtime:p.userData.runtime,role:p.userData.roleId,scale:p.scale.x,position:p.position.toArray()}]));
   });
   assert.equal(Object.keys(world).length,25);assert.equal(world['codex:orchestrator'].scale,world.orchestrator.scale);
@@ -35,8 +37,16 @@ test('actual live garden and keyboard roster expose both crews while Codex actio
    if(process.env.RESIDENT_EVIDENCE_DIR)await page.screenshot({path:process.env.RESIDENT_EVIDENCE_DIR+'/garden-'+colorScheme+'.png',fullPage:true});
   }
   // Use the live scene's own picking handler, as roofs occlude overview ray targets.
+  // Model readiness precedes the first mounted actor/proximity frame. Observe that
+  // frame explicitly instead of relying on evidence screenshots to yield to it.
+  await page.waitForFunction(()=>{const p=window.pairedProbe;return p.pandas['codex:orchestrator']&&typeof p.world.__r3f?.handlers.onClick==='function'&&p.state.gl.info.render.frame>p.mountedFrame;},null,{timeout:15000});
+  const drawCalls=await page.evaluate(()=>window.pairedProbe.state.gl.info.render.calls);
+  assert.ok(drawCalls>0,'the mounted world submits render calls');
+  t.diagnostic(process.env.RESIDENT_EVIDENCE_DIR?'Real WebGL evidence mode: '+drawCalls+' draw calls; captures enabled.':'CI interaction mode: rasterisation skipped; render counters are not pixel evidence.');
+  const pickStarted=Date.now();
   await page.evaluate(()=>{const {world,pandas}=window.pairedProbe;world.__r3f.handlers.onClick({object:pandas['codex:orchestrator'],stopPropagation(){}});});
   const card=page.getByRole('region',{name:'Selected panda'});await card.waitFor({timeout:15000});assert.match(await card.innerText(),/Jiao/);assert.match(await card.innerText(),/Codex/);assert.match(await card.innerText(),/unavailable/);
+  t.diagnostic('Mounted-scene selection visible after '+(Date.now()-pickStarted)+'ms; actor frame observed before pick.');
   assert.equal(await card.locator('button[data-key]:disabled').count(),4);
   for(const key of ['KeyT','KeyR','KeyQ','KeyE'])await page.keyboard.press(key);
   assert.equal(await page.locator('.message-composer,.transcript-panel').count(),0);
