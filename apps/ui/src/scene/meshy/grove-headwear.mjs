@@ -36,7 +36,7 @@ export function createGroveHeadwear(role,{runtime='claude'}={}){
   tube([[-.065,2.92,.47],[0,2.94,.49],[.065,2.92,.47]],.016,'bamboo');
  }else if(role==='runner'||role==='herald'){
   cues.push(role==='runner'?'Tied headband':'Folded headband');band(2.83,role==='runner'?.095:.065);brimBand(2.85);
-  if(role==='runner')for(const sign of[-1,1]){const tail=box([.20,.075,.025],'main',[-.69,2.80+sign*.025,sign*.06]);tail.rotation.z=sign*.4;}
+  if(role==='runner')for(const sign of[-1,1]){const tail=box([.20,.075,.025],'main',[-.55,2.80+sign*.025,.10+sign*.04]);tail.rotation.z=sign*.4;}
   else{cues.push('Tucked paper slip');const slip=box([.12,.24,.025],'cream',[-.49,2.94,.35]);slip.rotation.z=-.2;for(let i=0;i<3;i++)box([.065,.008,.009],'wood',[-.49,2.88+i*.05,.368]);}
   closure([.35,2.84,.45]);
  }else if(role==='qa'){
