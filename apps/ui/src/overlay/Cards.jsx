@@ -539,15 +539,17 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
     if (e.key === "a") decision.current?.approve();
     else if (e.key === "d") decision.current?.deny();
     else if (e.key === "m") decision.current?.focusNote();
-    else if (e.key === "j") setShown(stepRequest(requests, current.key, 1));
-    else if (e.key === "k") setShown(stepRequest(requests, current.key, -1));
+    else if (e.key === "j" || e.key === "k") {
+      setShown(stepRequest(requests, current.key, e.key === "j" ? 1 : -1));
+      e.currentTarget.focus({ preventScroll: true });
+    }
     else return;
     e.preventDefault();
   };
 
   const others = current ? requests.filter((r) => r.key !== current.key) : [];
   return (
-    <div onKeyDown={onKeyDown} className="card-wrap">
+    <div onKeyDown={onKeyDown} tabIndex={-1} className="card-wrap">
       <Card
         id="needs-you"
         overlay="needs-you"

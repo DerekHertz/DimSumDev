@@ -98,6 +98,7 @@ export function App() {
   const [gardenLoad, setGardenLoad] = useState({ status: 'loading', message: 'Opening the garden…' });
   const [exploring,setExploring]=useState(false);
   const [cursorFree, setCursorFree] = useState(false);
+  const [walkPlace, setWalkPlace] = useState('Entrance');
   const [nearby, setNearby] = useState(null);
   // Overview (live den run, 2026-10-10): a clicked panda shows the card walk mode shows. `engaged` is walk mode or a
   // picked panda: the permission review and the message box stay open, and their keys act, in either.
@@ -383,7 +384,7 @@ export function App() {
                 camera={{ manual: true, zoom: 1, near: 0.1, far: 160 }}
                 gl={{antialias:true,powerPreference:'high-performance'}} events={sceneEvents} onPointerMissed={() => { setSelected(null); unpick(); }}>
                 <FrameCap />
-                <CameraRig store={camera} stage={stage} den={den} onModeChange={onExploreChange} onHint={setExploreHint} onCursorChange={setCursorFree} />
+                <CameraRig store={camera} stage={stage} den={den} onModeChange={onExploreChange} onHint={setExploreHint} onCursorChange={setCursorFree} onLocationChange={setWalkPlace} />
                 <Suspense fallback={null}>
                   <MeshyDen snapshot={snapshot} bindings={bindings} onLoadState={setGardenLoad} placements={scenePlacements} frontier={frontier} tally={tally} onOpenTally={openTally}
                     selected={selected} onSelect={selectTicket} stage={stage} onReady={onDenReady} onNearby={onNearby} picked={picked} onPick={pickPanda} zoneView={zoneView} onZoneClick={zoneClick} onOpenMeeting={(meeting, role) => openMeeting(meeting, role)} />
@@ -393,6 +394,7 @@ export function App() {
             <ChipLayer placements={sceneChips} labelsOverride={MESHY_TEAM_LABELS} hearts={hearts} tally={tally} tallyOpen={topic === 'tally'} tickets={snapshot?.tickets} selected={selected} onSelect={selectTicket} stage={stage} />
             <MeetingLayer snapshot={snapshot} stage={stage} claims={claims} onOpen={(meeting, role) => openMeeting(meeting, role)} />
             <div className="den-crosshair" aria-hidden="true" hidden={!exploring || cursorFree}>+</div>
+            {exploring ? <p className="den-location" role="status" aria-label="Current location">{walkPlace}</p> : null}
             {!den ? <p className="forest-loading" role={gardenLoad.status === 'error' ? 'alert' : 'status'}>{gardenLoad.message}<span>{gardenLoad.status === 'error' ? 'Your board controls are still available on the rail.' : 'Preparing Bao, the workspaces and their props.'}</span></p> : null}
             {zoneNotice ? <p className="scene-caption scene-zone-notice" role="status">{zoneNotice}</p> : null}
             {toast ? <p className="scene-caption den-toast" role="status">{toast}</p> : null}

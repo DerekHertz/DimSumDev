@@ -113,6 +113,10 @@ async function openApp({ snapshot = fixture(), viewport = DESKTOP, hasTouch = fa
   // behavioral checks exercise the requests card; tests for other topics select them explicitly.
   await page.locator('[data-rail="needs"]').waitFor({ state: "visible", timeout: 30000 });
   await page.locator('[data-rail="needs"]').click();
+  await page.waitForFunction(() => {
+    const button = document.querySelector('.den-entry button');
+    return button && button.getAttribute('aria-disabled') !== 'true';
+  }, null, { timeout: 60000 });
   await page.locator('[data-overlay="logo"]').waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
   // organism-infra/104: 5 s was a load flake ("Ctrl+Enter in the Note", fill after the first POST timed out while
   // the machine was busy). Playwright actions return as soon as the element is ready, so a longer ceiling only

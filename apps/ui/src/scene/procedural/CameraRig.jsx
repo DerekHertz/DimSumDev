@@ -3,12 +3,14 @@ import { useFrame, useThree } from "@react-three/fiber";
 import { cameraConfig, clampTarget, clampZoom, dragPan, keyPan, pinchZoom, wheelZoom } from './camera.mjs';
 import { createDenExplorer } from './explorer.mjs';
 import * as THREE from 'three';
+import { walkLocation } from '../meshy/layout.mjs';
 
-export function CameraRig({store,stage,den,onModeChange,onHint,onCursorChange}) {
+export function CameraRig({store,stage,den,onModeChange,onHint,onCursorChange,onLocationChange}) {
   const { gl, size, set } = useThree();
   const initialCamera=useThree(s=>s.camera);
   const camera=useRef(initialCamera).current;
   const navigation=useRef({enabled:true}).current;
+  const location=useRef(null);
   useEffect(()=>{
     if(!den)return;
     const explorer=createDenExplorer(THREE,{
@@ -99,9 +101,12 @@ export function CameraRig({store,stage,den,onModeChange,onHint,onCursorChange}) 
     if(stage.explorer?.active){
       stage.explorer.resize(size.width/Math.max(1,size.height));
       stage.explorer.update(Math.min(dt,0.1));
+      const next = walkLocation(stage.explorer.camera.position);
+      if (next !== location.current) { location.current = next; onLocationChange?.(next); }
       stage.camera=stage.explorer.camera;stage.size=size;stage.camera.userData.viewport=size;
       return;
     }
+    location.current = null;
     const n = now.current;
     // A zoom-out or a resize can shrink the pan limits under the goal: pull it back in.
     store.setTarget(clampTarget(store.getTarget()));

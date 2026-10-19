@@ -16,7 +16,7 @@ after(async () => { await browser?.close(); await server?.close(); });
 
 const RUN = 'c-af592f417c598394', MEETING = 'm-00000000000000a1';
 const TOPICS = ['needs', 'queue', 'work', 'meetings', 'team', 'library', 'tally', 'build'];
-async function open({ width = 1440 } = {}) {
+async function open({ width = 1440, inventory = false } = {}) {
   const context = await browser.newContext({ viewport: { width, height: 900 }, reducedMotion: 'reduce' });
   await lightenScene(context, { skipDraws: !process.env.DEN_SHELL_EVIDENCE_DIR });
   await context.addInitScript(() => {
@@ -47,6 +47,17 @@ async function open({ width = 1440 } = {}) {
   page.on('pageerror', e => errors.push(e.message));
   const meeting = { id: MEETING, ref: 'den/09-meeting', title: 'Meeting: shell review', state: 'running', chair: 'orchestrator', seats: [{ role: 'product', status: 'waiting', takes: 0 }], round: 'takes', brief: null, decisions: [], live: null, thread: 0, runs: 0 };
   const snapshot = { schema: 1, seq: 1, frontier: [], tickets: [], usage: null, requests: [], meetings: [meeting], deliveries: [], approvals: [], agents: [{ id: RUN, role: 'scout', runtime: 'claude', state: 'working', capabilities: { send: true, stop: true } }] };
+  if (inventory) {
+    const ticket = (ref, title, extra = {}) => ({ ref, feature: 'den', title, type: 'feature', status: 'ready-for-agent', ready: true, priority: 'P2', effectivePriority: 'P2', blockedBy: [], holder: null, gate: null, ...extra });
+    snapshot.tickets = [ticket('den/01-ready', '01: Ready work'), ticket('den/02-active', '02: Active work', { status: 'claimed', ready: false }), ticket('den/04-gate', '04: Merge gate', { status: 'in-review', gate: 'merge', ready: false })];
+    snapshot.frontier = ['den/01-ready'];
+    snapshot.agents[0].ref = 'den/02-active';
+    snapshot.agents[0].capabilities.approve = true;
+    snapshot.capacity = { max: 2, cap: 8, load: 1, live: 1, room: 1, refs: ['den/02-active'] };
+    snapshot.deliveries = [{ id: 'd-0123456789abcdef', ref: 'den/03-delivery', title: '03: Delivery review', state: 'paused', step: 'ci', pause: { kind: 'ci-red', reason: 'Review the failed check', next: 'Resume after fixing it.' }, live: null, evidence: {}, runs: [] }];
+    snapshot.requests = [{ id: 'stop-1', kind: 'router-stop', state: 'pending', ref: 'den/04-gate', note: 'Review router stop' }];
+    snapshot.approvals = [{ id: 'a-8313dee2f728c5f1', agentId: RUN, tool: 'Read', summary: 'Inspect the source', state: 'pending', ts: new Date().toISOString(), expiresAt: new Date(Date.now() + 600000).toISOString() }];
+  }
   await page.route('**/events', r => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n` }));
   await page.route('**/state', r => r.fulfill({ json: snapshot }));
   await page.route('**/metrics', r => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
@@ -124,6 +135,7 @@ test('conversation close preserves Panda camera, selection and walk mode; each o
     assert.equal(await talk.evaluate(el => el === document.activeElement), true);
     await page.keyboard.press('Escape');
     await page.getByRole('button', { name: 'Enter the den', exact: true }).click();
+    await page.getByRole('status', { name: 'Current location' }).getByText('Entrance', { exact: true }).waitFor();
     const before = await camera(page);
     await rail(page, 'bao').click(); await side(page).waitFor(); await page.keyboard.press('Escape');
     assert.deepEqual(await camera(page), before);
@@ -199,7 +211,7 @@ test('meeting hide and Leave send no end; Pause, Resume and confirmed End send t
 });
 
 test('all former destinations survive, every charter role is listed, and 20 cycles leave stable listeners and slots', { timeout: 180000 }, async () => {
-  const t = await open(); const { page } = t;
+  const t = await open({ inventory: true }); const { page } = t;
   try {
     assert.deepEqual(await page.locator('[data-rail]').evaluateAll(els => els.map(el => el.dataset.rail)), ['bao', 'needs', 'queue', 'work', 'meetings', 'team', 'library', 'tally', 'build', 'demo', 'reset']);
     const baseline = await page.evaluate(() => window.keyListeners());
@@ -209,6 +221,18 @@ test('all former destinations survive, every charter role is listed, and 20 cycl
       await sheet.waitFor();
       assert.equal(await sheet.count(), 1);
       assert.equal(await sheet.locator('.den-sheet-body, .transcript-log').first().evaluate(el => el.scrollTop), 0, `${id} reopens at its start`);
+      if (cycle === 0 && id === 'needs') {
+        const text = await sheet.innerText();
+        for (const part of ['Open thread', 'Allow', '03-delivery', '04-gate', 'router stop']) assert.ok(text.includes(part), `Needs retains ${part}`);
+      }
+      if (cycle === 0 && id === 'queue') assert.match(await sheet.innerText(), /01: Ready work/);
+      if (cycle === 0 && id === 'work') {
+        assert.ok(await sheet.locator('[data-team-pill=steamers]').count());
+        assert.match(await sheet.locator('.slots').innerText(), /02-active/);
+        assert.match(await sheet.locator('.deliveries').innerText(), /03: Delivery review/);
+        assert.equal(await sheet.getByRole('button', { name: 'Run den/01-ready', exact: true }).count(), 1);
+        assert.equal(await sheet.getByRole('button', { name: 'Deliver den/01-ready', exact: true }).count(), 1);
+      }
       if (id === 'team' && cycle === 0) {
         const roles = await page.locator('.forest-portrait-list .forest-portrait [data-role], .forest-portrait-list [data-role]').evaluateAll(els => [...new Set(els.map(el => el.dataset.role))]);
         for (const role of ['orchestrator', 'product', 'architect', 'designer', 'developer', 'code-reviewer', 'qa', 'security', 'release-manager', 'sre', 'technical-writer', 'runner', 'herald', 'scout']) assert.ok(roles.includes(role), role);
