@@ -50,3 +50,15 @@ for(const role of Object.keys(GROVE_ROLES))test('actual rig · '+role+' · runti
 test('actual rig review releases both figures',{timeout:10000},async()=>{
  await page.evaluate(()=>window.groveReview.dispose());assert.equal(await page.evaluate(()=>window.groveReview.stats().instances),0);
 });
+
+test('cached portrait authoring renders the shared wardrobe and runner without legacy prop assets',{timeout:30000},async()=>{
+ const result=await page.evaluate(async()=>{
+  const {renderRolePortraits}=await import('/assets-src/den/render-role-portraits.mjs'),images=[];
+  const report=await renderRolePortraits((role,data)=>{images.push({role,webp:data.startsWith('data:image/webp;base64,'),length:data.length});});
+  return {report,images};
+ });
+ assert.equal(result.report.count,15);assert.equal(result.report.runtime,'claude');
+ assert.ok(result.images.some(image=>image.role==='runner'));
+ assert.ok(result.images.every(image=>image.webp&&image.length>10000));
+ assert.deepEqual(errors,[]);
+});
