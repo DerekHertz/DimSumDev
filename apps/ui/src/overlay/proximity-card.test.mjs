@@ -52,9 +52,13 @@ test('a resident with no live agent keeps its role; T starts a task and the othe
   }
 });
 
-test('the roles T can start are the bridge\'s nine; a resident with any other role keeps T off', () => {
+test('the roles T can start are the bridge\'s; a resident with any other role, or a scenery panda, keeps T off', () => {
   assert.deepEqual([...START_ROLES].sort(), [...ROLES].sort());
-  for (const role of ['debugger', 'stem-cub', 'release-manager', undefined]) {
+  // team-and-den-ux/02: the Drummer is scenery with the release manager's role name; it stays scenery until 03.
+  const drummer = cardFor([{ id: 'p', role: 'release-manager', dispatchable: false, position: { x: 0, z: -2 } }], [], { x: 0, z: 0, yaw: 0 });
+  assert.equal(drummer.start, false);
+  assert.equal(cardFor([{ id: 'p', role: 'code-reviewer', position: { x: 0, z: -2 } }], [], { x: 0, z: 0, yaw: 0 }).start, true);
+  for (const role of ['debugger', 'stem-cub', undefined]) {
     const card = cardFor([{ id: 'p', role, position: { x: 0, z: -2 } }], [], { x: 0, z: 0, yaw: 0 });
     assert.equal(card.start, false);
     assert.deepEqual(card.actions.T, { enabled: false, reason: 'no agent running' });

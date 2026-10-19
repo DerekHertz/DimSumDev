@@ -5,8 +5,9 @@ import { sameResident, runtimeOf, boundAgentKey, RUNTIME_UNAVAILABLE, LIVE_AGENT
 // den-v1/04: pure proximity selection. Positions and yaw use the walk core's world coordinates.
 // The scene supplies {id, name, role, station, position:{x,z}, ref?, state?, tool?, agent?} per panda.
 // den-v1 loop S1: the roles the bridge starts from the den (apps/bridge/agents/policy.mjs ROLES; a test keeps the two
-// equal). T on a resident with one of these roles opens the task box.
-export const START_ROLES = ['product', 'architect', 'orchestrator', 'developer', 'scout', 'qa', 'security', 'designer', 'herald'];
+// equal). T on a resident with one of these roles opens the task box. A scenery panda (dispatchable: false) never does,
+// even when it shares a role's name: the Drummer stays scenery until team-and-den-ux/03 seats the release manager.
+export const START_ROLES = ['product', 'architect', 'orchestrator', 'developer', 'scout', 'qa', 'security', 'designer', 'herald', 'code-reviewer', 'release-manager', 'sre', 'technical-writer'];
 
 // The card's line for each state: the bridge's live states (policy.mjs LIVE_STATES) and the board-driven ones.
 export const STATE_LABELS = {
@@ -68,7 +69,7 @@ function cardOf(nearest, approvals) {
   const state = agent?.state ?? (nearest.agent ? 'resident' : nearest.state ?? 'resident');
   const inactive = agent ? null : state === 'resident' ? 'no agent running' : 'agent controls unavailable';
   const permissionReason = inactive || (agent.capabilities?.approve !== true ? 'runtime cannot answer permissions' : !approval ? 'no pending permission request' : null);
-  const start = !agent && state === 'resident' && START_ROLES.includes(nearest.role);
+  const start = !agent && state === 'resident' && START_ROLES.includes(nearest.role) && nearest.dispatchable !== false;
   // den-mvp/30: Bao's thread always opens. With no live run it is the desk's: its last desk run, else the empty desk. An
   // ended run on another ticket (a meeting, an old task) is not followed up from here; its worktree may be gone.
   const desk = nearest.role === 'orchestrator' && runtime === 'claude';

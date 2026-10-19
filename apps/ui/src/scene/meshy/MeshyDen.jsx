@@ -56,7 +56,7 @@ export function MeshyDen({snapshot,cells,frontier,tally,selected,onSelect,onOpen
     const identity={role:a.role,runtime:a.runtime,projectId:a.live?.projectId,agentId:a.live?.agentId,ref:a.live?.ref};
     const position=a.panda.model.getWorldPosition(new THREE.Vector3()),agent=agentFor(identity,snap?.agents,boundRefs);
     const cell=a.live?(snap?.cells||[]).filter(row=>row.ref===a.live.ref&&sameResident({...row,role:row.cellType||a.role},identity)).reduce((last,row)=>!last||Date.parse(row.lastEventAt)>Date.parse(last.lastEventAt)?row:last,null):null;
-    return {id,name:a.name,...identity,station:a.station,position:{x:position.x,z:position.z},ref:a.live?.ref,state:a.live?.state||'resident',tool:cell?.tool??null,agent};
+    return {id,name:a.name,...identity,dispatchable:!a.concept,station:a.station,position:{x:position.x,z:position.z},ref:a.live?.ref,state:a.live?.state||'resident',tool:cell?.tool??null,agent};
    });
    const camera=walking?stage.explorer.camera:null;
    card=camera?cardFor(pandas,snap?.approvals||[],{x:camera.position.x,z:camera.position.z,yaw:camera.rotation.y}):pickedCard(pandas,snap?.approvals||[],pick);
