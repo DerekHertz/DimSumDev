@@ -31,6 +31,13 @@ function fakeGitHost(root) {
   };
   return Object.assign(h, {
     mainSha: async () => git(root, "rev-parse", "HEAD"),
+    branchSha: async (name) => {
+      try {
+        return git(root, "rev-parse", "--verify", "--quiet", `refs/heads/${name}^{commit}`);
+      } catch {
+        return null;
+      }
+    },
     descends: async ({ base, sha }) => {
       try {
         return git(root, "merge-base", base, sha) === base;
@@ -857,5 +864,42 @@ describe("what the router's service token may do on the delivery routes", () => 
       await t.close();
       cleanups.length = 0;
     }
+  });
+});
+
+describe("a delivery that starts from a tests branch (den-mvp/82)", () => {
+  const tip = (root, name, parent) => {
+    const tree = git(root, "rev-parse", parent ? "HEAD^{tree}" : "4b825dc642cb6eb9a060e54bf8d69288fbee4904");
+    const sha = git(root, "commit-tree", tree, ...(parent ? ["-p", parent] : []), "-m", name);
+    git(root, "update-ref", `refs/heads/${name}`, sha);
+    return sha;
+  };
+
+  test("the developer's worktree is on the branch, and the base stays main", async () => {
+    const t = await setup();
+    const base = git(t.root, "rev-parse", "HEAD");
+    const tests = tip(t.root, "qa/tests-08", base);
+    const started = await t.start({ ref: REF, from: "qa/tests-08" });
+    assert.equal(started.base, base, "the reviews look at main..candidate, tests included");
+    const dev = await t.spawn(0);
+    assert.equal(git(dev.args.cwd, "rev-parse", "HEAD"), tests);
+    const sha = t.work(dev, { commit: "feature.txt", say: "Done." });
+    const qa = await t.spawn(1);
+    assert.equal(git(qa.args.cwd, "rev-parse", "HEAD"), sha);
+    assert.match(qa.args.prompt, new RegExp(`git diff ${base}\\.\\.HEAD`));
+    assert.equal(git(t.root, "merge-base", base, sha), base);
+    assert.ok(git(t.root, "merge-base", "--is-ancestor", tests, sha) === "");
+  });
+
+  test("an unknown branch, or one that does not descend from main, is refused with a reason", async () => {
+    const t = await setup();
+    tip(t.root, "orphan", null);
+    const unknown = await t.post("/deliveries", { ref: REF, from: "no-such-branch" });
+    assert.equal(unknown.status, 409);
+    assert.match(unknown.body.error, /not a branch of this repository/);
+    const orphan = await t.post("/deliveries", { ref: REF, from: "orphan" });
+    assert.equal(orphan.status, 409);
+    assert.match(orphan.body.error, /does not descend from main/);
+    assert.equal((await t.state()).deliveries.length, 0);
   });
 });
