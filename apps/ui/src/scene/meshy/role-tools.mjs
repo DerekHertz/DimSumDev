@@ -1,9 +1,11 @@
 import * as T from 'three';
+import {GROVE_TOOLS,createGroveTool} from './grove-tools.mjs';
 
-export const ROLE_TOOLS=Object.freeze({orchestrator:'Order tokens',product:'Idea notebook',architect:'Drafting ruler',developer:'Pocket tablet',scout:'Field compass',debugger:'Inspection lantern',qa:'Magnifying lens',security:'Brass garden key',designer:'Paint palette',herald:'Story scroll','release-manager':'Festival mallet','knowledge-keeper':'Archive book','docs-writer':'Writing brush','stem-cub':'Bamboo sprout'});
+export const ROLE_TOOLS=Object.freeze({...GROVE_TOOLS,debugger:'Inspection lantern','release-manager':'Festival mallet','knowledge-keeper':'Archive book','docs-writer':'Writing brush','stem-cub':'Bamboo sprout'});
 
 /** Small authored tools follow a paw socket; wardrobe still supplies each role's attire. */
-export function createRoleTool(role){
+export function createRoleTool(role,options={}){
+ if(GROVE_TOOLS[role])return createGroveTool(role,options);
  if(!ROLE_TOOLS[role])throw Error('Unknown role tool: '+role);
  const root=new T.Group();root.name=ROLE_TOOLS[role];root.userData={roleId:role,tool:ROLE_TOOLS[role]};
  const mats=Object.fromEntries(Object.entries({wood:'#bc9366',cream:'#fff2d7',jade:'#61876c',gold:'#d6b260',ink:'#35534b',coral:'#cc8d79',blue:'#89aebc',lilac:'#b4a1bf'}).map(([id,color])=>[id,new T.MeshStandardMaterial({color,roughness:.82})]));

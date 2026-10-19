@@ -32,8 +32,8 @@ export function createMeshyActors(den){
   return base.clone();
  }
  function addVisitor(key,row){
-  const base=actors.get(row.role),panda=den.createPanda(row.role),{model}=panda,home=clearPoint(base.home,actors.size);
-  model.name=base.name+' · visitor';model.userData={roleId:row.role,actorKey:key};
+  const base=actors.get(row.role),panda=den.createPanda(row.role,{runtime:base.panda.model.userData.runtime||'claude'}),{model}=panda,home=clearPoint(base.home,actors.size);
+  model.name=base.name+' · visitor';model.userData={...model.userData,roleId:row.role,actorKey:key};
   model.position.copy(home);den.residents.add(model);
   const actor={...base,name:base.name+' (visitor)',panda,gesture:null,routine:null,leaving:false,home,index:actors.size,live:row,visitor:true,baseYaw:base.baseYaw,path:null,seat:null,guest:false};
   // A short arrival uses the same independent skeleton as a meeting walk.
@@ -62,8 +62,8 @@ export function createMeshyActors(den){
   const resident=actors.get(role);if(!resident||resident.stationary)return null;
   if(!resident.live||resident.live.ref===ref)return role;
   const key='meeting:'+role;if(actors.has(key))return key;
-  const panda=den.createPanda(role),{model}=panda;
-  model.name=resident.name+' · at the table';model.userData={roleId:role,actorKey:key};model.position.copy(resident.home);den.residents.add(model);
+  const panda=den.createPanda(role,{runtime:resident.panda.model.userData.runtime||'claude'}),{model}=panda;
+  model.name=resident.name+' · at the table';model.userData={...model.userData,roleId:role,actorKey:key};model.position.copy(resident.home);den.residents.add(model);
   actors.set(key,{...resident,name:resident.name+' (at the table)',panda,gesture:null,routine:null,home:resident.home.clone(),index:actors.size,live:null,visitor:false,guest:true,arriving:false,path:null});
   return key;
  }

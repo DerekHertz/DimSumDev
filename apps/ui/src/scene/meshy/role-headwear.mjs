@@ -1,11 +1,14 @@
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
+import {GROVE_ROLES} from './grove-style.mjs';
+import {createGroveHeadwear} from './grove-headwear.mjs';
 
 const SELECTED = new Set(['orchestrator','architect','designer','scout','knowledge-keeper','release-manager','stem-cub']);
 
 // Bao-local coordinates: feet=0, crown approximately3, front=+Z.
 // Only the seven approved headwear assignments are constructed.
-export function createRoleHeadwear(roleId) {
+export function createRoleHeadwear(roleId,options={}) {
+  if(GROVE_ROLES[roleId])return createGroveHeadwear(roleId,options);
   if (!SELECTED.has(roleId)) return null;
   const source = new T.Group();
   const material = color => new T.MeshStandardMaterial({color,roughness:.88});

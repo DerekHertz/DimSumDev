@@ -118,7 +118,10 @@ export function createBalancedPandaRig(source) {
       const positions = geometry.attributes.position, skinIndices = new Uint16Array(positions.count * 4), skinWeights = new Float32Array(positions.count * 4), colors = new Float32Array(positions.count * 3);
       const position = new T.Vector3(), color = new T.Color();
       for (let i = 0; i < positions.count; i++) {
-        position.fromBufferAttribute(positions, i); const weights = weightsFor(position, headOnly);
+        position.fromBufferAttribute(positions, i);
+        const attachment=node.userData.attachBone;
+        if(attachment&&!bones[attachment])throw Error('Unknown outfit attachment bone: '+attachment);
+        const weights = attachment?[[attachment,1]]:weightsFor(position, headOnly || Boolean(node.userData.headwearRole));
         weights.forEach(([name, weight], slot) => { skinIndices[i * 4 + slot] = indices[name]; skinWeights[i * 4 + slot] = weight; });
         color.setHSL((indices[weights[0][0]] * .173) % 1, .62, .57); color.toArray(colors, i * 3);
       }
@@ -132,6 +135,7 @@ export function createBalancedPandaRig(source) {
       };
       const materials = Array.isArray(node.material) ? node.material.map(clone) : clone(node.material);
       const mesh = new T.SkinnedMesh(geometry, materials); mesh.name = node.name || 'Balanced Bao skin';
+      mesh.userData = {...node.userData};
       mesh.castShadow = true; mesh.receiveShadow = false; mesh.frustumCulled = false;
       parent.add(mesh); mesh.bind(skeleton, new T.Matrix4()); originalMaterials.set(mesh, materials);
       if (weightsVisible) mesh.material = weightMaterial;

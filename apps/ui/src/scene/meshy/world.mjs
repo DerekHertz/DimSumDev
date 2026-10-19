@@ -1,9 +1,8 @@
 import * as T from 'three';
 import { createDenScene, GROUND } from './plush/assembly.mjs';
 import { gardenKit } from './plush/garden-kit.mjs';
-import { createBalancedPandaRig } from './panda-rig.mjs';
-import { createRoleOutfit, ROLE_OUTFITS } from './role-outfits.mjs';
-import { createRoleTool } from './role-tools.mjs';
+import { ROLE_OUTFITS } from './role-outfits.mjs';
+import {createPandaAppearanceFactory} from './panda-appearance.mjs';
 import { fitRoleAsset } from './role-wardrobe.mjs';
 import { loadManifest, loadModel, disposeWorld } from './assets.mjs';
 import { populateAmbientGarden } from './ambient-garden.mjs';
@@ -17,9 +16,9 @@ import {gardenRoutineSpots} from './daily-routines.mjs';
 const active=signal=>{if(signal?.aborted)throw new DOMException('Scene load cancelled','AbortError');};
 
 export async function createMeshyWorld(renderer,{signal,onProgress=()=>{}}={}){
- const resources=new T.Group(),residents=new T.Group(),rigs=new Map();let garden,ambient,meeting,disposed=false;
+ const resources=new T.Group(),residents=new T.Group(),rigs=new Map();let garden,ambient,meeting,appearances,disposed=false;
  const den={world:new T.Group(),residents,roleTools:new T.Group(),vegetation:new T.Group(),zones:new Map(),plan:[],hats:[],renderer,frontier:new Map(),pandaRigs:rigs,navigationTargets:NAVIGATION_TARGETS,walkStart:WALK_START};
- den.dispose=()=>{if(disposed)return;disposed=true;ambient?.dispose();if(ambient){disposeWorld(ambient.props);for(const outfit of ambient.outfits)disposeWorld(outfit);}for(const model of [...rigs.keys()])den.destroyPanda(model);garden?.dispose();meeting?.dispose();disposeWorld(den.world);disposeWorld(resources);};
+ den.dispose=()=>{if(disposed)return;disposed=true;ambient?.dispose();if(ambient){disposeWorld(ambient.props);for(const outfit of ambient.outfits)disposeWorld(outfit);}appearances?.dispose();garden?.dispose();meeting?.dispose();disposeWorld(den.world);disposeWorld(resources);};
  try{
   den.assets=await loadManifest(signal);active(signal);
   onProgress('Opening the bright bamboo garden…');garden=createDenScene();den.garden=garden;den.world.add(garden.root,residents,den.roleTools,den.vegetation);den.world.name='Dim Sum Dev · plush bamboo garden';
@@ -27,12 +26,9 @@ export async function createMeshyWorld(renderer,{signal,onProgress=()=>{}}={}){
   const ids=['bao','wardrobe.developer-vest','wardrobe.qa-scarf','wardrobe.developer-headphones'];
   const sources=[];for(const id of ids){const source=await loadModel(den.assets[id].url);resources.add(source);sources.push(source);active(signal);}
   const [body,vestSource,scarfSource,headphonesSource]=sources,vest=fitRoleAsset(vestSource,'developer-vest'),scarf=fitRoleAsset(scarfSource,'qa-scarf'),headphones=fitRoleAsset(headphonesSource,'developer-headphones'),securityVest=fitRoleAsset(vestSource,'security-vest');resources.add(vest,scarf,headphones,securityVest);
-  const outfits=new Map(ROLE_OUTFITS.map(spec=>{const outfit=createRoleOutfit(spec.id,{vest,scarf,headphones,securityVest});resources.add(outfit);return[spec.id,outfit];}));
-  den.createPanda=role=>{
-   if(!outfits.has(role))throw Error('Unknown resident role: '+role);
-   const rig=createBalancedPandaRig(body);rig.addOutfit(outfits.get(role));const tool=createRoleTool(role);rig.bones.paw_R.add(tool);rig.model.userData={roleId:role,actorKey:role};rig.model.scale.setScalar(role==='orchestrator'?1.35:role==='stem-cub'?.52:.68);rigs.set(rig.model,{rig,tool});return{model:rig.model,rig};
-  };
-  den.destroyPanda=model=>{const entry=rigs.get(model);if(!entry)return;entry.rig.dispose();disposeWorld(entry.tool);rigs.delete(model);};
+  appearances=createPandaAppearanceFactory({body,vest,scarf,headphones,securityVest});resources.add(appearances.outfits);den.pandaRigs=appearances.instances;
+  den.createPanda=appearances.createPanda;
+  den.destroyPanda=appearances.destroyPanda;
   const workspaces=new Map(),records=[];
   const place=(role,assetId,position,yaw=0)=>{const panda=den.createPanda(role),asset=garden.assets[assetId],point=asset?garden.worldPoint(assetId,position):new T.Vector3(...position);panda.model.position.copy(point);panda.model.rotation.y=yaw+(asset?.root.rotation.y||0);panda.model.name=propDefinitions.find(p=>p.id===role).label;residents.add(panda.model);panda.rig.poseIdle(0);const record={id:role,station:assetId||'center',person:panda.model,group:asset?.root||garden.welcome,loaded:true};workspaces.set(role,record);records.push({id:role,station:record.station,person:point.toArray(),loaded:true});};
   place('orchestrator',null,[0,GROUND+.03,-.6]);
@@ -40,7 +36,7 @@ export async function createMeshyWorld(renderer,{signal,onProgress=()=>{}}={}){
   for(const[role,spec]of Object.entries(garden.assets.steamers.residents))place(role,'steamers',spec.position,spec.yaw);
   place('debugger','steamers',[0,.41,1.9],-.10);place('knowledge-keeper','library',[-1.1,.43,2.6],.18);place('docs-writer','library',[2.0,.43,2.45],-.25);place('release-manager','festival',[5.2,.635,1.8],-.4);place('stem-cub',null,[0,GROUND,25.6],0);
   den.propManifest=propDefinitions;den.roleWorkspaces={workspaces,records,group:residents,anchors:{},errors:[],toolsCreated:14};
-  den.wardrobe={loaded:ROLE_OUTFITS.map(s=>({id:s.id,role:s.id})),failed:[],missing:[]};den.roleOutfits={loaded:ROLE_OUTFITS.map(s=>s.id),headwear:ROLE_OUTFITS.filter(s=>s.headwear).map(s=>s.id)};den.developerWorkstation={loaded:true,source:'Three.js',style:'Coding desk, terminal, keyboard and tools'};
+  den.wardrobe={loaded:records.map(s=>({id:s.id,role:s.id})),failed:[],missing:[]};den.roleOutfits={loaded:records.map(s=>s.id),headwear:ROLE_OUTFITS.filter(s=>s.headwear&&workspaces.has(s.id)).map(s=>s.id)};den.developerWorkstation={loaded:true,source:'Three.js',style:'Coding desk, terminal, keyboard and tools'};
   for(const p of garden.places){const asset=garden.assets[p.id];if(asset)den.zones.set(p.id,asset.root);den.plan.push({id:p.id,label:p.name,x:p.x,z:p.z,radius:Math.max(p.w,p.d)/2});}
   den.zones.set('center',garden.welcome);den.zones.set('pavilion',garden.assets.tea.root);den.zones.set('games',garden.assets.mahjong.root);
   garden.assets.library.root.userData.denInteraction={zone:'archive',intent:'open-library',id:'archive.library'};
