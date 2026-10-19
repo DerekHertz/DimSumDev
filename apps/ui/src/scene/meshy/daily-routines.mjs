@@ -41,7 +41,7 @@ export function createDailyRoutines(den,actors){
   // At most one route attempt per departure beat, even when a destination is unreachable.
   for(let i=0;i<candidates.length;i++){
    const a=candidates[cursor++%candidates.length];
-   if(a.live||a.seat||a.leaving||a.arriving||a.path?.length||a.routine||a.role===held||(a.nextRoutine||0)>time)continue;
+   if(a.live||a.seat||a.leaving||a.arriving||a.path?.length||a.routine||a.id===held||(a.nextRoutine||0)>time)continue;
    const spot=spots.slice(visit%spots.length).concat(spots.slice(0,visit%spots.length)).find(s=>!reserved.has(s.id)&&(!s.available||s.available()));
    if(!spot)return;
    visit++;a.nextRoutine=time+18;

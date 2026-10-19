@@ -10,8 +10,8 @@ import { createGardenNavigation } from './garden-navigation.mjs';
 import { addLiveFixtures } from './live-fixtures.mjs';
 import { materials } from './garden.mjs';
 import { NAVIGATION_TARGETS, WALK_START } from './layout.mjs';
-import propDefinitions from './role-props.mjs';
 import {gardenRoutineSpots} from './daily-routines.mjs';
+import {residentHomes} from './resident-homes.mjs';
 
 const active=signal=>{if(signal?.aborted)throw new DOMException('Scene load cancelled','AbortError');};
 
@@ -30,12 +30,9 @@ export async function createMeshyWorld(renderer,{signal,onProgress=()=>{}}={}){
   den.createPanda=appearances.createPanda;
   den.destroyPanda=appearances.destroyPanda;
   const workspaces=new Map(),records=[];
-  const place=(role,assetId,position,yaw=0)=>{const panda=den.createPanda(role),asset=garden.assets[assetId],point=asset?garden.worldPoint(assetId,position):new T.Vector3(...position);panda.model.position.copy(point);panda.model.rotation.y=yaw+(asset?.root.rotation.y||0);panda.model.name=propDefinitions.find(p=>p.id===role).label;residents.add(panda.model);panda.rig.poseIdle(0);const record={id:role,station:assetId||'center',person:panda.model,group:asset?.root||garden.welcome,loaded:true};workspaces.set(role,record);records.push({id:role,station:record.station,person:point.toArray(),loaded:true});};
-  place('orchestrator',null,[0,GROUND+.03,-.6]);
-  for(const id of['pass','pantry','front'])for(const spec of garden.assets[id].residents)place(spec.id,id,spec.position,spec.yaw);
-  for(const[role,spec]of Object.entries(garden.assets.steamers.residents))place(role,'steamers',spec.position,spec.yaw);
-  place('debugger','steamers',[0,.41,1.9],-.10);place('knowledge-keeper','library',[-1.1,.43,2.6],.18);place('docs-writer','library',[2.0,.43,2.45],-.25);place('release-manager','festival',[5.2,.635,1.8],-.4);place('stem-cub',null,[0,GROUND,25.6],0);
-  den.propManifest=propDefinitions;den.roleWorkspaces={workspaces,records,group:residents,anchors:{},errors:[],toolsCreated:14};
+  const homes=residentHomes(garden);
+  for(const home of homes){const panda=den.createPanda(home.role,{runtime:home.runtime}),asset=garden.assets[home.stationId];panda.model.position.fromArray(home.position);panda.model.rotation.y=home.yaw;panda.model.name=home.name+' · '+home.runtime;panda.model.userData.actorKey=home.id;residents.add(panda.model);panda.rig.poseIdle(0);const record={...home,station:home.stationId||'center',person:panda.model,group:asset?.root||garden.welcome,loaded:true};workspaces.set(home.id,record);records.push({...home,person:home.position,loaded:true});}
+  den.propManifest=homes;den.roleWorkspaces={workspaces,records,group:residents,anchors:{},errors:[],toolsCreated:homes.length};
   den.wardrobe={loaded:records.map(s=>({id:s.id,role:s.id})),failed:[],missing:[]};den.roleOutfits={loaded:records.map(s=>s.id),headwear:ROLE_OUTFITS.filter(s=>s.headwear&&workspaces.has(s.id)).map(s=>s.id)};den.developerWorkstation={loaded:true,source:'Three.js',style:'Coding desk, terminal, keyboard and tools'};
   for(const p of garden.places){const asset=garden.assets[p.id];if(asset)den.zones.set(p.id,asset.root);den.plan.push({id:p.id,label:p.name,x:p.x,z:p.z,radius:Math.max(p.w,p.d)/2});}
   den.zones.set('center',garden.welcome);den.zones.set('pavilion',garden.assets.tea.root);den.zones.set('games',garden.assets.mahjong.root);

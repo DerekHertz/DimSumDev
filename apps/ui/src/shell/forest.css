@@ -92,6 +92,8 @@
 .forest-profile-heading .forest-eyebrow { font-size: 9px; margin-bottom: 3px; }
 .forest-profile h3 { font: 400 23px/1.2 var(--font-display); margin: 0; }
 .forest-profile-role { margin: 5px 0 0; color: var(--ink-muted); font-size: 11px; overflow-wrap: anywhere; }
+.forest-profile-project { margin: 5px 0 0; color: var(--ink-muted); font-size: 11px; overflow-wrap: anywhere; }
+.forest-portrait-runtime { font-size: 10px; line-height: 1.3; color: var(--ink); }
 .forest-profile-activity { margin: 17px 0 14px; }
 .forest-profile-state { display: flex; align-items: center; gap: 7px; margin: 0; font-size: 11px; }
 .forest-profile-task { margin: 7px 0 0; font-size: 12px; line-height: 1.5; overflow-wrap: anywhere; }
