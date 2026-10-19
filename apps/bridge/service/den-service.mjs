@@ -6,7 +6,7 @@
 //   update(t)  fetch main and tags, packages if the lockfile changed, a release of the newest v* tag (or --main, or tag t),
 //              the links, restart (skipped when nothing changed). A bare update never goes back to an older release or
 //              to one that failed to start; naming it (t or --main) is the user's say (den-mvp/77).
-import { execFile } from "node:child_process";
+import { execFile, spawnSync } from "node:child_process";
 import { copyFile, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -137,7 +137,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
         const result = await fn();
         say(`  done${result ? `: ${result}` : ""}`);
       } catch (err) {
-        say(`  FAILED: ${err.message}`);
+        say(err?.rerun ? `  ${err.message}` : `  FAILED: ${err.message}`);
         throw err instanceof DenServiceError ? err : new DenServiceError(err.message);
       }
     }
@@ -160,9 +160,15 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
         state.sha = await gitOut(["rev-parse", `${state.tag}^{commit}`]);
       }
       // Friction F15: this script, and the box and wrapper it builds with, are the checkout's own files, not main's. A
-      // checkout behind main whose copy of them differs builds the new release with the old code, so it stops here.
+      // checkout behind main whose copy of them differs builds the new release with the old code, so it stops here. A
+      // checkout on main and only behind is fast-forwarded first (uncommitted edits elsewhere stay), and the CLI runs the
+      // update again so the new code builds it.
       const changed = (await gitOut(["diff", "--name-only", "HEAD", `${remote}/main`, "--", ...OWN_CODE])).split("\n").filter(Boolean);
       if (changed.length) {
+        const onMain = (await git(["symbolic-ref", "--short", "HEAD"])).out?.trim() === "main";
+        if (onMain && (await git(["merge-base", "--is-ancestor", "HEAD", `${remote}/main`])).ok && (await git(["merge", "--ff-only", "-q", `${remote}/main`])).ok) {
+          throw Object.assign(new DenServiceError(`the checkout was behind ${remote}/main and is now fast-forwarded; running the update again with the new code`), { rerun: true });
+        }
         throw new DenServiceError(`the checkout's own install code differs from ${remote}/main (${changed.slice(0, 3).join(", ")}${changed.length > 3 ? ", ..." : ""}), and this script builds with the checkout's copy. Bring the checkout up to main (git switch main && git pull --ff-only), then run this again.`);
       }
       return state.sha.slice(0, 12);
@@ -312,6 +318,10 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   try {
     await createDen()[command](...(command === "update" ? process.argv.slice(3, 4) : []));
   } catch (err) {
+    if (err?.rerun) {
+      const again = spawnSync(process.execPath, process.argv.slice(1), { stdio: "inherit" });
+      process.exit(again.status ?? 1);
+    }
     console.error(err instanceof DenServiceError ? `den:${command} stopped: ${err.message}` : err);
     process.exit(1);
   }
