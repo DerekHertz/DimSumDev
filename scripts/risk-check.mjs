@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // organism-infra/08: the scripted risk check that sizes the review relay to
 // the diff. Run by `scout` (or CI) on every code ticket instead of the full
-// `security` cell. Exit 0 = clean, the scripted check suffices. Exit non-zero
+// `security` agent. Exit 0 = clean, the scripted check suffices. Exit non-zero
 // = escalate to full security review; each hit is printed as
 // "file: reason" (or "reason" for range-wide hits).
 //
@@ -34,8 +34,8 @@ const CODE_RISK_PATTERNS = [
 // agent-os/04 (ADR 0021): a file whose content sets what an agent may do. Any change to one goes to a security review,
 // whatever the content says.
 const GUARDRAIL_PATHS = new Map([
-  ["apps/bridge/cells/ceilings.json", "guardrail file changed (role ceilings: what a den agent may do)"],
-  ["apps/bridge/cells/governance.json", "guardrail file changed (governance deny list: paths and commands no den agent may touch)"],
+  ["apps/bridge/agents/ceilings.json", "guardrail file changed (role ceilings: what a den agent may do)"],
+  ["apps/bridge/agents/governance.json", "guardrail file changed (governance deny list: paths and commands no den agent may touch)"],
   ["apps/bridge/library/connections.json", "guardrail file changed (connections catalog: the servers and tools a den agent is given)"],
 ]);
 

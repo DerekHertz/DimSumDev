@@ -10,7 +10,7 @@ import { existsSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { hasSecret } from "./exposure.mjs";
-import { appendUsageLine, resolveRoot } from "../apps/organism-infra/board-service.mjs";
+import { appendUsageLine, resolveRoot } from "../apps/board/board-service.mjs";
 
 export const FORBIDDEN_FLAGS = ["--hidden", "--no-ignore", "--include-sensitive", "--include-dependencies"];
 const EXCLUDES = [".scratch/", ".claude/"];

@@ -2,7 +2,7 @@
 //
 // Pinned contract (QA's reading of the ticket):
 //   - `node scripts/board.mjs <args>` forwards its arguments and exit code to
-//     apps/organism-infra/board.mjs, behaving exactly like
+//     apps/board/board.mjs, behaving exactly like
 //     `npm run board -- <args>` for every tested command.
 //   - The shim passes through stdout, stderr, and exit codes unchanged.
 //
@@ -19,7 +19,7 @@ import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SHIM = path.join(REPO_ROOT, "scripts", "board.mjs");
-const CLI = path.join(REPO_ROOT, "apps", "organism-infra", "board.mjs");
+const CLI = path.join(REPO_ROOT, "apps", "board", "board.mjs");
 
 function git(cwd, args) {
   return execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
@@ -58,7 +58,7 @@ function runShim(fx, args) {
   return spawnSync("node", [SHIM, ...args], {
     cwd: fx.wt,
     encoding: "utf8",
-    env: { ...process.env, ORGANISM_ROOT: fx.main },
+    env: { ...process.env, DEN_ROOT: fx.main },
   });
 }
 
@@ -66,7 +66,7 @@ function runCLI(fx, args) {
   return spawnSync("node", [CLI, ...args], {
     cwd: fx.wt,
     encoding: "utf8",
-    env: { ...process.env, ORGANISM_ROOT: fx.main },
+    env: { ...process.env, DEN_ROOT: fx.main },
   });
 }
 

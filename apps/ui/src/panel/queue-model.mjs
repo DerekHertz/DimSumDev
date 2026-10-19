@@ -15,7 +15,7 @@ function row(t) {
     priorityLabel: t.bumped ? `${t.effectivePriority} ↑` : t.effectivePriority,
     bumped: Boolean(t.bumped),
     bumpLabel: t.bumped ? `Bumped from ${t.priority} after ${t.bumps} sessions` : null,
-    cellType: t.holder?.cell ?? t.lastCell ?? null,
+    cellType: t.holder?.role ?? t.lastRole ?? null,
     status: t.status,
     blocked,
     blockedText,
@@ -41,7 +41,7 @@ export function detailModel(snapshot, ref) {
     ref: t.ref,
     title: t.title,
     status: t.status,
-    holder: t.holder ? `${t.holder.cell} since ${t.holder.since}` : null,
+    holder: t.holder ? `${t.holder.role} since ${t.holder.since}` : null,
   };
   if (!t.handoff) return { kind: "missing-handoff", message: "No handoff yet.", ...base };
   return { kind: "handoff", ...base, handoff: t.handoff };

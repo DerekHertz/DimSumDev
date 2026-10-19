@@ -5,7 +5,7 @@
 // newline) and poll loops (until / while / for ... sleep). A lone `sleep`, and the word "sleep" in
 // a path, an argument, a quoted string, a comment or a heredoc body, stay allowed.
 //
-// No override, by design: a cell cannot bypass the guard, the user disables the mod. Fail open:
+// No override, by design: an agent cannot bypass the guard, the user disables the mod. Fail open:
 // bad input, a crash or a timeout allows the command.
 //
 // Each block adds a comment on the standing `mods-trial` ticket through the board CLI (a ticket
@@ -136,13 +136,13 @@ export function check(command) {
 
 // ---- block log ------------------------------------------------------------------------------
 
-const CELLS = new Set(["developer", "qa", "security", "architect", "designer", "herald", "product", "orchestrator", "scout"]);
+const ROLES = new Set(["developer", "qa", "security", "architect", "designer", "herald", "product", "orchestrator", "scout"]);
 const HEAD_MAX = 200;
 const REDACT_INPUT_MAX = 2000; // cap before redact() so a huge command cannot stall the regexes
 const STEP_TIMEOUT_MS = 3000;
 
 function findBoard(cwd) {
-  const rel = path.join("apps", "organism-infra", "board.mjs");
+  const rel = path.join("apps", "board", "board.mjs");
   const starts = [process.env.CLAUDE_PROJECT_DIR, cwd].filter((p) => typeof p === "string" && p);
   for (const start of starts) {
     let dir = path.resolve(start);
@@ -200,7 +200,7 @@ function logBlock(input, command) {
     }
     if (!ref) return;
     const agent = typeof input.agent_type === "string" ? input.agent_type.replace(/[^\w-]/g, "").slice(0, 40) : "";
-    const as = CELLS.has(agent) ? agent : "orchestrator";
+    const as = ROLES.has(agent) ? agent : "orchestrator";
     const source = agent || "main session";
     const head = redact(command.slice(0, REDACT_INPUT_MAX).replace(/\s+/g, " ").replace(/`/g, "'").trim()).slice(0, HEAD_MAX);
     board(boardPath, cwd, ["comment", ref, "--as", as, `sleep-guard blocked (${source}): \`${head}\``]);

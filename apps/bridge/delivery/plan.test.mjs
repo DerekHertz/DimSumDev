@@ -67,7 +67,7 @@ describe("the delivery plan", () => {
     // F29: a branch that no longer merges with main goes back to the developer to merge it, before anything is pushed.
     ["checked and clean, not yet merged with main: the merge check", job({ qa: passed.qa, risk: riskOf() }), { kind: "sync" }],
     ["a merge check of an older commit does not count", job({ ...passed, sync: synced({ sha: OLD }) }), { kind: "sync" }],
-    ["it conflicts with main: the developer merges main, and it is not a bounce", job({ ...passed, sync: synced({ conflicts: ["apps/bridge/cells/host.mjs"] }) }), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true, sync: MAIN }],
+    ["it conflicts with main: the developer merges main, and it is not a bounce", job({ ...passed, sync: synced({ conflicts: ["apps/bridge/agents/host.mjs"] }) }), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true, sync: MAIN }],
     ["the pull request conflicts though the push-time check was clean (main moved): check again", job({ ...green, pr: { sha: SHA, state: "OPEN", mergeable: "CONFLICTING" } }), { kind: "sync", at: "pr" }],
     ["a conflicting pull request is checked before its missing checks are waited on", job({ ...open, pr: { sha: SHA, state: "OPEN", mergeable: "CONFLICTING" }, ci: { sha: SHA, state: "none" } }), { kind: "sync", at: "pr" }],
     ["the check after the pull request finds the conflict: the developer merges main", job({ ...green, pr: { sha: SHA, state: "OPEN", mergeable: "CONFLICTING" }, sync: synced({ at: "pr", conflicts: ["a.mjs"] }) }), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true, sync: MAIN }],
@@ -157,12 +157,12 @@ describe("the delivery plan", () => {
   });
 
   test("the paths whose change the user merges: the guardrails, the bridge, the checks and the manifest", () => {
-    for (const p of [".claude/agents/developer.md", ".github/workflows/ci.yml", "apps/bridge/cells/host.mjs", "apps/bridge/delivery/plan.mjs", "apps/bridge/cells/governance.json", "scripts/risk-check.mjs", "package.json"]) assert.equal(isUserMergePath(p), true, p);
+    for (const p of [".claude/agents/developer.md", ".github/workflows/ci.yml", "apps/bridge/agents/host.mjs", "apps/bridge/delivery/plan.mjs", "apps/bridge/agents/governance.json", "scripts/risk-check.mjs", "package.json"]) assert.equal(isUserMergePath(p), true, p);
     for (const p of ["apps/ui/src/App.jsx", "docs/adr/0001.md", "apps/bridgework/x.mjs", "apps/ui/package.json", "apps/ui/.eslintrc", "CONTEXT.md", "packages/board-refs/index.mjs"]) assert.equal(isUserMergePath(p), false, p);
     // What runs by itself on the user's machine or on the git host, the board and gate code, and every root dot path.
-    for (const p of ["scripts/session-start.mjs", "scripts/hooks/bash-guard.mjs", "scripts/metrics.mjs", "apps/organism-infra/board-service.mjs", "apps/ci-cd/smoke.mjs", "mods/queue/hooks.mjs", "CLAUDE.md", "AGENTS.md", "skills-lock.json", ".gitattributes", ".gitmodules", ".npmrc", ".mcp.json", ".agents/skills/tdd/SKILL.md", ".cursor/settings.json", ".codex/config.toml", ".claude-plugin/plugin.json", ".gitleaks.toml"]) assert.equal(isUserMergePath(p), true, p);
+    for (const p of ["scripts/session-start.mjs", "scripts/hooks/bash-guard.mjs", "scripts/metrics.mjs", "apps/board/board-service.mjs", "apps/ci-cd/smoke.mjs", "mods/queue/hooks.mjs", "CLAUDE.md", "AGENTS.md", "skills-lock.json", ".gitattributes", ".gitmodules", ".npmrc", ".mcp.json", ".agents/skills/tdd/SKILL.md", ".cursor/settings.json", ".codex/config.toml", ".claude-plugin/plugin.json", ".gitleaks.toml"]) assert.equal(isUserMergePath(p), true, p);
     for (const p of [".github/workflows/ci.yml", ".github/actions/setup/action.yml", ".github/CODEOWNERS"]) assert.deepEqual([isCiPath(p), isUserMergePath(p)], [true, true], p);
-    for (const p of ["apps/bridge/cells/host.mjs", "package-lock.json"]) assert.deepEqual([isCiPath(p), isUserMergePath(p)], [false, true], p);
+    for (const p of ["apps/bridge/agents/host.mjs", "package-lock.json"]) assert.deepEqual([isCiPath(p), isUserMergePath(p)], [false, true], p);
   });
 });
 
@@ -189,7 +189,7 @@ describe("a reviewer's verdict and the step prompts", () => {
 
   test("a prompt names the ticket file and the commit, tells the agent the bridge does the board and the push, and asks a reviewer for a verdict line", () => {
     const dev = deliveryPrompt({ role: "developer", ref: "fx/08-plain", ticketFile: "/r/.scratch/fx/issues/08-plain.md", since: BASE });
-    assert.match(dev, /developer cell for ticket fx\/08-plain/);
+    assert.match(dev, /developer agent for ticket fx\/08-plain/);
     assert.match(dev, /Run no board command, and do not push/);
     // Friction log F2 and F4: foreground checks under timeout, throwaway scripts under .den/.
     assert.match(dev, /in the foreground under `timeout`.*never in the background/);
@@ -201,7 +201,7 @@ describe("a reviewer's verdict and the step prompts", () => {
     assert.doesNotMatch(dev, /findings\.md|VERDICT/);
     assert.match(deliveryPrompt({ role: "developer", ref: "fx/08-plain", ticketFile: "/t.md", since: BASE, fix: true }), /read \.den\/findings\.md first/);
     const qa = deliveryPrompt({ role: "qa", mode: "verify", ref: "fx/08-plain", ticketFile: "/t.md", since: BASE });
-    assert.match(qa, /qa cell in verify mode/);
+    assert.match(qa, /qa agent in verify mode/);
     assert.match(qa, new RegExp(`git diff ${BASE}\\.\\.HEAD`));
     assert.match(qa, /`VERDICT: pass` or `VERDICT: bounce`/);
     assert.match(deliveryPrompt({ role: "security", ref: "fx/08-plain", ticketFile: "/t.md", since: BASE }), /for security/);

@@ -1,8 +1,8 @@
 // organism-infra/208: gaps between the 208 ticket and the 162/145/165/194 context-budget hook.
 // The hook (scripts/hooks/context-budget.mjs) already refuses at the stop limit and allows the wrap-up calls.
 // Three ticket requirements are not met yet, and are pinned here:
-//   1. the 70k-80k warning is ONE-TIME per cell (today it repeats on every call in the window)
-//   2. `node scripts/log-cell.mjs` is a wrap-up command at the stop limit
+//   1. the 70k-80k warning is ONE-TIME per agent (today it repeats on every call in the window)
+//   2. `node scripts/log-agent.mjs` is a wrap-up command at the stop limit
 //   3. a Write/Edit under /tmp (the handoff draft) is a wrap-up write at the stop limit
 // Seam: the hook CLI, PreToolUse JSON on stdin, HOME=<fixture>, as context-budget.test.mjs does.
 // Each test uses its own session id, so any "warned already" state the hook keeps cannot leak between tests.
@@ -12,7 +12,7 @@
 //        -> context-budget.test.mjs ("at exactly 80k the hook refuses a Read", "... Grep, a Glob and a non-wrap-up Bash",
 //           "the refusal message says how to wrap up", "... refuses a Write or Edit outside .scratch/")
 //        -> here: "a Write outside /tmp ..." boundary tests
-//   AC2 wrap-up commands still run at 80k+ -> context-budget.test.mjs WRAP_UP table; here: log-cell, Write/Edit under /tmp
+//   AC2 wrap-up commands still run at 80k+ -> context-budget.test.mjs WRAP_UP table; here: log-agent, Write/Edit under /tmp
 //   AC3 70k-80k: one warning, not refused -> here: the "one-time" tests; context-budget.test.mjs for the warning itself
 //   AC4 orchestrator never refused        -> context-budget.test.mjs ("orchestrator ..." tests), handback.test.mjs
 //   AC5 fails open when unreadable        -> context-budget.test.mjs ("null context ...", "unreadable ... input")
@@ -27,12 +27,12 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const SCRIPT = path.join(path.resolve(fileURLToPath(new URL("../..", import.meta.url))), "scripts", "hooks", "context-budget.mjs");
-const CELL = { agent_id: "agent-a", agent_type: "security" }; // default 70k / 80k tier
+const ROLE = { agent_id: "agent-a", agent_type: "security" }; // default 70k / 80k tier
 
 let counter = 0;
 const uniqueSession = () => `s208-${process.pid}-${Date.now()}-${counter++}`;
 
-// A fixture HOME with one cell worktree whose subagent transcript reports `tokens` of context.
+// A fixture HOME with one agent worktree whose subagent transcript reports `tokens` of context.
 function fixture(tokens, session = uniqueSession()) {
   const home = realpathSync(mkdtempSync(path.join(tmpdir(), "ctx-budget-208-")));
   const wt = path.join(home, "worktrees", "agent-a");
@@ -45,12 +45,12 @@ function fixture(tokens, session = uniqueSession()) {
   return { home, wt, session, set };
 }
 
-function runHook(f, toolName, toolInput, who = CELL) {
-  const env = { ...process.env, HOME: f.home, ORGANISM_ROOT: path.join(f.home, "main") };
+function runHook(f, toolName, toolInput, who = ROLE) {
+  const env = { ...process.env, HOME: f.home, DEN_ROOT: path.join(f.home, "main") };
   delete env.CLAUDE_CODE_SESSION_ID;
   // organism-infra/220: mechanics at 70k/80k through the config seam (shipped numbers: tiers test).
   const cfg = path.join(f.home, "mechanics-budget.json");
-  writeFileSync(cfg, JSON.stringify({ default: { warn: 70_000, stop: 80_000 }, cells: {}, orchestrator: { warn: 70_000, stop: 80_000 } }));
+  writeFileSync(cfg, JSON.stringify({ default: { warn: 70_000, stop: 80_000 }, roles: {}, orchestrator: { warn: 70_000, stop: 80_000 } }));
   env.CONTEXT_BUDGET_CONFIG = cfg;
   const input = { session_id: f.session, cwd: f.wt, hook_event_name: "PreToolUse", tool_name: toolName, tool_input: toolInput, ...who };
   return spawnSync("node", [SCRIPT], { cwd: f.wt, env, input: JSON.stringify(input), encoding: "utf8", timeout: 15000 });
@@ -99,7 +99,7 @@ test("the one-time warning is not re-sent when context grows within the 70k-80k 
   assertSilentAllow(runHook(f, "Grep", { pattern: "foo" }), "call after context grew to 78,900");
 });
 
-test("a cell that was warned is still refused once it crosses 80k, and the wrap-up calls still pass", () => {
+test("an agent that was warned is still refused once it crosses 80k, and the wrap-up calls still pass", () => {
   const f = fixture(75_000);
   assert.ok(isWarning(runHook(f, "Read", READ)), "first call warns");
   f.set(81_000);
@@ -107,11 +107,11 @@ test("a cell that was warned is still refused once it crosses 80k, and the wrap-
   assertAllowed(bash(f, "git commit -m wip"), "git commit at 81k after the warning");
 });
 
-test("each cell gets its own one-time warning: a second cell in another session is warned too", () => {
+test("each agent gets its own one-time warning: a second agent in another session is warned too", () => {
   const a = fixture(75_000);
   const b = fixture(75_000);
-  assert.ok(isWarning(runHook(a, "Read", READ)), "cell a warned");
-  assert.ok(isWarning(runHook(b, "Read", READ)), "cell b warned despite cell a having been warned");
+  assert.ok(isWarning(runHook(a, "Read", READ)), "agent a warned");
+  assert.ok(isWarning(runHook(b, "Read", READ)), "agent b warned despite agent a having been warned");
 });
 
 test("under 70k there is no warning to use up: the warning still comes at 70k after earlier silent calls", () => {
@@ -121,24 +121,24 @@ test("under 70k there is no warning to use up: the warning still comes at 70k af
   assert.ok(isWarning(runHook(f, "Read", READ)), "first call at 72k warns");
 });
 
-// AC2: log-cell is a wrap-up command ------------------------------------------------------------
+// AC2: log-agent is a wrap-up command ------------------------------------------------------------
 
-test("at 95k node scripts/log-cell.mjs is allowed", () => {
+test("at 95k node scripts/log-agent.mjs is allowed", () => {
   const f = fixture(95_000);
-  const cmd = 'node scripts/log-cell.mjs --ticket organism-infra/208-cell-context-hook --cell developer --tokens 1000 --ms 1000 --outcome "partial" --context 95000';
-  assertAllowed(bash(f, cmd), "log-cell at 95k");
+  const cmd = 'node scripts/log-agent.mjs --ticket organism-infra/208-cell-context-hook --role developer --tokens 1000 --ms 1000 --outcome "partial" --context 95000';
+  assertAllowed(bash(f, cmd), "log-agent at 95k");
 });
 
-test("at 95k log-cell chained with another command is still refused", () => {
+test("at 95k log-agent chained with another command is still refused", () => {
   const f = fixture(95_000);
-  assertRefused(bash(f, "node scripts/log-cell.mjs --cell developer && npm test"), "log-cell && npm test");
-  assertRefused(bash(f, "node scripts/log-cell.mjs --cell developer; cat apps/ui/src/big-file.jsx"), "log-cell ; cat");
+  assertRefused(bash(f, "node scripts/log-agent.mjs --role developer && npm test"), "log-agent && npm test");
+  assertRefused(bash(f, "node scripts/log-agent.mjs --role developer; cat apps/ui/src/big-file.jsx"), "log-agent ; cat");
 });
 
-test("at 95k other scripts under scripts/ are refused (only log-cell joins the wrap-up list)", () => {
+test("at 95k other scripts under scripts/ are refused (only log-agent joins the wrap-up list)", () => {
   const f = fixture(95_000);
   assertRefused(bash(f, "node scripts/usage.mjs"), "usage.mjs");
-  assertRefused(bash(f, "node scripts/log-cell.mjs.evil"), "look-alike name");
+  assertRefused(bash(f, "node scripts/log-agent.mjs.evil"), "look-alike name");
 });
 
 // AC2 / AC1: Write under /tmp ---------------------------------------------------------------------

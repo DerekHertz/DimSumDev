@@ -60,7 +60,7 @@ function event(n, op, ts = T2) {
   return {
     feature: "feat",
     ticket: `${String(n).padStart(2, "0")}-t${n}`,
-    cell: "orchestrator",
+    role: "orchestrator",
     op,
     ts,
   };

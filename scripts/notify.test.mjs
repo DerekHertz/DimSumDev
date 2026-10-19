@@ -1,7 +1,7 @@
 // organism-infra/111: scripts/notify.mjs is a Claude Code `Notification` and `Stop` hook command.
 // Public interface under test: `node scripts/notify.mjs` with the hook input JSON on stdin
 // ({"hook_event_name":"Notification","message":"..."} or {"hook_event_name":"Stop"}) and env seams:
-//   ORGANISM_ROOT        board root: .scratch/<feature>/issues/NN-slug.md ("**Status:** ready-for-human")
+//   DEN_ROOT        board root: .scratch/<feature>/issues/NN-slug.md ("**Status:** ready-for-human")
 //   NOTIFY_POWERSHELL    the powershell executable to run (default `powershell.exe`). A toast is
 //                        attempted whenever this command can be run and exits 0 (no separate WSL
 //                        gate); the message may travel in argv, stdin or env, whichever the developer picks
@@ -57,7 +57,7 @@ const bells = (f) => (existsSync(f.bell) ? (readFileSync(f.bell, "utf8").match(/
 const toastHas = (call, text) => JSON.stringify(call).includes(JSON.stringify(text).slice(1, -1));
 
 function run(f, stdin, { powershell, env = {} } = {}) {
-  const e = { ...process.env, HOME: f.dir, ORGANISM_ROOT: f.root, NOTIFY_STATE: f.state, NOTIFY_BELL_PATH: f.bell, NOTIFY_POWERSHELL: powershell ?? f.ps, ...env };
+  const e = { ...process.env, HOME: f.dir, DEN_ROOT: f.root, NOTIFY_STATE: f.state, NOTIFY_BELL_PATH: f.bell, NOTIFY_POWERSHELL: powershell ?? f.ps, ...env };
   delete e.CLAUDE_CODE_SESSION_ID;
   // The fake records only env vars the script itself added, so inherited env cannot match by accident.
   e.FAKE_BASE_KEYS = JSON.stringify(Object.keys(e));

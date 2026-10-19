@@ -11,7 +11,7 @@ import { existsSync, mkdirSync, readFileSync, readdirSync, readlinkSync, writeFi
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { makeBridge, until, FEATURE } from "../cells/host-test-helpers.mjs";
+import { makeBridge, until, FEATURE } from "../agents/host-test-helpers.mjs";
 import { isUiPath } from "./plan.mjs";
 import { createReleases, lockHash } from "../build/releases.mjs";
 

@@ -8,8 +8,8 @@ export const ACTIVE_STATUSES = new Set(["claimed", "in-review", "blocked", "read
 const ARCHITECT_TYPES = new Set(["design", "design-question", "design-direction", "decision", "prototype"]);
 
 export function cellTypeOf(t) {
-  if (t.holder?.cell) return t.holder.cell;
-  if (t.lastCell) return t.lastCell;
+  if (t.holder?.role) return t.holder.role;
+  if (t.lastRole) return t.lastRole;
   if (ARCHITECT_TYPES.has(t.type)) return "architect";
   if (t.type === "research") return "scout";
   return "developer";

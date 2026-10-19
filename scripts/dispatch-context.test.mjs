@@ -282,7 +282,7 @@ function cli(args, { root, env: e, mode }) {
   const r = spawnSync(process.execPath, [SCRIPT, ...args], {
     encoding: "utf8",
     timeout: 60000,
-    env: { PATH: `${e.bin}:/usr/bin:/bin`, HOME: e.home, ORGANISM_ROOT: root, FAKE_JG_MODE: mode ?? "ok" },
+    env: { PATH: `${e.bin}:/usr/bin:/bin`, HOME: e.home, DEN_ROOT: root, FAKE_JG_MODE: mode ?? "ok" },
   });
   let out = null;
   try { out = JSON.parse(r.stdout.trim().split("\n").pop()); } catch { /* not JSON */ }

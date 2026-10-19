@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // organism-infra/93: propose 2-3 ticket batches. Advisory only: reads the board, writes nothing.
 // Usage: node scripts/batch-groups.mjs [--max 3] [--json]
-// Root is $ORGANISM_ROOT, else the current directory. Exit 0 always except bad arguments (2).
+// Root is $DEN_ROOT, else the current directory. Exit 0 always except bad arguments (2).
 import { execFile } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
@@ -137,7 +137,7 @@ export async function main(argv, { readBoard, inFlightFiles }) {
 }
 
 export function defaultReadBoard() {
-  const root = path.resolve(process.env.ORGANISM_ROOT || process.cwd());
+  const root = path.resolve(process.env.DEN_ROOT || process.env.ORGANISM_ROOT || process.cwd());
   const scratch = path.join(root, ".scratch");
   const tickets = [];
   if (!existsSync(scratch)) return tickets;

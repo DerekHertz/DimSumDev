@@ -7,9 +7,9 @@ import { execFile } from "node:child_process";
 import { lstat, mkdir, readFile, realpath, rename, stat, writeFile, appendFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { isWorktreePath } from "./cells/claude-adapter.mjs";
-import { DESK_REF, WORKTREES_DIR } from "./cells/policy.mjs";
-import { createWorkspaces } from "./cells/workspace.mjs";
+import { isWorktreePath } from "./agents/claude-adapter.mjs";
+import { DESK_REF, WORKTREES_DIR } from "./agents/policy.mjs";
+import { createWorkspaces } from "./agents/workspace.mjs";
 
 const execFileP = promisify(execFile);
 export const DEN = "den";

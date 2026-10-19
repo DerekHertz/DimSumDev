@@ -36,7 +36,7 @@ async function open({ width = 1280 } = {}) {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n` }));
   await page.route('**/state', (r) => r.fulfill({ json: snapshot }));
-  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   await page.route('**/deliveries**', (r) => {
     posts.push({ path: new URL(r.request().url()).pathname, body: r.request().postDataJSON() });
     return r.fulfill({ status: 201, json: { delivery: snapshot.deliveries[0] } });

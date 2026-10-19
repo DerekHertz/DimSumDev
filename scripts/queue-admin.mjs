@@ -14,16 +14,16 @@
 // Rows go to <root>/.scratch/usage.jsonl, appended through the board service's O_NOFOLLOW append, never rewritten:
 //   {"kind":"config","ts","queue_active":"<feature>","by":"user"}
 //   {"kind":"queue-admit","ts","ref","reason","by":"user"}
-// <root> is --root, else $ORGANISM_ROOT, else the main checkout (the first line of `git worktree list`), as `board`
-// resolves it. The Queue (apps/organism-infra/frontier-queue.mjs) reads only rows that carry by:"user".
+// <root> is --root, else $DEN_ROOT, else the main checkout (the first line of `git worktree list`), as `board`
+// resolves it. The Queue (apps/board/frontier-queue.mjs) reads only rows that carry by:"user".
 //
 // Exit codes: 0 written; 1 declined or refused; 2 bad arguments.
 import { lstat, open } from "node:fs/promises";
 import path from "node:path";
 import readline from "node:readline";
 import { fileURLToPath } from "node:url";
-import { appendUsageLine, resolveRoot } from "../apps/organism-infra/board-service.mjs";
-import { loadSnapshot } from "../apps/organism-infra/frontier-queue.mjs";
+import { appendUsageLine, resolveRoot } from "../apps/board/board-service.mjs";
+import { loadSnapshot } from "../apps/board/frontier-queue.mjs";
 
 const FEATURE_RE = /^[a-z0-9-]+$/; // ADR 0008 decision 6
 const REF_RE = /^([a-z0-9-]+)\/(\d{2,}-[a-z0-9-]+)$/;

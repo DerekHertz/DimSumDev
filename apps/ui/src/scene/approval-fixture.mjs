@@ -45,7 +45,7 @@ export function createApprovalDemo({ now = Date.now, refuse = null, schedule = s
 
   const ticket = {
     ref: REF, feature: "demo", title: "approval", type: "feature", status: "claimed", ready: false,
-    holder: { cell: "developer", since: new Date(now()).toISOString() }, lastCell: "developer", gate: null, blockedBy: [],
+    holder: { role: "developer", since: new Date(now()).toISOString() }, lastRole: "developer", gate: null, blockedBy: [],
   };
 
   function build() {

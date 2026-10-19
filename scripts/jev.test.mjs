@@ -10,7 +10,7 @@
 //   conf = probs[pick]. `text` is only the assembled input (<= 16000 chars).
 // Pinned fallback reasons: no-key, network, http, timeout, unparseable,
 // blocked-input, cap.
-// CLI board root: $ORGANISM_ROOT (else cwd); ticket at
+// CLI board root: $DEN_ROOT (else cwd); ticket at
 // <root>/.scratch/<feature>/issues/<NN-slug>.md; rows go to <root>/.scratch/usage.jsonl.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -208,7 +208,7 @@ function boardRoot() {
 }
 
 function cli(root, argv) {
-  const env = { ...process.env, ORGANISM_ROOT: root };
+  const env = { ...process.env, DEN_ROOT: root };
   delete env.TYPESAFE_API_KEY;
   return spawnSync(process.execPath, [SCRIPT, ...argv], { cwd: root, env, encoding: "utf8", timeout: 20000 });
 }

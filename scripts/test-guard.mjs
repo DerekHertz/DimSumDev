@@ -21,7 +21,7 @@ import { existsSync, mkdirSync, readdirSync, realpathSync, rmSync, writeFileSync
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { findBwrap } from "../apps/bridge/build/box.mjs";
-import { GUARD_SLICE, createResourceLauncher, guardLimits } from "../apps/bridge/cells/resource-group.mjs";
+import { GUARD_SLICE, createResourceLauncher, guardLimits } from "../apps/bridge/agents/resource-group.mjs";
 import { checkBoxArgv } from "../apps/bridge/delivery/checks.mjs";
 import { isBrowserFile } from "./test-split.mjs";
 

@@ -15,9 +15,9 @@
 //              verify or security stage (i.e., a "developer" pick where the ticket was merged without
 //              a subsequent qa-verify claim between the route row ts and the resolved event)
 //     spend = no bounce route row with fallback "cap"
-//   Actual dispatch for a bounce row: the cell of the first event with op "claim" on the same
-//     feature/NN whose ts is after the bounce route row's ts, ignoring cell "orchestrator" and
-//     cells with no label. Cell-to-label mapping: same as new-ticket (qa -> "qa", developer -> "developer",
+//   Actual dispatch for a bounce row: the agent of the first event with op "claim" on the same
+//     feature/NN whose ts is after the bounce route row's ts, ignoring agent "orchestrator" and
+//     agents with no label. Agent-to-label mapping: same as new-ticket (qa -> "qa", developer -> "developer",
 //     architect -> "architect", user -> "user").
 //   Only rows with variant "bounce" count; rows with variant "new" are excluded.
 //   Only the latest bounce row per ticket counts.
@@ -43,20 +43,20 @@ function brow(n, pick, over = {}) {
   };
 }
 
-function claim(n, cell, ts = T2, over = {}) {
-  return { seq: ++seq, ts, feature: "feat", ticket: `${String(n).padStart(2, "0")}-t${n}`, cell, op: "claim", ...over };
+function claim(n, role, ts = T2, over = {}) {
+  return { seq: ++seq, ts, feature: "feat", ticket: `${String(n).padStart(2, "0")}-t${n}`, role, op: "claim", ...over };
 }
 
 function release(n, toStatus, ts = T3, over = {}) {
   return { seq: ++seq, ts, feature: "feat", ticket: `${String(n).padStart(2, "0")}-t${n}`, op: "release", to_status: toStatus, ...over };
 }
 
-function batch(count, label, cell, start = 1) {
+function batch(count, label, role, start = 1) {
   const rows = [];
   const events = [];
   for (let i = 0; i < count; i++) {
     rows.push(brow(start + i, label));
-    events.push(claim(start + i, cell));
+    events.push(claim(start + i, role));
   }
   return { rows, events };
 }
@@ -270,7 +270,7 @@ test("formatReport prints bounce per-label agreement and PASS/FAIL go-live lines
 
 test("buildReport without bounce rows still has report.route.bounce with zero rows", async () => {
   const { buildReport } = await load();
-  const rep = buildReport([{ kind: "cell", ticket: "feat/01", cell: "developer", tokens: 10 }]);
+  const rep = buildReport([{ kind: "agent", ticket: "feat/01", role: "developer", tokens: 10 }]);
   assert.ok(rep.route.bounce !== undefined);
   assert.equal(rep.route.bounce.rows, 0);
 });

@@ -65,7 +65,7 @@ describe("dispatch", () => {
   });
 
   test("a 429 surfaces the bridge's capacity or usage text and status, and is not retried", async () => {
-    for (const error of ["max_concurrent_cells (8) reached", "5-hour usage is at 93%"]) {
+    for (const error of ["max_concurrent_agents (8) reached", "5-hour usage is at 93%"]) {
       const { calls, client } = clientOver(() => refuse(429, { error }));
       const err = await rejection(client.dispatch(REF, { role: "scout" }));
       assert.deepEqual({ status: err.status, reason: err.reason }, { status: 429, reason: error });
@@ -89,7 +89,7 @@ describe("dispatch", () => {
   });
 
   test("two presses are two requests: the client keeps no memory of a refusal and never retries on its own", async () => {
-    const { calls, client } = clientOver(() => refuse(429, { error: "max_concurrent_cells (8) reached" }));
+    const { calls, client } = clientOver(() => refuse(429, { error: "max_concurrent_agents (8) reached" }));
     await rejection(client.dispatch(REF, { role: "architect" }));
     assert.equal(calls.length, 1);
     await rejection(client.dispatch(REF, { role: "architect" }));

@@ -10,7 +10,7 @@ Run this in the main orchestrator session. The goal is fewer repeat failures per
 The last retro is the newest `{"kind":"retro"}` row in `.scratch/usage.jsonl`. With no such row, start from the beginning of the current session.
 
 - The output of `npm run -s board -- audit` (read-only; exit 1 means findings). Each line is one board inconsistency, `<ref> <kind> <detail>`. Count each as an item, and fix the board state it names only with the user's yes.
-- `incident` rows in `.scratch/usage.jsonl` since then. Rows with `"source":"cell-report"` come from `log-cell --failures`.
+- `incident` rows in `.scratch/usage.jsonl` since then. Rows with `"source":"agent-report"` come from `log-agent --failures`.
 - `failures` in the State block of each handoff published since then (`.scratch/*/handoffs/`), and any "Failed calls" or "Environment issues" lines. Read only the State block and those lines, not the whole handoff. If there are more than 10 handoffs, send the gathering to `scout` and ask for just the list.
 - Your own mistakes this session that you haven't logged yet. Log them now as `incident` rows.
 
@@ -28,7 +28,7 @@ Retro tickets pile up unbuilt. On 2026-10-11, 28 of the 64 tickets that retros h
 
 ## 2. Group
 
-Map each item to one tool from the fixed list in `scripts/log-cell.mjs`: `bash-guard`, `board-claim`, `board-release`, `board-comment`, `board-handoff`, `handoff-state`, `git`, `npm`, `write`, `ci`, `other`. Older rows use free-text tool names, so map those by meaning. Within a tool, group by cause, not wording. For example, "compound command refused" and "heredoc refused" are both `bash-guard`.
+Map each item to one tool from the fixed list in `scripts/log-agent.mjs`: `bash-guard`, `board-claim`, `board-release`, `board-comment`, `board-handoff`, `handoff-state`, `git`, `npm`, `write`, `ci`, `other`. Older rows use free-text tool names, so map those by meaning. Within a tool, group by cause, not wording. For example, "compound command refused" and "heredoc refused" are both `bash-guard`.
 
 ## 3. Decide
 

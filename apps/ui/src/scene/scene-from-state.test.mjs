@@ -16,13 +16,13 @@ const ticket = (n, over = {}) => ({
   status: "claimed",
   ready: false,
   holder: null,
-  lastCell: null,
+  lastRole: null,
   gate: null,
   blockedBy: [],
   ...over,
 });
 const snap = (tickets, frontier = []) => ({ schema: 1, seq: 1, tickets, frontier, usage: null, requests: [] });
-const claimedBy = (cell) => ({ cell, since: "2026-09-29T05:00:00.000Z" });
+const claimedBy = (cell) => ({ role: cell, since: "2026-09-29T05:00:00.000Z" });
 const brief = (cells) => cells.map(({ ref, cellType, status, perch, pose }) => ({ ref, cellType, status, perch, pose }));
 
 test("exports MAX_PLUSH = 12", async () => {
@@ -46,9 +46,9 @@ test("ready-for-agent ticket blocked by an unresolved dependency and not in fron
 test("each active status appears with status copied through unchanged", async () => {
   const out = await scene(snap([
     ticket(1, { status: "claimed", holder: claimedBy("developer") }),
-    ticket(2, { status: "in-review", lastCell: "qa" }),
-    ticket(3, { status: "blocked", lastCell: "developer" }),
-    ticket(4, { status: "ready-for-human", lastCell: "orchestrator" }),
+    ticket(2, { status: "in-review", lastRole: "qa" }),
+    ticket(3, { status: "blocked", lastRole: "developer" }),
+    ticket(4, { status: "ready-for-human", lastRole: "orchestrator" }),
   ]));
   assert.deepEqual(out.map((c) => [c.ref, c.status]), [
     ["f/01-t", "claimed"], ["f/02-t", "in-review"], ["f/03-t", "blocked"], ["f/04-t", "ready-for-human"],
@@ -62,13 +62,13 @@ test("output shape: exactly ref, cellType, status, perch, pose", async () => {
 
 // pose rule order table
 const poseCases = [
-  ["gate merge beats everything", { status: "in-review", gate: "merge", lastCell: "security" }, [], "waiting_on_user"],
+  ["gate merge beats everything", { status: "in-review", gate: "merge", lastRole: "security" }, [], "waiting_on_user"],
   ["gate beats claimed", { status: "claimed", holder: claimedBy("developer"), gate: "merge" }, [], "waiting_on_user"],
-  ["ready-for-human", { status: "ready-for-human", lastCell: "orchestrator" }, [], "waiting_on_user"],
+  ["ready-for-human", { status: "ready-for-human", lastRole: "orchestrator" }, [], "waiting_on_user"],
   ["claimed", { status: "claimed", holder: claimedBy("developer") }, [], "working"],
   ["in-review with a holder (review running)", { status: "in-review", holder: claimedBy("qa") }, [], "working"],
-  ["in-review without a holder", { status: "in-review", lastCell: "qa" }, [], "done"],
-  ["blocked", { status: "blocked", lastCell: "developer" }, [], "blocked"],
+  ["in-review without a holder", { status: "in-review", lastRole: "qa" }, [], "done"],
+  ["blocked", { status: "blocked", lastRole: "developer" }, [], "blocked"],
 ];
 for (const [name, over, frontier, pose] of poseCases) {
   test(`pose: ${name} -> ${pose}`, async () => {
@@ -80,8 +80,8 @@ for (const [name, over, frontier, pose] of poseCases) {
 
 // cellType rule
 const typeCases = [
-  ["holder.cell wins over lastCell", { holder: claimedBy("qa"), lastCell: "developer" }, "qa"],
-  ["lastCell when no holder", { lastCell: "security" }, "security"],
+  ["holder.role wins over lastRole", { holder: claimedBy("qa"), lastRole: "developer" }, "qa"],
+  ["lastRole when no holder", { lastRole: "security" }, "security"],
   ["type design -> architect", { type: "design" }, "architect"],
   ["type design-question -> architect", { type: "design-question" }, "architect"],
   ["type design-direction -> architect", { type: "design-direction" }, "architect"],
@@ -91,7 +91,7 @@ const typeCases = [
   ["type feature -> developer", { type: "feature" }, "developer"],
   ["type bug -> developer", { type: "bug" }, "developer"],
   ["null type -> developer", { type: null }, "developer"],
-  ["lastCell beats type default", { type: "research", lastCell: "designer" }, "designer"],
+  ["lastRole beats type default", { type: "research", lastRole: "designer" }, "designer"],
 ];
 for (const [name, over, cellType] of typeCases) {
   test(`cellType: ${name}`, async () => {
@@ -125,10 +125,10 @@ test("perch: slot counts per region are independent", async () => {
 test("order: active tickets by ref; queued tickets get no cell (showcase-v1/04: baskets only)", async () => {
   const out = await scene(snap([
     ticket(9, { status: "claimed", holder: claimedBy("developer") }),
-    ticket(3, { status: "blocked", lastCell: "developer" }),
+    ticket(3, { status: "blocked", lastRole: "developer" }),
     ticket(7, { status: "ready-for-agent", ready: true }),
     ticket(2, { status: "ready-for-agent", ready: true }),
-    ticket(5, { status: "in-review", lastCell: "qa" }),
+    ticket(5, { status: "in-review", lastRole: "qa" }),
   ], ["f/07-t", "f/02-t"]));
   assert.deepEqual(out.map((c) => c.ref), ["f/03-t", "f/05-t", "f/09-t"]);
 });
@@ -165,8 +165,8 @@ test("purity: does not mutate the snapshot and is repeatable", async () => {
 
 test("worked example from ADR 0011 decision 7", async () => {
   const out = await scene(snap([
-    ticket(28, { ref: "organism-infra/28-review-claims-keep-in-review", status: "in-review", gate: "merge", lastCell: "security" }),
-    ticket(4, { ref: "dimsumden-ui-v0/04-bridge-state", status: "ready-for-agent", ready: true, gate: "dispatch", lastCell: "orchestrator", type: "feature" }),
+    ticket(28, { ref: "organism-infra/28-review-claims-keep-in-review", status: "in-review", gate: "merge", lastRole: "security" }),
+    ticket(4, { ref: "dimsumden-ui-v0/04-bridge-state", status: "ready-for-agent", ready: true, gate: "dispatch", lastRole: "orchestrator", type: "feature" }),
     ticket(7, { ref: "dimsumden-ui-v0/07-ui-shell", status: "ready-for-agent", ready: false, blockedBy: [{ ref: "dimsumden-ui-v0/05-bridge-events", status: "ready-for-agent" }] }),
   ], ["dimsumden-ui-v0/04-bridge-state"]));
   assert.deepEqual(brief(out), [

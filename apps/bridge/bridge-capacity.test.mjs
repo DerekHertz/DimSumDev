@@ -11,8 +11,8 @@
 //   build item 3 POST /requests rule unchanged ......................... "POST /requests ..."
 import { test, describe, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { makeBridge, openSse, until } from "./cells/host-test-helpers.mjs";
-import { withLocks, lockTicket, refOf, kinds } from "./cells/capacity-test-helpers.mjs";
+import { makeBridge, openSse, until } from "./agents/host-test-helpers.mjs";
+import { withLocks, lockTicket, refOf, kinds } from "./agents/capacity-test-helpers.mjs";
 
 const R02 = refOf("02-ready-p0");
 const R07 = refOf("07-bumpable");

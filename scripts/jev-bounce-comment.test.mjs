@@ -4,14 +4,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 
 const load = () => import("./jev.mjs");
-const ev = (over) => JSON.stringify({ feature: "feat", ticket: "07-thing", cell: "qa", op: "comment", ...over });
+const ev = (over) => JSON.stringify({ feature: "feat", ticket: "07-thing", role: "qa", op: "comment", ...over });
 
 test("latest bounce verdict comment for the ticket wins, by append order", async () => {
   const { latestBounceComment } = await load();
   const text = [
     ev({ seq: 9, text: "first bounce", verdict: "bounce" }),
     ev({ seq: 2, text: "second bounce", verdict: "bounce" }),
-    ev({ text: "security pass", verdict: "pass", cell: "security" }),
+    ev({ text: "security pass", verdict: "pass", role: "security" }),
   ].join("\n");
   assert.equal(latestBounceComment(text, "feat", "07-thing"), "second bounce");
 });

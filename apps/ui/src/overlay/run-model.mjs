@@ -1,8 +1,8 @@
 // organism-infra/228 (UI spec .scratch/organism-infra/handoffs/228-designer-spec.md): the pure pieces behind the Run
 // control on a frontier ticket and the slot strip. No DOM, no fetch; Cards.jsx renders what these return.
 // Contract and shapes: apps/ui/src/overlay/run-model.test.mjs.
-import { capacity as capacityOf } from "../../../bridge/cells/capacity.mjs";
-import { SLOTS, slotClassOf } from "../../../bridge/cells/policy.mjs";
+import { capacity as capacityOf } from "../../../bridge/agents/capacity.mjs";
+import { SLOTS, slotClassOf } from "../../../bridge/agents/policy.mjs";
 
 /** The roles Run offers: every role. den-mvp outcome 1: a developer, qa or security agent may be started directly. */
 export const ROLE_OPTIONS = ["orchestrator", "architect", "product", "designer", "scout", "herald", "developer", "qa", "security"];

@@ -13,7 +13,7 @@ import path from "node:path";
 import { createAuth, SESSION_CAP } from "./auth.mjs";
 import { ROUTES } from "./routes.mjs";
 import { startBridge } from "./server.mjs";
-import { createFakeRuntime } from "./cells/runtime.mjs";
+import { createFakeRuntime } from "./agents/runtime.mjs";
 import { makeStateFixture, FEATURE } from "./bridge-fixture.mjs";
 import { CODE, origin, send, login, authed } from "./bridge-auth-helpers.mjs";
 

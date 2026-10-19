@@ -2,11 +2,11 @@
 // Seam: exported buildReport(rows, events = []) and formatReport(report).
 //
 // Pinned contract (the developer implements against it):
-//   events are lines of .scratch/events.jsonl: {feature, ticket:"<NN-slug>", cell, op, ts}.
-//   Claim events DO carry the cell type, so `actual` is read from the board, not logged.
-//   Actual dispatch for a route row = the cell of the first event with op "claim" on the same
-//   feature/NN whose ts is after the route row's ts, ignoring cell "orchestrator" and cells with no
-//   label. Cell to label: product, architect, designer -> same; qa -> "qa-specify";
+//   events are lines of .scratch/events.jsonl: {feature, ticket:"<NN-slug>", agent, op, ts}.
+//   Claim events DO carry the role, so `actual` is read from the board, not logged.
+//   Actual dispatch for a route row = the agent of the first event with op "claim" on the same
+//   feature/NN whose ts is after the route row's ts, ignoring agent "orchestrator" and agents with no
+//   label. Agent to label: product, architect, designer -> same; qa -> "qa-specify";
 //   developer -> "developer-direct".
 //   Only the latest route row with variant "new" per ticket counts. Rows with no actual dispatch
 //   are excluded from agreement and from the go-live counts.
@@ -37,16 +37,16 @@ function route(n, pick, over = {}) {
     ts: T1, pick, actual: "orchestrator", cost: 0.001, mode: "shadow", fallback: pick ? null : "http", ms: 400, ...over,
   };
 }
-function claim(n, cell, ts = T2, over = {}) {
-  return { seq: ++seq, ts, feature: "feat", ticket: `${String(n).padStart(2, "0")}-t${n}`, cell, op: "claim", ...over };
+function claim(n, role, ts = T2, over = {}) {
+  return { seq: ++seq, ts, feature: "feat", ticket: `${String(n).padStart(2, "0")}-t${n}`, role, op: "claim", ...over };
 }
-// n tickets, each routed to `label` and dispatched to `cell`
-function batch(count, label, cell, start = 1) {
+// n tickets, each routed to `label` and dispatched to `role`
+function batch(count, label, role, start = 1) {
   const rows = [];
   const events = [];
   for (let i = 0; i < count; i++) {
     rows.push(route(start + i, label));
-    events.push(claim(start + i, cell));
+    events.push(claim(start + i, role));
   }
   return { rows, events };
 }
@@ -188,7 +188,7 @@ test("formatReport prints per-label agreement and one PASS/FAIL line per go-live
 
 test("buildReport without events still returns the existing tier and verify report", async () => {
   const { buildReport } = await load();
-  const rep = buildReport([{ kind: "cell", ticket: "feat/01", cell: "developer", tokens: 10 }]);
+  const rep = buildReport([{ kind: "agent", ticket: "feat/01", role: "developer", tokens: 10 }]);
   assert.ok(rep.points.tier);
   assert.ok(rep.points.verify);
   assert.equal(rep.route.newTicket.rows, 0);

@@ -23,7 +23,7 @@ const ticket = (ref, extra = {}) => ({
   bumps: 0,
   bumped: false,
   holder: null,
-  lastCell: null,
+  lastRole: null,
   gate: null,
   request: null,
   handoff: null,
@@ -50,11 +50,11 @@ function base() {
 
 describe("applyEvent: ticket", () => {
   test("replaces an existing ticket by ref and leaves the others alone", () => {
-    const next = applyEvent(base(), { seq: 43, type: "ticket", ref: A, ticket: ticket(A, { status: "claimed", ready: false, holder: { cell: "developer", since: "2026-09-29T06:01:00.000Z" } }) });
+    const next = applyEvent(base(), { seq: 43, type: "ticket", ref: A, ticket: ticket(A, { status: "claimed", ready: false, holder: { role: "developer", since: "2026-09-29T06:01:00.000Z" } }) });
     assert.equal(next.tickets.length, 2);
     const a = next.tickets.find((t) => t.ref === A);
     assert.equal(a.status, "claimed");
-    assert.equal(a.holder.cell, "developer");
+    assert.equal(a.holder.role, "developer");
     assert.deepEqual(next.tickets.find((t) => t.ref === C), ticket(C, { status: "in-review", ready: false }));
   });
 

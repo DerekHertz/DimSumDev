@@ -1,15 +1,15 @@
 // organism-infra/165: three hardenings of scripts/hooks/context-budget.mjs (the 162 security lows).
 //
 // Seam: the hook CLI (PreToolUse JSON on stdin, HOME=<fixture>), as in context-budget.test.mjs. The
-// calls run as a security cell at 95k, which is over the stop limit for that role (80k) in any tiering.
+// calls run as a security agent at 95k, which is over the stop limit for that role (80k) in any tiering.
 //
 // Contract pinned here:
 //   1. A backslash outside single quotes makes a command chain-unsafe, so `git commit -m \"x; touch
 //      /tmp/y; echo \"` is refused at the stop limit. Quoted text with a backslash inside single quotes
 //      stays a simple command; plain double-quoted commit messages still pass.
 //   2. A Write/Edit counts as a wrap-up write only under the main checkout's .scratch/ (and the session
-//      scratchpad, unchanged). The main checkout is $ORGANISM_ROOT when set, else the first entry of
-//      `git worktree list` run from the call's cwd. A .scratch/ under src/, under the cell's own worktree,
+//      scratchpad, unchanged). The main checkout is $DEN_ROOT when set, else the first entry of
+//      `git worktree list` run from the call's cwd. A .scratch/ under src/, under the agent's own worktree,
 //      or anywhere else is refused.
 //   3. A session_id that fails /^[\w.-]+$/ is never handed to context.mjs: the hook reads no context
 //      and allows the call (fails open).
@@ -35,7 +35,7 @@ const PAD = `/tmp/claude-1000/-fixture-project/${SESSION}/scratchpad`;
 const git = (cwd, args) => execFileSync("git", args, { cwd, encoding: "utf8" }).trim();
 const rec = (cwd, n) => JSON.stringify({ type: "assistant", cwd, message: { role: "assistant", usage: { input_tokens: n, output_tokens: 1 } } });
 
-// A real git repo `main` with a linked worktree `wt` (the cell's cwd); the cell's transcript reports `tokens`.
+// A real git repo `main` with a linked worktree `wt` (the agent's cwd); the agent's transcript reports `tokens`.
 // `sessionDirs` lists extra session dir names (relative to projects/) that also hold a 95k transcript.
 function fixture(tokens = 95_000, { extraSessionDirs = [] } = {}) {
   const home = realpathSync(mkdtempSync(path.join(tmpdir(), "ctx-hard-")));
@@ -56,15 +56,15 @@ function fixture(tokens = 95_000, { extraSessionDirs = [] } = {}) {
   return { home, main, wt };
 }
 
-function hook(f, tool, toolInput, { sessionId = SESSION, organismRoot = null } = {}) {
+function hook(f, tool, toolInput, { sessionId = SESSION, denRoot = null } = {}) {
   const env = { ...process.env, HOME: f.home };
   delete env.CLAUDE_CODE_SESSION_ID;
-  delete env.ORGANISM_ROOT;
+  delete env.DEN_ROOT;
   // organism-infra/220: mechanics at 70k/80k through the config seam (shipped numbers: tiers test).
   const cfg = path.join(f.home, "mechanics-budget.json");
-  writeFileSync(cfg, JSON.stringify({ default: { warn: 70_000, stop: 80_000 }, cells: {}, orchestrator: { warn: 70_000, stop: 80_000 } }));
+  writeFileSync(cfg, JSON.stringify({ default: { warn: 70_000, stop: 80_000 }, roles: {}, orchestrator: { warn: 70_000, stop: 80_000 } }));
   env.CONTEXT_BUDGET_CONFIG = cfg;
-  if (organismRoot) env.ORGANISM_ROOT = organismRoot;
+  if (denRoot) env.DEN_ROOT = denRoot;
   const input = { session_id: sessionId, cwd: f.wt, hook_event_name: "PreToolUse", tool_name: tool, tool_input: toolInput, agent_id: "agent-a", agent_type: "security" };
   return spawnSync("node", [SCRIPT], { cwd: f.wt, env, input: JSON.stringify(input), encoding: "utf8", timeout: 15000 });
 }
@@ -98,14 +98,14 @@ test("main checkout .scratch/ is an allowed wrap-up write (main found by git wor
   }
 });
 
-test("main checkout .scratch/ is allowed when ORGANISM_ROOT names it (cwd is not a git repo)", () => {
+test("main checkout .scratch/ is allowed when DEN_ROOT names it (cwd is not a git repo)", () => {
   const f = fixture();
   const elsewhere = realpathSync(mkdtempSync(path.join(tmpdir(), "ctx-hard-root-")));
-  const r = hook({ ...f, wt: f.wt }, "Write", { file_path: path.join(elsewhere, ".scratch", "h.md"), content: "x" }, { organismRoot: elsewhere });
-  allowed(r, "ORGANISM_ROOT .scratch");
+  const r = hook({ ...f, wt: f.wt }, "Write", { file_path: path.join(elsewhere, ".scratch", "h.md"), content: "x" }, { denRoot: elsewhere });
+  allowed(r, "DEN_ROOT .scratch");
 });
 
-test("a .scratch/ outside the main checkout is refused: under src/, the cell's own worktree, or elsewhere", () => {
+test("a .scratch/ outside the main checkout is refused: under src/, the agent's own worktree, or elsewhere", () => {
   const f = fixture();
   const w = (p) => hook(f, "Write", { file_path: p, content: "x" });
   refused(w(path.join(f.main, "src", ".scratch", "a.md")), "main/src/.scratch");
@@ -128,7 +128,7 @@ test("the session scratchpad is still an allowed wrap-up write", () => {
 // AC3 ---------------------------------------------------------------------------------------
 
 test("a session_id that fails /^[\\w.-]+$/ is not passed to context.mjs: the hook fails open", () => {
-  // Each bad id resolves, if used unvalidated, to a directory holding a 95k transcript for this cell.
+  // Each bad id resolves, if used unvalidated, to a directory holding a 95k transcript for this agent.
   const f = fixture(95_000, { extraSessionDirs: ["sess", "sess;x", "sess x"] });
   for (const bad of ["../sess", "sess;x", "sess x", "../../.claude/projects/sess", ""]) {
     const r = hook(f, "Read", { file_path: "/repo/big.jsx" }, { sessionId: bad });

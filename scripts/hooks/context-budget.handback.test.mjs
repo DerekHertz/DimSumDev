@@ -1,8 +1,8 @@
-// organism-infra/194: a cell at its context stop can still deliver its final report, so
+// organism-infra/194: an agent at its context stop can still deliver its final report, so
 // SubagentHandback joins the wrap-up allowlist of the 162 hook (scripts/hooks/context-budget.mjs).
 //
 // Seam: the hook CLI, as in context-budget.tiers.test.mjs (PreToolUse JSON on stdin, HOME=<fixture>,
-// the cell's token reading comes from a fixture transcript).
+// the agent's token reading comes from a fixture transcript).
 //
 // Criterion map:
 //   at/above stop, SubagentHandback is allowed       -> "SubagentHandback is allowed at and above the stop ..." tests

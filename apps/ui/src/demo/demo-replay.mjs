@@ -48,8 +48,8 @@ function reduce(events, count, base, loops) {
       case "ticket":
         tickets.set(e.ref, {
           ref: e.ref, feature: e.ref.split("/")[0], title: e.title, type: "feature", status: e.status,
-          ready: e.status === "ready-for-agent", holder: e.role ? { cell: e.role, since: stamp(e.at) } : null,
-          lastCell: null, gate: null, blockedBy: [],
+          ready: e.status === "ready-for-agent", holder: e.role ? { role: e.role, since: stamp(e.at) } : null,
+          lastRole: null, gate: null, blockedBy: [],
         });
         break;
       case "agent": {

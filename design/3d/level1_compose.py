@@ -14,7 +14,7 @@ import bpy, math
 from mathutils import Vector
 
 D = r"D:/claude_sessions/agent_office/design/3d/"
-for f in ("panda_build.py", "cell_types.py", "toon.py", "level1.py", "level1_set.py", "dormant.py"):
+for f in ("panda_build.py", "role_types.py", "toon.py", "level1.py", "level1_set.py", "dormant.py"):
     exec(open(D + f, encoding="utf-8").read())
 
 FACE_CAM = math.radians(30)   # cells face the isometric camera (az -60)

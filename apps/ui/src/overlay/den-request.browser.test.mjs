@@ -52,7 +52,7 @@ test('overview: a held permission request is shown and opens from Needs you, a c
     const state = snapshot();
     await page.route('**/events', r => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(state)}\n\n` }));
     await page.route('**/state', r => r.fulfill({ json: state }));
-    await page.route('**/metrics', r => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+    await page.route('**/metrics', r => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
     await page.route('**/session', r => r.fulfill({ status: 404, json: {} }));
     await page.goto(server.resolvedUrls.local[0]);
     await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') !== 'true');

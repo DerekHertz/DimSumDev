@@ -54,7 +54,7 @@ function observe() {
       seen.agentIds.add(agent.id);
       const ticket = s.snapshot.tickets.find((t) => t.ref === agent.ref);
       // An agent that has ended has released its ticket (the recorded scout does); only a running one must be held.
-      if (!ENDED.has(agent.state) && (!ticket || ticket.holder?.cell !== agent.role)) seen.mismatched.push(`${agent.id}@${ms}`);
+      if (!ENDED.has(agent.state) && (!ticket || ticket.holder?.role !== agent.role)) seen.mismatched.push(`${agent.id}@${ms}`);
     }
     for (const card of cardsOf(s.snapshot)) {
       if (card.approval && !seen.waiting) seen.waiting = card;

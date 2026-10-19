@@ -12,8 +12,8 @@ import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { execFile, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
-import { EnforcementError, createResourceLauncher, findUserBus } from "../cells/resource-group.mjs";
-import { unconfinedLauncher } from "../cells/launcher-test-helpers.mjs";
+import { EnforcementError, createResourceLauncher, findUserBus } from "../agents/resource-group.mjs";
+import { unconfinedLauncher } from "../agents/launcher-test-helpers.mjs";
 import { UI_CONFIG, VITE_BIN, buildBoxArgv, createBuildBox, findBwrap, libraryArgs, measureOutput } from "./box.mjs";
 import { findPackages, makeProbeFolder } from "./box-test-helpers.mjs";
 

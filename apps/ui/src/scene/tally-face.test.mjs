@@ -33,7 +33,7 @@ const usage = (fiveHour, weekly = 41, minutesAgo = 12) => ({
 const windows = (...resolved) => resolved.map((r, i) => ({ start: `2026-09-30T0${i}:00:00Z`, resolved: r }));
 const metrics = (over = {}) => ({
   throughput: { windows: windows(3, 6) }, // latest window resolved 6
-  tokensByCell: { developer: { perTicket: 120000 }, qa: { perTicket: 48000 } }, // mean 84000
+  tokensByRole: { developer: { perTicket: 120000 }, qa: { perTicket: 48000 } }, // mean 84000
   incidentsByTool: { Bash: { perTicket: 0.2 }, Read: { perTicket: 0.1 } }, // sum 0.3
   ...over,
 });
@@ -92,7 +92,7 @@ test("usage rods at 0 and 100 percent count 0 and 10 beads", () => {
 test("Served, Tokens and Spills use the designer's scales: 10 tickets, 200k per ticket, 1.0 per ticket", () => {
   const m = byId(rods(usage(10), metrics({ throughput: { windows: windows(9, 5) } })));
   assert.equal(m.served.counted, 5, "Served: latest window 5 of 10 tickets");
-  const t = byId(rods(usage(10), metrics({ tokensByCell: { developer: { perTicket: 100000 }, qa: { perTicket: 100000 }, scout: { perTicket: 100000 } } })));
+  const t = byId(rods(usage(10), metrics({ tokensByRole: { developer: { perTicket: 100000 }, qa: { perTicket: 100000 }, scout: { perTicket: 100000 } } })));
   assert.equal(t.tokens.counted, 5, "Tokens: mean 100k of 200k");
   const s = byId(rods(usage(10), metrics({ incidentsByTool: { Bash: { perTicket: 0.4 }, Read: { perTicket: 0.3 }, Edit: { perTicket: 0.3 } } })));
   assert.equal(s.spills.counted, 10, "Spills: summed 1.0 of 1.0");
@@ -227,7 +227,7 @@ test("metrics error: Served, Tokens and Spills read 'unavailable' with no counte
 test("over scale: beads clamp at 10 and the text keeps the real value", () => {
   const m = byId(rods(usage(105, 41), metrics({
     throughput: { windows: windows(1, 25) },
-    tokensByCell: { developer: { perTicket: 500000 } },
+    tokensByRole: { developer: { perTicket: 500000 } },
     incidentsByTool: { Bash: { perTicket: 2.5 } },
   })));
   assert.equal(m["five-hour"].counted, 10);

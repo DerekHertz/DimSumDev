@@ -1,6 +1,6 @@
 // organism-infra/126: jev.mjs (tier, route, advisory-outcome) resolves a short ref
 // <feature>/<NN> to the full <feature>/<NN-slug> ref, and finds the main checkout from a
-// worktree. $ORGANISM_ROOT still wins. An ambiguous or missing NN refuses and logs nothing.
+// worktree. $DEN_ROOT still wins. An ambiguous or missing NN refuses and logs nothing.
 // Seam: the jev CLI run for real from a linked worktree of a throwaway repo. No API key is
 // set, so jev takes its fallback path and nothing touches the network.
 import { test } from "node:test";
@@ -9,7 +9,7 @@ import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { makeBoardFixture, REPO_ROOT } from "../apps/organism-infra/board-fixture.mjs";
+import { makeBoardFixture, REPO_ROOT } from "../apps/board/board-fixture.mjs";
 
 const JEV = path.join(REPO_ROOT, "scripts", "jev.mjs");
 const usagePath = (root) => path.join(root, ".scratch", "usage.jsonl");
@@ -22,12 +22,12 @@ const POINTS = {
   "advisory-outcome": (ref) => ["advisory-outcome", "--ticket", ref, "--orchestrator", "qa-specify", "--jev", "none", "--user", "qa-specify", "--bounced", "false"],
 };
 
-// cwd is where the process runs; root sets $ORGANISM_ROOT, and null leaves it unset.
+// cwd is where the process runs; root sets $DEN_ROOT, and null leaves it unset.
 function jev(cwd, root, argv) {
   const env = { ...process.env };
-  delete env.ORGANISM_ROOT;
+  delete env.DEN_ROOT;
   delete env.TYPESAFE_API_KEY;
-  if (root) env.ORGANISM_ROOT = root;
+  if (root) env.DEN_ROOT = root;
   return spawnSync(process.execPath, [JEV, ...argv], { cwd, env, encoding: "utf8", timeout: 20000 });
 }
 
@@ -83,10 +83,10 @@ for (const [point, build] of Object.entries(POINTS)) {
       assert.equal(existsSync(usagePath(fx.root)), false);
     }));
 
-  test(`126 criterion 3: ${point} lets $ORGANISM_ROOT override the git-derived root`, () =>
+  test(`126 criterion 3: ${point} lets $DEN_ROOT override the git-derived root`, () =>
     withFx(async (a) =>
       withFx(async (b) => {
-        // b holds the board named by $ORGANISM_ROOT; the cwd sits in a's worktree, whose main checkout is a.
+        // b holds the board named by $DEN_ROOT; the cwd sits in a's worktree, whose main checkout is a.
         const r = jev(a.worktree, b.root, build(b.ticketRelPath));
         assert.equal(r.status, 0, r.stderr);
         assert.equal(lastRow(b.root).ticket, b.ticketRelPath);

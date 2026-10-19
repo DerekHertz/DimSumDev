@@ -2,9 +2,10 @@
 // organism-infra/72: wake-up gate prelude, shadow (ADR 0015 decision 6).
 // Usage: node scripts/jev-wake-prelude.mjs --since <iso-timestamp|last>
 // Runs once at orchestrator session start and exits: no daemon, no timer. Code decides every condition it can;
-// Jev labels only cell-authored, non-verdict ticket comments posted after --since (`last` = the orchestrator's
+// Jev labels only agent-authored, non-verdict ticket comments posted after --since (`last` = the orchestrator's
 // latest board event). Prints one JSON line and appends one jev row per Jev call to usage.jsonl.
 // Exits 2 on bad arguments; any other failure prints wake:true and exits 0.
+import { roleOf } from "../apps/board/legacy-terms.mjs";
 import { appendFileSync, readFileSync, realpathSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import path from "node:path";
@@ -12,14 +13,14 @@ import { fileURLToPath } from "node:url";
 import { codeWakes, decide } from "./jev.mjs";
 import { parseJsonl } from "./metrics.mjs";
 import { buildSnapshot } from "../apps/bridge/snapshot.mjs";
-import { resolveRoot } from "../apps/organism-infra/board-service.mjs";
+import { resolveRoot } from "../apps/board/board-service.mjs";
 
 const USAGE_WIND_DOWN = 0.9;
 const GH_TIMEOUT_MS = 15000;
 const CI_BAD = ["FAILURE", "ERROR", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE"];
 
 // Scope added (user verdict, 2026-09-30): usage alone never wakes. At 90%+ it suppresses the frontier wake, and
-// only wind-down items wake: CI red or unreadable, a merge conflict, a gate request, a cell in flight.
+// only wind-down items wake: CI red or unreadable, a merge conflict, a gate request, an agent in flight.
 export function codeDecides({
   frontierCount = 0, usagePct = 0, ciRed = false, conflicted = false, openVerdictRequest = false, ciUnknown = false,
   inFlightCount = 0,
@@ -28,7 +29,7 @@ export function codeDecides({
   if (conflicted) return { wake: true, reason: "merge conflict on an open PR" };
   if (ciUnknown) return { wake: true, reason: "CI state unreadable" };
   if (openVerdictRequest) return { wake: true, reason: "open gate request" };
-  if (inFlightCount > 0) return { wake: true, reason: `${inFlightCount} cell(s) in flight` };
+  if (inFlightCount > 0) return { wake: true, reason: `${inFlightCount} agent(s) in flight` };
   if (frontierCount === 0) return { wake: false };
   if (usagePct < USAGE_WIND_DOWN) return { wake: true, reason: `frontier has ${frontierCount} ticket(s)` };
   return { wake: false, reason: `usage at ${Math.round(usagePct * 100)}%: frontier wake suppressed` };
@@ -71,7 +72,7 @@ export async function runPrelude({
 export function lastOrchestratorTs(events) {
   let ts = null;
   for (const e of events) {
-    if (e?.cell === "orchestrator" && typeof e.ts === "string" && (ts === null || e.ts > ts)) ts = e.ts;
+    if (roleOf(e) === "orchestrator" && typeof e.ts === "string" && (ts === null || e.ts > ts)) ts = e.ts;
   }
   return ts;
 }
@@ -80,13 +81,13 @@ export function lastOrchestratorTs(events) {
 export function newInputs(events, since, ticketTextOf) {
   return events
     // Security review 72 (Low): feature and ticket become path segments in ticketTextOf, so a separator or ".." is dropped here.
-    .filter((e) => e?.op === "comment" && e.feature && e.ticket && e.cell !== "orchestrator" && String(e.ts ?? "") > since)
+    .filter((e) => e?.op === "comment" && e.feature && e.ticket && roleOf(e) !== "orchestrator" && String(e.ts ?? "") > since)
     .filter((e) => [e.feature, e.ticket].every((s) => typeof s === "string" && !s.includes("..") && !/[\\/\0]/.test(s)))
     .map((e) => ({
       ticket: `${e.feature}/${e.ticket}`,
       ticketText: ticketTextOf(e.feature, e.ticket),
       newComment: typeof e.text === "string" ? e.text : "",
-      author: e.cell,
+      author: roleOf(e),
       verdict: e.verdict,
     }));
 }

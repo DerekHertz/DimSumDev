@@ -37,7 +37,7 @@ after(async () => {
 
 const ticket = (n, slug, extra = {}) => ({
   ref: `demo/${n}-${slug}`, feature: "demo", title: slug, type: "feature", status: "claimed", ready: false,
-  holder: null, lastCell: null, gate: null, blockedBy: [], priority: "P1", effectivePriority: "P1", bumped: false, ...extra,
+  holder: null, lastRole: null, gate: null, blockedBy: [], priority: "P1", effectivePriority: "P1", bumped: false, ...extra,
 });
 
 function fixture() {
@@ -45,10 +45,10 @@ function fixture() {
   return {
     schema: 1, seq: 1, usage: { fiveHour: 79, weekly: 41, sampledAt: new Date(Date.now() - 12 * 60_000).toISOString() }, requests: [],
     tickets: [
-      ticket("01", "add-login", { holder: { cell: "developer", since } }),
-      ticket("02", "verify-it", { holder: { cell: "qa", since }, gate: "merge" }),
-      ticket("03", "ship-it", { holder: { cell: "designer", since }, gate: "dispatch", status: "in-review" }),
-      ticket("04", "odd-job", { holder: { cell: "intern", since } }),
+      ticket("01", "add-login", { holder: { role: "developer", since } }),
+      ticket("02", "verify-it", { holder: { role: "qa", since }, gate: "merge" }),
+      ticket("03", "ship-it", { holder: { role: "designer", since }, gate: "dispatch", status: "in-review" }),
+      ticket("04", "odd-job", { holder: { role: "intern", since } }),
       ticket("05", "next-up", { status: "ready", ready: true, effectivePriority: "P0", priority: "P0" }),
       ticket("06", "later-on", { status: "ready", ready: true, effectivePriority: "P2", priority: "P2" }),
     ],
@@ -92,7 +92,7 @@ async function openApp({ snapshot = fixture(), viewport = DESKTOP, hasTouch = fa
     window.EventSource = FakeEventSource;
   }, snapshot);
   await page.route((url) => url.pathname === "/state", (r) => r.fulfill({ json: snapshot }));
-  await page.route((url) => url.pathname === "/metrics", (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+  await page.route((url) => url.pathname === "/metrics", (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   await page.route((url) => url.pathname === "/session", (r) => {
     const req = r.request();
     sessions.push({ ...JSON.parse(req.postData() ?? "{}"), method: req.method(), contentType: req.headers()["content-type"], authorization: req.headers().authorization });

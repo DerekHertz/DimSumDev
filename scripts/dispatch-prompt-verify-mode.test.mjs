@@ -1,16 +1,16 @@
 // organism-infra/207: dispatch-prompt prints the qa verify mode (light or full) -- specify tests (qa).
 //
-// Seam (CLI): node scripts/dispatch-prompt.mjs --ticket <ref> --cell qa --mode verify --base <sha>
-//   Run as a subprocess with ORGANISM_ROOT pointing at a throwaway board root (as dispatch-prompt.test.mjs does).
+// Seam (CLI): node scripts/dispatch-prompt.mjs --ticket <ref> --role qa --mode verify --base <sha>
+//   Run as a subprocess with DEN_ROOT pointing at a throwaway board root (as dispatch-prompt.test.mjs does).
 //
 // Criterion map:
 //   1. qa verify prints `Verify mode: light` when a published qa-specify handoff exists for the ticket, `Verify mode: full`
 //      otherwise                                   -> "light" and "full" tests (exactly one line; light names the handoff path;
-//                                                    -2 re-dispatch name counts; other tickets, other cells, other modes and a
+//                                                    -2 re-dispatch name counts; other tickets, other agents, other modes and a
 //                                                    number that only ends the same way (107 vs 07) do not count)
-//   2. other cells and modes print no such line    -> "no line" tests (qa specify even with a specify handoff, developer, security,
+//   2. other agents and modes print no such line    -> "no line" tests (qa specify even with a specify handoff, developer, security,
 //                                                    designer spec/review, architect)
-//   3. genome edit as an exact diff in the developer handoff -> human-verified (gated .claude edit, applied by the user)
+//   3. role definition edit as an exact diff in the developer handoff -> human-verified (gated .claude edit, applied by the user)
 //   4. npm test green                              -> the whole suite, run by verify
 // Assumption flagged in the handoff: the exact wording after "Verify mode: light" (the parenthetical) is not pinned beyond
 // naming the handoff path; the ticket's example text is "(qa specify ran for this ticket: <handoff path>)".
@@ -49,12 +49,12 @@ function run(args, root) {
     encoding: "utf8",
     timeout: 60000,
     cwd: root,
-    env: { PATH: "/usr/bin:/bin", HOME: tmp("dp207-home-"), ORGANISM_ROOT: root },
+    env: { PATH: "/usr/bin:/bin", HOME: tmp("dp207-home-"), DEN_ROOT: root },
   });
   return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
 
-const verify = (root, extra = []) => run(["--cell", "qa", "--mode", "verify", ...extra], root);
+const verify = (root, extra = []) => run(["--role", "qa", "--mode", "verify", ...extra], root);
 const modeLines = (stdout) => stdout.split("\n").filter((l) => /verify mode/i.test(l));
 
 // --- Criterion 1: light when a qa-specify handoff is published, full otherwise -----------------------------------------
@@ -91,7 +91,7 @@ test("a re-dispatched specify handoff (07-qa-specify-2.md, no plain name) still 
   assert.match(modeLines(r.stdout)[0] ?? "", /^Verify mode: light\b/);
 });
 
-test("other cells' handoffs on this ticket do not make it light (developer, orchestrator, an earlier qa verify)", () => {
+test("other agents' handoffs on this ticket do not make it light (developer, orchestrator, an earlier qa verify)", () => {
   const r = verify(world({ handoffs: ["07-developer.md", "07-orchestrator.md", "07-qa-verify.md", "07-security.md"] }));
   assert.equal(r.status, 0, r.stderr);
   assert.match(modeLines(r.stdout)[0] ?? "", /^Verify mode: full\b/);
@@ -117,7 +117,7 @@ test("the mode line works alongside --tests and the usual verify lines", () => {
   assert.equal(r.status, 0, r.stderr);
   assert.equal(modeLines(r.stdout).length, 1, r.stdout);
   assert.match(r.stdout, /Verify mode: light/);
-  assert.match(r.stdout, /node scripts\/cell-start\.mjs .*--detach/);
+  assert.match(r.stdout, /node scripts\/agent-start\.mjs .*--detach/);
   assert.match(r.stdout, /07-qa-verify\.md/);
   assert.ok(r.stdout.includes(file));
 });
@@ -128,17 +128,17 @@ test("the mode is decided from handoffs alone: --continue does not change it", (
   assert.match(modeLines(r.stdout)[0] ?? "", /^Verify mode: light\b/);
 });
 
-// --- Criterion 2: other cells and modes print no such line -------------------------------------------------------------
+// --- Criterion 2: other agents and modes print no such line -------------------------------------------------------------
 
 const OTHERS = [
-  { name: "qa specify", args: ["--cell", "qa", "--mode", "specify", "--branch", "feat/x"] },
-  { name: "developer", args: ["--cell", "developer", "--branch", "feat/x"] },
-  { name: "security", args: ["--cell", "security"] },
-  { name: "architect", args: ["--cell", "architect"] },
-  { name: "designer spec", args: ["--cell", "designer", "--mode", "spec"] },
-  { name: "designer review", args: ["--cell", "designer", "--mode", "review"] },
-  { name: "designer critique", args: ["--cell", "designer", "--mode", "critique"] },
-  { name: "designer direction", args: ["--cell", "designer", "--mode", "direction"] },
+  { name: "qa specify", args: ["--role", "qa", "--mode", "specify", "--branch", "feat/x"] },
+  { name: "developer", args: ["--role", "developer", "--branch", "feat/x"] },
+  { name: "security", args: ["--role", "security"] },
+  { name: "architect", args: ["--role", "architect"] },
+  { name: "designer spec", args: ["--role", "designer", "--mode", "spec"] },
+  { name: "designer review", args: ["--role", "designer", "--mode", "review"] },
+  { name: "designer critique", args: ["--role", "designer", "--mode", "critique"] },
+  { name: "designer direction", args: ["--role", "designer", "--mode", "direction"] },
 ];
 
 for (const o of OTHERS) {
@@ -151,4 +151,4 @@ for (const o of OTHERS) {
   }
 }
 
-// --- Criterion 3 (the genome diff in the developer handoff) is human-verified: no test. -------------------------------
+// --- Criterion 3 (the role definition diff in the developer handoff) is human-verified: no test. -------------------------------

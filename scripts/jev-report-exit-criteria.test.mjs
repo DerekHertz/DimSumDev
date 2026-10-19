@@ -21,8 +21,8 @@ const jev = (ticket, point, pick, extra = {}) => ({
   kind: "jev", ts: "2026-09-30T00:30:00Z", ticket, point, pick,
   actual: pick, cost: 0.001, conf: 0.9, fallback: null, ms: 120, model: "jev-1.13.0", ...extra,
 });
-const cell = (ticket, c, mode, tokens) =>
-  ({ kind: "cell", ticket, cell: c, mode, tokens, ms: 1, outcome: "pass" });
+const role = (ticket, c, mode, tokens) =>
+  ({ kind: "agent", ticket, role: c, mode, tokens, ms: 1, outcome: "pass" });
 const resolved = (ticket, bounces) =>
   ({ kind: "resolved", ts: "2026-09-30T01:00:00Z", ticket, pr: 1, bounces });
 
@@ -32,28 +32,28 @@ const BASE_ROWS = [
   // f/01: sonnet tier (no savings), light verify (saves 50%), bounced 2×
   jev("f/01-alpha", "tier", "sonnet"),
   jev("f/01-alpha", "verify", "light"),
-  cell("f/01", "developer", "implement", 1000),
-  cell("f/01", "qa", "verify", 400),
+  role("f/01", "developer", "implement", 1000),
+  role("f/01", "qa", "verify", 400),
   resolved("f/01", 2),
   // f/02: sonnet tier, full verify, no bounce
   jev("f/02-beta", "tier", "sonnet"),
   jev("f/02-beta", "verify", "full"),
-  cell("f/02", "developer", "implement", 1200),
-  cell("f/02", "qa", "verify", 500),
+  role("f/02", "developer", "implement", 1200),
+  role("f/02", "qa", "verify", 500),
   resolved("f/02", 0),
   // f/03: sonnet tier, light verify, no bounce
   jev("f/03-gamma", "tier", "sonnet"),
   jev("f/03-gamma", "verify", "light"),
-  cell("f/03", "developer", "implement", 800),
-  cell("f/03", "qa", "verify", 300),
+  role("f/03", "developer", "implement", 800),
+  role("f/03", "qa", "verify", 300),
   resolved("f/03", 0),
   // f/04–f/06: sonnet tier, full verify, no bounce
   jev("f/04-delta", "tier", "sonnet"), jev("f/04-delta", "verify", "full"),
-  cell("f/04", "developer", "implement", 900), cell("f/04", "qa", "verify", 350), resolved("f/04", 0),
+  role("f/04", "developer", "implement", 900), role("f/04", "qa", "verify", 350), resolved("f/04", 0),
   jev("f/05-eps", "tier", "sonnet"), jev("f/05-eps", "verify", "full"),
-  cell("f/05", "developer", "implement", 750), cell("f/05", "qa", "verify", 280), resolved("f/05", 0),
+  role("f/05", "developer", "implement", 750), role("f/05", "qa", "verify", 280), resolved("f/05", 0),
   jev("f/06-zeta", "tier", "sonnet"), jev("f/06-zeta", "verify", "full"),
-  cell("f/06", "developer", "implement", 600), cell("f/06", "qa", "verify", 220), resolved("f/06", 0),
+  role("f/06", "developer", "implement", 600), role("f/06", "qa", "verify", 220), resolved("f/06", 0),
 ];
 
 // Rows where verify saves ≥30% (all light picks, qa-verify tokens halved in projection).
@@ -64,12 +64,12 @@ const BASE_ROWS = [
 // f/01 light: 200, f/02 full: 500, f/03 light: 150, f/04 full: 350, f/05 light: 140, f/06 light: 110 → 1450 → 29%... close
 // Simpler: use bigger qa verify tokens for some to push past 30%.
 const HIGH_SAVINGS_ROWS = [
-  jev("g/01-alpha", "verify", "light"), cell("g/01", "developer", "impl", 100), cell("g/01", "qa", "verify", 1000), resolved("g/01", 0),
-  jev("g/02-beta", "verify", "light"), cell("g/02", "developer", "impl", 100), cell("g/02", "qa", "verify", 1000), resolved("g/02", 0),
-  jev("g/03-gamma", "verify", "light"), cell("g/03", "developer", "impl", 100), cell("g/03", "qa", "verify", 1000), resolved("g/03", 0),
-  jev("g/04-delta", "verify", "light"), cell("g/04", "developer", "impl", 100), cell("g/04", "qa", "verify", 1000), resolved("g/04", 0),
-  jev("g/05-eps", "verify", "light"), cell("g/05", "developer", "impl", 100), cell("g/05", "qa", "verify", 1000), resolved("g/05", 0),
-  jev("g/06-zeta", "tier", "sonnet"), cell("g/06", "developer", "impl", 100), resolved("g/06", 0),
+  jev("g/01-alpha", "verify", "light"), role("g/01", "developer", "impl", 100), role("g/01", "qa", "verify", 1000), resolved("g/01", 0),
+  jev("g/02-beta", "verify", "light"), role("g/02", "developer", "impl", 100), role("g/02", "qa", "verify", 1000), resolved("g/02", 0),
+  jev("g/03-gamma", "verify", "light"), role("g/03", "developer", "impl", 100), role("g/03", "qa", "verify", 1000), resolved("g/03", 0),
+  jev("g/04-delta", "verify", "light"), role("g/04", "developer", "impl", 100), role("g/04", "qa", "verify", 1000), resolved("g/04", 0),
+  jev("g/05-eps", "verify", "light"), role("g/05", "developer", "impl", 100), role("g/05", "qa", "verify", 1000), resolved("g/05", 0),
+  jev("g/06-zeta", "tier", "sonnet"), role("g/06", "developer", "impl", 100), resolved("g/06", 0),
 ];
 // g/01–g/05: baseline = 5 × 1100 = 5500; verify projection = 5 × (100 + 500) = 3000 → 45.5% savings → PASS
 
@@ -109,7 +109,7 @@ test("68/2: checks.value is false when savedPct < 30 (tier: sonnet picks → 0% 
     "tier checks.value must be false when all picks are sonnet (0% savings)");
 });
 
-test("68/2: checks.value is true when savedPct ≥ 30 (verify: light picks on large qa cells)", async () => {
+test("68/2: checks.value is true when savedPct ≥ 30 (verify: light picks on large qa agents)", async () => {
   const { buildReport } = await import("./jev-report.mjs");
   const { points } = buildReport(HIGH_SAVINGS_ROWS);
   assert.equal(points.verify.checks.value, true,
@@ -121,8 +121,8 @@ test("68/2: checks.value is true when savedPct ≥ 30 (verify: light picks on la
 test("68/2: checks.coverage is false when fewer than 5 tickets have a jev row", async () => {
   const { buildReport } = await import("./jev-report.mjs");
   const rows = [
-    jev("f/01-a", "tier", "sonnet"), cell("f/01", "developer", "impl", 500), resolved("f/01", 0),
-    jev("f/02-b", "tier", "sonnet"), cell("f/02", "developer", "impl", 500), resolved("f/02", 0),
+    jev("f/01-a", "tier", "sonnet"), role("f/01", "developer", "impl", 500), resolved("f/01", 0),
+    jev("f/02-b", "tier", "sonnet"), role("f/02", "developer", "impl", 500), resolved("f/02", 0),
   ]; // only 2 tickets
   const { points } = buildReport(rows);
   assert.equal(points.tier.checks.coverage, false,
@@ -136,7 +136,7 @@ test("68/2: checks.spend is false when cap has fired for a point", async () => {
     ...BASE_ROWS,
     { kind: "jev", ts: "2026-09-30T00:35:00Z", ticket: "f/07-h", point: "tier",
       pick: null, actual: "sonnet", cost: 0, conf: null, fallback: "cap", ms: 0, model: "jev-1.13.0" },
-    cell("f/07", "developer", "impl", 400), resolved("f/07", 0),
+    role("f/07", "developer", "impl", 400), resolved("f/07", 0),
   ];
   const { points } = buildReport(rows);
   assert.equal(points.tier.checks.spend, false,
@@ -169,7 +169,7 @@ test("68/2: buildReport safetyBounces excludes fallback rows (no pick to attribu
   const rows = [
     { kind: "jev", ts: "2026-09-30T00:30:00Z", ticket: "f/01-alpha", point: "tier",
       pick: null, actual: "sonnet", cost: 0, conf: null, fallback: "timeout", ms: 10000, model: "jev-1.13.0" },
-    cell("f/01", "developer", "implement", 1000),
+    role("f/01", "developer", "implement", 1000),
     resolved("f/01", 3),
   ];
   const { points } = buildReport(rows);

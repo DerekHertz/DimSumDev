@@ -1,14 +1,14 @@
 // organism-infra/147: dispatch-prompt script (scripts/dispatch-prompt.mjs) -- specify tests (qa).
 //
-// Seam (CLI): node scripts/dispatch-prompt.mjs --ticket <feature>/<NN-slug> --cell <type> [--mode <m>]
+// Seam (CLI): node scripts/dispatch-prompt.mjs --ticket <feature>/<NN-slug> --role <role> [--mode <m>]
 //                                              [--base <sha> | --branch <b>] [--continue] [--batch <name>]
-//   Run as a subprocess with ORGANISM_ROOT pointing at a throwaway board root (no real board, no jg, no network).
+//   Run as a subprocess with DEN_ROOT pointing at a throwaway board root (no real board, no jg, no network).
 //   stdout is the prompt text; bad arguments exit 2 with nothing on stdout; it writes nothing.
 //
 // Output contract these tests pin (one pinned fact per line of the ticket):
-//   - one line holding `node scripts/cell-start.mjs ...` (flags tokenised on whitespace), plus a note naming the worktree;
+//   - one line holding `node scripts/agent-start.mjs ...` (flags tokenised on whitespace), plus a note naming the worktree;
 //   - the ticket path `.scratch/<feature>/issues/<NN-slug>.md`;
-//   - the handoff name `<NN>-<cell>[-<mode>].md`, or `...-<k>.md` (k = 2, 3, ...) when an earlier name is already published;
+//   - the handoff name `<NN>-<role>[-<mode>].md`, or `...-<k>.md` (k = 2, 3, ...) when an earlier name is already published;
 //   - `Start-here context: <path>` only for architect, qa specify and developer, and only when dispatch-context gives a path;
 //   - exactly one release flag form: `--status in-review`, `--keep-status`, or `--status ready-for-agent`; never `--status resolved`.
 //
@@ -56,53 +56,53 @@ function run(args, { root, cwd } = {}) {
     encoding: "utf8",
     timeout: 60000,
     cwd: cwd ?? root,
-    env: { PATH: "/usr/bin:/bin", HOME: tmp("dp147-home-"), ORGANISM_ROOT: root },
+    env: { PATH: "/usr/bin:/bin", HOME: tmp("dp147-home-"), DEN_ROOT: root },
   });
   return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
 
-const base = (cell, mode, extra = []) => [
-  "--ticket", REF, "--cell", cell, ...(mode ? ["--mode", mode] : []), "--base", SHA, "--branch", BRANCH, ...extra,
+const base = (role, mode, extra = []) => [
+  "--ticket", REF, "--role", role, ...(mode ? ["--mode", mode] : []), "--base", SHA, "--branch", BRANCH, ...extra,
 ];
 
-const startLines = (out) => out.split("\n").filter((l) => l.includes("node scripts/cell-start.mjs"));
+const startLines = (out) => out.split("\n").filter((l) => l.includes("node scripts/agent-start.mjs"));
 const tokens = (line) => line.trim().split(/\s+/);
 const flagValue = (toks, flag) => {
   const i = toks.indexOf(flag);
   return i === -1 ? undefined : toks[i + 1];
 };
 
-// --- Criterion 1: table of cell-start flags and release flag per cell and mode -------------------------------------
+// --- Criterion 1: table of agent-start flags and release flag per agent and mode -------------------------------------
 
 const TABLE = [
-  // cell, mode, branch-or-detach, release form
-  { cell: "qa", mode: "specify", style: "branch", release: "keep" },
-  { cell: "developer", mode: undefined, style: "branch", release: "in-review" },
-  { cell: "qa", mode: "verify", style: "detach", release: "keep" },
-  { cell: "security", mode: undefined, style: "detach", release: "keep" },
-  { cell: "designer", mode: "critique", style: "detach", release: "keep" },
-  { cell: "architect", mode: undefined, style: "either", release: "in-review" },
-  { cell: "designer", mode: "spec", style: "either", release: "ready-for-agent" },
-  { cell: "designer", mode: "direction", style: "either", release: "ready-for-agent" },
+  // agent, mode, branch-or-detach, release form
+  { role: "qa", mode: "specify", style: "branch", release: "keep" },
+  { role: "developer", mode: undefined, style: "branch", release: "in-review" },
+  { role: "qa", mode: "verify", style: "detach", release: "keep" },
+  { role: "security", mode: undefined, style: "detach", release: "keep" },
+  { role: "designer", mode: "critique", style: "detach", release: "keep" },
+  { role: "architect", mode: undefined, style: "either", release: "in-review" },
+  { role: "designer", mode: "spec", style: "either", release: "ready-for-agent" },
+  { role: "designer", mode: "direction", style: "either", release: "ready-for-agent" },
 ];
 
 for (const row of TABLE) {
-  const label = `${row.cell}${row.mode ? ` ${row.mode}` : ""}`;
+  const label = `${row.role}${row.mode ? ` ${row.mode}` : ""}`;
 
-  test(`table: ${label} prints exactly one cell-start line with the right flags`, () => {
+  test(`table: ${label} prints exactly one agent-start line with the right flags`, () => {
     const root = world();
-    const r = run(base(row.cell, row.mode), { root });
+    const r = run(base(row.role, row.mode), { root });
     assert.equal(r.status, 0, r.stderr);
     const lines = startLines(r.stdout);
-    assert.equal(lines.length, 1, `expected one cell-start line, got:\n${r.stdout}`);
+    assert.equal(lines.length, 1, `expected one agent-start line, got:\n${r.stdout}`);
     const t = tokens(lines[0]);
     assert.equal(flagValue(t, "--base"), SHA);
     assert.equal(flagValue(t, "--ticket"), REF);
-    assert.equal(flagValue(t, "--cell"), row.cell);
+    assert.equal(flagValue(t, "--role"), row.role);
     assert.equal(flagValue(t, "--mode"), row.mode);
     if (row.style === "branch") {
       assert.equal(flagValue(t, "--branch"), BRANCH);
-      assert.ok(!t.includes("--detach"), "a branch-writing cell must not detach");
+      assert.ok(!t.includes("--detach"), "a branch-writing agent must not detach");
     } else if (row.style === "detach") {
       assert.ok(t.includes("--detach"), "a reviewer starts detached");
       assert.ok(!t.includes("--branch"), "a reviewer must not get --branch");
@@ -115,9 +115,9 @@ for (const row of TABLE) {
 
   test(`table: ${label} prints the release flag ${row.release}`, () => {
     const root = world();
-    const r = run(base(row.cell, row.mode), { root });
+    const r = run(base(row.role, row.mode), { root });
     assert.equal(r.status, 0, r.stderr);
-    assert.ok(!/--status resolved/.test(r.stdout), "a relay cell never releases resolved");
+    assert.ok(!/--status resolved/.test(r.stdout), "a relay agent never releases resolved");
     if (row.release === "keep") {
       assert.match(r.stdout, /--keep-status/);
       assert.ok(!/--status (in-review|ready-for-agent|blocked)/.test(r.stdout), r.stdout);
@@ -138,19 +138,19 @@ test("table: designer review prints exactly one valid release form", () => {
   assert.ok(!/--status resolved/.test(r.stdout));
 });
 
-test("cell-start line: a note says it runs inside the cell's worktree", () => {
+test("agent-start line: a note says it runs inside the agent's worktree", () => {
   const r = run(base("developer"), { root: world() });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /worktree/i);
 });
 
-test("cell-start line: --continue is added on later hops, for branch and detach cells alike", () => {
-  for (const [cell, mode] of [["developer"], ["qa", "verify"], ["qa", "specify"], ["security"]]) {
-    const r = run(base(cell, mode, ["--continue"]), { root: world() });
+test("agent-start line: --continue is added on later hops, for branch and detach agents alike", () => {
+  for (const [role, mode] of [["developer"], ["qa", "verify"], ["qa", "specify"], ["security"]]) {
+    const r = run(base(role, mode, ["--continue"]), { root: world() });
     assert.equal(r.status, 0, r.stderr);
     const lines = startLines(r.stdout);
     assert.equal(lines.length, 1);
-    assert.ok(tokens(lines[0]).includes("--continue"), `${cell} ${mode ?? ""}: ${lines[0]}`);
+    assert.ok(tokens(lines[0]).includes("--continue"), `${role} ${mode ?? ""}: ${lines[0]}`);
   }
 });
 
@@ -170,17 +170,17 @@ test("batch: --batch <name> shows the batch name in the prompt", () => {
 // --- Handoff path, including the re-dispatch scope item -------------------------------------------------------------
 
 const NAME_CASES = [
-  { cell: "qa", mode: "specify", name: `07-qa-specify` },
-  { cell: "qa", mode: "verify", name: `07-qa-verify` },
-  { cell: "developer", mode: undefined, name: `07-developer` },
-  { cell: "security", mode: undefined, name: `07-security` },
-  { cell: "architect", mode: undefined, name: `07-architect` },
-  { cell: "designer", mode: "critique", name: `07-designer-critique` },
+  { role: "qa", mode: "specify", name: `07-qa-specify` },
+  { role: "qa", mode: "verify", name: `07-qa-verify` },
+  { role: "developer", mode: undefined, name: `07-developer` },
+  { role: "security", mode: undefined, name: `07-security` },
+  { role: "architect", mode: undefined, name: `07-architect` },
+  { role: "designer", mode: "critique", name: `07-designer-critique` },
 ];
 
 for (const c of NAME_CASES) {
-  test(`handoff path: ${c.cell}${c.mode ? ` ${c.mode}` : ""} writes ${c.name}.md first time`, () => {
-    const r = run(base(c.cell, c.mode), { root: world() });
+  test(`handoff path: ${c.role}${c.mode ? ` ${c.mode}` : ""} writes ${c.name}.md first time`, () => {
+    const r = run(base(c.role, c.mode), { root: world() });
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, new RegExp(`(?<![\\w-])${c.name}\\.md`));
     assert.ok(!new RegExp(`${c.name}-\\d+\\.md`).test(r.stdout), "no suffix on a first dispatch");
@@ -204,7 +204,7 @@ test("handoff path: the suffix keeps counting (-3 once -2 exists)", () => {
   assert.ok(!/(?<![\w-])07-developer\.md/.test(r.stdout));
 });
 
-test("handoff path: another cell's or mode's handoff does not bump the suffix", () => {
+test("handoff path: another agent's or mode's handoff does not bump the suffix", () => {
   const root = world({ handoffs: ["07-qa-specify.md", "07-orchestrator.md", "07-developer.md"] });
   const r = run(base("qa", "verify"), { root });
   assert.equal(r.status, 0, r.stderr);
@@ -216,42 +216,42 @@ test("handoff path: another cell's or mode's handoff does not bump the suffix", 
 
 const START_HERE = /Start-here context: \S*\.scratch\/_context\/feat-x\/07-sample-thing\.md/;
 
-for (const [cell, mode] of [["architect"], ["qa", "specify"], ["developer"]]) {
-  test(`start-here: ${cell}${mode ? ` ${mode}` : ""} gets the line when dispatch-context gives a path`, () => {
-    const r = run(base(cell, mode), { root: world({ withContext: true }) });
+for (const [role, mode] of [["architect"], ["qa", "specify"], ["developer"]]) {
+  test(`start-here: ${role}${mode ? ` ${mode}` : ""} gets the line when dispatch-context gives a path`, () => {
+    const r = run(base(role, mode), { root: world({ withContext: true }) });
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, START_HERE);
   });
 
-  test(`start-here: ${cell}${mode ? ` ${mode}` : ""} gets no line when dispatch-context gives no path`, () => {
-    const r = run(base(cell, mode), { root: world({ withContext: false }) });
+  test(`start-here: ${role}${mode ? ` ${mode}` : ""} gets no line when dispatch-context gives no path`, () => {
+    const r = run(base(role, mode), { root: world({ withContext: false }) });
     assert.equal(r.status, 0, r.stderr);
     assert.ok(!/Start-here/i.test(r.stdout), r.stdout);
   });
 }
 
-for (const [cell, mode] of [
+for (const [role, mode] of [
   ["qa", "verify"], ["security"], ["designer", "spec"], ["designer", "review"], ["designer", "critique"], ["designer", "direction"],
 ]) {
-  test(`start-here: ${cell}${mode ? ` ${mode}` : ""} never gets the line, even when a context file exists`, () => {
-    const r = run(base(cell, mode), { root: world({ withContext: true }) });
+  test(`start-here: ${role}${mode ? ` ${mode}` : ""} never gets the line, even when a context file exists`, () => {
+    const r = run(base(role, mode), { root: world({ withContext: true }) });
     assert.equal(r.status, 0, r.stderr);
     assert.ok(!/Start-here/i.test(r.stdout), r.stdout);
-    assert.ok(!r.stdout.includes("_context"), "the context path must not leak to other cells");
+    assert.ok(!r.stdout.includes("_context"), "the context path must not leak to other agents");
   });
 }
 
 // --- Criterion 2 and bad arguments: exit 2, nothing on stdout ------------------------------------------------------
 
 test("ticket ref that does not resolve to .scratch/<feature>/issues/<NN-slug>.md exits 2", () => {
-  const r = run(["--ticket", `${FEATURE}/99-nope`, "--cell", "developer", "--base", SHA, "--branch", BRANCH], { root: world() });
+  const r = run(["--ticket", `${FEATURE}/99-nope`, "--role", "developer", "--base", SHA, "--branch", BRANCH], { root: world() });
   assert.equal(r.status, 2);
   assert.equal(r.stdout, "");
   assert.match(r.stderr, /99-nope/);
 });
 
 test("ticket ref with an unknown feature exits 2", () => {
-  const r = run(["--ticket", `no-such/${SLUG}`, "--cell", "developer", "--base", SHA, "--branch", BRANCH], { root: world() });
+  const r = run(["--ticket", `no-such/${SLUG}`, "--role", "developer", "--base", SHA, "--branch", BRANCH], { root: world() });
   assert.equal(r.status, 2);
   assert.equal(r.stdout, "");
 });
@@ -259,21 +259,21 @@ test("ticket ref with an unknown feature exits 2", () => {
 test("the old bug: a ticket file at .scratch/<feature>/<NN-slug>.md (no issues/) does not resolve, exits 2", () => {
   const root = world();
   writeFileSync(path.join(root, ".scratch", FEATURE, "08-stray.md"), ticketText());
-  const r = run(["--ticket", `${FEATURE}/08-stray`, "--cell", "developer", "--base", SHA, "--branch", BRANCH], { root });
+  const r = run(["--ticket", `${FEATURE}/08-stray`, "--role", "developer", "--base", SHA, "--branch", BRANCH], { root });
   assert.equal(r.status, 2);
   assert.equal(r.stdout, "");
 });
 
 const BAD_ARGS = [
-  ["no --ticket", ["--cell", "developer", "--base", SHA, "--branch", BRANCH]],
-  ["no --cell", ["--ticket", REF, "--base", SHA, "--branch", BRANCH]],
-  ["unknown cell type", ["--ticket", REF, "--cell", "wizard", "--base", SHA, "--branch", BRANCH]],
-  ["qa without --mode", ["--ticket", REF, "--cell", "qa", "--base", SHA, "--branch", BRANCH]],
-  ["qa with an unknown mode", ["--ticket", REF, "--cell", "qa", "--mode", "bogus", "--base", SHA, "--branch", BRANCH]],
-  ["designer with an unknown mode", ["--ticket", REF, "--cell", "designer", "--mode", "bogus", "--base", SHA, "--branch", BRANCH]],
-  ["unknown flag", ["--ticket", REF, "--cell", "developer", "--base", SHA, "--branch", BRANCH, "--frobnicate"]],
-  ["--ticket without a value", ["--cell", "developer", "--ticket"]],
-  ["malformed ticket ref", ["--ticket", "../etc/passwd", "--cell", "developer", "--base", SHA, "--branch", BRANCH]],
+  ["no --ticket", ["--role", "developer", "--base", SHA, "--branch", BRANCH]],
+  ["no --role", ["--ticket", REF, "--base", SHA, "--branch", BRANCH]],
+  ["unknown role", ["--ticket", REF, "--role", "wizard", "--base", SHA, "--branch", BRANCH]],
+  ["qa without --mode", ["--ticket", REF, "--role", "qa", "--base", SHA, "--branch", BRANCH]],
+  ["qa with an unknown mode", ["--ticket", REF, "--role", "qa", "--mode", "bogus", "--base", SHA, "--branch", BRANCH]],
+  ["designer with an unknown mode", ["--ticket", REF, "--role", "designer", "--mode", "bogus", "--base", SHA, "--branch", BRANCH]],
+  ["unknown flag", ["--ticket", REF, "--role", "developer", "--base", SHA, "--branch", BRANCH, "--frobnicate"]],
+  ["--ticket without a value", ["--role", "developer", "--ticket"]],
+  ["malformed ticket ref", ["--ticket", "../etc/passwd", "--role", "developer", "--base", SHA, "--branch", BRANCH]],
 ];
 
 for (const [label, args] of BAD_ARGS) {
@@ -311,4 +311,4 @@ test("it writes nothing: the board root and the working directory are unchanged 
   assert.ok(!existsSync(path.join(root, ".scratch", "usage.jsonl")), "no usage row");
 });
 
-// --- Criterion 4 (the genome diff in the handoff) is human-verified: no test. ---------------------------------------
+// --- Criterion 4 (the role definition diff in the handoff) is human-verified: no test. ---------------------------------------

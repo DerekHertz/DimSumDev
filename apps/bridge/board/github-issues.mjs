@@ -5,7 +5,7 @@
 // exec is a test seam with execFile's promise shape: (file, args, options) -> Promise<{ stdout, stderr }>.
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { orderFrontier } from "../../organism-infra/priority.mjs";
+import { orderFrontier } from "../../board/priority.mjs";
 
 const execFileP = promisify(execFile);
 const REPO_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}\/[A-Za-z0-9._-]{1,100}$/;

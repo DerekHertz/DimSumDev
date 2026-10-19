@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// organism-infra/108: apply the patches cells leave for edits only the user may
+// organism-infra/108: apply the patches agents leave for edits only the user may
 // make (.claude/, CLAUDE.md). Run it as `npm run apply-gated`, or
 // `!npm run apply-gated` inside Claude Code. See docs/agents/gated-patches.md.
 //

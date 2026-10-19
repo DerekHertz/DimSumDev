@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // organism-infra/111: Claude Code `Notification` and `Stop` hook command. Tells the user when
-// the organism is waiting on them:
+// the org is waiting on them:
 //   Notification  every event raises a toast carrying the event message.
 //   Stop          a toast only for gates (tickets at `ready-for-human`) not yet notified; each
 //                 gate notifies once, and a gate that cleared and returns counts as new.

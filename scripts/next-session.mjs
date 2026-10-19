@@ -5,7 +5,7 @@
 // Finds the latest orchestrator session handoff in <root>/.scratch/_handoffs/
 // (files named YYYY-MM-DD-orchestrator[-cloud]-N.md), then prints
 // `claude --agent orchestrator "<prompt>"`. With --run it starts claude instead.
-// Root is --root, else $ORGANISM_ROOT, else the cwd. It first runs the
+// Root is --root, else $DEN_ROOT, else the cwd. It first runs the
 // end-of-session check (scripts/session-check.mjs, organism-infra/158) and
 // refuses, printing each problem and its fix command, instead of launching.
 import { spawnSync } from "node:child_process";
@@ -65,7 +65,7 @@ function parseArgs(argv) {
 
 function main() {
   const opts = parseArgs(process.argv.slice(2));
-  const root = path.resolve(opts.root ?? process.env.ORGANISM_ROOT ?? process.cwd());
+  const root = path.resolve(opts.root ?? (process.env.DEN_ROOT || process.env.ORGANISM_ROOT) ?? process.cwd());
   // organism-infra/158: refuse to hand out a launch command while work is stranded on this machine.
   const problems = sessionCheck(root);
   if (problems.length) {

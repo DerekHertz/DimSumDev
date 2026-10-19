@@ -1,7 +1,7 @@
 // den-mvp outcome 4 (spec section 6): the meeting plan and the two readers of a run's last message, as pure functions.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { ROLES, slotClassOf } from "../cells/policy.mjs";
+import { ROLES, slotClassOf } from "../agents/policy.mjs";
 import { nextStep, optionText, parseBrief, readDecline } from "./plan.mjs";
 import { meetingNote, meetingPrompt, MEETING_PARTS, NOTE_MAX } from "./prompts.mjs";
 import { validateMeeting } from "./log.mjs";

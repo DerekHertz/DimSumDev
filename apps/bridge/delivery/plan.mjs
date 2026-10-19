@@ -29,12 +29,12 @@ export { DELIVERABLE_TYPES, VISUAL_TYPES } from "./types.mjs";
 // the instructions and settings every session loads, the package manifest). Every dot path at the repository root is
 // one, so a new tool's settings directory is covered before anyone lists it. The governance file is read once, from
 // the bridge's own checkout.
-const governance = JSON.parse(readFileSync(fileURLToPath(new URL("../cells/governance.json", import.meta.url)), "utf8"));
+const governance = JSON.parse(readFileSync(fileURLToPath(new URL("../agents/governance.json", import.meta.url)), "utf8"));
 // A change to CI configuration runs on the git host as soon as it is pushed, so the bridge does not push one at all.
 export const CI_PATHS = [...governance.ciPaths, ".github/**"];
 export const USER_MERGE_PATHS = [
   ...governance.guardrailPaths, ...CI_PATHS,
-  "apps/bridge/**", "apps/organism-infra/**", "apps/ci-cd/**", "scripts/**", "mods/**",
+  "apps/bridge/**", "apps/board/**", "apps/ci-cd/**", "scripts/**", "mods/**",
   "CLAUDE.md", "AGENTS.md", "package.json", "package-lock.json", "skills-lock.json",
 ];
 const matcher = (pattern) => (pattern.endsWith("/**") ? (p) => p.startsWith(pattern.slice(0, -2)) : (p) => p === pattern || p.startsWith(`${pattern}/`));
@@ -43,7 +43,7 @@ const CI = CI_PATHS.map(matcher);
 /** Is this repository path CI configuration? */
 export const isCiPath = (file) => typeof file === "string" && CI.some((m) => m(file));
 // den-mvp/29: the wall (what an agent may do, and the code that enforces it) and CI. A red check on a change to one goes to security.
-const WALL = [...governance.guardrailPaths, "apps/bridge/cells/**"].map(matcher);
+const WALL = [...governance.guardrailPaths, "apps/bridge/agents/**"].map(matcher);
 /** Is this repository path part of the wall or CI configuration? */
 export const isWallPath = (file) => typeof file === "string" && (WALL.some((m) => m(file)) || isCiPath(file));
 // What the UI build bundles: apps/ui/ and the shared packages it imports. (It also imports from apps/bridge/, which is a

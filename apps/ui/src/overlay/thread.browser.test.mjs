@@ -63,7 +63,7 @@ async function open({ ended = false, width = 1280 } = {}) {
   const state = snapshot({ ended });
   await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(state)}\n\n` }));
   await page.route('**/state', (r) => r.fulfill({ json: state }));
-  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   await page.route('**/conversations/scout**', (r) => {
     const req = r.request();
     if (req.method() === 'GET') { reads.push(new URL(req.url()).search); return r.fulfill({ json: reads.length > 1 ? { entries: [], more: false, before: 0 } : history }); }

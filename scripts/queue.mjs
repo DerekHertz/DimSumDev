@@ -1,17 +1,17 @@
 #!/usr/bin/env node
 // organism-infra/212: the board's queue as buckets and as a text kanban. Board files and
-// .scratch/usage.jsonl only (no network); the root comes from ORGANISM_ROOT, else the cwd.
+// .scratch/usage.jsonl only (no network); the root comes from DEN_ROOT, else the cwd.
 //   readQueue(root) -> Promise<{ inFlight, ready, waitingOnUser, blocked, proposed }>
-// Row: { ref, title, priority }. inFlight adds { cell, mode } from the lock; blocked adds
+// Row: { ref, title, priority }. inFlight adds { agent, mode } from the lock; blocked adds
 // { blockedBy }. The ready list is in the Queue's order (queue/06: buildQueue from
-// apps/organism-infra/frontier-queue.mjs); each ready row carries { rank }, its 1-based position, and
+// apps/board/frontier-queue.mjs); each ready row carries { rank }, its 1-based position, and
 // `proposed` lists the same tickets as { ref, title, rank }. A ready ticket buildQueue does not order
 // (a blocker closed or parked, or not on the board) follows the ordered ones, in board order.
 // CLI: `node scripts/queue.mjs [--json]`.
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { buildQueue, loadSnapshot } from "../apps/organism-infra/frontier-queue.mjs";
+import { buildQueue, loadSnapshot } from "../apps/board/frontier-queue.mjs";
 
 const GONE = new Set(["resolved", "closed", "parked"]);
 const MAX_TITLE = 60;
@@ -103,7 +103,7 @@ export async function readQueue(root) {
     if (GONE.has(t.status)) continue;
     if (t.lock !== null || t.status === "claimed" || t.status === "in-review") {
       const parts = (t.lock ?? "").split(/\s+/).filter(Boolean);
-      inFlight.push({ ...row(t), cell: parts[0] ?? null, mode: parts[2] === "specify" || parts[2] === "verify" ? parts[2] : null });
+      inFlight.push({ ...row(t), role: parts[0] ?? null, mode: parts[2] === "specify" || parts[2] === "verify" ? parts[2] : null });
     } else if (t.status === "ready-for-human" || (t.status === "ready-for-agent" && t.needsUser)) {
       // den-mvp/105: a `user acts` ticket needs the user, not an agent, so it waits on the user.
       waitingOnUser.push(row(t));
@@ -137,13 +137,13 @@ export function renderKanban(q) {
   const section = (heading, rows, line) => [`${heading} (${rows.length})`, ...(rows.length ? rows.map((r) => `  ${line(r)}`) : ["  -"]), ""];
   return [
     ...section("READY", q.ready, (r) => `${r.rank ? `${mark(r.rank)} ` : ""}${short(r.ref)}  ${r.title}  P${r.priority}`),
-    ...section("IN FLIGHT", q.inFlight, (r) => `${short(r.ref)}  ${r.title}  [${r.cell ?? "no lock"}${r.mode ? ` ${r.mode}` : ""}]`),
+    ...section("IN FLIGHT", q.inFlight, (r) => `${short(r.ref)}  ${r.title}  [${r.role ?? "no lock"}${r.mode ? ` ${r.mode}` : ""}]`),
     ...section("WAITING ON YOU", q.waitingOnUser, (r) => `${short(r.ref)}  ${r.title}`),
     ...section("BLOCKED", q.blocked, (r) => `${short(r.ref)}  ${r.title}${r.blockedBy.length ? `  <- ${r.blockedBy.map(short).join(", ")}` : ""}`),
   ].join("\n");
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const q = await readQueue(process.env.ORGANISM_ROOT || process.cwd());
+  const q = await readQueue(process.env.DEN_ROOT || process.env.ORGANISM_ROOT || process.cwd());
   process.stdout.write(process.argv.includes("--json") ? `${JSON.stringify(q)}\n` : `${renderKanban(q)}\n`);
 }

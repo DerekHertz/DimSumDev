@@ -1,7 +1,7 @@
 // organism-infra/212: the band text for the board's queue. Pure and dependency-free: a mod runs with
 // no Node. Input is what scripts/queue.mjs --json returns: { inFlight, ready, waitingOnUser, blocked, proposed }.
 //   now: 212 Queue mod (developer) · 213 Next one (qa verify)
-//   next: 143 Steering adapter · 210 Cell budget · 211 Token economics
+//   next: 143 Steering adapter · 210 Agent budget · 211 Token economics
 // At most two lines, each at most MAX characters. Anything that is not a queue renders "".
 const MAX = 120;
 const NEXT = 3;
@@ -15,7 +15,8 @@ function clip(text) {
 }
 
 const flight = (r) => {
-  const who = r.cell ? ` (${r.cell}${r.mode ? ` ${r.mode}` : ""})` : "";
+  const holder = r.role ?? r.cell; // `cell` before ADR 0028
+  const who = holder ? ` (${holder}${r.mode ? ` ${r.mode}` : ""})` : "";
   return `${num(r.ref)} ${r.title ?? ""}${who}`.trim();
 };
 

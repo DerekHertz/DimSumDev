@@ -10,16 +10,16 @@ Save it on the board, not in the OS temp dir: `.scratch/<feature-slug>/handoffs/
 
 Before you write an orchestrator session handoff (`.scratch/_handoffs/<YYYY-MM-DD>-orchestrator-<N>.md`), run `npm run -s session-check` in the main checkout and fix every item it prints: local `main` ahead of `origin/main`, uncommitted board files under `.scratch/`, and in-flight tickets whose handoff branch is missing from or behind `origin`. Each item carries its fix command. An agent in a worktree skips this: `board release` pushes its branch.
 
-Keep it under 60 lines. Start the file with a fenced `json` State block (ADR 0009 decision 4). `board release --status in-review|resolved` parses the `json` State block of the ticket's handoffs and refuses the release if none is valid. The block must name its author: `"cell"` (your role) and, for moded agents, `"mode"` (e.g. qa `specify` or `verify`). A handoff whose `cell`/`mode` differ from your claim, or that was written before your claim, doesn't count (ADR 0008 decision 11). Write the handoff after claiming and before releasing. `npm run -s board -- handoff <feature>/<NN-slug> --template` prints this block with the ticket, agent and mode filled in:
+Keep it under 60 lines. Start the file with a fenced `json` State block (ADR 0009 decision 4). `board release --status in-review|resolved` parses the `json` State block of the ticket's handoffs and refuses the release if none is valid. The block must name its author: `"role"` (your role; `"cell"` before ADR 0028) and, for moded agents, `"mode"` (e.g. qa `specify` or `verify`). A handoff whose `role`/`mode` differ from your claim, or that was written before your claim, doesn't count (ADR 0008 decision 11). Write the handoff after claiming and before releasing. `npm run -s board -- handoff <feature>/<NN-slug> --template` prints this block with the ticket, agent and mode filled in:
 
 ```json
-{"ticket": "<feature>/<NN>", "cell": "<your role>", "mode": "<mode, if any>", "current_step": "one line: where the work stands",
+{"ticket": "<feature>/<NN>", "role": "<your role>", "mode": "<mode, if any>", "current_step": "one line: where the work stands",
  "artifacts": ["paths you changed or wrote"], "decisions": ["choices not in an ADR or the ticket"],
  "failures": ["what failed or was refused, or leave empty"],
  "pending": [{"item": "what's left", "owner": "<next role>"}]}
 ```
 
-`pending` is `[]` when nothing is left. Otherwise every item needs a non-empty `item` and a named `owner`. You can't hand back an interim status with unowned work. Validate the block with `validateState` from `apps/organism-infra/schemas.mjs` if you're unsure.
+`pending` is `[]` when nothing is left. Otherwise every item needs a non-empty `item` and a named `owner`. You can't hand back an interim status with unowned work. Validate the block with `validateState` from `apps/board/schemas.mjs` if you're unsure.
 
 Then these sections:
 

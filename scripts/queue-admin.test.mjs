@@ -21,7 +21,7 @@
 //       {"kind":"queue-admit","ts":"<ISO>","ref":"<ref>","reason":"<why>","by":"user"}
 //     A missing, empty or whitespace-only reason, or a missing ref, writes nothing and exits nonzero, with or without y.
 //   - The file is only appended to: existing lines stay byte for byte, and a refusal creates no file.
-//   - The Queue reads both rows (apps/organism-infra/frontier-queue.mjs loadSnapshot / gateRefusals / board gate):
+//   - The Queue reads both rows (apps/board/frontier-queue.mjs loadSnapshot / gateRefusals / board gate):
 //     the active feature's tickets go in the active tier; a ticket with a queue-admit row is not refused by the gate.
 //
 // Not pinned (open scope questions, see the qa specify handoff): whether `admit` checks that <ref> names a real ticket,
@@ -37,17 +37,17 @@ import { mkdtemp, mkdir, readFile, writeFile, rm, readdir, access } from "node:f
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { loadSnapshot, gateRefusals } from "../apps/organism-infra/frontier-queue.mjs";
-import { makeBoardFixture, runBoard } from "../apps/organism-infra/board-fixture.mjs";
+import { loadSnapshot, gateRefusals } from "../apps/board/frontier-queue.mjs";
+import { makeBoardFixture, runBoard } from "../apps/board/board-fixture.mjs";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SCRIPT = path.join(REPO_ROOT, "scripts", "queue-admin.mjs");
 
 // Run the script. `input: undefined` plus stdin "ignore" is a /dev/null stdin (what an agent's Bash call gives).
-// `env` is added to the inherited environment, but ORGANISM_ROOT is always removed first, so the developer's own shell
+// `env` is added to the inherited environment, but DEN_ROOT is always removed first, so the developer's own shell
 // cannot leak in.
 function admin(args, { input = "", devnull = false, cwd, env = {} } = {}) {
-  const { ORGANISM_ROOT: _drop, ...inherited } = process.env;
+  const { DEN_ROOT: _drop, ...inherited } = process.env;
   const r = spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd: cwd ?? tmpdir(),
     encoding: "utf8",
@@ -341,13 +341,13 @@ test("with no --root, run from a worktree, the row is written in the main checko
   }
 });
 
-test("with no --root, $ORGANISM_ROOT is the main checkout, and --root still wins over it", async () => {
+test("with no --root, $DEN_ROOT is the main checkout, and --root still wins over it", async () => {
   await withRoot(async (a) => {
     await withRoot(async (b) => {
-      const viaEnv = admin(["active", "den-v1"], { input: "y\n", env: { ORGANISM_ROOT: a } });
+      const viaEnv = admin(["active", "den-v1"], { input: "y\n", env: { DEN_ROOT: a } });
       assert.equal(viaEnv.code, 0, viaEnv.stderr);
       assert.equal(rowsOf(await readUsage(a))[0]?.queue_active, "den-v1");
-      const both = admin(["--root", b, "active", "beta"], { input: "y\n", env: { ORGANISM_ROOT: a } });
+      const both = admin(["--root", b, "active", "beta"], { input: "y\n", env: { DEN_ROOT: a } });
       assert.equal(both.code, 0, both.stderr);
       assert.equal(rowsOf(await readUsage(b))[0]?.queue_active, "beta", "--root wins");
       assert.equal(rowsOf(await readUsage(a)).length, 1, "the env root got nothing more");
@@ -355,7 +355,7 @@ test("with no --root, $ORGANISM_ROOT is the main checkout, and --root still wins
   });
 });
 
-test("with no --root, outside any checkout and with no $ORGANISM_ROOT, it refuses and writes nothing", async () => {
+test("with no --root, outside any checkout and with no $DEN_ROOT, it refuses and writes nothing", async () => {
   await withRoot(async (root) => {
     const r = admin(["active", "den-v1"], { input: "y\n", cwd: root });
     assert.notEqual(r.code, 0);
@@ -390,7 +390,7 @@ async function putTicket(root, feature, slug, header = []) {
   await writeFile(path.join(dir, `${slug}.md`), ticketText({ header }), "utf8");
 }
 
-const runB = (fx, args) => runBoard(args, { cwd: fx.worktree, env: { ORGANISM_ROOT: fx.root } });
+const runB = (fx, args) => runBoard(args, { cwd: fx.worktree, env: { DEN_ROOT: fx.root } });
 const SEED = { feature: "seed", ticket: "09-seed", status: "resolved" };
 
 test("board queue puts the active feature's tickets first after `queue-admin active` (and not before)", async () => {

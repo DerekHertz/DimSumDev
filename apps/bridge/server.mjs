@@ -1,20 +1,20 @@
 // Localhost bridge (ADR 0011 decision 2). Tickets 04 and 05: GET /state and GET /events, plus
 // the loopback binding and Host-header hardening that apply to every route.
 // SSE, /metrics, POST /requests and static files arrive in tickets 05 and 06.
-import { goalProblem } from "../organism-infra/goals.mjs";
+import { goalProblem } from "../board/goals.mjs";
 import http from "node:http";
-import { wallTables } from "./cells/claude-adapter.mjs";
+import { wallTables } from "./agents/claude-adapter.mjs";
 import { fileURLToPath } from "node:url";
 import { existsSync, realpathSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import os from "node:os";
-import { createHost } from "./cells/host.mjs";
-import { COORDINATORS } from "./cells/admission.mjs";
+import { createHost } from "./agents/host.mjs";
+import { COORDINATORS } from "./agents/admission.mjs";
 import { createProjects } from "./projects.mjs";
 import { buildSnapshot } from "./snapshot.mjs";
-import { createLedger } from "./cells/ledger.mjs";
+import { createLedger } from "./agents/ledger.mjs";
 import { createDelivery } from "./delivery/runner.mjs";
 import { createDeliveryBoard } from "./delivery/board.mjs";
 import { createReleaseDrafts } from "./delivery/release-draft.mjs";
@@ -28,10 +28,10 @@ import { createMeetings } from "./meetings/runner.mjs";
 import { createMeetingStore } from "./meetings/store.mjs";
 import { createMeetingLog } from "./meetings/log.mjs";
 import { TOPIC_MAX_BYTES } from "./meetings/types.mjs";
-import { DEN_FEATURE, DESK_REF, TASK_MAX_BYTES } from "./cells/policy.mjs";
-import { BoardError, comment, createTicket, isBoardCell, modeAllowed, resolve, resolveShortRef, setOffRelay } from "../organism-infra/board-service.mjs";
+import { DEN_FEATURE, DESK_REF, TASK_MAX_BYTES } from "./agents/policy.mjs";
+import { BoardError, comment, createTicket, isBoardRole, modeAllowed, resolve, resolveShortRef, setOffRelay } from "../board/board-service.mjs";
 import { appendToOrder } from "../router/order.mjs";
-import { cleanText } from "./cells/approvals.mjs";
+import { cleanText } from "./agents/approvals.mjs";
 
 // den-mvp/55: Bao's board_file batch. The allow is matched against the whole batch as the user saw it (cleaned the way
 // the approval store cleans an input), so a changed list is a new request.
@@ -117,7 +117,7 @@ function installProcessHandlers(host) {
 }
 
 // runtime: a CellRuntime (organism-infra/140). With none, POST /agents is 503 and no process-level handler is
-// installed. policy: test-only overrides of cells/policy.mjs (the production entry point passes none).
+// installed. policy: test-only overrides of agents/policy.mjs (the production entry point passes none).
 // den-mvp outcome 3: gitHost is the bridge's git-host operations (delivery/git-host.mjs; a test passes a fake), and stateDir
 // is where the delivery log is kept. The production entry point passes a directory outside the repository; the default is
 // the bridge's run directory, which is outside every agent's worktree.
@@ -564,7 +564,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   // goes to in-review. A role the board keeps no handoffs for (herald) leaves nothing.
   const held = new Map(); // agent id -> { ref, role, mode, task, project }
   function hold(agent, { task }) {
-    if (isBoardCell(agent.role)) held.set(agent.id, { ref: agent.ref, role: agent.role, mode: agent.mode && modeAllowed(agent.role, agent.mode) ? agent.mode : null, task, project: agent.project ?? "den" });
+    if (isBoardRole(agent.role)) held.set(agent.id, { ref: agent.ref, role: agent.role, mode: agent.mode && modeAllowed(agent.role, agent.mode) ? agent.mode : null, task, project: agent.project ?? "den" });
   }
   async function runEnded(run) {
     const entry = held.get(run?.agentId);
@@ -1073,10 +1073,10 @@ const startedDirectly = () => {
   }
 };
 if (startedDirectly()) {
-  const { resolveRoot } = await import("../organism-infra/board-service.mjs");
+  const { resolveRoot } = await import("../board/board-service.mjs");
   const root = resolveRoot(process.cwd(), process.env);
   // The default runtime (organism-infra/143): the binary is DEN_CLAUDE_BIN, else `claude` on PATH.
-  const { createClaudeRuntime } = await import("./cells/claude-runtime.mjs");
+  const { createClaudeRuntime } = await import("./agents/claude-runtime.mjs");
   // The delivery log is kept outside the repository, so it is in no agent's worktree and under no path a task can be granted.
   const { createHash } = await import("node:crypto");
   const stateHome = process.env.XDG_STATE_HOME || path.join(os.homedir(), ".local", "state");
@@ -1085,13 +1085,13 @@ if (startedDirectly()) {
   const denState = path.isAbsolute(process.env.DEN_STATE_DIR ?? "") ? process.env.DEN_STATE_DIR : path.join(stateHome, "den");
   const stateDir = path.join(denState, "projects", createHash("sha256").update(realpathSync(root)).digest("hex").slice(0, 16));
   // One launcher for the agents and the build box: its units are named per instance.
-  const { createResourceLauncher } = await import("./cells/resource-group.mjs");
+  const { createResourceLauncher } = await import("./agents/resource-group.mjs");
   const { createBuildBox } = await import("./build/box.mjs");
   const launcher = createResourceLauncher({ env: process.env });
   // den-mvp/34: the records go to the board's run folder, next to the conversations, where the user and Bao read them.
   const { createChecks } = await import("./delivery/checks.mjs");
   // A launcher of their own: the checks group, in its own slice, outside the agents' aggregate.
-  const { checksLimits, CHECKS_SLICE } = await import("./cells/resource-group.mjs");
+  const { checksLimits, CHECKS_SLICE } = await import("./agents/resource-group.mjs");
   const checksLauncher = createResourceLauncher({ env: process.env, limits: checksLimits(), slice: CHECKS_SLICE });
   // The box mounts the den's packages folder for each commit's own lockfile (deps/<lock-hash>, made by den:update).
   const checks = createChecks({ repo: root, launcher: checksLauncher, recordDir: path.join(root, ".scratch", "_run", "checks"), depsDir: path.join(denState, "deps") });

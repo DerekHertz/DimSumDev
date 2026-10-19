@@ -2,7 +2,7 @@
 //
 // Interface under test (the seam), pinned by QA:
 //   `node scripts/session-check.mjs [--root <dir>]`  (also `npm run session-check`)
-//   - Root: --root, else $ORGANISM_ROOT, else the cwd (same rule as next-session).
+//   - Root: --root, else $DEN_ROOT, else the cwd (same rule as next-session).
 //   - Clean: exit 0.
 //   - Any problem: exit non-zero. Every problem is printed (stdout or stderr),
 //     one item each, never just the first, and each item carries the command
@@ -38,7 +38,7 @@ const SCRIPT = path.join(REPO, "scripts", "session-check.mjs");
 
 function check(root) {
   const env = { ...process.env };
-  delete env.ORGANISM_ROOT;
+  delete env.DEN_ROOT;
   const r = spawnSync(process.execPath, [SCRIPT, "--root", root], { encoding: "utf8", timeout: 20_000, env });
   return { ...r, out: `${r.stdout ?? ""}${r.stderr ?? ""}` };
 }

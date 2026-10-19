@@ -23,8 +23,8 @@ const ticket = (ref, status, cell, extra = {}) => ({
   title: `${ref} title`,
   type: "feature",
   status,
-  holder: cell ? { cell, since: iso(T0 - 60_000) } : null,
-  lastCell: cell,
+  holder: cell ? { role: cell, since: iso(T0 - 60_000) } : null,
+  lastRole: cell,
   gate: null,
   blockedBy: [],
   ...extra,
@@ -39,7 +39,7 @@ const cellRow = (ref, cellType, tool, extra = {}) => ({
   tool,
   ...extra,
 });
-const snap = (tickets, cells = tickets.filter(t=>t.holder).map(t=>cellRow(t.ref,t.holder.cell,null))) => ({ tickets, cells });
+const snap = (tickets, cells = tickets.filter(t=>t.holder).map(t=>cellRow(t.ref,t.holder.role,null))) => ({ tickets, cells });
 const byRole = (actors, role) => actors.filter((a) => a.role === role);
 
 test("a bound agent maps to an actor of its role, working, with its ticket as the task", () => {
@@ -124,7 +124,7 @@ test("roles with no live agent have no actor, so they keep idle wandering", () =
 });
 
 test("a ticket with no lock is not a live agent: in-review and ready-for-human with no holder bind nothing", () => {
-  const s = snap([ticket("fx/01-a", "in-review", null, { lastCell: "developer" }), ticket("fx/02-b", "ready-for-human", null, { lastCell: "qa" })]);
+  const s = snap([ticket("fx/01-a", "in-review", null, { lastRole: "developer" }), ticket("fx/02-b", "ready-for-human", null, { lastRole: "qa" })]);
   assert.deepEqual(liveActorsFromSnapshot(s, { now: T0 }), []);
 });
 
@@ -152,7 +152,7 @@ test("when the agent's session ends, its panda is no longer bound", () => {
   const live = snap([ticket("fx/01-a", "claimed", "developer")], [cellRow("fx/01-a", "developer", { name: "Read", summary: "a" })]);
   assert.equal(liveActorsFromSnapshot(live, { now: T0 + 1 }).length, 1);
   // The lock is released: the ticket leaves the active set.
-  const released = snap([ticket("fx/01-a", "in-review", null, { lastCell: "developer" })], live.cells);
+  const released = snap([ticket("fx/01-a", "in-review", null, { lastRole: "developer" })], live.cells);
   assert.deepEqual(liveActorsFromSnapshot(released, { now: T0 + 1 }), []);
   // The bridge reports the session over while the ticket still shows the claim.
   for (const state of ["terminated", "done", "failed"]) {

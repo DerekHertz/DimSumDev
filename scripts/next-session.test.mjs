@@ -1,7 +1,7 @@
 // organism-infra/122: `npm run next-session` launcher tests.
 //
 // Interface under test (the seam): `node scripts/next-session.mjs [--root <dir>] [--run]`.
-//   - Root: `--root <dir>`, else $ORGANISM_ROOT, else the cwd. Orchestrator
+//   - Root: `--root <dir>`, else $DEN_ROOT, else the cwd. Orchestrator
 //     session handoffs live in <root>/.scratch/_handoffs/ and are named
 //     `YYYY-MM-DD-orchestrator[-cloud]-N.md`.
 //   - Latest = highest date, then highest N (numeric: 10 beats 9). Not mtime.
@@ -69,7 +69,7 @@ function stubClaude() {
 
 function run(args, { env = {}, cwd = REPO } = {}) {
   const base = { ...process.env };
-  delete base.ORGANISM_ROOT;
+  delete base.DEN_ROOT;
   return spawnSync(process.execPath, [SCRIPT, ...args], {
     cwd,
     encoding: "utf8",
@@ -146,10 +146,10 @@ describe("next-session: print mode", () => {
     assert.ok(!r.stdout.includes("119-orchestrator.md"), r.stdout);
   });
 
-  it("falls back to $ORGANISM_ROOT when --root is not given", () => {
+  it("falls back to $DEN_ROOT when --root is not given", () => {
     const root = fakeRoot(["2026-10-02-orchestrator-3.md"]);
     const elsewhere = tmp("next-session-cwd");
-    const r = run([], { env: { ORGANISM_ROOT: root }, cwd: elsewhere });
+    const r = run([], { env: { DEN_ROOT: root }, cwd: elsewhere });
     assert.equal(r.status, 0, r.stderr);
     assert.ok(r.stdout.includes("2026-10-02-orchestrator-3.md"), r.stdout);
   });

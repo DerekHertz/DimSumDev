@@ -106,16 +106,16 @@ export async function makeStateFixture({ lock = false, empty = false, git = fals
     await put(
       path.join(scratch, "events.jsonl"),
       jsonl([
-        { seq: 1, ts: "2026-09-26T00:00:00.000Z", feature: FEATURE, ticket: "04-review", cell: "developer", op: "release", to_status: "in-review" },
-        { seq: 2, ts: "2026-09-26T01:00:00.000Z", feature: FEATURE, ticket: "04-review", cell: "security", op: "comment", text: "Security pass", verdict: "pass" },
-        { seq: 3, ts: "2026-09-26T02:00:00.000Z", feature: FEATURE, ticket: "05-blocked", cell: "qa", op: "release", to_status: "blocked" },
+        { seq: 1, ts: "2026-09-26T00:00:00.000Z", feature: FEATURE, ticket: "04-review", role: "developer", op: "release", to_status: "in-review" },
+        { seq: 2, ts: "2026-09-26T01:00:00.000Z", feature: FEATURE, ticket: "04-review", role: "security", op: "comment", text: "Security pass", verdict: "pass" },
+        { seq: 3, ts: "2026-09-26T02:00:00.000Z", feature: FEATURE, ticket: "05-blocked", role: "qa", op: "release", to_status: "blocked" },
       ]),
     );
     await put(
       path.join(scratch, "usage.jsonl"),
       jsonl([
         { kind: "usage", ts: "2026-09-29T04:00:00.000Z", five_hour: 40, weekly: 50 },
-        { kind: "cell", ts: "2026-09-29T04:10:00.000Z", ticket: "fx/02", cell: "developer", tokens: 10 },
+        { kind: "agent", ts: "2026-09-29T04:10:00.000Z", ticket: "fx/02", role: "developer", tokens: 10 },
         { kind: "usage", ts: "2026-09-29T04:36:50.650Z", five_hour: 74, weekly: 72 },
         { kind: "usage", ts: "2026-09-29T05:00:00.000Z", note: "no numeric five_hour" },
         { kind: "incident", ts: "2026-09-29T05:10:00.000Z", tool: "git" },

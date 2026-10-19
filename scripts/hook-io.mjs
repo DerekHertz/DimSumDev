@@ -27,7 +27,7 @@ export function readStdinJson() {
   }
 }
 
-export const boardRoot = () => process.env.ORGANISM_ROOT || process.cwd();
+export const boardRoot = () => process.env.DEN_ROOT || process.env.ORGANISM_ROOT || process.cwd();
 
 // Run a usage script and return its parsed JSON, or null on timeout, non-zero exit,
 // spawn failure or unparseable output.

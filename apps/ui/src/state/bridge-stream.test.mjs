@@ -5,7 +5,7 @@
 // with the bridge's own GET /state.
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { makeBridge, openSse, send, until } from "../../../bridge/cells/host-test-helpers.mjs";
+import { makeBridge, openSse, send, until } from "../../../bridge/agents/host-test-helpers.mjs";
 import { applyEvent } from "./apply-event.mjs";
 import { needsYouModel } from "../overlay/overlay-model.mjs";
 import { cardFor } from "../overlay/proximity-card.mjs";

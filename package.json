@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "bin": {
-    "board": "apps/organism-infra/board.mjs"
+    "board": "apps/board/board.mjs"
   },
   "scripts": {
     "pretest": "npm run check:bom",
@@ -17,11 +17,11 @@
     "dev": "node apps/ci-cd/dev-server.mjs",
     "smoke": "node apps/ci-cd/smoke.mjs",
     "smoke:ui": "node apps/ci-cd/smoke-ui.mjs",
-    "smoke:live": "node apps/bridge/cells/conformance.mjs --spike Live",
+    "smoke:live": "node apps/bridge/agents/conformance.mjs --spike Live",
     "risk-check": "node scripts/risk-check.mjs",
     "test-guard": "node scripts/test-guard.mjs",
     "check:bom": "node scripts/bom-check.mjs",
-    "board": "node apps/organism-infra/board.mjs",
+    "board": "node apps/board/board.mjs",
     "queue": "node scripts/queue.mjs",
     "spend": "node scripts/spend.mjs",
     "apply-gated": "node scripts/apply-gated.mjs",

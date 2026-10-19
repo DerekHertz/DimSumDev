@@ -42,7 +42,7 @@ test("Bao's board_file ask shows the tickets, not escaped JSON", { timeout: 9000
     const state = snapshot();
     await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(state)}\n\n` }));
     await page.route('**/state', (r) => r.fulfill({ json: state }));
-    await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+    await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
     await page.route(`**/approvals/${APPROVAL}`, (r) => r.fulfill({ json: { ...ASK, input: BATCH } }));
     await page.goto(server.resolvedUrls.local[0]);
     await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') !== 'true');

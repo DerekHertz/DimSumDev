@@ -9,7 +9,7 @@
 import { mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { isWallPath } from "./plan.mjs";
-import { MESSAGE_MAX_BYTES } from "../cells/policy.mjs";
+import { MESSAGE_MAX_BYTES } from "../agents/policy.mjs";
 import { hasSecret } from "../../../scripts/exposure.mjs";
 
 export const POLL_MS = 2 * 60 * 1000;

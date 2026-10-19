@@ -8,7 +8,7 @@
 //     codeTicket   boolean, default true (safe). developer-direct is offered only when false.
 //     forbid       string[], extra labels the state machine forbids; removed before the call.
 //     status       ticket Status. When given and not "ready-for-agent" the state machine dictates
-//                  the next cell: no transport call, row.fallback "state-machine", cost 0.
+//                  the next agent: no transport call, row.fallback "state-machine", cost 0.
 //   Offered labels: product, architect, designer, qa-specify, user, other, plus developer-direct
 //   when codeTicket is false, minus `forbid`. `other` is always offered. The transport request
 //   carries them as `labels` (array). fetchTransport sends criteria for exactly those labels.
@@ -152,7 +152,7 @@ test("any output outside the label set maps to other, not to a fallback", async 
   }
 });
 
-test("state machine dictates the next cell: no call, fallback state-machine, cost 0", async () => {
+test("state machine dictates the next agent: no call, fallback state-machine, cost 0", async () => {
   const { decide } = await load();
   for (const status of ["in-review", "claimed", "blocked", "resolved", "ready-for-human"]) {
     const calls = [];
@@ -320,7 +320,7 @@ function boardRoot(ticketText) {
   return root;
 }
 function cli(root, argv) {
-  const env = { ...process.env, ORGANISM_ROOT: root };
+  const env = { ...process.env, DEN_ROOT: root };
   delete env.TYPESAFE_API_KEY;
   return spawnSync(process.execPath, [SCRIPT, ...argv], { cwd: root, env, encoding: "utf8", timeout: 20000 });
 }

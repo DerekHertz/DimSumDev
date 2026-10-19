@@ -99,7 +99,7 @@ function resetTime(iso) {
 }
 
 // In-flight relay: every claim lock `.scratch/<feature>/issues/NN-slug.lock`
-// ("<cell> <iso-time> [mode] ..."). Write locks and reclaim files are not claims.
+// ("<agent> <iso-time> [mode] ..."). Write locks and reclaim files are not claims.
 function relay(root) {
   const out = [];
   let features = [];
@@ -121,8 +121,8 @@ function relay(root) {
       const m = /^0*(\d+)-.*\.lock$/.exec(name);
       if (!m || name.includes(".reclaim-")) continue;
       try {
-        const [cell, , mode] = readFileSync(path.join(dir, name), "utf8").trim().split(/\s+/);
-        if (cell) out.push(`${m[1]}: ${cell}${mode ? ` ${mode}` : ""}`);
+        const [role, , mode] = readFileSync(path.join(dir, name), "utf8").trim().split(/\s+/);
+        if (role) out.push(`${m[1]}: ${role}${mode ? ` ${mode}` : ""}`);
       } catch {
         // lock vanished mid-read
       }

@@ -1,6 +1,7 @@
 #!/usr/bin/env node
-// Jev shadow report (ADR 0010, decision 10): joins jev rows with cell and resolved rows in
+// Jev shadow report (ADR 0010, decision 10): joins jev rows with agent and resolved rows in
 // usage.jsonl, projects counterfactual tokens per ticket and prints the exit-criteria table.
+import { isAgentRow, roleOf } from "../apps/board/legacy-terms.mjs";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -30,7 +31,7 @@ const ROUTE_VARIANTS = {
     labelOf: { product: "product", architect: "architect", designer: "designer", qa: "qa-specify", developer: "developer-direct" },
     minRows: 15,
     // developer-direct on a ticket that got qa tests would have skipped qa specify.
-    isMiss: (u, claims) => u.r.pick === "developer-direct" && claims.some((c) => c.key === u.key && c.cell === "qa"),
+    isMiss: (u, claims) => u.r.pick === "developer-direct" && claims.some((c) => c.key === u.key && roleOf(c) === "qa"),
   },
   bounce: {
     labelOf: { developer: "developer", qa: "qa", architect: "architect", user: "user" },
@@ -40,7 +41,7 @@ const ROUTE_VARIANTS = {
       if (u.r.pick !== "developer") return false;
       const ts = String(u.r.ts ?? "");
       const done = releases.find((e) => e.key === u.key && e.toStatus === "resolved" && e.ts > ts);
-      return Boolean(done) && !claims.some((c) => c.key === u.key && c.cell === "qa" && c.ts > ts && c.ts < done.ts);
+      return Boolean(done) && !claims.some((c) => c.key === u.key && roleOf(c) === "qa" && c.ts > ts && c.ts < done.ts);
     },
   },
 };
@@ -48,14 +49,14 @@ const ROUTE_VARIANTS = {
 function boardEvents(events, op) {
   return events
     .filter((e) => e && e.op === op && e.feature && keyOf(`${e.feature}/${e.ticket}`))
-    .map((e) => ({ key: keyOf(`${e.feature}/${e.ticket}`), cell: e.cell, mode: e.mode ?? null, toStatus: e.to_status, ts: String(e.ts ?? "") }))
+    .map((e) => ({ key: keyOf(`${e.feature}/${e.ticket}`), role: roleOf(e), mode: e.mode ?? null, toStatus: e.to_status, ts: String(e.ts ?? "") }))
     .sort((a, b) => (a.ts < b.ts ? -1 : a.ts > b.ts ? 1 : 0));
 }
 
 // organism-infra/124: a route row is written before the dispatch it predicts, so its own `actual` cannot name the
-// real next role. This derived view scores each route row against the first claim after it, any cell.
+// real next role. This derived view scores each route row against the first claim after it, any agent.
 function claimRole(c) {
-  return c.cell === "qa" && (c.mode === "specify" || c.mode === "verify") ? `qa-${c.mode}` : c.cell;
+  return roleOf(c) === "qa" && (c.mode === "specify" || c.mode === "verify") ? `qa-${c.mode}` : roleOf(c);
 }
 
 function routeActuals(rows, events) {
@@ -88,8 +89,8 @@ function routeReport(rows, events, variant) {
 
   const used = [];
   for (const [key, r] of latest) {
-    const first = claims.find((c) => c.key === key && c.ts > String(r.ts ?? "") && labelOf[c.cell]);
-    if (first) used.push({ key, r, actual: labelOf[first.cell] });
+    const first = claims.find((c) => c.key === key && c.ts > String(r.ts ?? "") && labelOf[roleOf(c)]);
+    if (first) used.push({ key, r, actual: labelOf[roleOf(first)] });
   }
   const picked = used.filter((u) => u.r.pick);
   const nonOther = picked.filter((u) => u.r.pick !== "other");
@@ -239,16 +240,16 @@ const weightOf = (table, pick) => (typeof pick === "string" && Object.hasOwn(tab
 
 export function buildReport(allRows, events = []) {
   const rows = allRows.filter(isObject); // valid JSON that is not an object (null, 42) is skipped
-  const info = new Map(); // key -> { cells, bounces }
+  const info = new Map(); // key -> { agents, bounces }
   const get = (k) => {
-    if (!info.has(k)) info.set(k, { cells: [], bounces: 0, resolved: false });
+    if (!info.has(k)) info.set(k, { runs: [], bounces: 0, resolved: false });
     return info.get(k);
   };
   const latest = new Map(); // `${key}|${point}` -> jev row
   for (const r of rows) {
     const k = keyOf(r.ticket);
     if (!k) continue;
-    if (r.kind === "cell") get(k).cells.push(r);
+    if (isAgentRow(r)) get(k).runs.push(r);
     else if (r.kind === "resolved") { get(k).bounces = Number(r.bounces) || 0; get(k).resolved = true; }
     else if (r.kind === "jev" && POINTS.includes(r.point)) {
       const id = `${k}|${r.point}`;
@@ -258,9 +259,9 @@ export function buildReport(allRows, events = []) {
   }
 
   const tickets = [];
-  for (const [ticket, { cells, bounces, resolved }] of [...info].sort((a, b) => compareRefs(a[0], b[0]))) {
+  for (const [ticket, { runs, bounces, resolved }] of [...info].sort((a, b) => compareRefs(a[0], b[0]))) {
     const tok = (c) => Number(c.tokens) || 0;
-    const baseline = cells.reduce((s, c) => s + tok(c), 0);
+    const baseline = runs.reduce((s, c) => s + tok(c), 0);
     const tierRow = latest.get(`${ticket}|tier`);
     const verifyRow = latest.get(`${ticket}|verify`);
     const tierW = !tierRow?.fallback && weightOf(TIER_WEIGHT, tierRow?.pick) !== undefined ? weightOf(TIER_WEIGHT, tierRow.pick) : 1;
@@ -268,9 +269,9 @@ export function buildReport(allRows, events = []) {
     let tier = 0;
     let verify = 0;
     let both = 0;
-    for (const c of cells) {
-      const isDev = c.cell === "developer";
-      const isVerify = c.cell === "qa" && String(c.mode ?? "").startsWith("verify");
+    for (const c of runs) {
+      const isDev = roleOf(c) === "developer";
+      const isVerify = roleOf(c) === "qa" && String(c.mode ?? "").startsWith("verify");
       tier += tok(c) * (isDev ? tierW : 1);
       verify += tok(c) * (isVerify ? verifyW : 1);
       both += tok(c) * (isDev ? tierW : isVerify ? verifyW : 1);
@@ -405,7 +406,7 @@ function goLiveLines(name, r, minRows) {
 }
 
 function main(argv) {
-  let usage = path.join(process.env.ORGANISM_ROOT || process.cwd(), ".scratch", "usage.jsonl");
+  let usage = path.join(process.env.DEN_ROOT || process.env.ORGANISM_ROOT || process.cwd(), ".scratch", "usage.jsonl");
   let json = false;
   for (let i = 0; i < argv.length; i++) {
     if (argv[i] === "--usage") usage = argv[++i];

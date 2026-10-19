@@ -1,4 +1,4 @@
-// ci-cd/02: the committed dev server. `npm run dev` serves the repo so cells and
+// ci-cd/02: the committed dev server. `npm run dev` serves the repo so agents and
 // the smoke check share one server that gets MIME types and caching right --
 // ticket 07's designer hit Python's http.server serving .mjs as text/plain on
 // Windows, and a reused port serving a stale module graph.

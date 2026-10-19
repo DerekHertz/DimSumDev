@@ -39,7 +39,7 @@ const entries = (o) => (o && typeof o === "object" ? Object.entries(o) : []);
 export function dashboardModel(metrics, { error = false } = {}) {
   const m = metrics && typeof metrics === "object" ? metrics : {};
   const windows = Array.isArray(m.throughput?.windows) ? m.throughput.windows.slice(-MAX_WINDOWS) : [];
-  const tokenRows = entries(m.tokensByCell)
+  const tokenRows = entries(m.tokensByRole)
     .map(([label, v]) => ({ label, value: Number(v?.perTicket) }))
     .filter((r) => Number.isFinite(r.value))
     .sort((a, b) => b.value - a.value)

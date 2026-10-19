@@ -7,17 +7,17 @@
 //
 // Config shape (architect proposal, approved by the user 2026-10-06):
 //   {"default":{"warn":70000,"stop":80000},
-//    "cells":{"developer":{"warn":70000,"stop":80000},"qa":{...}},
+//    "agents":{"developer":{"warn":70000,"stop":80000},"qa":{...}},
 //    "orchestrator":{"warn":70000,"stop":80000}}
 // Fallback rules: unknown role (or none) -> `default`; an entry whose warn/stop are not finite numbers
 // or where warn >= stop is invalid and falls back to `default`; a missing, unparseable or invalid
-// config file falls back to the built-in (cell roles 100000/150000, the orchestrator 70000/80000; 220), so every caller still fails open.
+// config file falls back to the built-in (agent roles 100000/150000, the orchestrator 70000/80000; 220), so every caller still fails open.
 //
 // Criterion map (145 rescoped scope, comment "orchestrator, 2026-10-06 (user yes)"):
 //   one config value, approved numbers   -> "shipped config ..." tests
 //   budgetFor fallbacks and validation   -> "unknown role ...", "invalid entry ...", "missing/unparseable file ..." tests
-//   hook, cell-start, context.mjs share it -> context-budget.tiers.test.mjs, cell-start-context-config.test.mjs,
-//                                            context-cell-state.test.mjs
+//   hook, agent-start, context.mjs share it -> context-budget.tiers.test.mjs, agent-start-context-config.test.mjs,
+//                                            context-agent-state.test.mjs
 //   team-protocol "Context budget" gated edit, thresholds re-evaluation -> human-verified
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -48,13 +48,13 @@ function writeConfig(body) {
 
 const FIXTURE = {
   default: { warn: 60_000, stop: 75_000 },
-  cells: { developer: { warn: 30_000, stop: 40_000 }, qa: { warn: 31_000, stop: 41_000 } },
+  roles: { developer: { warn: 30_000, stop: 40_000 }, qa: { warn: 31_000, stop: 41_000 } },
   orchestrator: { warn: 20_000, stop: 25_000 },
 };
 
-// organism-infra/220 (user, 2026-10-11): every cell role warns at 100k and stops at 150k; the orchestrator
+// organism-infra/220 (user, 2026-10-11): every agent role warns at 100k and stops at 150k; the orchestrator
 // keeps 70k / 80k. (Supersedes 210's 130k for developer, qa, designer and 208's 70k/80k for the rest.)
-test("shipped config: every cell role gets 100k warn / 150k stop", () => {
+test("shipped config: every agent role gets 100k warn / 150k stop", () => {
   for (const role of ["developer", "qa", "designer", "architect", "security", "scout", "product", "herald"]) {
     assert.deepEqual(budgetFor(role), { warn: 100_000, stop: 150_000 }, role);
   }
@@ -65,7 +65,7 @@ test("shipped config: the orchestrator stays at 70k / 80k", () => {
 });
 
 test("shipped config: an unknown role and no role get 100k / 150k", () => {
-  assert.deepEqual(budgetFor("some-future-cell"), { warn: 100_000, stop: 150_000 });
+  assert.deepEqual(budgetFor("some-future-agent"), { warn: 100_000, stop: 150_000 });
   assert.deepEqual(budgetFor(undefined), { warn: 100_000, stop: 150_000 });
 });
 
@@ -83,14 +83,14 @@ test("unknown role falls back to the config's default entry", () => {
 });
 
 test("a config without an orchestrator key gives the orchestrator the default entry", () => {
-  const cfg = writeConfig({ default: FIXTURE.default, cells: FIXTURE.cells });
+  const cfg = writeConfig({ default: FIXTURE.default, roles: FIXTURE.roles });
   assert.deepEqual(budgetFor("orchestrator", cfg), { warn: 60_000, stop: 75_000 });
 });
 
 test("invalid entry (warn >= stop, or non-numbers) falls back to default", () => {
   const cfg = writeConfig({
     default: FIXTURE.default,
-    cells: {
+    roles: {
       developer: { warn: 90_000, stop: 90_000 },
       qa: { warn: "100k", stop: "120k" },
       security: { warn: 50_000 },
@@ -102,17 +102,17 @@ test("invalid entry (warn >= stop, or non-numbers) falls back to default", () =>
   }
 });
 
-test("missing file falls back to the built-in: cell roles 100k / 150k, the orchestrator 70k / 80k", () => {
+test("missing file falls back to the built-in: agent roles 100k / 150k, the orchestrator 70k / 80k", () => {
   const missing = path.join(tmpdir(), "no-such-dir-ctx-budget", "context-budget.json");
-  for (const role of ["developer", "qa", "scout", "some-future-cell", undefined]) {
+  for (const role of ["developer", "qa", "scout", "some-future-agent", undefined]) {
     assert.deepEqual(budgetFor(role, missing), { warn: 100_000, stop: 150_000 }, String(role));
   }
   assert.deepEqual(budgetFor("orchestrator", missing), { warn: 70_000, stop: 80_000 });
 });
 
-test("unparseable file, or an invalid default entry, falls back to the built-in (cells 100k / 150k, orchestrator 70k / 80k)", () => {
+test("unparseable file, or an invalid default entry, falls back to the built-in (agents 100k / 150k, orchestrator 70k / 80k)", () => {
   assert.deepEqual(budgetFor("developer", writeConfig("{ not json")), { warn: 100_000, stop: 150_000 });
-  assert.deepEqual(budgetFor("developer", writeConfig({ default: { warn: 5, stop: 1 }, cells: {} })), { warn: 100_000, stop: 150_000 });
+  assert.deepEqual(budgetFor("developer", writeConfig({ default: { warn: 5, stop: 1 }, roles: {} })), { warn: 100_000, stop: 150_000 });
   assert.deepEqual(budgetFor("orchestrator", writeConfig("{ not json")), { warn: 70_000, stop: 80_000 });
-  assert.deepEqual(budgetFor("orchestrator", writeConfig({ default: { warn: 5, stop: 1 }, cells: {} })), { warn: 70_000, stop: 80_000 });
+  assert.deepEqual(budgetFor("orchestrator", writeConfig({ default: { warn: 5, stop: 1 }, roles: {} })), { warn: 70_000, stop: 80_000 });
 });

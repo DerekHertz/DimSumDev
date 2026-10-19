@@ -1,4 +1,4 @@
-// den-layout/03: with the bridge running and a live cell, the den shows that cell's panda at its station.
+// den-layout/03: with the bridge running and a live agent, the den shows that agent's panda at its station.
 // Seam: startBridge({root, port: 0}) plus GET /state, fed through liveActorsFromSnapshot and the den's
 // createReviewAgents().applyLive. The fixture's lock is `developer` on fx/09-claimed.
 import { test } from "node:test";
@@ -11,7 +11,7 @@ import { createReviewAgents } from "../ui/src/review/agents.mjs";
 import { createBao } from "../ui/src/scene/procedural/bao.mjs";
 import { createDenScene } from "../ui/src/scene/procedural/den-scene.mjs";
 import { canvasDocument } from "../ui/src/scene/procedural/den-test-helpers.mjs";
-import { createFakeRuntime } from "./cells/runtime.mjs";
+import { createFakeRuntime } from "./agents/runtime.mjs";
 
 async function liveSnapshot(lock, { withProcess = false } = {}) {
   const fx = await makeStateFixture({ lock, git: withProcess });
@@ -69,9 +69,9 @@ test("a locked ticket with a matching live process in the bridge's real /state b
 
 test("a locked ticket without a live process in the bridge's real /state binds no panda", async () => {
   const snapshot = await liveSnapshot(true);
-  assert.equal(snapshot.tickets.find(ticket => ticket.ref === `${FEATURE}/09-claimed`).holder.cell, "developer", "the real claim lock remains present");
+  assert.equal(snapshot.tickets.find(ticket => ticket.ref === `${FEATURE}/09-claimed`).holder.role, "developer", "the real claim lock remains present");
   assert.deepEqual(snapshot.agents, [], "the HTTP payload contains no bridge-run process");
-  assert.deepEqual(snapshot.cells ?? [], [], "the HTTP payload contains no external live-cell telemetry");
+  assert.deepEqual(snapshot.roles ?? [], [], "the HTTP payload contains no external live-agent telemetry");
   assert.deepEqual(liveActorsFromSnapshot(snapshot, { now: Date.now() }), []);
 });
 

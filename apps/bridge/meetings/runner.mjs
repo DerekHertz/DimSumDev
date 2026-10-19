@@ -15,7 +15,7 @@
 // The route answers are { ok: true, status, meeting, ... } or { ok: false, status, error }.
 import { randomBytes } from "node:crypto";
 import { hasSecret } from "../../../scripts/exposure.mjs";
-import { REF_RE, USAGE_REFUSE_AT } from "../cells/policy.mjs";
+import { REF_RE, USAGE_REFUSE_AT } from "../agents/policy.mjs";
 import { MEETING_ID_RE } from "./log.mjs";
 import { nextStep, optionText, parseBrief, readDecline } from "./plan.mjs";
 import { meetingNote } from "./prompts.mjs";

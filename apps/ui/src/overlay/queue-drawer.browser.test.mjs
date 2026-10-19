@@ -12,7 +12,7 @@ import { lightenScene } from '../../../ci-cd/light-scene.mjs';
 
 const ticket = (ref, over = {}) => ({
   ref, feature: 'den-mvp', title: `${ref.split('/')[1].split('-')[0]}: ${over.name ?? 'A ticket'}`, type: 'feature', status: 'ready-for-agent', ready: true,
-  priority: 'P1', effectivePriority: 'P1', bumps: 0, bumped: false, readySince: null, blockedBy: [], blockedReason: null, holder: null, lastCell: null,
+  priority: 'P1', effectivePriority: 'P1', bumps: 0, bumped: false, readySince: null, blockedBy: [], blockedReason: null, holder: null, lastRole: null,
   gate: null, request: null, handoff: null, goal: 'routing', ...over,
 });
 const snapshot = {
@@ -43,7 +43,7 @@ async function open({ width = 1280 } = {}) {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n` }));
   await page.route('**/state', (r) => r.fulfill({ json: snapshot }));
-  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   await page.goto(server.resolvedUrls.local[0]);
   await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') !== 'true');
   const close = async () => { await browser.close(); await server.close(); };

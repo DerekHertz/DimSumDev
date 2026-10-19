@@ -19,9 +19,9 @@
    | endocrine limits | org limits |
 
    Bao stays the chief of staff. The den's own names stay, now as team names: the Pass, Steamers, Tea & Pantry and Front of House. The UI names in `CONTEXT.md` (panda, recipe card, clocking out, the den) do not change.
-2. **Two PRs.** The first renames the words: `CONTEXT.md`, `CLAUDE.md`, `docs/`, the skills (`organism-protocol` becomes `team-protocol`), the role definitions in `.claude/agents/`, UI labels and this ADR. The second renames code: identifiers, the `apps/bridge/cells/` and `apps/organism-infra/` directories, scripts such as `cell-start`, the board CLI's terms and flags, the router, hooks and test names. Each one can be reviewed and rolled back on its own.
+2. **Two PRs.** The first renames the words: `CONTEXT.md`, `CLAUDE.md`, `docs/`, the skills (`organism-protocol` becomes `team-protocol`), the role definitions in `.claude/agents/`, UI labels and this ADR. The second renames code: identifiers, the `apps/bridge/cells/` and `apps/organism-infra/` directories (now `apps/bridge/agents/` and `apps/board/`), scripts such as `cell-start` (now `agent-start`), the board CLI's terms and flags, the router, hooks and test names. Each one can be reviewed and rolled back on its own.
 3. **Old CLI spellings still work.** The board CLI and the relay scripts accept the old spellings (`--cell`, a `<cell>` positional) and print one line naming the new spelling. Tests pin that line.
-4. **Write new, read both.** New handoffs, events, lock files and API payloads use the new names (`role:`, `role`, `DEN_ROOT`). Readers still accept the old ones (`cell:`, `cellType`, `ORGANISM_ROOT`), so board files already on disk parse and a running den keeps working. A test reads a handoff written before the rename.
+4. **Write new, read both.** New handoffs, events, usage rows and API payloads use the new names (`role`, `kind:"agent"`, `DEN_ROOT`; the snapshot's `holder.role` and `lastRole`, and `/metrics`' `tokensByRole`). Lock files hold no key and do not change. Readers still accept the old ones (`cell:`, `cellType`, `ORGANISM_ROOT`), so board files already on disk parse and a running den keeps working. A test reads a handoff written before the rename.
 5. **Ticket refs are IDs.** `organism-infra` stays the name of its board feature, and refs such as `organism-infra/168` stay as written in comments and docs.
 6. **Dated records stay as written.** Like ADRs, a document named for its date records what was true then: `docs/research/*-<date>.md`, `docs/refocus/`, `docs/design/<date>-*.md` and `design-brief.md` (draft v0.2, 2026-09-29).
 7. **A stub for one release.** `.claude/skills/organism-protocol/SKILL.md` points at `team-protocol`, so anything that still loads the old name finds the rules. It is removed one release after the rename.
@@ -31,12 +31,16 @@
 The acceptance grep (`genome|apoptosis|\bcell(s|-type)?\b|organism`, outside `docs/adr/`, `.git` and `node_modules`) returns only these:
 
 - the dated records in decision 6, and the ADR notes pointing here;
-- `organism-infra/<n>` ticket refs (decision 5);
-- the read-side fallbacks in decision 4 and the deprecation lines in decision 3, with their tests and the pre-rename fixtures they read;
+- `organism-infra/<n>` ticket refs and the `organism-infra` board feature, including test fixtures that use it as a feature name (decision 5);
+- the read-side fallbacks in decision 4 and the deprecation lines in decision 3, with their tests and the pre-rename fixtures they read: `apps/board/legacy-terms.mjs`, `$ORGANISM_ROOT`, the `cell` key of handoffs, events and usage rows, `kind:"cell"` rows, the `cells` key of `scripts/context-budget.json`, and the queue mod's `cell` field;
+- the old script names `scripts/cell-start.mjs` and `scripts/log-cell.mjs`, which print a deprecation line and run the new ones, and the allowlist entries that let them run;
 - the `organism-protocol` stub (decision 7);
-- tests that assert the old words are gone (for example the UI copy check in `apps/ui/src/overlay/floating-cards.test.mjs`);
+- tests that assert the old words are gone (for example the UI copy check in `apps/ui/src/overlay/floating-cards.test.mjs`, and the bridge's unknown-route check for `/cells`);
+- recorded runs, which stay as recorded: the demo replay (`apps/ui/src/demo/demo-fixture.mjs`) and the live transcripts under `apps/bridge/agents/fixtures/`;
 - Jev eval cases (`scripts/jev-evals/**/cases.jsonl`), which are labelled historical inputs: editing them would change the eval;
-- "cell" in its other senses (a table cell, a grid cell).
+- the UI code (`apps/ui`, `packages/character-director`) and the Blender scripts (`design/3d/`, `apps/ui/assets-src/**/*.py`): the scene's `cells` and `cellType` identifiers, the snapshot's `cells` field (the name `agents` is taken there), and their comments. The full-window shell (team-and-den-ux/04) renames them as it rebuilds that code. UI copy is already renamed;
+- file names that are records: ADR files such as `0001-subscription-cli-cells.md`;
+- "cell" in its other senses (a table cell, a grid cell, a goals-table cell).
 
 `station` is outside the acceptance grep. In prose and UI copy it becomes "team". In code, `station` identifiers (the scene layout, `STATION_HUE`, the `--station-*` colour tokens) stay as they are: the full-window shell (team-and-den-ux/04) rebuilds that code and renames them there.
 

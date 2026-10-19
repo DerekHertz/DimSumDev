@@ -14,7 +14,7 @@ import { applyEvent } from "../state/apply-event.mjs";
 const t = (over) => ({
   ref: "fx/00-x", feature: "fx", title: "T", type: "feature", status: "ready-for-agent", ready: true,
   priority: "P2", effectivePriority: "P2", bumps: 0, bumped: false, readySince: null,
-  blockedBy: [], blockedReason: null, holder: null, lastCell: null, gate: null, request: null, handoff: null,
+  blockedBy: [], blockedReason: null, holder: null, lastRole: null, gate: null, request: null, handoff: null,
   ...over,
 });
 const snap = (tickets, extra = {}) => ({

@@ -38,7 +38,7 @@ async function open({ width = 1280, snapshot = snapshotOf(), frames = [], signed
   const stream = [`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`, ...frames.map((f) => `event: change\ndata: ${JSON.stringify(f)}\n\n`)].join('');
   await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: stream }));
   await page.route('**/state', (r) => r.fulfill({ json: snapshot }));
-  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   const taken = (r) => {
     posts.push({ path: new URL(r.request().url()).pathname, body: r.request().postDataJSON() });
     return r.fulfill({ status: 200, json: { ok: true } });

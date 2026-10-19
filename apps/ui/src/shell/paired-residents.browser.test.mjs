@@ -18,7 +18,7 @@ test('actual live garden and keyboard roster expose both crews while Codex actio
   page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()==='POST')writes.push(r.url());});
   const snapshot={schema:1,seq:1,tickets:[],frontier:[],usage:null,requests:[],agents:[],cells:[],meetings:[]};
   await page.route('**/events',r=>r.fulfill({contentType:'text/event-stream',body:`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`}));
-  await page.route('**/state',r=>r.fulfill({json:snapshot}));await page.route('**/metrics',r=>r.fulfill({json:{throughput:{windows:[]},tokensByCell:{},incidentsByTool:{}}}));await page.route('**/session',r=>r.fulfill({status:404,json:{}}));
+  await page.route('**/state',r=>r.fulfill({json:snapshot}));await page.route('**/metrics',r=>r.fulfill({json:{throughput:{windows:[]},tokensByRole:{},incidentsByTool:{}}}));await page.route('**/session',r=>r.fulfill({status:404,json:{}}));
   await page.goto(server.resolvedUrls.local[0]);
   await page.waitForFunction(()=>{const button=document.querySelector('.den-entry button');return button&&button.getAttribute('aria-disabled')!=='true';},null,{timeout:60000});
   const world=await page.evaluate(async()=>{
@@ -90,7 +90,7 @@ test('mounted scene and roster keep concurrent runtime tasks and visitors separa
    {id:'codex-visitor',role:'developer',runtime:'codex',ref:'paired/03',state:'waiting_on_user'},
    {id:'foreign',role:'developer',runtime:'codex',projectId:'foreign',ref:'paired/04',state:'working'},
   ]};
-  await page.route('**/events',r=>r.fulfill({contentType:'text/event-stream',body:`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`}));await page.route('**/state',r=>r.fulfill({json:snapshot}));await page.route('**/metrics',r=>r.fulfill({json:{throughput:{windows:[]},tokensByCell:{},incidentsByTool:{}}}));await page.route('**/session',r=>r.fulfill({status:404,json:{}}));
+  await page.route('**/events',r=>r.fulfill({contentType:'text/event-stream',body:`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`}));await page.route('**/state',r=>r.fulfill({json:snapshot}));await page.route('**/metrics',r=>r.fulfill({json:{throughput:{windows:[]},tokensByRole:{},incidentsByTool:{}}}));await page.route('**/session',r=>r.fulfill({status:404,json:{}}));
   await page.goto(server.resolvedUrls.local[0]);await page.waitForFunction(()=>{const b=document.querySelector('.den-entry button');return b&&b.getAttribute('aria-disabled')!=='true';},null,{timeout:60000});
   await page.waitForFunction(async()=>{const f=performance.getEntriesByType('resource').find(r=>r.name.includes('/@react-three_fiber.js'));const {_roots}=await import(f.name);const scene=_roots.get(document.querySelector('canvas')).store.getState().scene,pandas={};scene.traverse(p=>{if(p.userData.actorKey)pandas[p.userData.actorKey]=p;});window.bindingProbe=pandas;return pandas['codex:developer#paired/03']?.userData.ticketRef==='paired/03';});
   const refs=await page.evaluate(()=>Object.fromEntries(Object.entries(window.bindingProbe).map(([id,p])=>[id,p.userData.ticketRef])));

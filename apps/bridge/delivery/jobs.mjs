@@ -5,8 +5,8 @@
 // here; an intent with no outcome leaves the job marked `uncertain`, and the runner looks before it acts again.
 import { appendFile, chmod, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { AGENT_ID_RE, MODES, REF_RE, ROLES } from "../cells/policy.mjs";
-import { PUBLISH_BRANCH_RE } from "../cells/workspace.mjs";
+import { AGENT_ID_RE, MODES, REF_RE, ROLES } from "../agents/policy.mjs";
+import { PUBLISH_BRANCH_RE } from "../agents/workspace.mjs";
 
 export const JOB_ID_RE = /^d-[0-9a-f]{16}$/;
 export const JOB_STATES = ["running", "paused", "merged", "closed"];

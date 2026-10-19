@@ -8,13 +8,13 @@ import {
 import { BAO, TABLE } from "./banquet-layout.mjs";
 
 const ticket = (n, over = {}) => ({
-  ref: `f/${String(n).padStart(2, "0")}-t`, type: "feature", status: "ready-for-agent", holder: null, lastCell: null, gate: null, ...over,
+  ref: `f/${String(n).padStart(2, "0")}-t`, type: "feature", status: "ready-for-agent", holder: null, lastRole: null, gate: null, ...over,
 });
-const held = (cell) => ({ cell, since: "2026-09-29T05:00:00.000Z" });
+const held = (cell) => ({ role: cell, since: "2026-09-29T05:00:00.000Z" });
 const snap = (tickets, frontier = []) => ({ tickets, frontier });
 
 test("station change: qa specify then developer claims, ticket moves tea -> steamers", () => {
-  const before = snap([ticket(1, { status: "in-review", lastCell: "qa" })], []);
+  const before = snap([ticket(1, { status: "in-review", lastRole: "qa" })], []);
   const after = snap([ticket(1, { status: "claimed", holder: held("developer") })], []);
   assert.deepEqual(deriveHandoffs(before, after), [
     { ref: "f/01-t", fromCell: "qa", toCell: "developer", from: "tea", to: "steamers", sameStation: false },
@@ -31,7 +31,7 @@ test("same-station change: developer to scout is a handoff within steamers", () 
 
 test("same cell type is not a handoff (status change only)", () => {
   const before = snap([ticket(1, { status: "claimed", holder: held("qa") })]);
-  const after = snap([ticket(1, { status: "in-review", lastCell: "qa" })]);
+  const after = snap([ticket(1, { status: "in-review", lastRole: "qa" })]);
   assert.deepEqual(deriveHandoffs(before, after), []);
 });
 
@@ -41,8 +41,8 @@ test("a new ticket is not a handoff", () => {
 });
 
 test("a resolved ticket is not a handoff", () => {
-  const before = snap([ticket(1, { status: "in-review", lastCell: "security" })]);
-  const after = snap([ticket(1, { status: "resolved", lastCell: "orchestrator" })]);
+  const before = snap([ticket(1, { status: "in-review", lastRole: "security" })]);
+  const after = snap([ticket(1, { status: "resolved", lastRole: "orchestrator" })]);
   assert.deepEqual(deriveHandoffs(before, after), []);
 });
 
@@ -51,8 +51,8 @@ test("no previous snapshot (first load) gives no handoffs", () => {
 });
 
 test("queued tickets are tracked too: a frontier ticket whose last cell changes hands over", () => {
-  const before = snap([ticket(1, { lastCell: "qa" })], ["f/01-t"]);
-  const after = snap([ticket(1, { lastCell: "developer" })], ["f/01-t"]);
+  const before = snap([ticket(1, { lastRole: "qa" })], ["f/01-t"]);
+  const after = snap([ticket(1, { lastRole: "developer" })], ["f/01-t"]);
   const [h] = deriveHandoffs(before, after);
   assert.equal(h.from, "tea");
   assert.equal(h.to, "steamers");
@@ -73,7 +73,7 @@ test("several handoffs come out in ref order", () => {
 test("trackedTickets: active plus frontier, with station", () => {
   const t = trackedTickets(snap([
     ticket(1, { status: "claimed", holder: held("security") }),
-    ticket(2, { lastCell: "qa" }),
+    ticket(2, { lastRole: "qa" }),
     ticket(3),
     ticket(4, { status: "resolved" }),
   ], ["f/02-t"]));

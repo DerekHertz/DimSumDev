@@ -11,7 +11,7 @@ import { execFileSync } from "node:child_process";
 import { mkdir, mkdtemp, readlink, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { makeBridge, until, DISPATCH_REF } from "../cells/host-test-helpers.mjs";
+import { makeBridge, until, DISPATCH_REF } from "../agents/host-test-helpers.mjs";
 import { createReleases, lockHash, recordUpdateFailure } from "./releases.mjs";
 import { createUpdater } from "./update.mjs";
 

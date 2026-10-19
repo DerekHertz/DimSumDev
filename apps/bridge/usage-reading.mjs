@@ -1,5 +1,5 @@
 // Friction F19: the den's usage reading. The snapshot's `usage` came only from `usage` rows in .scratch/usage.jsonl,
-// which the terminal relay's hooks wrote when a cell returned; runs the bridge starts never write one, so the reading
+// which the terminal relay's hooks wrote when an agent returned; runs the bridge starts never write one, so the reading
 // stopped on 2026-10-12. Now the bridge reads the plan-usage cache that scripts/usage.mjs keeps
 // (~/.claude/usage-cache.json: { at, windows: { "5-hour": { percent }, weekly: { percent } } }; it never holds the
 // token), and when that reading is older than REFRESH_MS it starts scripts/usage.mjs once, in the background, to

@@ -1,7 +1,7 @@
 // dimsumden-ui-v0/03: scripts/metrics.mjs (ADR 0011 decision 4, "Rules for ticket 03").
 // Seams: exported computeMetrics({ usageLines, eventLines }) -> metrics object (pure, parsed rows),
 // and the CLI `node scripts/metrics.mjs [--json]`, which reads
-// <ORGANISM_ROOT or cwd>/.scratch/usage.jsonl and events.jsonl, skips malformed lines,
+// <DEN_ROOT or cwd>/.scratch/usage.jsonl and events.jsonl, skips malformed lines,
 // and with --json prints exactly the computeMetrics result. Fixture data only.
 //
 // Pinned by this test (developer implements against it):
@@ -25,21 +25,21 @@ async function load() {
 }
 
 const resolved = (ticket, ts) => ({ kind: "resolved", ts, ticket, pr: 1, bounces: 0 });
-const cell = (ticket, c, tokens) => ({ kind: "cell", ticket, cell: c, tokens, ms: 1000, outcome: "done" });
-const incident = (ticket, tool) => ({ kind: "incident", ts: "2026-09-28T20:00:00Z", ticket, cell: "developer", tool, what: "x" });
+const role = (ticket, c, tokens) => ({ kind: "agent", ticket, role: c, tokens, ms: 1000, outcome: "done" });
+const incident = (ticket, tool) => ({ kind: "incident", ts: "2026-09-28T20:00:00Z", ticket, role: "developer", tool, what: "x" });
 
 const usageRows = [
   resolved("f/01", "2026-09-28T19:30:00Z"),
   resolved("f/02", "2026-09-28T23:59:00Z"),
   resolved("g/03", "2026-09-29T02:00:00Z"),
   resolved("g/04", "2026-09-29T12:00:00Z"),
-  cell("f/01", "developer", 1000),
-  cell("f/02", "developer", 3000),
-  cell("g/03", "developer", 500),
-  cell("g/03", "developer", 500),
-  cell("f/99", "developer", 9999), // never resolved: excluded
-  cell("f/01", "qa", 400),
-  cell("g/04", "qa", 600),
+  role("f/01", "developer", 1000),
+  role("f/02", "developer", 3000),
+  role("g/03", "developer", 500),
+  role("g/03", "developer", 500),
+  role("f/99", "developer", 9999), // never resolved: excluded
+  role("f/01", "qa", 400),
+  role("g/04", "qa", 600),
   incident("f/01", "board-claim"),
   incident("f/02", "board-claim"),
   incident("g/03", "board comment"),
@@ -49,7 +49,7 @@ const usageRows = [
   { kind: "usage", ts: "2026-09-28T03:30:00Z", five_hour: 1, weekly: 32, note: "session start" },
 ];
 const eventRows = [
-  { feature: "f", ticket: "01", cell: "developer", op: "claim", ts: "2026-09-28T19:00:00Z" },
+  { feature: "f", ticket: "01", role: "developer", op: "claim", ts: "2026-09-28T19:00:00Z" },
 ];
 
 test("fixture rows produce the four metric keys with the ADR values", async () => {
@@ -66,7 +66,7 @@ test("fixture rows produce the four metric keys with the ADR values", async () =
         { start: "2026-09-29T10:00:00.000Z", resolved: 1 },
       ],
     },
-    tokensByCell: {
+    tokensByRole: {
       developer: { tickets: 3, tokens: 5000, perTicket: 1667 },
       qa: { tickets: 2, tokens: 1000, perTicket: 500 },
     },
@@ -86,7 +86,7 @@ test("no resolved rows: empty windows, no tokens, no incident ratios", async () 
   assert.equal(m.schema, 1);
   assert.deepEqual(m.throughput.windows, []);
   assert.equal(m.resolvedTickets, 0);
-  assert.deepEqual(m.tokensByCell, {});
+  assert.deepEqual(m.tokensByRole, {});
   assert.deepEqual(m.incidentsByTool, {});
 });
 
@@ -110,7 +110,7 @@ function makeRoot(usage, events) {
   return root;
 }
 const run = (root, args) =>
-  spawnSync(process.execPath, [SCRIPT, ...args], { env: { ...process.env, ORGANISM_ROOT: root }, encoding: "utf8", cwd: root });
+  spawnSync(process.execPath, [SCRIPT, ...args], { env: { ...process.env, DEN_ROOT: root }, encoding: "utf8", cwd: root });
 
 test("CLI --json over fixture files prints computeMetrics output", async () => {
   const { computeMetrics } = await load();
@@ -127,8 +127,8 @@ test("malformed lines are skipped, not fatal", () => {
     "not json at all",
     JSON.stringify(resolved("f/01", "2026-09-28T19:30:00Z")),
     "",
-    "{\"kind\":\"cell\",\"ticket\":",
-    JSON.stringify(cell("f/01", "developer", 100)),
+    "{\"kind\":\"agent\",\"ticket\":",
+    JSON.stringify(role("f/01", "developer", 100)),
     "[1,2",
   ].join("\n") + "\n";
   const root = makeRoot(usage, "garbage\n{broken\n");
@@ -136,7 +136,7 @@ test("malformed lines are skipped, not fatal", () => {
   assert.equal(r.status, 0, r.stderr);
   const out = JSON.parse(r.stdout);
   assert.equal(out.resolvedTickets, 1);
-  assert.deepEqual(out.tokensByCell, { developer: { tickets: 1, tokens: 100, perTicket: 100 } });
+  assert.deepEqual(out.tokensByRole, { developer: { tickets: 1, tokens: 100, perTicket: 100 } });
 });
 
 test("text output without --json succeeds and is not empty", () => {

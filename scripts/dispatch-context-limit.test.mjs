@@ -35,7 +35,7 @@ const MB = 1024 * 1024;
 const NOW = () => 1_700_000_000_000;
 
 const LIMIT_STDERR = 'discovery incomplete\nIssue "resource_limit": 1\n';
-const JG_OK = "## scripts/dispatch-context.mjs\nexcerpt a\n## apps/organism-infra/board.mjs\nexcerpt b\nEnd context.\n";
+const JG_OK = "## scripts/dispatch-context.mjs\nexcerpt a\n## apps/board/board.mjs\nexcerpt b\nEnd context.\n";
 
 function makeRepo(files) {
   const root = tmp("dc97-repo-");
@@ -52,7 +52,7 @@ function makeRepo(files) {
 const sourceRepo = () =>
   makeRepo({
     "scripts/dispatch-context.mjs": "export {};\n",
-    "apps/organism-infra/board.mjs": "export {};\n",
+    "apps/board/board.mjs": "export {};\n",
     "docs/note.md": "note\n",
   });
 
@@ -160,7 +160,7 @@ function bigRepo(files, sizes) {
 }
 
 // Today's shape: a source tree plus the 97 MB .blend that tripped jg.
-const SOURCE_FILES = { "scripts/dispatch-context.mjs": "export {};\n", "apps/organism-infra/board.mjs": "export {};\n" };
+const SOURCE_FILES = { "scripts/dispatch-context.mjs": "export {};\n", "apps/board/board.mjs": "export {};\n" };
 const pandaRepo = () => bigRepo(SOURCE_FILES, { "design/3d/panda-mascot.blend": OVER });
 
 // ── fix (stands in for AC1 at the seam) ──────────────────────────────────────
@@ -196,7 +196,7 @@ test("[97] fix: every file over 16 MiB is excluded by an anchored pattern, and f
   assert.ok(patterns.every((p) => typeof p === "string" && !p.startsWith("-")), `no exclude can read as a flag: ${JSON.stringify(patterns)}`);
   const { visible, oversize } = jgModel(fs, path, root, patterns);
   assert.deepEqual(oversize, [], "no file over 16 MiB is left for jg to read");
-  for (const rel of ["design/small.blend", "apps/ui/panda-mascot.blend", "design/render.png", "scripts/dispatch-context.mjs", "apps/organism-infra/board.mjs"]) {
+  for (const rel of ["design/small.blend", "apps/ui/panda-mascot.blend", "design/render.png", "scripts/dispatch-context.mjs", "apps/board/board.mjs"]) {
     assert.ok(visible.includes(rel), `${rel} is still searched`);
   }
 });
@@ -284,7 +284,7 @@ function cli(root, e, mode = "full-root-only") {
   const r = spawnSync(process.execPath, [SCRIPT, "--ticket", "feat-x/01-thing", "--root", root], {
     encoding: "utf8",
     timeout: 60000,
-    env: { PATH: `${e.bin}:/usr/bin:/bin`, HOME: e.home, ORGANISM_ROOT: root, FAKE_JG_MODE: mode, FAKE_JG_FULL_ROOT: root },
+    env: { PATH: `${e.bin}:/usr/bin:/bin`, HOME: e.home, DEN_ROOT: root, FAKE_JG_MODE: mode, FAKE_JG_FULL_ROOT: root },
   });
   let out = null;
   try { out = JSON.parse(r.stdout.trim().split("\n").pop()); } catch { /* not JSON */ }
@@ -333,7 +333,7 @@ function cliModel(root, e, version) {
   const r = spawnSync(process.execPath, [SCRIPT, "--ticket", "feat-x/01-thing", "--root", root], {
     encoding: "utf8",
     timeout: 60000,
-    env: { PATH: `${e.bin}:/usr/bin:/bin`, HOME: e.home, ORGANISM_ROOT: root, FAKE_JG_VERSION: version },
+    env: { PATH: `${e.bin}:/usr/bin:/bin`, HOME: e.home, DEN_ROOT: root, FAKE_JG_VERSION: version },
   });
   let out = null;
   try { out = JSON.parse(r.stdout.trim().split("\n").pop()); } catch { /* not JSON */ }
@@ -549,7 +549,7 @@ test("[97] jg.mjs: the command line still refuses --exclude", () => {
     encoding: "utf8",
     timeout: 30000,
     cwd: root,
-    env: { PATH: "/usr/bin:/bin", HOME: tmp("jg97-home-"), ORGANISM_ROOT: root },
+    env: { PATH: "/usr/bin:/bin", HOME: tmp("jg97-home-"), DEN_ROOT: root },
   });
   assert.equal(r.status, 2);
   assert.match(r.stderr, /not allowed/);

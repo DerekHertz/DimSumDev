@@ -26,8 +26,8 @@ test('concurrent work gets separate visitors and preserves the exact ticket sele
 
 test('profiles preserve live task and tool activity for the primary resident and exact visitor', () => {
   const snapshot = { tickets: [
-    { ref: 'feature/01', title: 'Build the garden', holder: { cell: 'developer' } },
-    { ref: 'feature/02', title: 'Repair the bridge', holder: { cell: 'developer' } },
+    { ref: 'feature/01', title: 'Build the garden', holder: { role: 'developer' } },
+    { ref: 'feature/02', title: 'Repair the bridge', holder: { role: 'developer' } },
   ], cells: [
     { ref: 'feature/01', cellType: 'developer', state:'working', lastEventAt: '2026-10-16T12:00:00Z', tool: { name: 'Read', summary: 'garden model' } },
     { ref: 'feature/02', cellType: 'developer', state:'working', lastEventAt: '2026-10-16T12:00:00Z' },

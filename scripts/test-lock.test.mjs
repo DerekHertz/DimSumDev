@@ -1,5 +1,5 @@
 // Acceptance tests for organism-infra/168: serialize full `npm test` runs with
-// a machine-wide lock, so two cells running the suite at once stop producing
+// a machine-wide lock, so two agents running the suite at once stop producing
 // flaky failures.
 //
 // Pinned contract (QA's reading of the ticket; the developer may choose

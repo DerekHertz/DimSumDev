@@ -61,7 +61,7 @@ function harness() {
       return existsSync(f) ? readFileSync(f, "utf8").split("\n").filter(Boolean).length : 0;
     },
     env(extra = {}) {
-      const env = { ...process.env, HOME: dir, USERPROFILE: dir, ORGANISM_ROOT: root, ...extra };
+      const env = { ...process.env, HOME: dir, USERPROFILE: dir, DEN_ROOT: root, ...extra };
       env.NODE_OPTIONS = `--import ${pathToFileURL(path.join(dir, "preload.mjs")).href}`;
       for (const k of ["CLAUDE_CODE_REMOTE", "CLAUDE_CODE_SESSION_ID", "STATUSLINE_CACHE", "STATUSLINE_USAGE_SCRIPT", "USAGE_CACHE_TTL_MS"]) {
         if (!(k in extra)) delete env[k];

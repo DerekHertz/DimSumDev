@@ -25,7 +25,7 @@ export function ticketText(status) {
 
 // Handoff naming a branch the way real handoffs do: prose `Branch \`name\``.
 export function handoffText(ref, branch) {
-  const state = { ticket: ref, cell: "developer", current_step: "done", artifacts: [], decisions: [], failures: [], pending: [] };
+  const state = { ticket: ref, role: "developer", current_step: "done", artifacts: [], decisions: [], failures: [], pending: [] };
   return "```json\n" + JSON.stringify(state) + "\n```\n\n" + `Branch \`${branch}\`, commit abc1234.\n`;
 }
 

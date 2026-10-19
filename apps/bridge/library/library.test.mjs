@@ -10,10 +10,10 @@ import assert from "node:assert/strict";
 import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { makeBridge, send, until } from "../cells/host-test-helpers.mjs";
+import { makeBridge, send, until } from "../agents/host-test-helpers.mjs";
 import { ROUTES } from "../routes.mjs";
 import { parseCatalog } from "./catalog.mjs";
-import { CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS } from "../cells/policy.mjs";
+import { CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS } from "../agents/policy.mjs";
 import { AUTO_INPUT_MAX_BYTES, LOG_MAX_BYTES, createLibrary, skillOf } from "./library.mjs";
 
 const CATALOG = parseCatalog({
