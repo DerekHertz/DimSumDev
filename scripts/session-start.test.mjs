@@ -2,7 +2,7 @@
 // Public interface under test: `node scripts/session-start.mjs` with the hook input JSON on stdin
 // ({"hook_event_name":"SessionStart","source":"startup|resume|compact","agent_type":"orchestrator"})
 // and these env seams (no real Claude Code, GitHub, credentials or network):
-//   ORGANISM_ROOT                    board root: .scratch/_handoffs, .scratch/_requests
+//   DEN_ROOT                    board root: .scratch/_handoffs, .scratch/_requests
 //   GH_BIN                           the gh executable to run (default `gh`). The script asks for
 //                                    `gh pr list --json number,title,statusCheckRollup ...` and
 //                                    reads a JSON array of {number,title,statusCheckRollup:[{status,conclusion}]}
@@ -63,7 +63,7 @@ function usageScript(f, { usage = USAGE, exit = 0, hang = false } = {}) {
 }
 
 function run(f, stdin, env = {}) {
-  const e = { ...process.env, ORGANISM_ROOT: f.root, HOME: f.dir, ...env };
+  const e = { ...process.env, DEN_ROOT: f.root, HOME: f.dir, ...env };
   delete e.CLAUDE_CODE_SESSION_ID;
   const t0 = process.hrtime.bigint();
   const r = spawnSync("node", [SCRIPT], { cwd: f.root, env: e, input: typeof stdin === "string" ? stdin : JSON.stringify(stdin), encoding: "utf8", timeout: 30000 });
@@ -125,7 +125,7 @@ test("AC1: the latest handoff is chosen by date then numeric suffix, not by mtim
   handoff(f, "2026-10-02-orchestrator-10.md", old); // the true latest, oldest mtime
   handoff(f, "2026-10-02-orchestrator-9.md", recent); // string-sorts after -10, newest mtime
   handoff(f, "2026-10-01-orchestrator-20.md", recent);
-  handoff(f, "2026-10-02-design.md", recent); // other cell, not an orchestrator handoff
+  handoff(f, "2026-10-02-design.md", recent); // other agent, not an orchestrator handoff
   handoff(f, "2026-10-02-orchestrator-notes.txt", recent); // not .md
   const gh = ghJson(f, []);
   const r = run(f, hook(), { GH_BIN: gh.file, SESSION_START_USAGE_SCRIPT: usageScript(f) });
@@ -226,7 +226,7 @@ test("AC2: output stays under 400 tokens (about 1600 chars) even with many PRs a
   assert.match(lineWith(r.out, /usage/i) ?? "", /11%/);
 });
 
-test("AC3: other cells get no output and gh is never called", () => {
+test("AC3: other agents get no output and gh is never called", () => {
   const f = fixture();
   const { gh, env } = full(f);
   for (const agent_type of ["developer", "qa", "scout", "security", "architect"]) {

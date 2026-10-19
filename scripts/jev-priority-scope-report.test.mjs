@@ -19,8 +19,8 @@
 //   }
 //
 // Tercile computation:
-//   - Collect baseline (sum of tokens from kind:"cell" rows) for each ticket.
-//   - Exclude tickets with baseline = 0 or no cell rows.
+//   - Collect baseline (sum of tokens from kind:"agent" rows) for each ticket.
+//   - Exclude tickets with baseline = 0 or no agent rows.
 //   - Sort baselines ascending. Split into three equal-ish thirds (floor rounding for bottom and middle).
 //   - Bottom third → "small", middle third → "medium", top third → "large".
 //   - Recomputed each run from usage.jsonl.
@@ -46,8 +46,8 @@ const T0 = "2026-09-30T00:00:00Z";
 const T1 = "2026-09-30T00:05:00Z";
 const T2 = "2026-09-30T00:10:00Z";
 
-function cellRow(ticket, tokens, cell = "developer") {
-  return { kind: "cell", ticket, cell, tokens, ts: T0 };
+function agentRow(ticket, tokens, role = "developer") {
+  return { kind: "agent", ticket, role, tokens, ts: T0 };
 }
 function jevPriority(ticket, pick, over = {}) {
   return { kind: "jev", point: "priority", ticket, pick, fallback: pick ? null : "no-line", ts: T1, cost: 0.0003, ms: 300, ...over };
@@ -65,8 +65,8 @@ test("tercile splits non-zero baseline tickets into small/medium/large thirds", 
   const { buildReport } = await load();
   // 6 tickets, baselines 10,20,30,40,50,60 → bottom 2 = small (10,20), mid 2 = medium (30,40), top 2 = large (50,60)
   const rows = [
-    cellRow("feat/01", 10), cellRow("feat/02", 20), cellRow("feat/03", 30),
-    cellRow("feat/04", 40), cellRow("feat/05", 50), cellRow("feat/06", 60),
+    agentRow("feat/01", 10), agentRow("feat/02", 20), agentRow("feat/03", 30),
+    agentRow("feat/04", 40), agentRow("feat/05", 50), agentRow("feat/06", 60),
   ];
   const rep = buildReport(rows, []);
   // Add a scope row for each ticket and check the same-tercile logic is computed
@@ -88,8 +88,8 @@ test("tercile splits non-zero baseline tickets into small/medium/large thirds", 
 test("tercile excludes 0-baseline tickets from tercile computation and from scope rows", async () => {
   const { buildReport } = await load();
   const rows = [
-    cellRow("feat/01", 100), cellRow("feat/02", 200),
-    // feat/03 has no cell rows (0 baseline)
+    agentRow("feat/01", 100), agentRow("feat/02", 200),
+    // feat/03 has no agent rows (0 baseline)
     jevScope("feat/01", "small"),
     jevScope("feat/02", "large"),
     jevScope("feat/03", "small"), // no baseline → excluded from scope metrics
@@ -102,7 +102,7 @@ test("tercile excludes 0-baseline tickets from tercile computation and from scop
 test("tercile is recomputed each run: same rows always give same result", async () => {
   const { buildReport } = await load();
   const rows = [
-    cellRow("feat/01", 10), cellRow("feat/02", 50), cellRow("feat/03", 100),
+    agentRow("feat/01", 10), agentRow("feat/02", 50), agentRow("feat/03", 100),
     jevScope("feat/01", "small"),
     jevScope("feat/02", "medium"),
     jevScope("feat/03", "large"),
@@ -118,9 +118,9 @@ test("tercile is recomputed each run: same rows always give same result", async 
 test("smallWasLargeInLast10: counts rows where pick=small but tercile=large, or pick=large but tercile=small", async () => {
   const { buildReport } = await load();
   // 3 tickets: feat/01 (baseline 10=small), feat/02 (baseline 50=medium), feat/03 (baseline 100=large)
-  const cellRows = [cellRow("feat/01", 10), cellRow("feat/02", 50), cellRow("feat/03", 100)];
+  const agentRows = [agentRow("feat/01", 10), agentRow("feat/02", 50), agentRow("feat/03", 100)];
   const scoped = [
-    ...cellRows,
+    ...agentRows,
     jevScope("feat/01", "large"),  // small tercile but pick large → miss
     jevScope("feat/03", "small"),  // large tercile but pick small → miss
     jevScope("feat/02", "medium"), // correct → not a miss
@@ -132,10 +132,10 @@ test("smallWasLargeInLast10: counts rows where pick=small but tercile=large, or 
 test("smallWasLargeInLast10: only the most recent 10 scope rows are examined", async () => {
   const { buildReport } = await load();
   // 2 tickets: feat/01 (small), feat/02 (large)
-  const cellRows = [cellRow("feat/01", 10), cellRow("feat/02", 100)];
+  const agentRows = [agentRow("feat/01", 10), agentRow("feat/02", 100)];
   // 12 scope rows total: first 2 are misses (small→large, large→small), then 10 correct rows
   const scoped = [
-    ...cellRows,
+    ...agentRows,
     jevScope("feat/01", "large", { ts: "2026-09-29T00:01:00Z" }),  // miss (old, outside last 10)
     jevScope("feat/02", "small", { ts: "2026-09-29T00:02:00Z" }),  // miss (old, outside last 10)
     // 10 correct rows, more recent
@@ -218,13 +218,13 @@ test("scope bar: PASS when ≥60% same-tercile AND ≥20 rows AND no small-vs-la
   const { buildReport } = await load();
   // 20 tickets, baselines 10,20,...,200 (10-token increments)
   // Bottom 7 → small, middle 6 → medium, top 7 → large (floor division)
-  const cellRows = Array.from({ length: 20 }, (_, i) => cellRow(`feat/${String(i + 1).padStart(2, "0")}`, (i + 1) * 10));
+  const agentRows = Array.from({ length: 20 }, (_, i) => agentRow(`feat/${String(i + 1).padStart(2, "0")}`, (i + 1) * 10));
   // All 20 scope picks correct (small/medium/large matches tercile)
-  const scopeRows = cellRows.map((_, i) => {
+  const scopeRows = agentRows.map((_, i) => {
     const rank = i < 7 ? "small" : i < 13 ? "medium" : "large";
     return jevScope(`feat/${String(i + 1).padStart(2, "0")}`, rank);
   });
-  const r = buildReport([...cellRows, ...scopeRows], []).scope;
+  const r = buildReport([...agentRows, ...scopeRows], []).scope;
   assert.equal(r.rows, 20);
   assert.equal(r.sameTercile, 20);
   assert.equal(r.smallWasLargeInLast10, 0);
@@ -233,12 +233,12 @@ test("scope bar: PASS when ≥60% same-tercile AND ≥20 rows AND no small-vs-la
 
 test("scope bar: FAIL when fewer than 20 rows", async () => {
   const { buildReport } = await load();
-  const cellRows = Array.from({ length: 19 }, (_, i) => cellRow(`feat/${String(i + 1).padStart(2, "0")}`, (i + 1) * 10));
-  const scopeRows = cellRows.map((_, i) => {
+  const agentRows = Array.from({ length: 19 }, (_, i) => agentRow(`feat/${String(i + 1).padStart(2, "0")}`, (i + 1) * 10));
+  const scopeRows = agentRows.map((_, i) => {
     const rank = i < 6 ? "small" : i < 13 ? "medium" : "large";
     return jevScope(`feat/${String(i + 1).padStart(2, "0")}`, rank);
   });
-  const r = buildReport([...cellRows, ...scopeRows], []).scope;
+  const r = buildReport([...agentRows, ...scopeRows], []).scope;
   assert.equal(r.rows, 19);
   assert.equal(r.checks.scope, false);
 });
@@ -246,27 +246,27 @@ test("scope bar: FAIL when fewer than 20 rows", async () => {
 test("scope bar: FAIL when same-tercile rate is below 60%", async () => {
   const { buildReport } = await load();
   // 20 tickets; only 11/20 = 55% match tercile → FAIL
-  const cellRows = Array.from({ length: 20 }, (_, i) => cellRow(`feat/${String(i + 1).padStart(2, "0")}`, (i + 1) * 10));
-  const scopeRows = cellRows.map((_, i) => {
+  const agentRows = Array.from({ length: 20 }, (_, i) => agentRow(`feat/${String(i + 1).padStart(2, "0")}`, (i + 1) * 10));
+  const scopeRows = agentRows.map((_, i) => {
     const correct = i < 7 ? "small" : i < 13 ? "medium" : "large";
     const wrong = i < 7 ? "large" : i < 13 ? "small" : "medium";
     return jevScope(`feat/${String(i + 1).padStart(2, "0")}`, i < 11 ? correct : wrong);
   });
-  const r = buildReport([...cellRows, ...scopeRows], []).scope;
+  const r = buildReport([...agentRows, ...scopeRows], []).scope;
   assert.ok(r.sameTercileRate < 0.60);
   assert.equal(r.checks.scope, false);
 });
 
 test("scope bar: FAIL when any small-vs-large miss in last 10", async () => {
   const { buildReport } = await load();
-  const cellRows = Array.from({ length: 20 }, (_, i) => cellRow(`feat/${String(i + 1).padStart(2, "0")}`, (i + 1) * 10));
-  const scopeRows = cellRows.map((_, i) => {
+  const agentRows = Array.from({ length: 20 }, (_, i) => agentRow(`feat/${String(i + 1).padStart(2, "0")}`, (i + 1) * 10));
+  const scopeRows = agentRows.map((_, i) => {
     const rank = i < 7 ? "small" : i < 13 ? "medium" : "large";
     // Make the last row a small-vs-large miss
     if (i === 19) return jevScope("feat/20", "small", { ts: "2026-09-30T23:59:00Z" }); // large tercile, small pick
     return jevScope(`feat/${String(i + 1).padStart(2, "0")}`, rank);
   });
-  const r = buildReport([...cellRows, ...scopeRows], []).scope;
+  const r = buildReport([...agentRows, ...scopeRows], []).scope;
   assert.ok(r.smallWasLargeInLast10 >= 1);
   assert.equal(r.checks.scope, false);
 });
@@ -286,12 +286,12 @@ test("formatReport prints priority flagging PASS/FAIL line", async () => {
 
 test("formatReport prints scope PASS/FAIL line", async () => {
   const { buildReport, formatReport } = await load();
-  const cellRows = Array.from({ length: 20 }, (_, i) => cellRow(`feat/${String(i + 1).padStart(2, "0")}`, (i + 1) * 10));
-  const scopeRows = cellRows.map((_, i) => {
+  const agentRows = Array.from({ length: 20 }, (_, i) => agentRow(`feat/${String(i + 1).padStart(2, "0")}`, (i + 1) * 10));
+  const scopeRows = agentRows.map((_, i) => {
     const rank = i < 7 ? "small" : i < 13 ? "medium" : "large";
     return jevScope(`feat/${String(i + 1).padStart(2, "0")}`, rank);
   });
-  const out = formatReport(buildReport([...cellRows, ...scopeRows], []));
+  const out = formatReport(buildReport([...agentRows, ...scopeRows], []));
   assert.match(out, /^scope: (PASS|FAIL)/m, "scope line");
   assert.match(out, /^scope: PASS/m, "should be PASS");
 });
@@ -306,7 +306,7 @@ test("formatReport includes small-vs-large miss count in the scope line", async 
 
 test("buildReport without priority/scope rows still returns the existing tier/verify/route report", async () => {
   const { buildReport } = await load();
-  const rep = buildReport([{ kind: "cell", ticket: "feat/01", cell: "developer", tokens: 10 }], []);
+  const rep = buildReport([{ kind: "agent", ticket: "feat/01", role: "developer", tokens: 10 }], []);
   assert.ok(rep.points?.tier, "tier report still present");
   assert.ok(rep.points?.verify, "verify report still present");
   assert.ok(rep.route?.newTicket !== undefined, "route new-ticket still present");

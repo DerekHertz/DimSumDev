@@ -1,8 +1,8 @@
-// organism-infra/162: a PreToolUse hook enforces the cell context budget (80k stop) with code.
+// organism-infra/162: a PreToolUse hook enforces the agent context budget (80k stop) with code.
 //
 // Seam: the hook CLI scripts/hooks/context-budget.mjs, run the way Claude Code runs a command hook:
 // the PreToolUse JSON on stdin ({session_id, cwd, tool_name, tool_input, agent_id, agent_type}),
-// HOME=<fixture>, cwd=<the cell's worktree>. The hook reads the cell's own context the way
+// HOME=<fixture>, cwd=<the agent's worktree>. The hook reads the agent's own context the way
 // `scripts/context.mjs --self` does: the subagent transcript
 // $HOME/.claude/projects/<slug>/<session_id>/subagents/agent-*.jsonl whose records carry
 // cwd == the worktree; its newest assistant usage is the context size. The test strips
@@ -14,7 +14,7 @@
 //                     additionalContext:"<text mentioning a checkpoint>"}}, no deny decision
 //   refuse         -> exit 2, stderr (and stdout) carry the message, as scripts/hooks/bash-guard.mjs does
 // Thresholds: below 70_000 silent, 70_000 to 79_999 warn, 80_000 and up refuse (except wrap-up calls).
-// Cell session: the input carries agent_id (a subagent call). The orchestrator main session (no
+// Agent session: the input carries agent_id (a subagent call). The orchestrator main session (no
 // agent_id, or agent_type "orchestrator") is never gated here.
 //
 // Criterion map:
@@ -40,8 +40,8 @@ const usage = (n) => ({ input_tokens: n, cache_creation_input_tokens: 0, cache_r
 const asst = (cwd, n) => JSON.stringify({ type: "assistant", cwd, message: { role: "assistant", usage: usage(n) } });
 const user = (cwd) => JSON.stringify({ type: "user", cwd, message: { role: "user", content: "hi" } });
 
-// A fixture HOME with one cell worktree whose subagent transcript reports `tokens` of context
-// (null: no transcript at all). `other` adds a second cell's transcript in another worktree.
+// A fixture HOME with one agent worktree whose subagent transcript reports `tokens` of context
+// (null: no transcript at all). `other` adds a second agent's transcript in another worktree.
 function fixture(tokens, { other = null } = {}) {
   const home = realpathSync(mkdtempSync(path.join(tmpdir(), "ctx-budget-")));
   const projDir = path.join(home, ".claude", "projects", "-fixture-project");
@@ -60,15 +60,15 @@ function fixture(tokens, { other = null } = {}) {
   return { home, wt };
 }
 
-const CELL = { agent_id: "agent-a", agent_type: "security" }; // organism-infra/145: 70k/80k tier (208: developer and qa are 70k/80k too)
+const ROLE = { agent_id: "agent-a", agent_type: "security" }; // organism-infra/145: 70k/80k tier (208: developer and qa are 70k/80k too)
 
-function runHook(f, toolName, toolInput, who = CELL, { rawStdin = null } = {}) {
-  const env = { ...process.env, HOME: f.home, ORGANISM_ROOT: path.join(f.home, "main") };
+function runHook(f, toolName, toolInput, who = ROLE, { rawStdin = null } = {}) {
+  const env = { ...process.env, HOME: f.home, DEN_ROOT: path.join(f.home, "main") };
   delete env.CLAUDE_CODE_SESSION_ID;
-  // organism-infra/220: the shipped cell numbers moved to 100k/150k. This file tests the hook's mechanics at
+  // organism-infra/220: the shipped agent numbers moved to 100k/150k. This file tests the hook's mechanics at
   // 70k/80k through the config seam; the shipped numbers are pinned in context-budget.tiers.test.mjs.
   const cfg = path.join(f.home, "mechanics-budget.json");
-  writeFileSync(cfg, JSON.stringify({ default: { warn: 70_000, stop: 80_000 }, cells: {}, orchestrator: { warn: 70_000, stop: 80_000 } }));
+  writeFileSync(cfg, JSON.stringify({ default: { warn: 70_000, stop: 80_000 }, roles: {}, orchestrator: { warn: 70_000, stop: 80_000 } }));
   env.CONTEXT_BUDGET_CONFIG = cfg;
   const input = { session_id: SESSION, cwd: f.wt, hook_event_name: "PreToolUse", tool_name: toolName, tool_input: toolInput, ...who };
   return spawnSync("node", [SCRIPT], {
@@ -93,7 +93,7 @@ function assertWarning(r, label) {
   assert.equal(r.status, 0, `${label}: expected exit 0, got ${r.status}\n${r.stderr}`);
   const out = JSON.parse(r.stdout);
   assert.equal(out.hookSpecificOutput?.hookEventName, "PreToolUse");
-  assert.match(out.hookSpecificOutput?.additionalContext ?? "", /checkpoint/i, `${label}: warning must tell the cell to checkpoint`);
+  assert.match(out.hookSpecificOutput?.additionalContext ?? "", /checkpoint/i, `${label}: warning must tell the agent to checkpoint`);
   assert.notEqual(out.hookSpecificOutput?.permissionDecision, "deny", `${label}: a warning must not deny`);
 }
 
@@ -205,7 +205,7 @@ for (const [name, command] of WRAP_UP) {
 
 test("wrap-up at 95k: a Write or Edit under .scratch/ is allowed", () => {
   const f = fixture(95_000);
-  const handoff = path.join(f.home, "main", ".scratch", "organism-infra", "handoffs", "162-qa-specify.md") /* organism-infra/165: the main checkout (ORGANISM_ROOT) */;
+  const handoff = path.join(f.home, "main", ".scratch", "organism-infra", "handoffs", "162-qa-specify.md") /* organism-infra/165: the main checkout (DEN_ROOT) */;
   for (const tool of ["Write", "Edit"]) {
     const r = runHook(f, tool, { file_path: handoff, content: "x", old_string: "a", new_string: "b" });
     assert.equal(r.status, 0, `${tool} under .scratch/ must be allowed at 95k, got exit ${r.status}\n${r.stderr}`);
@@ -229,11 +229,11 @@ test("null context (transcript with no usage record yet) allows the call", () =>
 
 test("unreadable or empty hook input allows the call (the hook fails open)", () => {
   const f = fixture(95_000);
-  assert.equal(runHook(f, "Read", READ, CELL, { rawStdin: "not json" }).status, 0);
-  assert.equal(runHook(f, "Read", READ, CELL, { rawStdin: "" }).status, 0);
+  assert.equal(runHook(f, "Read", READ, ROLE, { rawStdin: "not json" }).status, 0);
+  assert.equal(runHook(f, "Read", READ, ROLE, { rawStdin: "" }).status, 0);
 });
 
-test("only this cell's own context counts: another cell over 80k in a different worktree is ignored", () => {
+test("only this agent's own context counts: another agent over 80k in a different worktree is ignored", () => {
   assertSilentAllow(runHook(fixture(10_000, { other: 95_000 }), "Read", READ), "Read");
 });
 

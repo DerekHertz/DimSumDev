@@ -1,15 +1,15 @@
 // organism-infra/198: dispatch-prompt --tests <file> for qa verify -- specify tests (qa).
 //
-// Seam (CLI): node scripts/dispatch-prompt.mjs --ticket <ref> --cell qa --mode verify --base <sha> --tests <file>
-//   Run as a subprocess with ORGANISM_ROOT pointing at a throwaway board root (as dispatch-prompt.test.mjs does).
+// Seam (CLI): node scripts/dispatch-prompt.mjs --ticket <ref> --role qa --mode verify --base <sha> --tests <file>
+//   Run as a subprocess with DEN_ROOT pointing at a throwaway board root (as dispatch-prompt.test.mjs does).
 //
 // Criterion map:
 //   1. prints a line naming the file         -> "names the file" tests (absolute path, relative path, suite wording, no leak)
 //   2. refused path exits 2                  -> hidden dir, symlink, over 1 MB (and the 1 MB boundary stays allowed), missing file,
 //                                               stdout empty, reason on stderr
-//   3. orchestrator genome stage 3           -> human-verified (gated .claude edit, applied by the user)
+//   3. orchestrator role definition stage 3           -> human-verified (gated .claude edit, applied by the user)
 //   4. npm test green                        -> the whole suite, run by verify
-// Assumption flagged in the handoff: the ticket scopes --tests to qa verify; behavior on other cells is not pinned.
+// Assumption flagged in the handoff: the ticket scopes --tests to qa verify; behavior on other agents is not pinned.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -38,11 +38,11 @@ function world() {
 }
 
 function run(extra, { root, cwd } = {}) {
-  const r = spawnSync(process.execPath, [SCRIPT, "--ticket", REF, "--cell", "qa", "--mode", "verify", "--base", SHA, ...extra], {
+  const r = spawnSync(process.execPath, [SCRIPT, "--ticket", REF, "--role", "qa", "--mode", "verify", "--base", SHA, ...extra], {
     encoding: "utf8",
     timeout: 60000,
     cwd: cwd ?? root,
-    env: { PATH: "/usr/bin:/bin", HOME: tmp("dp198-home-"), ORGANISM_ROOT: root },
+    env: { PATH: "/usr/bin:/bin", HOME: tmp("dp198-home-"), DEN_ROOT: root },
   });
   return { status: r.status, stdout: r.stdout ?? "", stderr: r.stderr ?? "" };
 }
@@ -91,7 +91,7 @@ test("--tests <file>: the file's contents are not echoed into the prompt", () =>
 test("--tests <file>: the usual qa verify lines are all still there", () => {
   const r = run(["--tests", goodFile()], { root: world() });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /node scripts\/cell-start\.mjs .*--detach/);
+  assert.match(r.stdout, /node scripts\/agent-start\.mjs .*--detach/);
   assert.match(r.stdout, /07-qa-verify\.md/);
   assert.match(r.stdout, /--keep-status/);
 });

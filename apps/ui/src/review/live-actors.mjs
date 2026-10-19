@@ -61,7 +61,7 @@ export function liveActorsFromSnapshot(snapshot, { now = Date.now(), projectId }
   const inProject = row => projectOf(row) !== undefined && projectOf(row) === (projectId ?? null);
   const keyOf = (row,ref) => boundAgentKey({...row,ref});
   for (const t of tickets) {
-    const role = t.holder?.cell;
+    const role = t.holder?.role;
     if (!role || !BOUND.has(role)) continue;
     const identity={role,runtime:runtimeOf(t.holder),projectId:t.projectId};
     if(!identity.runtime||!inProject(identity))continue;

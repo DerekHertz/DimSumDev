@@ -2,7 +2,7 @@
 //
 //   node scripts/session-check.mjs [--root <dir>]      (npm run session-check)
 //
-// Root is --root, else $ORGANISM_ROOT, else the cwd. Exit 0 when clean; else
+// Root is --root, else $DEN_ROOT, else the cwd. Exit 0 when clean; else
 // exit 1 after printing every problem with the command that fixes it:
 //   A. local main is ahead of origin/main
 //   B. uncommitted or untracked files in a board directory
@@ -195,7 +195,7 @@ function main() {
       process.exit(1);
     }
   }
-  const root = path.resolve(rootArg ?? process.env.ORGANISM_ROOT ?? process.cwd());
+  const root = path.resolve(rootArg ?? (process.env.DEN_ROOT || process.env.ORGANISM_ROOT) ?? process.cwd());
   const problems = sessionCheck(root);
   if (problems.length) {
     process.stderr.write(formatProblems(problems));

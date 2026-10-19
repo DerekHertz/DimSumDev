@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
 import { existsSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { makeBridge, until, DISPATCH_REF } from "./cells/host-test-helpers.mjs";
+import { makeBridge, until, DISPATCH_REF } from "./agents/host-test-helpers.mjs";
 
 const cleanups = [];
 afterEach(async () => { for (const fn of cleanups.splice(0).reverse()) await fn(); });

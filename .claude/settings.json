@@ -19,6 +19,7 @@
       "Bash(npm run -s board:*)",
       "Bash(npm run board:*)",
       "Bash(npm run -s risk-check)",
+      "Bash(node scripts/agent-start.mjs:*)",
       "Bash(node scripts/cell-start.mjs:*)",
       "Bash(node scripts/context.mjs)"
     ],

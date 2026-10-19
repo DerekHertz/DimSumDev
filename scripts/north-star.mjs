@@ -5,7 +5,7 @@
 // tickets they name in `Blocked by`, followed through the whole chain. Done is resolved or closed;
 // parked tickets drop out of the total. `next` is the ref of the unblocked, not-done ticket with the
 // longest path of not-done tickets depending on it (ties: higher priority, then the lower number).
-// CLI: `node scripts/north-star.mjs --json` prints the object (root from ORGANISM_ROOT or cwd).
+// CLI: `node scripts/north-star.mjs --json` prints the object (root from DEN_ROOT or cwd).
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -114,7 +114,7 @@ export function readNorthStar(root) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const root = process.env.ORGANISM_ROOT || process.cwd();
+  const root = process.env.DEN_ROOT || process.env.ORGANISM_ROOT || process.cwd();
   const progress = readNorthStar(root);
   process.stdout.write(process.argv.includes("--json") ? `${JSON.stringify(progress)}\n` : `v1 ${progress.done}/${progress.total} · ${progress.remaining} to go${progress.next ? ` · next: ${progress.next}` : ""}\n`);
 }

@@ -1,17 +1,17 @@
-// organism-infra/220: one context budget for every cell role: warn 100k, stop 150k. The orchestrator keeps 70k / 80k.
+// organism-infra/220: one context budget for every agent role: warn 100k, stop 150k. The orchestrator keeps 70k / 80k.
 //
 // The per-role numbers are pinned where each reader is tested:
 //   budgetFor(role) with the shipped config   -> scripts/context-budget.test.mjs
 //   the PreToolUse hook by agent_type         -> scripts/hooks/context-budget.tiers.test.mjs (+ handback test)
-//   context.mjs --self --cell <role>          -> scripts/context-cell-state.test.mjs
-//   cell-start refuses at 80k orchestrator    -> scripts/cell-start-context-gate.test.mjs (unchanged, still green)
+//   context.mjs --self --role <role>          -> scripts/context-agent-state.test.mjs
+//   agent-start refuses at 80k orchestrator    -> scripts/agent-start-context-gate.test.mjs (unchanged, still green)
 // This file covers what those do not: the shipped JSON itself, "no reader holds a budget number of its own"
-// (statusline follows the config; no budget literal in the readers' code), and the cell-start doc.
+// (statusline follows the config; no budget literal in the readers' code), and the agent-start doc.
 //
 // Criterion map:
 //   AC3 (orchestrator unchanged)        -> "the shipped config gives the orchestrator 70k / 80k and every other key 100k / 150k"
 //   AC5 (no reader holds its own number) -> "statusline ..." tests, "no reader's code holds a budget literal"
-//   AC6 (docs state the new numbers)     -> "docs/agents/cell-start.md states ..."
+//   AC6 (docs state the new numbers)     -> "docs/agents/agent-start.md states ..."
 //   human-verified: .claude/ edit in the developer handoff, applied by the user; the post-merge config row in
 //   usage.jsonl (orchestrator); `npm test` / risk-check green (the suite itself).
 import { test } from "node:test";
@@ -29,8 +29,8 @@ test("the shipped config gives the orchestrator 70k / 80k and every other key 10
   const cfg = JSON.parse(read("scripts/context-budget.json"));
   assert.deepEqual(cfg.orchestrator, { warn: 70_000, stop: 80_000 });
   assert.deepEqual(cfg.default, { warn: 100_000, stop: 150_000 });
-  for (const [role, entry] of Object.entries(cfg.cells ?? {})) {
-    assert.deepEqual(entry, { warn: 100_000, stop: 150_000 }, `cells.${role}`);
+  for (const [role, entry] of Object.entries(cfg.roles ?? {})) {
+    assert.deepEqual(entry, { warn: 100_000, stop: 150_000 }, `agents.${role}`);
   }
 });
 
@@ -46,7 +46,7 @@ function statusline(tokens, config) {
   writeFileSync(usageScript, `console.log(JSON.stringify({ "5-hour": { percent: 1, resets_at: "2026-10-02T19:59:00.000Z" }, weekly: { percent: 1, resets_at: "2026-10-06T00:00:00.000Z" } }));\n`);
   const cfgFile = path.join(dir, "context-budget.json");
   writeFileSync(cfgFile, JSON.stringify(config));
-  const env = { ...process.env, HOME: home, ORGANISM_ROOT: root, STATUSLINE_USAGE_SCRIPT: usageScript, STATUSLINE_CACHE: path.join(dir, "cache.json"), CONTEXT_BUDGET_CONFIG: cfgFile };
+  const env = { ...process.env, HOME: home, DEN_ROOT: root, STATUSLINE_USAGE_SCRIPT: usageScript, STATUSLINE_CACHE: path.join(dir, "cache.json"), CONTEXT_BUDGET_CONFIG: cfgFile };
   delete env.CLAUDE_CODE_SESSION_ID;
   delete env.CLAUDE_CODE_REMOTE;
   const stdin = {
@@ -59,7 +59,7 @@ function statusline(tokens, config) {
   return { raw: r.stdout, text: r.stdout.replace(/\x1b\[[0-9;]*m/g, "") };
 }
 
-const FIXTURE = { default: { warn: 100_000, stop: 150_000 }, cells: {}, orchestrator: { warn: 20_000, stop: 30_000 } };
+const FIXTURE = { default: { warn: 100_000, stop: 150_000 }, roles: {}, orchestrator: { warn: 20_000, stop: 30_000 } };
 
 test("statusline: the context limit shown is the config's orchestrator stop, not a constant", () => {
   const r = statusline(12_000, FIXTURE);
@@ -77,7 +77,7 @@ test("statusline: yellow from the config's orchestrator warn, red with '/compact
 });
 
 test("statusline: the default entry (100k / 150k) does not move the orchestrator's line", () => {
-  const r = statusline(85_000, { default: { warn: 100_000, stop: 150_000 }, cells: {}, orchestrator: { warn: 70_000, stop: 80_000 } });
+  const r = statusline(85_000, { default: { warn: 100_000, stop: 150_000 }, roles: {}, orchestrator: { warn: 70_000, stop: 80_000 } });
   assert.match(r.raw, /\x1b\[31m[^\x1b]*ctx 85k\/80k/);
   assert.ok(r.text.includes("→ /compact"), r.text);
 });
@@ -89,15 +89,15 @@ const stripComments = (src) => src.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|
 const BUDGET_LITERAL = /\b(?:70|80|100|130|150)_?000\b/;
 const BUDGET_TEXT = /["'`][^"'`\n]*\b(?:70|80|100|130|150)k\b/;
 
-test("no reader's code holds a budget literal (statusline, context.mjs, cell-start, the hook)", () => {
-  for (const rel of ["scripts/statusline.mjs", "scripts/context.mjs", "scripts/cell-start.mjs", "scripts/hooks/context-budget.mjs"]) {
+test("no reader's code holds a budget literal (statusline, context.mjs, agent-start, the hook)", () => {
+  for (const rel of ["scripts/statusline.mjs", "scripts/context.mjs", "scripts/agent-start.mjs", "scripts/hooks/context-budget.mjs"]) {
     const code = stripComments(read(rel));
     assert.doesNotMatch(code, BUDGET_LITERAL, `${rel} holds a budget number`);
     assert.doesNotMatch(code, BUDGET_TEXT, `${rel} holds a budget number in a string`);
   }
 });
 
-test("context-budget.mjs holds only its fail-open built-in (cells 100k / 150k, orchestrator 70k / 80k)", () => {
+test("context-budget.mjs holds only its fail-open built-in (agents 100k / 150k, orchestrator 70k / 80k)", () => {
   const code = stripComments(read("scripts/context-budget.mjs"));
   const hits = (code.match(new RegExp(BUDGET_LITERAL.source, "g")) ?? []).map((h) => h.replace("_", "")).sort();
   assert.deepEqual(hits, ["100000", "150000", "70000", "80000"], "only the built-in pairs, no 130k");
@@ -105,8 +105,8 @@ test("context-budget.mjs holds only its fail-open built-in (cells 100k / 150k, o
 
 // ---- docs ----
 
-test("docs/agents/cell-start.md states the new numbers: 100k warn / 150k stop for cells, 70k / 80k for the orchestrator", () => {
-  const doc = read("docs/agents/cell-start.md");
+test("docs/agents/agent-start.md states the new numbers: 100k warn / 150k stop for agents, 70k / 80k for the orchestrator", () => {
+  const doc = read("docs/agents/agent-start.md");
   assert.match(doc, /100k/);
   assert.match(doc, /150k/);
   assert.match(doc, /80k/);

@@ -8,7 +8,7 @@ import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { addProject } from "../projects.mjs";
-import { FEATURE, makeBridge, until } from "../cells/host-test-helpers.mjs";
+import { FEATURE, makeBridge, until } from "../agents/host-test-helpers.mjs";
 
 const REF = `${FEATURE}/08-plain`;
 const cleanups = [];

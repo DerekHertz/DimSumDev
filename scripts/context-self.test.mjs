@@ -1,14 +1,14 @@
 // organism-infra/119: `node scripts/context.mjs --self` reports the calling subagent's own context.
 //
-// Seam: the CLI, run with HOME=<fixture>, CLAUDE_CODE_SESSION_ID=<id> and cwd=<the cell's worktree>.
+// Seam: the CLI, run with HOME=<fixture>, CLAUDE_CODE_SESSION_ID=<id> and cwd=<the agent's worktree>.
 // A subagent's transcript lives at $HOME/.claude/projects/<project slug>/<session id>/subagents/agent-*.jsonl
 // and every record carries the subagent's `cwd`. --self picks the transcript whose cwd matches the
-// current worktree (two cells run at once, so never "newest file"), prints
+// current worktree (two agents run at once, so never "newest file"), prints
 // {session, context_tokens, percent, scope:"self"}, and with no match prints context_tokens null, exit 0.
 //
 // Criterion map:
 //   AC2 reads the matching subagent transcript            -> "--self reads the subagent transcript whose cwd matches"
-//   AC2 ignores other concurrent cells' transcripts       -> "--self ignores a newer transcript from another worktree"
+//   AC2 ignores other concurrent agents' transcripts       -> "--self ignores a newer transcript from another worktree"
 //   AC2 null when none matches                            -> "--self returns null ..." tests
 //   AC3 output without --self is unchanged                -> "without --self ..." test
 import { test } from "node:test";
@@ -68,7 +68,7 @@ test("--self reads the subagent transcript whose cwd matches the worktree", () =
   assert.deepEqual(Object.keys(r.json).sort(), ["context_tokens", "percent", "scope", "session"]);
 });
 
-test("--self ignores a newer transcript from another worktree (two cells at once)", () => {
+test("--self ignores a newer transcript from another worktree (two agents at once)", () => {
   const f = fixture();
   writeAt(subagent(f, "agent-aaa"), [user(f.wtA), asst(f.wtA, 41000)], 1000);
   writeAt(subagent(f, "agent-bbb"), [user(f.wtB), asst(f.wtB, 99000)], 5000); // newest file, wrong cwd

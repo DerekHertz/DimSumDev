@@ -54,7 +54,7 @@ test("--apply removes a merged worktree whose only dirty file matches an uncommi
   const root = initRepo();
   try {
     const wtDir = addMergedWorktree(root, "handoff-copy");
-    // Main's copy is on disk but never committed (a cell's handoff).
+    // Main's copy is on disk but never committed (an agent's handoff).
     writeUntracked(root, ".scratch/handoffs/note.md", "handoff content\n");
     writeUntracked(wtDir, ".scratch/handoffs/note.md", "handoff content\n");
 

@@ -29,7 +29,7 @@ function write(f, tool, filePath, sessionId = SESSION) {
   delete env.CLAUDE_CODE_SESSION_ID;
   // organism-infra/220: mechanics at 70k/80k through the config seam (shipped numbers: tiers test).
   const cfg = path.join(f.home, "mechanics-budget.json");
-  writeFileSync(cfg, JSON.stringify({ default: { warn: 70_000, stop: 80_000 }, cells: {}, orchestrator: { warn: 70_000, stop: 80_000 } }));
+  writeFileSync(cfg, JSON.stringify({ default: { warn: 70_000, stop: 80_000 }, roles: {}, orchestrator: { warn: 70_000, stop: 80_000 } }));
   env.CONTEXT_BUDGET_CONFIG = cfg;
   const input = { session_id: sessionId, cwd: f.wt, tool_name: tool, tool_input: { file_path: filePath, content: "x", old_string: "a", new_string: "b" }, agent_id: "agent-a", agent_type: "security" };
   return spawnSync("node", [SCRIPT], { cwd: f.wt, env, input: JSON.stringify(input), encoding: "utf8", timeout: 15000 });

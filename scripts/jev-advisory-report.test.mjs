@@ -5,10 +5,10 @@
 //     kind: "jev-advisory-outcome"
 //     ts:                ISO timestamp
 //     ticket:            "<feature>/<NN>" (short key)
-//     orchestratorPick:  the cell the orchestrator proposed (string label, e.g. "qa-specify")
+//     orchestratorPick:  the agent the orchestrator proposed (string label, e.g. "qa-specify")
 //     jevPick:           the label jev.mjs route --mode advisory returned (string or null)
 //     userChoice:        the label the user approved (string)
-//     bounced:           boolean, true when the dispatched cell later bounced
+//     bounced:           boolean, true when the dispatched agent later bounced
 //
 //   buildReport(rows, events) includes a new report.advisory section:
 //     { rows: number,
@@ -120,7 +120,7 @@ test("advisory bounced field is stored in the row and accessible via report", as
 
 test("buildReport with no advisory outcome rows still returns an advisory section with zeros", async () => {
   const { buildReport } = await load();
-  const rows = [{ kind: "cell", ticket: "feat/01", cell: "developer", tokens: 100 }];
+  const rows = [{ kind: "agent", ticket: "feat/01", role: "developer", tokens: 100 }];
   const { advisory } = buildReport(rows);
   assert.ok(advisory, "advisory section must always exist");
   assert.equal(advisory.rows, 0);
@@ -159,7 +159,7 @@ function makeBoard(ticketText) {
   return root;
 }
 function runCli(root, argv) {
-  const env = { ...process.env, ORGANISM_ROOT: root };
+  const env = { ...process.env, DEN_ROOT: root };
   delete env.TYPESAFE_API_KEY;
   return spawnSync(process.execPath, [SCRIPT, ...argv], { cwd: root, env, encoding: "utf8", timeout: 20000 });
 }
@@ -207,8 +207,8 @@ function routeRow(over = {}) {
     pick: "qa-specify", actual: "orchestrator", cost: 0.001, mode: "shadow", fallback: null, ms: 400, ...over,
   };
 }
-function claimEvent(cell, ts = "2026-09-30T09:30:00Z") {
-  return { ts, feature: "feat", ticket: "01-thing", cell, op: "claim" };
+function claimEvent(role, ts = "2026-09-30T09:30:00Z") {
+  return { ts, feature: "feat", ticket: "01-thing", role, op: "claim" };
 }
 
 test("advisory-mode route rows are not counted in the shadow new-ticket route report", async () => {

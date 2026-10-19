@@ -56,7 +56,7 @@ test("no file still says every ticket is specified first", () => {
 // den-mvp/90: the risk path names the wall's files, every guardrail risk-check knows is on it, and a doubt means the full relay.
 const section = () => read(".claude/skills/team-protocol/SKILL.md").split(/^## /m).find((x) => x.startsWith("Relay size")) ?? "";
 
-test("the risk path names .claude/, CLAUDE.md, docs/adr/ and the cells JSON files", () => {
+test("the risk path names .claude/, CLAUDE.md, docs/adr/ and the agents JSON files", () => {
   const s = section();
   for (const p of ["`.claude/`", "`CLAUDE.md`", "`docs/adr/`", "limits", "governance", "ceilings"]) assert.ok(s.includes(p), `Relay size does not name ${p}`);
 });

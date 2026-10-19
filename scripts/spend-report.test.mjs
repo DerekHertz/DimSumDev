@@ -3,8 +3,8 @@
 //
 // Pinned contract:
 //   package.json scripts.spend === "node scripts/spend.mjs"
-//   node scripts/spend.mjs [--json]    reads $ORGANISM_ROOT/.scratch/usage.jsonl
-//   - Only kind:"spend" rows count (cell rows carry the same totals but are not summed again).
+//   node scripts/spend.mjs [--json]    reads $DEN_ROOT/.scratch/usage.jsonl
+//   - Only kind:"spend" rows count (agent rows carry the same totals but are not summed again).
 //     Garbage lines and other kinds are skipped. No usage.jsonl or no spend rows: exit 0, no NaN.
 //   - --json prints one object:
 //       {"by_ticket": {"<ref>": T, ...}, "by_role": {"<role>": T, ...}}
@@ -18,7 +18,7 @@ import { spawnSync } from "node:child_process";
 import { mkdtempSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { REPO_ROOT } from "../apps/organism-infra/board-fixture.mjs";
+import { REPO_ROOT } from "../apps/board/board-fixture.mjs";
 
 const SPEND = path.join(REPO_ROOT, "scripts", "spend.mjs");
 
@@ -31,7 +31,7 @@ function report(usageRows, args = []) {
   const root = realpathSync(mkdtempSync(path.join(tmpdir(), "spend-report-")));
   mkdirSync(path.join(root, ".scratch"));
   if (usageRows !== null) writeFileSync(path.join(root, ".scratch", "usage.jsonl"), usageRows.map((r) => (typeof r === "string" ? r : JSON.stringify(r))).join("\n") + "\n");
-  return spawnSync(process.execPath, [SPEND, ...args], { cwd: root, env: { ...process.env, ORGANISM_ROOT: root }, encoding: "utf8", timeout: 15000 });
+  return spawnSync(process.execPath, [SPEND, ...args], { cwd: root, env: { ...process.env, DEN_ROOT: root }, encoding: "utf8", timeout: 15000 });
 }
 
 const ROWS = () => [

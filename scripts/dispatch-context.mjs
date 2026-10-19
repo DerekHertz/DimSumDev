@@ -1,7 +1,7 @@
 #!/usr/bin/env node
-// organism-infra/87: supply jg context to a cold cell at dispatch (docs/adr/0014 decisions 3, 5, 7).
+// organism-infra/87: supply jg context to a cold agent at dispatch (docs/adr/0014 decisions 3, 5, 7).
 // Usage: node scripts/dispatch-context.mjs --ticket <feature>/<NN-slug> [--root <dir>] [--refresh]
-// Runs jg once per ticket through the scripts/jg.mjs wrapper, writes $ORGANISM_ROOT/.scratch/_context/<feature>/<NN-slug>.md
+// Runs jg once per ticket through the scripts/jg.mjs wrapper, writes $DEN_ROOT/.scratch/_context/<feature>/<NN-slug>.md
 // and prints one JSON line {path, bytes, skipped, fallback}. Exit 0 always, except exit 2 for bad arguments. A skip or a
 // fallback writes no file, so the relay runs cold exactly as before. Appends a kind:"jg" row to .scratch/usage.jsonl.
 import { spawn } from "node:child_process";
@@ -10,7 +10,7 @@ import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { hasSecret } from "./exposure.mjs";
 import { runJg, versionAtLeast } from "./jg.mjs";
-import { appendUsageLine, resolveRoot } from "../apps/organism-infra/board-service.mjs";
+import { appendUsageLine, resolveRoot } from "../apps/board/board-service.mjs";
 
 const QUESTION = "Where would this change be made, and which tests cover it?";
 const WHAT_MAX = 1500;

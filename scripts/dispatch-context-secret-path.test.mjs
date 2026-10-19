@@ -90,7 +90,7 @@ test("[166] AC1: the CLI printed line and the kind:jg usage row carry secret_pat
   const r = spawnSync(process.execPath, [SCRIPT, "--ticket", "feat-x/01-thing", "--root", root], {
     encoding: "utf8",
     timeout: 60000,
-    env: { PATH: `${e.bin}:/usr/bin:/bin`, HOME: e.home, ORGANISM_ROOT: root },
+    env: { PATH: `${e.bin}:/usr/bin:/bin`, HOME: e.home, DEN_ROOT: root },
   });
   assert.equal(r.status, 0);
   const out = JSON.parse(r.stdout.trim().split("\n").pop());

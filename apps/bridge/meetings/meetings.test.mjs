@@ -12,7 +12,7 @@ import { test, describe, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { appendFileSync, existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
-import { makeBridge, until, send, FEATURE } from "../cells/host-test-helpers.mjs";
+import { makeBridge, until, send, FEATURE } from "../agents/host-test-helpers.mjs";
 import { makeStateFixture } from "../bridge-fixture.mjs";
 
 const TOPIC = "Should the den keep one log per job, or one log for all jobs?\nI care most about restarts.";
@@ -80,7 +80,7 @@ describe("a meeting, from a topic to a saved brief and a decision", () => {
 
     const first = await t.spawn(0);
     assert.equal(first.args.role, "architect");
-    assert.match(first.args.prompt, /You are the architect cell, asked for one take in a meeting about ticket/);
+    assert.match(first.args.prompt, /You are the architect agent, asked for one take in a meeting about ticket/);
     assert.match(first.args.prompt, /Run no board command and claim nothing/);
     assert.ok(!first.args.prompt.includes("one log per job"), "the user's topic is not in the prompt");
     assert.match(t.note(first), /> Should the den keep one log per job/);

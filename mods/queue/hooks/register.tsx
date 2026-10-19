@@ -7,12 +7,12 @@ import { renderBand } from './render.mjs'
 const queue = atom({ plugin: 'queue', key: 'queue' } as const, null)
 
 // The band's data comes from scripts/queue.mjs (board files only, no network). The mod shells out to
-// it in the session's directory; ORGANISM_ROOT, when set, points it at the main checkout. A failing
+// it in the session's directory; DEN_ROOT (or the old ORGANISM_ROOT), when set, points it at the main checkout. A failing
 // script clears the band: it renders nothing rather than a stale or broken line.
 async function refresh($: any) {
   try {
-    const root = await $.env.get('ORGANISM_ROOT')
-    const r = await $.process.run(['node', 'scripts/queue.mjs', '--json'], root ? { env: { ORGANISM_ROOT: root } } : undefined)
+    const root = (await $.env.get('DEN_ROOT')) || (await $.env.get('ORGANISM_ROOT'))
+    const r = await $.process.run(['node', 'scripts/queue.mjs', '--json'], root ? { env: { DEN_ROOT: root } } : undefined)
     const next = r.exitCode === 0 ? (JSON.parse(r.stdout) as Queue) : null
     await update($, queue, () => next)
   } catch {

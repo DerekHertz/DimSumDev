@@ -8,7 +8,7 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { hasSecret } from "../../../scripts/exposure.mjs";
-import { PUBLISH_BRANCH_RE } from "../cells/workspace.mjs";
+import { PUBLISH_BRANCH_RE } from "../agents/workspace.mjs";
 
 const execFileP = promisify(execFile);
 const COMMIT_RE = /^[0-9a-f]{40,64}$/;

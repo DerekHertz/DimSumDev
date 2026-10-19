@@ -13,7 +13,7 @@ import { makeStateFixture } from "../bridge-fixture.mjs";
 import { CODE, authed, login, origin, send } from "../bridge-auth-helpers.mjs";
 import { PREVIEW_READS, ROUTES } from "../routes.mjs";
 import { PREVIEW_CSP, openPreview, redactChange, redactSnapshot } from "./preview.mjs";
-import { makeBridge, until } from "../cells/host-test-helpers.mjs";
+import { makeBridge, until } from "../agents/host-test-helpers.mjs";
 
 const concrete = (route) => route.replace(/:\w+/g, "x1");
 const directive = (csp, name) => csp.split(";").map((d) => d.trim()).find((d) => d.startsWith(name + " ")) ?? null;

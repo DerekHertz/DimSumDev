@@ -25,7 +25,7 @@ const HEADER = [
 ].join("\n");
 
 const P1 = "Running several AI agents at once is easy. Keeping control of them is not.";
-const P2 = "We modeled the work as an organism, where each cell does one job and hands off.";
+const P2 = "We modeled the work as an org, where each agent does one job and hands off.";
 const P3 = "The result is a relay a person can watch and steer.";
 const P4 = "A fourth paragraph that should not be here.";
 

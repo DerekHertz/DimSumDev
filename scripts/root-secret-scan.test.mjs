@@ -1,5 +1,5 @@
 // organism-infra/166: guard for the dispatch-context root scan (ADR 0014 decision 5). One tracked text file that matches a
-// secret pattern makes every dispatch fall back with secret-in-root and no cell gets Start-here context. Ticket 96 fixed this
+// secret pattern makes every dispatch fall back with secret-in-root and no agent gets Start-here context. Ticket 96 fixed this
 // once and it came back, so this fails with the offending path(s) the moment a file would trip the scan.
 // Same file set as scripts/dispatch-context.mjs: tracked, outside .scratch/ and .claude/, not binary.
 import test from "node:test";

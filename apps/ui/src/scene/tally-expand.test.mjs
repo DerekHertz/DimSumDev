@@ -28,7 +28,7 @@ const VIEW = { width: 1280, height: 800 };
 const PILL = 'button.chip-tally';
 const metricsOk = () => ({
   throughput: { windows: [{ start: "2026-09-30T00:00:00Z", resolved: 3 }, { start: "2026-09-30T05:00:00Z", resolved: 6 }] },
-  tokensByCell: { developer: { perTicket: 120000 }, qa: { perTicket: 48000 } },
+  tokensByRole: { developer: { perTicket: 120000 }, qa: { perTicket: 48000 } },
   incidentsByTool: { Bash: { perTicket: 0.2 }, Read: { perTicket: 0.1 } },
 });
 const usageAt = (fiveHour, weekly) => ({ fiveHour, weekly, sampledAt: new Date(Date.now() - 12 * 60_000).toISOString() });
@@ -62,7 +62,7 @@ async function openApp({ usage = usageAt(79, 41), metrics = metricsOk(), metrics
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message));
   // One active ticket by default: with none, the "den is quiet" caption is shown (see the quiet-den test).
-  const active = { ref: "demo/01-add-login", feature: "demo", title: "add-login", type: "feature", status: "claimed", ready: false, holder: { cell: "developer", since: "2026-09-29T05:00:00.000Z" }, lastCell: null, gate: null, blockedBy: [] };
+  const active = { ref: "demo/01-add-login", feature: "demo", title: "add-login", type: "feature", status: "claimed", ready: false, holder: { role: "developer", since: "2026-09-29T05:00:00.000Z" }, lastRole: null, gate: null, blockedBy: [] };
   const snapshot = { schema: 1, seq: 1, tickets: quiet ? [] : [active], frontier: [], usage, requests: [] };
   await page.addInitScript((snap) => {
     class FakeEventSource {

@@ -31,7 +31,7 @@ const fixture = () => ({
       { start: "2026-09-29T05:00:00.000Z", resolved: 2 },
     ],
   },
-  tokensByCell: {
+  tokensByRole: {
     qa: { tickets: 5, tokens: 400100, perTicket: 80020 },
     developer: { tickets: 5, tokens: 812345, perTicket: 162469 },
     scout: { tickets: 2, tokens: 1900, perTicket: 950 },
@@ -110,7 +110,7 @@ test("empty metrics (ADR empty shapes) give an empty state per chart, no bars, n
   const empty = {
     schema: 1,
     throughput: { windowHours: 5, windows: [] },
-    tokensByCell: {},
+    tokensByRole: {},
     resolvedTickets: 0,
     incidentsByTool: {},
     usage: null,

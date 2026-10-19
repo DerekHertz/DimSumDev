@@ -251,7 +251,7 @@ async function startChild({ env = {}, args = [] } = {}) {
   const port = await freePort();
   const child = spawn(process.execPath, [SERVER, ...args], {
     // Its own state folder: with the caller's, the child bridge's delivery runner sweeps the live den's previews (F31).
-    env: { ...process.env, ORGANISM_ROOT: fx.root, PORT: String(port), DEN_STATE_DIR: path.join(fx.root, ".den-state"), XDG_STATE_HOME: path.join(fx.root, ".state"), ...env },
+    env: { ...process.env, DEN_ROOT: fx.root, PORT: String(port), DEN_STATE_DIR: path.join(fx.root, ".den-state"), XDG_STATE_HOME: path.join(fx.root, ".state"), ...env },
     stdio: ["ignore", "pipe", "pipe"],
   });
   let text = "";

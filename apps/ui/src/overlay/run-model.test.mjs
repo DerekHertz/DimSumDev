@@ -12,14 +12,14 @@
 //                                      inflight: boolean, a start for this ref is in flight;
 //                                      steer: { state: "ready"|"starting"|"none", demo?: boolean } (state is the session's)
 //                                      -> { enabled, reason } where reason is the visible text under the row or null
-//   capacityFromSnapshot(snapshot)     recompute with the shared capacity() from apps/bridge/cells/capacity.mjs: live refs are
+//   capacityFromSnapshot(snapshot)     recompute with the shared capacity() from apps/bridge/agents/capacity.mjs: live refs are
 //                                      snapshot.agents whose state is not done|failed|terminated; locked refs are the tickets
 //                                      with a holder; max and cap come from snapshot.capacity. No snapshot.capacity -> null.
 //   dispatchPrompt(capacity)           -> { show, line }: the Needs you dispatch prompt (note, Approve, Deny)
 // Every test calls the real exports; a missing one fails that test with "run-model.mjs must export <name>".
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { capacity as capacityOf } from "../../../bridge/cells/capacity.mjs";
+import { capacity as capacityOf } from "../../../bridge/agents/capacity.mjs";
 import { stationsModel } from "./overlay-model.mjs";
 
 const model = await import("./run-model.mjs").catch(() => ({}));
@@ -184,7 +184,7 @@ describe("capacityFromSnapshot (the UI recomputes between snapshots)", () => {
   test("max and cap come from the last snapshot; live agents and ticket holders make the rest", () => {
     const c = need("capacityFromSnapshot")(snapshot(
       [working("f/01-a", "c-1")],
-      [{ ref: "f/07-locked", holder: { cell: "developer", since: "2026-10-12T09:00:00Z" } }, { ref: "f/08-free", holder: null }],
+      [{ ref: "f/07-locked", holder: { role: "developer", since: "2026-10-12T09:00:00Z" } }, { ref: "f/08-free", holder: null }],
     ));
     const { max, cap: sessionCap, load, live, room } = c;
     assert.deepEqual({ max, cap: sessionCap, load, live, room }, { max: 2, cap: 8, load: 2, live: 1, room: 0 });
@@ -215,7 +215,7 @@ describe("capacityFromSnapshot (the UI recomputes between snapshots)", () => {
   test("an agent that ended while its ticket still holds the lock leaves a lock, not a running agent", () => {
     const c = need("capacityFromSnapshot")(snapshot(
       [{ ...working("f/01-a", "c-1"), state: "failed" }],
-      [{ ref: "f/01-a", holder: { cell: "scout", since: "2026-10-12T09:00:00Z" } }],
+      [{ ref: "f/01-a", holder: { role: "scout", since: "2026-10-12T09:00:00Z" } }],
     ));
     assert.deepEqual(c.refs, [{ ref: "f/01-a", kind: "lock" }]);
     assert.equal(c.live, 0);
@@ -223,7 +223,7 @@ describe("capacityFromSnapshot (the UI recomputes between snapshots)", () => {
   });
 
   test("a live agent that also holds its ticket's lock is one slot", () => {
-    const c = need("capacityFromSnapshot")(snapshot([working("f/01-a", "c-1")], [{ ref: "f/01-a", holder: { cell: "scout", since: "2026-10-12T09:00:00Z" } }]));
+    const c = need("capacityFromSnapshot")(snapshot([working("f/01-a", "c-1")], [{ ref: "f/01-a", holder: { role: "scout", since: "2026-10-12T09:00:00Z" } }]));
     assert.deepEqual(c.refs, [{ ref: "f/01-a", kind: "live" }]);
     assert.equal(c.load, 1);
   });

@@ -9,8 +9,8 @@
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { ROLES } from "../cells/policy.mjs";
-import { isConnectionTarget, CONNECTION_NAME_RE } from "../cells/claude-adapter.mjs";
+import { ROLES } from "../agents/policy.mjs";
+import { isConnectionTarget, CONNECTION_NAME_RE } from "../agents/claude-adapter.mjs";
 
 // den-mvp/38: "board" is a write to the den's own board that the role's ceiling already allows (Bao's desk): no ask.
 export const CAPABILITIES = Object.freeze(["read", "board", "change", "publish"]);

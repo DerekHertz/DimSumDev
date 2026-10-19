@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// PreToolUse hook (organism-infra/162): enforces the cell context budget (organism-infra/119) with code.
-// Reads the hook JSON on stdin. Applies only to cell sessions (subagent calls: the input has agent_id);
-// the orchestrator main session is never gated here (it has its own gate in cell-start).
+// PreToolUse hook (organism-infra/162): enforces the agent context budget (organism-infra/119) with code.
+// Reads the hook JSON on stdin. Applies only to agent sessions (subagent calls: the input has agent_id);
+// the orchestrator main session is never gated here (it has its own gate in agent-start).
 // Thresholds come from scripts/context-budget.json by the call's agent_type (organism-infra/145):
 //   under warn           -> allow, silent
-//   warn to under stop   -> allow, inject a checkpoint warning once per cell (hookSpecificOutput.additionalContext)
+//   warn to under stop   -> allow, inject a checkpoint warning once per agent (hookSpecificOutput.additionalContext)
 //   stop and over        -> exit 2 with wrap-up instructions, except the wrap-up calls below
 //   no reading / bad input -> allow (fails open)
-// The cell's own reading comes from `scripts/context.mjs --self`, run as a child with the session from
+// The agent's own reading comes from `scripts/context.mjs --self`, run as a child with the session from
 // the hook input (the hook's env does not carry CLAUDE_CODE_SESSION_ID).
 import { spawnSync } from "node:child_process";
 import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
@@ -24,10 +24,10 @@ const WRAP_UP_BASH = [
   /^git (?:add|commit)(?:\s|$)/,
   /^npm run board -- (?:handoff|release|comment)(?:\s|$)/,
   /^node scripts\/context\.mjs(?:\s+--self)?$/,
-  /^node scripts\/log-cell\.mjs(?:\s|$)/,
+  /^node scripts\/log-(?:agent|cell)\.mjs(?:\s|$)/, // log-cell: the old name, kept for one release (ADR 0028)
 ];
 
-export function isCellSession(input) {
+export function isAgentSession(input) {
   return Boolean(input?.agent_id) && input.agent_type !== "orchestrator";
 }
 
@@ -57,9 +57,10 @@ function resolveFrom(input, filePath) {
   return path.resolve(String(input.cwd || process.cwd()), String(filePath ?? ""));
 }
 
-// The main checkout: $ORGANISM_ROOT when set, else the first entry of `git worktree list` from the call's cwd.
+// The main checkout: $DEN_ROOT when set, else the first entry of `git worktree list` from the call's cwd.
 function mainCheckout(input) {
-  if (process.env.ORGANISM_ROOT) return path.resolve(process.env.ORGANISM_ROOT);
+  const envRoot = process.env.DEN_ROOT || process.env.ORGANISM_ROOT;
+  if (envRoot) return path.resolve(envRoot);
   const r = spawnSync("git", ["worktree", "list", "--porcelain", "-z"], { cwd: String(input.cwd || process.cwd()), encoding: "utf8", timeout: 10_000 });
   if (r.status !== 0) return null;
   const first = r.stdout.split("\0").find((l) => l.startsWith("worktree "));
@@ -68,7 +69,7 @@ function mainCheckout(input) {
 
 const inside = (abs, dir) => abs === dir || abs.startsWith(dir.endsWith(path.sep) ? dir : dir + path.sep);
 
-// A handoff draft under /tmp (organism-infra/208). Not a path inside the cell's own cwd or HOME, which could
+// A handoff draft under /tmp (organism-infra/208). Not a path inside the agent's own cwd or HOME, which could
 // sit under /tmp in a fixture or a temp checkout: those are real work, not a draft.
 function isTmpDraft(input, abs) {
   if (!inside(abs, "/tmp") || abs === "/tmp") return false;
@@ -116,12 +117,12 @@ export function readContextTokens(input) {
 const k = (n) => `${Math.round(n / 1000)}k`;
 
 export const warningText = (tokens, stop) =>
-  `Context budget: this cell is at ${k(tokens)} of its ${k(stop)} budget. Checkpoint now: finish the current stage, start no new exploration, and plan a WIP commit, a handoff and board release. At ${k(stop)} every call except the wrap-up calls is refused.`;
+  `Context budget: this agent is at ${k(tokens)} of its ${k(stop)} budget. Checkpoint now: finish the current stage, start no new exploration, and plan a WIP commit, a handoff and board release. At ${k(stop)} every call except the wrap-up calls is refused.`;
 
 export const refusalText = (tokens, stop) =>
-  `context-budget: this cell is at ${k(tokens)}, over the ${k(stop)} budget (organism-infra/119), so this call is refused. Wrap up now: make a WIP commit (git add <paths>, git commit), draft the handoff (Write under .scratch/ or the session scratchpad), publish it with npm run board -- handoff, run npm run board -- release <ref> --keep-status, and end your final report with outcome: partial. Allowed now: git add, git commit, npm run board -- handoff|release|comment and node scripts/log-cell.mjs (one simple command, no chaining), node scripts/context.mjs, SubagentHandback (your final report), and Write/Edit under .scratch/, /tmp or the session scratchpad.`;
+  `context-budget: this agent is at ${k(tokens)}, over the ${k(stop)} budget (organism-infra/119), so this call is refused. Wrap up now: make a WIP commit (git add <paths>, git commit), draft the handoff (Write under .scratch/ or the session scratchpad), publish it with npm run board -- handoff, run npm run board -- release <ref> --keep-status, and end your final report with outcome: partial. Allowed now: git add, git commit, npm run board -- handoff|release|comment and node scripts/log-agent.mjs (one simple command, no chaining), node scripts/context.mjs, SubagentHandback (your final report), and Write/Edit under .scratch/, /tmp or the session scratchpad.`;
 
-// The 70k-80k warning is sent once per cell (organism-infra/208). The marker is a file keyed by session and agent
+// The 70k-80k warning is sent once per agent (organism-infra/208). The marker is a file keyed by session and agent
 // under ~/.claude (HOME is the test seam). If it cannot be read or written, the warning is sent (a repeat beats a silent miss).
 function warnedBefore(input) {
   const key = `${input.session_id ?? "nosession"}-${input.agent_id}`.replace(/[^\w.-]/g, "_");
@@ -145,7 +146,7 @@ function warnedBefore(input) {
 // Returns {code, stdout, stderr}.
 export function decide(input) {
   const allow = { code: 0, stdout: "", stderr: "" };
-  if (!isCellSession(input)) return allow;
+  if (!isAgentSession(input)) return allow;
   const tokens = readContextTokens(input);
   const { warn, stop } = budgetFor(input.agent_type);
   if (tokens === null || tokens < warn) return allow;

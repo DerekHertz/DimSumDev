@@ -4,7 +4,7 @@
 // cache read 0.1, output 5) over every *.jsonl under
 // $HOME/.claude/projects/<cwd slug>/ (subagent transcripts included). Credit
 // calibration is optional: it needs two cloud_credits readings in the usage log
-// ($USAGE_LOG, default <ORGANISM_ROOT or cwd>/.scratch/usage.jsonl).
+// ($USAGE_LOG, default <DEN_ROOT or cwd>/.scratch/usage.jsonl).
 import { readdirSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -74,7 +74,7 @@ function readReadings(log) {
 
 export function estimate({ home = process.env.HOME || os.homedir(), cwd = process.cwd(), log } = {}) {
   const dir = path.join(home, ".claude", "projects", cwd.replace(/[^A-Za-z0-9]/g, "-"));
-  log ??= process.env.USAGE_LOG || path.join(process.env.ORGANISM_ROOT || cwd, ".scratch", "usage.jsonl");
+  log ??= process.env.USAGE_LOG || path.join(process.env.DEN_ROOT || process.env.ORGANISM_ROOT || cwd, ".scratch", "usage.jsonl");
   const msgs = messages(dir);
   const sum = (f) => msgs.filter(f).reduce((a, m) => a + m.w, 0);
   const weighted = sum(() => true);

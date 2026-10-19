@@ -15,9 +15,9 @@ import { ROUTES } from "./routes.mjs";
 import { execFileSync } from "node:child_process";
 import { makeStateFixture, FEATURE } from "./bridge-fixture.mjs";
 import { CODE, origin, send, login, authed } from "./bridge-auth-helpers.mjs";
-// The fake runtime serves the agent routes (organism-infra/140). Until cells/runtime.mjs exists the older rows
-// still run; cells/host-core.test.mjs fails on the missing module.
-const { createFakeRuntime } = await import("./cells/runtime.mjs").catch(() => ({}));
+// The fake runtime serves the agent routes (organism-infra/140). Until agents/runtime.mjs exists the older rows
+// still run; agents/host-core.test.mjs fails on the missing module.
+const { createFakeRuntime } = await import("./agents/runtime.mjs").catch(() => ({}));
 
 const DISPATCH_REF = `${FEATURE}/02-ready-p0`; // gate "dispatch" in the fixture
 

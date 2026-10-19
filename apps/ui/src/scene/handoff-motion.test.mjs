@@ -6,7 +6,7 @@ import { placeCell, STALL_CENTERS } from "./banquet-layout.mjs";
 import { stepRoamer, WALK_SPEED } from "./roam.mjs";
 
 const roles = { tea: "qa", steamers: "developer", "front-of-house": "designer", pantry: "security" };
-const snapshot = (cell) => ({ tickets: [{ ref: "feature/01", status: "claimed", holder: { cell } }] });
+const snapshot = (cell) => ({ tickets: [{ ref: "feature/01", status: "claimed", holder: { role: cell } }] });
 for (const [from, type] of Object.entries(roles)) {
   for (const [to, nextType] of Object.entries(roles)) {
     if (from === to) continue;

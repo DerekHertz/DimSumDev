@@ -1,5 +1,5 @@
 // dimsumden-ui-v0/06: scripts/requests.mjs --list and --handle <id> --outcome <text> (ADR 0011 decision 6).
-// Run as a CLI with ORGANISM_ROOT pointing at a disposable checkout holding .scratch/_requests/requests.jsonl.
+// Run as a CLI with DEN_ROOT pointing at a disposable checkout holding .scratch/_requests/requests.jsonl.
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -16,7 +16,7 @@ const C = "33333333-3333-4333-8333-333333333333"; // pending
 let root;
 let file;
 const rows = (rs) => rs.map((r) => JSON.stringify(r)).join("\n") + "\n";
-const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { env: { ...process.env, ORGANISM_ROOT: root }, cwd: root, encoding: "utf8" });
+const run = (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { env: { ...process.env, DEN_ROOT: root }, cwd: root, encoding: "utf8" });
 const fileLines = () => readFileSync(file, "utf8").split("\n").filter(Boolean).map((l) => JSON.parse(l));
 
 beforeEach(() => {

@@ -35,7 +35,7 @@ async function open(state) {
   const snapshot = { schema: 1, seq: 1, tickets: [{ ref: REF, title: m.title, status: 'ready-for-agent' }], frontier: [], usage: null, requests: [], agents: [], cells: [cell], meetings: [m] };
   await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n` }));
   await page.route('**/state', (r) => r.fulfill({ json: snapshot }));
-  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   await page.route((u) => u.pathname === '/session', (r) => r.fulfill({ json: { token: 't'.repeat(43) } }));
   await page.route((u) => u.pathname.startsWith('/meetings/'), (r) => r.fulfill({ json: { meeting: m, topic: 'Which router?', brief: null, thread: [], summary: null,
     takes: [{ role: 'product', n: 1, text: '# Take: product\n\n---\n\nClaim: Keep the two-week cut line.\nEvidence: the spec' }] } }));

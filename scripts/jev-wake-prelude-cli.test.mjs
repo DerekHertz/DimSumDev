@@ -10,13 +10,13 @@ import { ciFromPrs, codeDecides, lastOrchestratorTs, newInputs } from "./jev-wak
 
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), "jev-wake-prelude.mjs");
 
-const ev = (over) => ({ feature: "feat", ticket: "01-a", op: "comment", cell: "developer", text: "note", ts: "2026-09-30T10:00:00.000Z", ...over });
+const ev = (over) => ({ feature: "feat", ticket: "01-a", op: "comment", role: "developer", text: "note", ts: "2026-09-30T10:00:00.000Z", ...over });
 
 test("lastOrchestratorTs picks the orchestrator's newest event, null when it has none", () => {
   const events = [
-    ev({ cell: "orchestrator", ts: "2026-09-30T08:00:00.000Z" }),
-    ev({ cell: "orchestrator", op: "release", ts: "2026-09-30T09:00:00.000Z" }),
-    ev({ cell: "developer", ts: "2026-09-30T11:00:00.000Z" }),
+    ev({ role: "orchestrator", ts: "2026-09-30T08:00:00.000Z" }),
+    ev({ role: "orchestrator", op: "release", ts: "2026-09-30T09:00:00.000Z" }),
+    ev({ role: "developer", ts: "2026-09-30T11:00:00.000Z" }),
   ];
   assert.equal(lastOrchestratorTs(events), "2026-09-30T09:00:00.000Z");
   assert.equal(lastOrchestratorTs([ev({})]), null);
@@ -25,9 +25,9 @@ test("lastOrchestratorTs picks the orchestrator's newest event, null when it has
 test("newInputs keeps comments after the cutoff, not the orchestrator's own or other ops", () => {
   const events = [
     ev({ text: "old", ts: "2026-09-30T08:00:00.000Z" }),
-    ev({ text: "mine", cell: "orchestrator" }),
+    ev({ text: "mine", role: "orchestrator" }),
     ev({ op: "claim", text: undefined }),
-    ev({ text: "fresh", verdict: "pass", cell: "qa" }),
+    ev({ text: "fresh", verdict: "pass", role: "qa" }),
   ];
   const inputs = newInputs(events, "2026-09-30T09:00:00.000Z", (f, t) => `# ${f}/${t}`);
   assert.deepEqual(inputs, [
@@ -62,7 +62,7 @@ function board({ ready = false, pendingRequest = false, orchestratorEvent = true
     const row = { kind: "usage", five_hour: fiveHour, weekly: 40, ts: "2026-09-30T09:20:00.000Z" };
     writeFileSync(path.join(root, ".scratch", "usage.jsonl"), JSON.stringify(row) + "\n");
   }
-  const events = orchestratorEvent ? [ev({ cell: "orchestrator", ts: "2026-09-30T09:00:00.000Z" })] : [];
+  const events = orchestratorEvent ? [ev({ role: "orchestrator", ts: "2026-09-30T09:00:00.000Z" })] : [];
   writeFileSync(path.join(root, ".scratch", "events.jsonl"), events.map((e) => JSON.stringify(e)).join("\n") + "\n");
   if (pendingRequest) {
     mkdirSync(path.join(root, ".scratch", "_requests"));
@@ -73,7 +73,7 @@ function board({ ready = false, pendingRequest = false, orchestratorEvent = true
 }
 
 function run(root, args = ["--since", "last"]) {
-  const env = { ...process.env, ORGANISM_ROOT: root };
+  const env = { ...process.env, DEN_ROOT: root };
   delete env.TYPESAFE_API_KEY;
   const r = spawnSync(process.execPath, [SCRIPT, ...args], { cwd: root, env, encoding: "utf8", timeout: 20000 });
   return { ...r, out: r.status === 0 ? JSON.parse(r.stdout) : null };
@@ -104,7 +104,7 @@ test("CLI: --since last with no orchestrator event wakes", () => {
   assert.match(r.out.reason, /no orchestrator event/);
 });
 
-test("[91] AC2: CLI at 90% usage a cell in flight still wakes, with no Jev row logged", () => {
+test("[91] AC2: CLI at 90% usage an agent in flight still wakes, with no Jev row logged", () => {
   const root = board({ lockedBy: "developer", secondReady: true, fiveHour: 90 });
   const r = run(root);
   assert.equal(r.status, 0, r.stderr);

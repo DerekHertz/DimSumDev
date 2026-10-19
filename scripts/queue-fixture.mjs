@@ -1,7 +1,7 @@
 // Test-only helper for organism-infra/212 (queue script and mod). Not a test file (no *.test.mjs
 // suffix), so `npm test` skips it. Builds a disposable board root whose tickets carry the header
 // lines the real board uses: a `# NN: Title` heading, Priority, Blocked by, Status. A held claim is
-// a `<slug>.lock` file whose content is the real lock line: `<cell> <iso time>[ <mode>][ <prior status>]`.
+// a `<slug>.lock` file whose content is the real lock line: `<role> <iso time>[ <mode>][ <prior status>]`.
 import { mkdtempSync, mkdirSync, writeFileSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";

@@ -12,14 +12,14 @@ import {
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { hasSecret, isDenied } from "./exposure.mjs";
-import { resolveRoot, resolveShortRef } from "../apps/organism-infra/board-service.mjs";
+import { resolveRoot, resolveShortRef } from "../apps/board/board-service.mjs";
 
 const MODEL = "jev-1.13.0";
 export const MAX_CHARS = 16000;
 const MAX_TESTS_BYTES = 1024 * 1024;
 const BOUNCE_CAP = 2000;
 const WAKE_CAP = 4000;
-const CELL_TYPES = ["product", "architect", "orchestrator", "developer", "scout", "qa", "security", "designer", "herald"];
+const ROLES = ["product", "architect", "orchestrator", "developer", "scout", "qa", "security", "designer", "herald"];
 const CAP = 0.5;
 const PRICE_PER_INPUT_TOKEN = 0.042 / 1e6; // output is free (ADR 0010)
 const ENDPOINT = "https://api.typesafe.ai/v1/systemone";
@@ -54,7 +54,7 @@ const POINTS = {
     labels: ["product", "architect", "designer", "qa-specify", "developer-direct", "user", "other"],
     fallback: "orchestrator",
     instructions:
-      "Which cell should take this new ticket first? Pick the one whose work the ticket needs next; pick other when the text does not say.",
+      "Which agent should take this new ticket first? Pick the one whose work the ticket needs next; pick other when the text does not say.",
     criteria: {
       product: "Needs a spec, scope or acceptance criteria before anyone builds",
       architect: "Needs a design or decision before anyone builds",
@@ -70,7 +70,7 @@ const POINTS = {
     labels: ["developer", "qa", "architect", "user", "other"],
     fallback: "orchestrator",
     instructions:
-      "This ticket bounced at review. Which cell should take it next? Pick the one the bounce verdict asks for; pick other when the text does not say.",
+      "This ticket bounced at review. Which agent should take it next? Pick the one the bounce verdict asks for; pick other when the text does not say.",
     criteria: {
       developer: "The code must change to meet the criteria",
       qa: "The tests or the verification must change",
@@ -178,7 +178,7 @@ const CLOSED_SET = ["route", "route-bounce", "priority", "scope"];
 // ADR 0015 decision 6: code, not Jev, wakes on these comments.
 export function codeWakes({ newComment, author, verdict }) {
   if (verdict || !newComment || /scope added/i.test(newComment)) return true;
-  return author == null || !CELL_TYPES.includes(author);
+  return author == null || !ROLES.includes(author);
 }
 
 // Reserved budget (ADR 0015 decision 7): each point may always spend its own reservation inside CAP.
@@ -331,7 +331,7 @@ export async function decide({
   };
   const fail = (reason) => build({ fallback: reason });
 
-  // The state machine dictates the next cell unless the ticket is fresh: no call.
+  // The state machine dictates the next agent unless the ticket is fresh: no call.
   if (point === "route" && status && status !== "ready-for-agent") return fail("state-machine");
   if (point === "wake" && codeWakes({ newComment, author, verdict })) return fail("code-wake");
   // ADR 0015 decision 4: Jev only flags an explicit line; filling a missing one is out of v1.

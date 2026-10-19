@@ -128,7 +128,7 @@ function isForgivableEntry(root, worktreePath, mainTip, entry) {
     return false;
   }
   // organism-infra/26: also forgive a copy of a file that exists uncommitted
-  // in the main checkout on disk (cells write handoffs there without
+  // in the main checkout on disk (agents write handoffs there without
   // committing them).
   try {
     const diskBytes = readFileSync(path.join(root, entry.filePath));

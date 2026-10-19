@@ -306,7 +306,7 @@ test("AC7: scripts/statusline.mjs shows live usage on darwin through the Keychai
       HOME: home,
       USERPROFILE: home,
       PATH: empty,
-      ORGANISM_ROOT: board,
+      DEN_ROOT: board,
       STATUSLINE_CACHE: path.join(root, "usage-cache.json"),
       STATUSLINE_USAGE_TIMEOUT_MS: "15000",
       NODE_OPTIONS: `--import ${pathToFileURL(preload).href}`,

@@ -16,7 +16,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import path from "node:path";
-import { REPO_ROOT } from "../apps/organism-infra/board-fixture.mjs";
+import { REPO_ROOT } from "../apps/board/board-fixture.mjs";
 import { boardRoot, ticket } from "./north-star-fixture.mjs";
 
 const MOD = path.join(REPO_ROOT, "mods", "north-star");
@@ -52,7 +52,7 @@ test("AC5 the band's numbers come from the north-star module: its CLI JSON feeds
   const root = boardRoot();
   ticket(root, "den-v1/01-a", { status: "resolved" });
   ticket(root, "den-v1/02-b", { blockedBy: "01", status: "ready-for-agent" });
-  const r = spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts", "north-star.mjs"), "--json"], { env: { ...process.env, ORGANISM_ROOT: root }, cwd: root, encoding: "utf8", timeout: 20000 });
+  const r = spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts", "north-star.mjs"), "--json"], { env: { ...process.env, DEN_ROOT: root }, cwd: root, encoding: "utf8", timeout: 20000 });
   assert.equal(r.status, 0, r.stderr);
   assert.match(strip(await renderBand(JSON.parse(r.stdout))), /v1 1\/2 · next: 2\b/);
 });

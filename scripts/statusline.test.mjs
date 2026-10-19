@@ -1,7 +1,7 @@
 // organism-infra/109: scripts/statusline.mjs is Claude Code's `statusLine` command.
 // Public interface under test: `node scripts/statusline.mjs` with the status-line input JSON on
 // stdin and these env seams (no real Claude Code session, network or credentials needed):
-//   ORGANISM_ROOT              board root: .scratch/*/issues/*.lock (in-flight relay) and
+//   DEN_ROOT              board root: .scratch/*/issues/*.lock (in-flight relay) and
 //                              .scratch/_requests/requests.jsonl (pending gate requests)
 //   STATUSLINE_USAGE_SCRIPT    a node script that prints usage JSON like scripts/usage-claude.mjs
 //                              (default scripts/usage.mjs); the ONLY external read
@@ -65,7 +65,7 @@ function input({ tokens = 64_010, session = "sess-1", extra = {} } = {}) {
 }
 
 function run(f, stdin, env = {}) {
-  const e = { ...process.env, HOME: f.home, ORGANISM_ROOT: f.root, STATUSLINE_USAGE_SCRIPT: f.usageScript, STATUSLINE_CACHE: f.cache, ...env };
+  const e = { ...process.env, HOME: f.home, DEN_ROOT: f.root, STATUSLINE_USAGE_SCRIPT: f.usageScript, STATUSLINE_CACHE: f.cache, ...env };
   delete e.CLAUDE_CODE_SESSION_ID;
   delete e.CLAUDE_CODE_REMOTE;
   const t0 = process.hrtime.bigint();
@@ -96,7 +96,7 @@ test("AC1: prints one line: 5h %, reset time, weekly %, ctx tokens vs 80k, in-fl
   assert.equal(r.text, "5h 11% → 19:59Z · wk 51% · ctx 64k/80k · 123: qa verify · gates 2\n");
 });
 
-test("AC1: several in-flight tickets are all named; a lock without a mode names the cell; write-locks and unlocked tickets are ignored", () => {
+test("AC1: several in-flight tickets are all named; a lock without a mode names the agent; write-locks and unlocked tickets are ignored", () => {
   const f = fixture();
   lock(f, "123-demo.lock", "qa 2026-10-02T17:13:04.772Z verify in-review");
   lock(f, "124-other.lock", "developer 2026-10-02T17:14:04.772Z");

@@ -54,7 +54,7 @@ function makeBoard(ticketText) {
   return root;
 }
 function runCli(root, argv) {
-  const env = { ...process.env, ORGANISM_ROOT: root };
+  const env = { ...process.env, DEN_ROOT: root };
   delete env.TYPESAFE_API_KEY;
   return spawnSync(process.execPath, [SCRIPT, ...argv], { cwd: root, env, encoding: "utf8", timeout: 20000 });
 }

@@ -1,5 +1,5 @@
 // agent-os/04 (ADR 0021 decision 10): the role ceilings file is a guardrail path. A diff that touches
-// apps/bridge/cells/ceilings.json is a risk-check hit, so `security` is dispatched. The content below is plain data with no
+// apps/bridge/agents/ceilings.json is a risk-check hit, so `security` is dispatched. The content below is plain data with no
 // word the code-risk patterns watch for, so the only thing that can fire is the path. A sibling data file stays clean.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -42,7 +42,7 @@ function runCheck(dir) {
   }
 }
 
-const CEILINGS = "apps/bridge/cells/ceilings.json";
+const CEILINGS = "apps/bridge/agents/ceilings.json";
 
 test("a change to the ceilings file exits non-zero, names the file and calls it a guardrail", () => {
   const dir = initRepo();
@@ -77,7 +77,7 @@ test("an edit to an existing ceilings file is a hit too, not only its creation",
 test("a data file elsewhere in the same folder is still clean (the rule is the path, not the folder)", () => {
   const dir = initRepo();
   try {
-    commitChange(dir, "apps/bridge/cells/notes.json", '{ "note": "plain data" }\n');
+    commitChange(dir, "apps/bridge/agents/notes.json", '{ "note": "plain data" }\n');
     assert.equal(runCheck(dir).code, 0);
   } finally {
     rmSync(dir, { recursive: true, force: true });

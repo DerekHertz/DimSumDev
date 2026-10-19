@@ -86,7 +86,7 @@ describe("T on a resident opens the composer in start mode", () => {
 
   test("a refusal keeps the text and says why; a retry sends again", async () => {
     let n = 0;
-    const h = harness({ startTask: async () => { if ((n += 1) === 1) throw rejectWith(429, "max_concurrent_cells (2) reached"); return { agent: { id: "c-2" }, ticket: { ref: "den/02-scout" } }; } });
+    const h = harness({ startTask: async () => { if ((n += 1) === 1) throw rejectWith(429, "max_concurrent_agents (2) reached"); return { agent: { id: "c-2" }, ticket: { ref: "den/02-scout" } }; } });
     h.composer.open(residentCard(), { mode: "walk" });
     h.composer.setText("Count the baskets.");
     await h.composer.send();
@@ -94,7 +94,7 @@ describe("T on a resident opens the composer in start mode", () => {
     assert.equal(s.open, true);
     assert.equal(s.phase, "refused");
     assert.equal(s.text, "Count the baskets.");
-    assert.equal(s.banner, "Not started. max_concurrent_cells (2) reached Press Enter to try again.");
+    assert.equal(s.banner, "Not started. max_concurrent_agents (2) reached Press Enter to try again.");
     assert.equal(s.sendEnabled, true);
     await h.composer.send();
     s = h.state();

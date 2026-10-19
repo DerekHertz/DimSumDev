@@ -51,7 +51,7 @@ async function open({ width = 1280, answer = () => ({ json: library }) } = {}) {
   // a one-shot event-stream answer made the page live for an instant under load, so that read counted as the card's (1 !== 0).
   await page.route('**/events', (r) => r.abort());
   await page.route('**/state', (r) => r.fulfill({ json: snapshot }));
-  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   await page.route('**/library', (r) => { reads += 1; return r.fulfill(answer()); });
   await page.goto(server.resolvedUrls.local[0]);
   await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') !== 'true');

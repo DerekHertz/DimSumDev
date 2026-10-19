@@ -1,4 +1,4 @@
-// organism-infra/211: shared helpers for billed-token spend (spend-log.mjs, log-cell.mjs).
+// organism-infra/211: shared helpers for billed-token spend (spend-log.mjs, log-agent.mjs).
 // Reads a Claude session transcript (JSONL) and sums billed usage; appends kind:"spend" rows.
 import { closeSync, constants, existsSync, lstatSync, mkdirSync, openSync, readFileSync, statSync, writeSync } from "node:fs";
 import path from "node:path";
@@ -77,11 +77,11 @@ export function appendUsageRows(root, rows) {
   }
 }
 
-// The one shape of a kind:"cell" row (ADR 0008 decision 12), shared by log-cell.mjs and the bridge's run ledger
-// (apps/bridge/cells/ledger.mjs). Callers validate their own fields; this only fixes the keys and their order.
-export function cellRow({ ts, ticket, cell, mode, model, tokens, ms, outcome, context, billed, allowNoHandoff, extra }) {
+// The one shape of a kind:"agent" row (ADR 0008 decision 12; kind:"cell" with a `cell` key before ADR 0028), shared by log-agent.mjs and the bridge's run ledger
+// (apps/bridge/agents/ledger.mjs). Callers validate their own fields; this only fixes the keys and their order.
+export function agentRow({ ts, ticket, role, mode, model, tokens, ms, outcome, context, billed, allowNoHandoff, extra }) {
   return {
-    kind: "cell", ts, ticket, cell,
+    kind: "agent", ts, ticket, role,
     ...(mode !== undefined ? { mode } : {}),
     ...(model !== undefined ? { model } : {}),
     tokens, ms, outcome,

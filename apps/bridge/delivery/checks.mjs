@@ -21,8 +21,8 @@ import path from "node:path";
 import { promisify } from "node:util";
 import { findBwrap } from "../build/box.mjs";
 import { lockHash } from "../build/releases.mjs";
-import { EnforcementError, LIMITS } from "../cells/resource-group.mjs";
-import { WORKTREES_DIR } from "../cells/policy.mjs";
+import { EnforcementError, LIMITS } from "../agents/resource-group.mjs";
+import { WORKTREES_DIR } from "../agents/policy.mjs";
 
 const execFileP = promisify(execFile);
 const SHA_RE = /^[0-9a-f]{40}$/;
@@ -191,7 +191,7 @@ export function createChecks({ repo, launcher, recordDir, depsDir, bwrap = findB
     try {
       playwright = JSON.parse(readFileSync(path.join(repo, "node_modules", "playwright", "package.json"), "utf8")).version;
     } catch {}
-    const limit = LIMITS.checks; // the launcher passed in is made with checksLimits() (cells/resource-group.mjs)
+    const limit = LIMITS.checks; // the launcher passed in is made with checksLimits() (agents/resource-group.mjs)
     return {
       os: `${os.type()} ${os.release()}`, node: process.versions.node, playwright,
       cores: Math.max(1, Math.round(limit.cpuPercent / 100)), hostCores: os.cpus().length, memoryMiB: limit.memoryMiB, hostMemoryMiB: Math.round(os.totalmem() / 1048576),

@@ -1,16 +1,16 @@
 // organism-infra/41: scripts/jev-report.mjs, the Jev shadow report (ADR 0010, decision 10).
 // Seams: exported buildReport(rows) -> report object, formatReport(report) -> string,
 // and the CLI `node scripts/jev-report.mjs --usage <file> [--json]` (default file:
-// <ORGANISM_ROOT or cwd>/.scratch/usage.jsonl). Fixture rows only; never the live usage.jsonl.
+// <DEN_ROOT or cwd>/.scratch/usage.jsonl). Fixture rows only; never the live usage.jsonl.
 //
 // Pinned contract (developer implements against it):
-//  - Ticket key = "<feature>/<NN>" (jev rows carry the full slug, cell/resolved rows may carry only NN).
-//  - A ticket is included only if it has at least one cell or resolved row.
+//  - Ticket key = "<feature>/<NN>" (jev rows carry the full slug, agent/resolved rows may carry only NN).
+//  - A ticket is included only if it has at least one agent or resolved row.
 //  - One jev row per (ticket, point): the latest by ts.
 //  - Token weights (fixed before results are read): haiku 0.5, sonnet 1, opus 2 (ADR 0010).
-//    Baseline = every cell row's tokens at weight 1 (genome minimums).
-//    Counterfactual for `tier`: developer cell rows use weight of pick (sonnet 1, opus 2).
-//    Counterfactual for `verify`: qa cell rows whose mode starts with "verify" use
+//    Baseline = every agent row's tokens at weight 1 (role definition minimums).
+//    Counterfactual for `tier`: developer agent rows use weight of pick (sonnet 1, opus 2).
+//    Counterfactual for `verify`: qa agent rows whose mode starts with "verify" use
 //    light -> 0.5, full -> 1. pick null/other or a fallback row -> baseline (weight 1).
 //  - report = { tickets: [{ticket, baseline, projected:{tier, verify, both}, bounces}] sorted by ticket,
 //               points: {tier|verify: {tickets, fallbacks (excluding cap), capFired, medianMs,
@@ -31,7 +31,7 @@ const jev = (ticket, point, pick, actual, extra = {}) => ({
   kind: "jev", ts: "2026-09-29T01:00:00Z", ticket, point, pick, actual,
   cost: 0.001, conf: 0.9, mode: "shadow", fallback: null, ms: 100, model: "jev-1.13.0", ...extra,
 });
-const cell = (ticket, c, mode, tokens) => ({ kind: "cell", ticket, cell: c, mode, tokens, ms: 1, outcome: "pass" });
+const role = (ticket, c, mode, tokens) => ({ kind: "agent", ticket, role: c, mode, tokens, ms: 1, outcome: "pass" });
 const resolved = (ticket, bounces) => ({ kind: "resolved", ts: "2026-09-29T02:00:00Z", ticket, pr: 1, bounces });
 
 // A f/01: tier sonnet, verify light. baseline 2200; verify-light projection 2000.
@@ -41,21 +41,21 @@ const resolved = (ticket, bounces) => ({ kind: "resolved", ts: "2026-09-29T02:00
 const ROWS = [
   jev("f/01-alpha", "tier", "sonnet", "sonnet", { ms: 100, cost: 0.001 }),
   jev("f/01-alpha", "verify", "light", "full", { ms: 200, cost: 0.002 }),
-  cell("f/01", "qa", "specify", 500),
-  cell("f/01", "developer", "implement", 1000),
-  cell("f/01", "qa", "verify", 400),
-  cell("f/01", "security", "full", 300),
+  role("f/01", "qa", "specify", 500),
+  role("f/01", "developer", "implement", 1000),
+  role("f/01", "qa", "verify", 400),
+  role("f/01", "security", "full", 300),
   resolved("f/01", 0),
   jev("f/02-beta", "tier", "opus", "sonnet", { ms: 300, cost: 0.001 }),
   jev("f/02-beta", "verify", "full", "full", { ms: 400, cost: 0.002 }),
-  cell("f/02", "qa", "specify", 100),
-  cell("f/02", "developer", "implement", 2000),
-  cell("f/02", "qa", "verify", 600),
+  role("f/02", "qa", "specify", 100),
+  role("f/02", "developer", "implement", 2000),
+  role("f/02", "qa", "verify", 600),
   resolved("f/02", 2),
   jev("f/03-gamma", "tier", null, "sonnet", { ms: 50, cost: 0, conf: null, fallback: "timeout" }),
   jev("f/03-gamma", "verify", null, "full", { ms: 0, cost: 0, conf: null, fallback: "cap" }),
-  cell("f/03", "developer", "implement", 800),
-  cell("f/03", "qa", "verify", 200),
+  role("f/03", "developer", "implement", 800),
+  role("f/03", "qa", "verify", 200),
   resolved("f/03", 1),
   jev("f/99-typo", "tier", "opus", "sonnet"),
   jev("f/99-typo", "verify", "light", "full"),
@@ -107,7 +107,7 @@ test("per-point exit-criteria numbers from fixture rows", async () => {
   assert.equal(points.verify.bounces, 3);
 });
 
-test("jev rows for a ticket with no cell or resolved rows are excluded", async () => {
+test("jev rows for a ticket with no agent or resolved rows are excluded", async () => {
   const { buildReport } = await import("./jev-report.mjs");
   const r = buildReport(ROWS);
   assert.ok(!r.tickets.some((t) => t.ticket === "f/99"));
@@ -150,8 +150,8 @@ const F01 = ROWS.filter((x) => String(x.ticket).startsWith("f/01"));
 const UNRESOLVED = [
   jev("f/04-delta", "tier", "opus", "sonnet", { ms: 300, cost: 0.003 }),
   jev("f/04-delta", "verify", "light", "full", { ms: 300, cost: 0.003 }),
-  cell("f/04", "developer", "implement", 3000),
-  cell("f/04", "qa", "verify", 1000),
+  role("f/04", "developer", "implement", 3000),
+  role("f/04", "qa", "verify", 1000),
 ];
 
 test("unresolved ticket counts in coverage but not in baseline, projected, savedPct or bounces", async () => {
@@ -172,12 +172,12 @@ test("unresolved ticket counts in coverage but not in baseline, projected, saved
   assert.equal(points.verify.bounces, 1);
 });
 
-test("a baseline-0 ticket (cell rows with null tokens) is not counted in coverage", async () => {
+test("a baseline-0 ticket (agent rows with null tokens) is not counted in coverage", async () => {
   const { buildReport } = await import("./jev-report.mjs");
   const zero = [
     jev("f/05-zero", "tier", "sonnet", "sonnet", { ms: 900, cost: 0.005 }),
     jev("f/05-zero", "verify", "full", "full", { ms: 900, cost: 0.005 }),
-    { kind: "cell", ticket: "f/05", cell: "developer", mode: "implement", tokens: null, ms: null, outcome: "pass" },
+    { kind: "agent", ticket: "f/05", role: "developer", mode: "implement", tokens: null, ms: null, outcome: "pass" },
     resolved("f/05", 0),
   ];
   const { points } = buildReport([...F01, ...zero]);

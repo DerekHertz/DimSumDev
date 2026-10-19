@@ -155,7 +155,7 @@ describe("GET /events", () => {
     await withBridge(async ({ connect, fx }) => {
       const { c } = await connect();
       await c.next((f) => f.event === "snapshot");
-      const row = { seq: 4, ts: "2026-09-29T07:00:00.000Z", feature: FEATURE, ticket: "05-blocked", cell: "qa", op: "comment", text: "hi" };
+      const row = { seq: 4, ts: "2026-09-29T07:00:00.000Z", feature: FEATURE, ticket: "05-blocked", role: "qa", op: "comment", text: "hi" };
       await appendFile(path.join(fx.root, ".scratch", "events.jsonl"), JSON.stringify(row) + "\n");
       await c.next((f) => f.event === "change" && f.data.type === "metrics-changed");
     });

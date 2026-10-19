@@ -10,8 +10,9 @@ import os from "node:os";
 import path from "node:path";
 import { loadContextTokens } from "./context-state.mjs";
 import { budgetFor } from "./context-budget.mjs";
+import { normalizeLegacyFlags } from "../apps/board/legacy-terms.mjs";
 
-// --cell <type> (organism-infra/145): adds warn, stop (budgetFor(type), scripts/context-budget.json) and
+// --role <role> (organism-infra/145): adds warn, stop (budgetFor(type), scripts/context-budget.json) and
 // state ("ok" | "warn" | "stop"; null on a null reading), with or without --self.
 
 const WINDOW = Number(process.env.CONTEXT_WINDOW_TOKENS) || 1_000_000;
@@ -95,7 +96,7 @@ const real = (p) => {
 };
 
 // The calling subagent's own transcript: <projects>/<slug>/<session>/subagents/agent-*.jsonl whose
-// cwd is this worktree. Never "newest file": two cells run at once. Newest of the matches wins.
+// cwd is this worktree. Never "newest file": two agents run at once. Newest of the matches wins.
 function selfTranscript(projects, id) {
   if (!id) return null;
   const here = real(process.cwd());
@@ -131,12 +132,13 @@ const home = process.env.HOME || os.homedir();
 const projects = path.join(home, ".claude", "projects");
 const id = process.env.CLAUDE_CODE_SESSION_ID;
 
-const cellFlag = process.argv.indexOf("--cell");
-const cellType = cellFlag >= 0 ? process.argv[cellFlag + 1] : undefined;
+const argv = normalizeLegacyFlags(process.argv.slice(2), "context");
+const roleFlag = argv.indexOf("--role");
+const role = roleFlag >= 0 ? argv[roleFlag + 1] : undefined;
 
 function withBudget(out) {
-  if (cellFlag < 0) return out;
-  const { warn, stop } = budgetFor(cellType);
+  if (roleFlag < 0) return out;
+  const { warn, stop } = budgetFor(role);
   const t = out.context_tokens;
   const state = t === null ? null : t >= stop ? "stop" : t >= warn ? "warn" : "ok";
   return { ...out, warn, stop, state };

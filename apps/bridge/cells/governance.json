@@ -1,7 +1,0 @@
-{
-  "ciPaths": [".github/workflows/**", ".github/CODEOWNERS", ".gitlab-ci.yml", "Jenkinsfile"],
-  "guardrailPaths": [".claude/**", ".git", ".git/**", "apps/bridge/cells/ceilings.json", "apps/bridge/cells/governance.json", "apps/bridge/cells/limits.json", "apps/bridge/library/connections.json"],
-  "denyRun": ["git push", "gh pr create", "gh pr review", "gh pr merge", "gh issue close", "gh release create", "core.hooksPath"],
-  "ciGrantRoles": ["security"],
-  "credentialPaths": ["~/.ssh", "~/.gnupg", "~/.aws", "~/.azure", "~/.kube", "~/.docker", "~/.netrc", "~/.npmrc", "~/.git-credentials", "~/.config/gh", "~/.config/gcloud", "~/.claude/.credentials.json", "~/.claude.json", "~/.codex/auth.json", "~/.local/state/den/credentials", "~/.local/state/den/projects.json", "~/.local/state/den/service-token", "~/.local/state/den/ntfy-url"]
-}

@@ -26,7 +26,7 @@ const rows = (root) => readFileSync(path.join(root, ".scratch", "usage.jsonl"), 
 function checkout() {
   const top = tmp("jg80-co-");
   mkdirSync(path.join(top, ".git"));
-  const wt = path.join(top, ".claude", "worktrees", "cell");
+  const wt = path.join(top, ".claude", "worktrees", "agent");
   mkdirSync(wt, { recursive: true });
   writeFileSync(path.join(wt, ".git"), "gitdir: elsewhere\n");
   mkdirSync(path.join(top, "apps"));

@@ -281,7 +281,7 @@ function boardRoot(ticketText, events = []) {
 }
 
 function cli(root, argv) {
-  const env = { ...process.env, ORGANISM_ROOT: root };
+  const env = { ...process.env, DEN_ROOT: root };
   delete env.TYPESAFE_API_KEY;
   return spawnSync(process.execPath, [SCRIPT, ...argv], { cwd: root, env, encoding: "utf8", timeout: 20000 });
 }
@@ -311,9 +311,9 @@ test("CLI route-bounce reads the latest bounce verdict comment from events.jsonl
   // We cannot inspect the transport text from CLI tests (no API key), but we verify
   // that the row is appended and exit is 0, confirming the CLI does not crash on events parsing.
   const events = [
-    { seq: 1, ts: "2026-09-30T09:00:00Z", feature: "feat", ticket: "07-thing", cell: "qa", op: "comment", text: "QA bounce: tests fail.", verdict: "bounce" },
-    { seq: 2, ts: "2026-09-30T09:01:00Z", feature: "feat", ticket: "07-thing", cell: "qa", op: "comment", text: "QA bounce: still failing.", verdict: "bounce" },
-    { seq: 3, ts: "2026-09-30T09:02:00Z", feature: "feat", ticket: "07-thing", cell: "security", op: "comment", text: "Security pass.", verdict: "pass" },
+    { seq: 1, ts: "2026-09-30T09:00:00Z", feature: "feat", ticket: "07-thing", role: "qa", op: "comment", text: "QA bounce: tests fail.", verdict: "bounce" },
+    { seq: 2, ts: "2026-09-30T09:01:00Z", feature: "feat", ticket: "07-thing", role: "qa", op: "comment", text: "QA bounce: still failing.", verdict: "bounce" },
+    { seq: 3, ts: "2026-09-30T09:02:00Z", feature: "feat", ticket: "07-thing", role: "security", op: "comment", text: "Security pass.", verdict: "pass" },
   ];
   const root = boardRoot("# 07\n\n**Status:** in-review\n", events);
   const r = cli(root, ["route-bounce", "--ticket", TICKET]);
@@ -328,7 +328,7 @@ test("CLI route-bounce: handoff sentinel in a handoff file does not appear in th
   // then checking the row was written (CLI ran successfully without mixing sources).
   const SENTINEL = "HANDOFF_SENTINEL_789";
   const events = [
-    { seq: 1, ts: "2026-09-30T09:00:00Z", feature: "feat", ticket: "07-thing", cell: "qa", op: "comment", text: "QA bounce: real verdict only.", verdict: "bounce" },
+    { seq: 1, ts: "2026-09-30T09:00:00Z", feature: "feat", ticket: "07-thing", role: "qa", op: "comment", text: "QA bounce: real verdict only.", verdict: "bounce" },
   ];
   const root = boardRoot("# 07\n\n**Status:** in-review\n", events);
   // Write a handoff file with the sentinel

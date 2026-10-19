@@ -1,6 +1,6 @@
 """Level 1 set dressing: pillow, organ workstations, grove, qi ribbons, and placed cells.
 
-Run inside Blender after panda_build.py, cell_types.py, toon.py and level1.py
+Run inside Blender after panda_build.py, role_types.py, toon.py and level1.py
 (uses mat(), obj_from_bm(), sphere(), cyl(), dome(), solid(), hex_lin(), PAL).
 """
 import bpy, bmesh, math, random

@@ -2,14 +2,14 @@
 // All tests use a temp board root (makeBoardFixture); the live .scratch is never touched.
 //
 // Pinned contracts (the ticket leaves these open; the developer must follow them):
-//   - verdict roles: `board comment --verdict` is accepted only when the author (lock cell, or --as)
+//   - verdict roles: `board comment --verdict` is accepted only when the author (lock agent, or --as)
 //     is qa, security or orchestrator. Any other author (developer, scout, ...) is refused: non-zero
 //     exit, stderr mentions "verdict", no event and no ticket change.
 //   - specify claim: a qa claim in mode specify on an in-review ticket leaves the status in-review
 //     (like verify); on any other status it still sets claimed.
 //   - lost resolved row: REDO OPTION CHOSEN = scripts/log-resolved.mjs (not a release rewrite).
 //       node scripts/log-resolved.mjs --ticket <feature>/<NN-slug> [--pr <n>]
-//     root = $ORGANISM_ROOT else cwd. It appends exactly the same row shape as the release does
+//     root = $DEN_ROOT else cwd. It appends exactly the same row shape as the release does
 //     (bounces from the verdict events; pr rules as release: --pr required for feature/bug Types,
 //     null otherwise). It refuses (exit 1, nothing written) when the ticket's status is not
 //     resolved (stderr says "not resolved"), or when a resolved row for that ticket already exists
@@ -18,7 +18,7 @@
 //     committed (ticket resolved, lock gone); release exits non-zero and stderr mentions
 //     "usage.jsonl" and "log-resolved".
 //   - append hardening: a usage.jsonl that is a symlink is refused by BOTH board (resolved row) and
-//     log-cell (non-zero, symlink target untouched). log-cell caps --outcome at 500 chars and
+//     log-agent (non-zero, symlink target untouched). log-agent caps --outcome at 500 chars and
 //     --mode at 32 chars: exactly the cap is accepted, one over is refused with nothing written.
 //   - --pr on any release whose status is not resolved (in-review, blocked, --keep-status) is
 //     refused: non-zero, stderr mentions --pr, claim and ticket status unchanged.
@@ -29,7 +29,7 @@
 //   1 verdict roles        -> "--verdict from ..." tests
 //   2 specify keeps        -> "specify claim on ..." tests
 //   3 resolved row redo    -> "failed resolved-row append ..." and "log-resolved ..." tests
-//   4 hardening/--pr       -> "symlinked usage", "log-cell caps", "--pr on a non-resolved release" tests
+//   4 hardening/--pr       -> "symlinked usage", "log-agent caps", "--pr on a non-resolved release" tests
 //   5 ADR                  -> "ADR 0008 ..." test
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -37,9 +37,9 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync, mkdirSync, symlinkSync, writeFileSync, rmSync, mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { makeBoardFixture, runBoard, writeValidHandoff, REPO_ROOT } from "../apps/organism-infra/board-fixture.mjs";
+import { makeBoardFixture, runBoard, writeValidHandoff, REPO_ROOT } from "../apps/board/board-fixture.mjs";
 
-const LOG_CELL = path.join(REPO_ROOT, "scripts", "log-cell.mjs");
+const LOG_AGENT = path.join(REPO_ROOT, "scripts", "log-agent.mjs");
 const LOG_RESOLVED = path.join(REPO_ROOT, "scripts", "log-resolved.mjs");
 const usagePath = (root) => path.join(root, ".scratch", "usage.jsonl");
 const rows = (root) => {
@@ -54,13 +54,13 @@ const events = (fx) =>
 const ticketText = (fx) => readFileSync(fx.ticketPath, "utf8");
 const codeTicket = (t, status = "ready-for-agent") =>
   `# ${t}\n\n**Type:** feature\n\n**Status:** ${status}\n\n- [ ] criterion\n\n## Comments\n`;
-const env = (fx) => ({ ORGANISM_ROOT: fx.root });
+const env = (fx) => ({ DEN_ROOT: fx.root });
 const status = async (fx) => (await runBoard(["status", fx.ticketRelPath], { cwd: fx.worktree, env: env(fx) })).stdout.trim();
 const script = (file, args, root) =>
-  spawnSync(process.execPath, [file, ...args], { env: { ...process.env, ORGANISM_ROOT: root }, encoding: "utf8", timeout: 15000 });
+  spawnSync(process.execPath, [file, ...args], { env: { ...process.env, DEN_ROOT: root }, encoding: "utf8", timeout: 15000 });
 
-async function claimAndReady(fx, cell, mode) {
-  const c = await runBoard(["claim", fx.ticketRelPath, cell, ...(mode ? ["--mode", mode] : [])], { cwd: fx.worktree, env: env(fx) });
+async function claimAndReady(fx, role, mode) {
+  const c = await runBoard(["claim", fx.ticketRelPath, role, ...(mode ? ["--mode", mode] : [])], { cwd: fx.worktree, env: env(fx) });
   assert.equal(c.code, 0, c.stderr);
   await writeValidHandoff(fx);
 }
@@ -255,12 +255,12 @@ test("symlinked usage.jsonl is refused by board's resolved-row append", async ()
   }
 });
 
-test("symlinked usage.jsonl is refused by log-cell", async () => {
+test("symlinked usage.jsonl is refused by log-agent", async () => {
   const fx = await makeBoardFixture({ content: codeTicket("01-do-thing") });
   const { dir, target } = outsideTarget();
   try {
     symlinkSync(target, usagePath(fx.root));
-    const r = script(LOG_CELL, ["--ticket", "sample/01-do-thing", "--cell", "qa", "--tokens", "1", "--ms", "1", "--outcome", "x", "--allow-no-handoff", "test setup"], fx.root);
+    const r = script(LOG_AGENT, ["--ticket", "sample/01-do-thing", "--role", "qa", "--tokens", "1", "--ms", "1", "--outcome", "x", "--allow-no-handoff", "test setup"], fx.root);
     assert.notEqual(r.status, 0);
     assert.equal(readFileSync(target, "utf8"), "ORIGINAL\n");
   } finally {
@@ -269,16 +269,16 @@ test("symlinked usage.jsonl is refused by log-cell", async () => {
   }
 });
 
-test("log-cell caps --outcome at 500 chars and --mode at 32 chars", async () => {
+test("log-agent caps --outcome at 500 chars and --mode at 32 chars", async () => {
   const fx = await makeBoardFixture({ content: codeTicket("01-do-thing") });
   try {
-    const base = ["--ticket", "sample/01-do-thing", "--cell", "qa", "--tokens", "1", "--ms", "1", "--allow-no-handoff", "test setup"];
-    const okBoth = script(LOG_CELL, [...base, "--mode", "m".repeat(32), "--outcome", "o".repeat(500)], fx.root);
+    const base = ["--ticket", "sample/01-do-thing", "--role", "qa", "--tokens", "1", "--ms", "1", "--allow-no-handoff", "test setup"];
+    const okBoth = script(LOG_AGENT, [...base, "--mode", "m".repeat(32), "--outcome", "o".repeat(500)], fx.root);
     assert.equal(okBoth.status, 0, okBoth.stderr);
     assert.equal(rows(fx.root).length, 1);
-    const longOutcome = script(LOG_CELL, [...base, "--outcome", "o".repeat(501)], fx.root);
+    const longOutcome = script(LOG_AGENT, [...base, "--outcome", "o".repeat(501)], fx.root);
     assert.notEqual(longOutcome.status, 0);
-    const longMode = script(LOG_CELL, [...base, "--mode", "m".repeat(33), "--outcome", "ok"], fx.root);
+    const longMode = script(LOG_AGENT, [...base, "--mode", "m".repeat(33), "--outcome", "ok"], fx.root);
     assert.notEqual(longMode.status, 0);
     assert.equal(rows(fx.root).length, 1, "refusals write nothing");
   } finally {

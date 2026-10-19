@@ -6,13 +6,13 @@
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { claim, publishHandoff, release, resolve } from "../../organism-infra/board-service.mjs";
+import { claim, publishHandoff, release, resolve } from "../../board/board-service.mjs";
 
 const REPORT_MAX = 60000; // characters of a run's report kept in a handoff (the board caps a handoff at 256 KiB)
 
 export function createDeliveryBoard(root) {
   return {
-    /** Claims the ticket for a step's role. Rejects when another cell holds it. */
+    /** Claims the ticket for a step's role. Rejects when another agent holds it. */
     claim: (ref, { role, mode }) => claim(root, ref, role, mode ? { mode } : {}),
     /**
      * Writes the step's handoff and releases the ticket at in-review. The State block is the bridge's own record of the
@@ -24,7 +24,7 @@ export function createDeliveryBoard(root) {
       const [feature, ticket] = ref.split("/");
       const nn = /^(\d{2,})-/.exec(ticket)[1];
       const state = {
-        ticket: ref, cell: role, ...(mode ? { mode } : {}),
+        ticket: ref, role, ...(mode ? { mode } : {}),
         current_step: verdict ? `${role} ${verdict === "pass" ? "passed" : "bounced"} commit ${sha.slice(0, 12)}` : committed ? `${role} committed ${sha.slice(0, 12)}` : `${role} made no commit`,
         artifacts: committed ? [...(branch ? [`branch ${branch}`] : []), `commit ${sha}`] : [], decisions: [], failures: [],
         pending: verdict === "bounce" ? [{ item: "fix the findings below", owner: "developer" }] : [],

@@ -111,7 +111,7 @@ describe("bridge serves the UI from release folders", () => {
     const free = await new Promise((resolve) => net.createServer().listen(0, "127.0.0.1", function () { const { port } = this.address(); this.close(() => resolve(port)); }));
     const link = path.join(tmp, "server-link.mjs");
     await symlink(fileURLToPath(new URL("./server.mjs", import.meta.url)), link);
-    const child = spawn(process.execPath, [link], { cwd: fx.root, env: { PATH: process.env.PATH, HOME: tmp, XDG_STATE_HOME: path.join(tmp, "xdg"), ORGANISM_ROOT: fx.root, PORT: String(free) }, stdio: ["ignore", "pipe", "ignore"] });
+    const child = spawn(process.execPath, [link], { cwd: fx.root, env: { PATH: process.env.PATH, HOME: tmp, XDG_STATE_HOME: path.join(tmp, "xdg"), DEN_ROOT: fx.root, PORT: String(free) }, stdio: ["ignore", "pipe", "ignore"] });
     try {
       const line = await new Promise((resolve, reject) => {
         child.stdout.once("data", (chunk) => resolve(String(chunk)));

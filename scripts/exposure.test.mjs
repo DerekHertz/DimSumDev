@@ -37,7 +37,7 @@ function makeBoard(ticketText) {
 }
 
 function cliNoKey(root, argv) {
-  const env = { ...process.env, ORGANISM_ROOT: root };
+  const env = { ...process.env, DEN_ROOT: root };
   delete env.TYPESAFE_API_KEY;
   return spawnSync(process.execPath, [JEV, ...argv], {
     cwd: root,
@@ -442,7 +442,7 @@ test("wake: user-authored comment, Scope added, and verdict events produce zero 
   }
 });
 
-// An absent author is not a known cell type, so code wakes (77 security bounce).
+// An absent author is not a known role, so code wakes (77 security bounce).
 test("wake: a comment with no author produces zero transport calls", async () => {
   const { decide } = await load();
   for (const author of [undefined, null]) {
@@ -465,8 +465,8 @@ test("wake: a comment with no author produces zero transport calls", async () =>
 // AC5 — 46's dead release-gate code removed
 // This criterion is human-verified: the developer removes the dead
 // `claimMtimeMs === undefined ? undefined : {...}` branch in
-// apps/organism-infra/board-service.mjs, or the ticket comment explains
-// why it stays. The qa cell cannot verify source removal automatically
+// apps/board/board-service.mjs, or the ticket comment explains
+// why it stays. The qa agent cannot verify source removal automatically
 // without testing implementation details.
 // Mark: human-verified
 // ====================================================================

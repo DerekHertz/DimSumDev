@@ -2,7 +2,7 @@
 //   v1 ████░░ 8/12 · 7 to go       (bar glyphs are █ and ░; width is the developer's choice)
 // built from scripts/north-star.mjs. It is omitted when the set is empty (so the existing exact-line
 // statusline tests keep passing), and it never touches the network or the usage read.
-// Seams: `node scripts/statusline.mjs` with ORGANISM_ROOT, HOME, STATUSLINE_USAGE_SCRIPT, STATUSLINE_CACHE.
+// Seams: `node scripts/statusline.mjs` with DEN_ROOT, HOME, STATUSLINE_USAGE_SCRIPT, STATUSLINE_CACHE.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
@@ -24,7 +24,7 @@ function run(root, { usageFails = false, freshCache = false, nodeOptions = "" } 
   writeFileSync(usageScript, usageFails ? "process.exit(1);\n" : `console.log(${JSON.stringify(JSON.stringify(USAGE))});\n`);
   const cache = path.join(dir, "cache.json");
   if (freshCache) writeFileSync(cache, JSON.stringify(USAGE));
-  const env = { ...process.env, HOME: home, ORGANISM_ROOT: root, STATUSLINE_USAGE_SCRIPT: usageScript, STATUSLINE_CACHE: cache, NODE_OPTIONS: nodeOptions };
+  const env = { ...process.env, HOME: home, DEN_ROOT: root, STATUSLINE_USAGE_SCRIPT: usageScript, STATUSLINE_CACHE: cache, NODE_OPTIONS: nodeOptions };
   delete env.CLAUDE_CODE_SESSION_ID;
   delete env.CLAUDE_CODE_REMOTE;
   const r = spawnSync("node", [SCRIPT], { cwd: root, env, input: JSON.stringify({ session_id: "s", context_window: { current_usage: null } }), encoding: "utf8", timeout: 20000 });

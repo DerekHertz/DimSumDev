@@ -33,7 +33,7 @@ function statusline(f, session, tokens) {
     session_id: session,
     context_window: { context_window_size: 200000, current_usage: { input_tokens: tokens, output_tokens: 5, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } },
   };
-  const env = { ...process.env, HOME: f.home, ORGANISM_ROOT: f.dir, STATUSLINE_USAGE_SCRIPT: f.usage, STATUSLINE_CACHE: path.join(f.dir, "cache.json") };
+  const env = { ...process.env, HOME: f.home, DEN_ROOT: f.dir, STATUSLINE_USAGE_SCRIPT: f.usage, STATUSLINE_CACHE: path.join(f.dir, "cache.json") };
   delete env.CLAUDE_CODE_SESSION_ID;
   const r = spawnSync("node", [STATUSLINE], { cwd: f.cwd, env, input: JSON.stringify(stdin), encoding: "utf8" });
   assert.equal(r.status, 0, r.stderr);

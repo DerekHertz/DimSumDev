@@ -87,7 +87,7 @@ test("a red security job, or a red change that touches the wall or CI, goes to s
   const { git, watch } = await setup(t);
   git.prs = [
     pr([pass("test", 1), check("security", 2)], { number: 1 }),
-    pr([check("test", 3)], { number: 2, files: ["apps/bridge/cells/claude-adapter.mjs"] }),
+    pr([check("test", 3)], { number: 2, files: ["apps/bridge/agents/claude-adapter.mjs"] }),
     pr([check("test", 4)], { number: 3, files: [".github/workflows/ci.yml"] }),
     pr([check("test", 5)], { number: 4, files: ["apps/bridge/server.mjs"] }),
   ];

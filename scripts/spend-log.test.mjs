@@ -2,9 +2,9 @@
 // transcript and appends kind:"spend" rows to .scratch/usage.jsonl.
 //
 // Pinned contract:
-//   node scripts/spend-log.mjs --transcript <file.jsonl> --role <orchestrator|cell type>
+//   node scripts/spend-log.mjs --transcript <file.jsonl> --role <orchestrator|role>
 //                              [--ticket <feature>/<NN-slug>] [--session <id>]
-//   - Root is $ORGANISM_ROOT (as log-cell does). --session defaults to the transcript's file name
+//   - Root is $DEN_ROOT (as log-agent does). --session defaults to the transcript's file name
 //     without ".jsonl".
 //   - Billed usage is read from each assistant record's message.usage. One API message can span
 //     several records with the same message.id; it counts ONCE (the last record with that id wins).
@@ -22,7 +22,7 @@ import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 import path from "node:path";
-import { makeBoardFixture, REPO_ROOT } from "../apps/organism-infra/board-fixture.mjs";
+import { makeBoardFixture, REPO_ROOT } from "../apps/board/board-fixture.mjs";
 import { FOUR, assistant, userLine, transcriptDir, writeTranscript, appendTranscript } from "./spend-fixture.mjs";
 
 const SPEND_LOG = path.join(REPO_ROOT, "scripts", "spend-log.mjs");
@@ -33,7 +33,7 @@ const rows = (root) => {
 };
 const spendRows = (root) => rows(root).filter((r) => r.kind === "spend");
 const run = (fx, args) =>
-  spawnSync(process.execPath, [SPEND_LOG, ...args], { cwd: fx.root, env: { ...process.env, ORGANISM_ROOT: fx.root }, encoding: "utf8", timeout: 15000 });
+  spawnSync(process.execPath, [SPEND_LOG, ...args], { cwd: fx.root, env: { ...process.env, DEN_ROOT: fx.root }, encoding: "utf8", timeout: 15000 });
 const totals = (o) => Object.fromEntries(FOUR.map((k) => [k, o[k]]));
 
 // 100+10 in, 1000+200 cache creation, 5000+6000 cache read, 50+60 out.

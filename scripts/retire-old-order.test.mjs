@@ -10,7 +10,7 @@
 //                                                               orderRow cases in jev-advisory-*.test.mjs go)
 //   AC2 queue.mjs prints its ready list in buildQueue order  -> scripts/queue.test.mjs ("Q6 ...")
 //   AC2 nothing reads jev-order rows any more                -> "AC2 no source file reads jev-order rows"
-//   AC3 no caller depends on the aging bump, UI snapshot     -> apps/organism-infra/priority.test.mjs ("no aging"),
+//   AC3 no caller depends on the aging bump, UI snapshot     -> apps/board/priority.test.mjs ("no aging"),
 //       still builds                                            apps/bridge/bridge-state.test.mjs ("no aging")
 //   AC4 handoff lists every reader of jev-order rows         -> human-verified (a handoff's content)
 //   AC5 issue-tracker.md describes the Queue order           -> "AC5 ..." (terms present; the wording is
@@ -23,7 +23,7 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { REPO_ROOT } from "../apps/organism-infra/board-fixture.mjs";
+import { REPO_ROOT } from "../apps/board/board-fixture.mjs";
 
 const SELF = fileURLToPath(import.meta.url);
 const JEV = path.join(REPO_ROOT, "scripts", "jev.mjs");
@@ -31,7 +31,7 @@ const JEV = path.join(REPO_ROOT, "scripts", "jev.mjs");
 function runJev(argv) {
   const root = mkdtempSync(path.join(tmpdir(), "retire-order-"));
   mkdirSync(path.join(root, ".scratch", "feat", "issues"), { recursive: true });
-  const env = { ...process.env, ORGANISM_ROOT: root };
+  const env = { ...process.env, DEN_ROOT: root };
   delete env.TYPESAFE_API_KEY;
   const r = spawnSync(process.execPath, [JEV, ...argv], { cwd: root, env, encoding: "utf8", timeout: 20000 });
   return { ...r, usagePath: path.join(root, ".scratch", "usage.jsonl") };

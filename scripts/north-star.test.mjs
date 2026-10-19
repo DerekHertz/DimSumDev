@@ -2,12 +2,12 @@
 //
 // Seam (pinned by qa, since the ticket says "for example scripts/north-star.mjs"):
 //   export function readNorthStar(root) -> { done, total, remaining, next }   (sync or async)
-//     root       board root: the directory that holds .scratch/ (ORGANISM_ROOT in the other scripts)
+//     root       board root: the directory that holds .scratch/ (DEN_ROOT in the other scripts)
 //     done       count of set tickets whose Status is resolved or closed
 //     total      count of set tickets, parked ones excluded
 //     remaining  total - done
 //     next       the ref `<feature>/<NN-slug>` of the next critical-path ticket, or null
-//   CLI: `node scripts/north-star.mjs --json` with ORGANISM_ROOT set prints that object as JSON.
+//   CLI: `node scripts/north-star.mjs --json` with DEN_ROOT set prints that object as JSON.
 // Blocker refs follow the board's own rules: `NN` is in the same feature, `<feature>/NN` names another;
 // trailing prose such as "(merged)" and "None (...)" are not refs.
 //
@@ -215,7 +215,7 @@ test("AC4 the module reads only the board: the CLI prints the same numbers as JS
   const root = boardRoot();
   ticket(root, "den-v1/01-a", { status: "resolved" });
   ticket(root, "den-v1/02-b", { blockedBy: "01", status: "ready-for-agent" });
-  const r = spawnSync(process.execPath, [MODULE, "--json"], { env: { ...process.env, ORGANISM_ROOT: root }, cwd: root, encoding: "utf8", timeout: 20000 });
+  const r = spawnSync(process.execPath, [MODULE, "--json"], { env: { ...process.env, DEN_ROOT: root }, cwd: root, encoding: "utf8", timeout: 20000 });
   assert.equal(r.status, 0, r.stderr);
   assert.deepEqual(JSON.parse(r.stdout), { done: 1, total: 2, remaining: 1, next: "den-v1/02-b" });
   const src = readFileSync(MODULE, "utf8");

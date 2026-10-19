@@ -145,7 +145,7 @@ All of these can be re-run, as of `757dbda`.
 - **1,368 commits on `main`**, 255 of them merges: `git log --oneline 757dbda | wc -l`, then add `--merges`.
 - **342 test files**: `find apps packages scripts -name "*.test.mjs" -not -path "*/node_modules/*" | wc -l`.
 - **26 recorded decisions** in [`docs/adr/`](docs/adr/).
-- **791 logged agent runs across 169 tickets, about 127.8 million tokens**: the `kind:"cell"` rows of `.scratch/usage.jsonl`, summing `tokens` (17 early rows carry no token count).
+- **791 logged agent runs across 169 tickets, about 127.8 million tokens**: the `kind:"agent"` rows (`kind:"cell"` before ADR 0028) of `.scratch/usage.jsonl`, summing `tokens` (17 early rows carry no token count).
 
 ## Development
 
@@ -159,7 +159,7 @@ npm run risk-check      # decides whether a branch needs a security review
 npm run board -- status <feature>/<NN-slug>
 ```
 
-Layout: `apps/ui` (React + React Three Fiber, built by Vite, the only build step), `apps/bridge` (localhost server), `apps/organism-infra` (the board CLI), `apps/ci-cd` (dev server and smoke checks), `scripts/` (relay tooling). Everything else is Node ESM run with `node --test`.
+Layout: `apps/ui` (React + React Three Fiber, built by Vite, the only build step), `apps/bridge` (localhost server), `apps/board` (the board CLI), `apps/ci-cd` (dev server and smoke checks), `scripts/` (relay tooling). Everything else is Node ESM run with `node --test`.
 
 ### Refresh the README media
 

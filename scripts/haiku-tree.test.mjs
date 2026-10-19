@@ -1,5 +1,5 @@
-// den-mvp/90: a bounded Haiku tree and lighter genomes. Root (Bao, the router) -> branch (Sonnet cells) -> leaf (Haiku).
-// Only the root and the branch hold Agent; a branch starts only leaves. These tests pin the genome shapes.
+// den-mvp/90: a bounded Haiku tree and lighter role definitions. Root (Bao, the router) -> branch (Sonnet agents) -> leaf (Haiku).
+// Only the root and the branch hold Agent; a branch starts only leaves. These tests pin the role definition shapes.
 // Red until the gated patch .scratch/_handoffs/gated/90-haiku-tree.patch is applied.
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -39,13 +39,13 @@ test("runner is a Haiku leaf: model haiku, no Agent tool", () => {
   assert.match(r.body, /failures/);
 });
 
-test("no leaf genome (model: haiku) holds Agent", () => {
+test("no leaf role definition (model: haiku) holds Agent", () => {
   const leaves = AGENTS.filter((a) => front(a).model === "haiku");
   assert.ok(leaves.includes("runner") && leaves.includes("scout"), `leaves: ${leaves}`);
   for (const l of leaves) assert.deepEqual(front(l).tools.filter((t) => /^Agent\b/.test(t)), [], `${l} is a leaf and holds Agent`);
 });
 
-test("the tree is three levels: only the orchestrator starts branch cells; a branch starts only leaves", () => {
+test("the tree is three levels: only the orchestrator starts branch agents; a branch starts only leaves", () => {
   const leaves = AGENTS.filter((a) => front(a).model === "haiku");
   for (const a of AGENTS.filter((x) => x !== "orchestrator")) {
     for (const t of agentTargets(front(a).tools)) assert.ok(leaves.includes(t), `${a} starts ${t}, which is not a leaf`);
@@ -107,7 +107,7 @@ test("team-protocol carries the pstack lines and did not grow", () => {
   assert.match(s, /resume[^\n]*(local state|costly)/i);
   assert.match(s, /idempotent/i);
   assert.match(s, /prove[^\n]*by running/i);
-  assert.ok(s.split("\n").length - 1 < 104, "team-protocol is preloaded into every cell; it must stay under its old 104 lines");
+  assert.ok(s.split("\n").length - 1 < 104, "team-protocol is preloaded into every agent; it must stay under its old 104 lines");
 });
 
 test("qa verify has a blast-radius step: what the change breaks beyond the diff, proved by running code", () => {

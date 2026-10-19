@@ -136,11 +136,11 @@ describe("GET /state on a fixture tree (no claim lock)", () => {
     assert.deepEqual(snap.frontier, [ref("02-ready-p0"), ref("07-bumpable"), ref("08-plain")]);
   });
 
-  test("holder is null and lastCell comes from the newest events row", () => {
+  test("holder is null and lastRole comes from the newest events row", () => {
     assert.equal(byRef[ref("04-review")].holder, null);
-    assert.equal(byRef[ref("04-review")].lastCell, "security");
-    assert.equal(byRef[ref("05-blocked")].lastCell, "qa");
-    assert.equal(byRef[ref("02-ready-p0")].lastCell, null);
+    assert.equal(byRef[ref("04-review")].lastRole, "security");
+    assert.equal(byRef[ref("05-blocked")].lastRole, "qa");
+    assert.equal(byRef[ref("02-ready-p0")].lastRole, null);
   });
 
   test("blockedReason is the last Comments bullet when blocked, else null", () => {
@@ -217,7 +217,7 @@ describe("GET /state with a claim lock", () => {
     withBridge({ lock: true }, async (bridge) => {
       const { snap } = await getState(bridge);
       const t = snap.tickets.find((x) => x.ref === ref("09-claimed"));
-      assert.deepEqual(t.holder, { cell: "developer", since: LOCK_TS });
+      assert.deepEqual(t.holder, { role: "developer", since: LOCK_TS });
       assert.ok(!snap.frontier.includes(ref("09-claimed")));
       assert.deepEqual(snap.frontier, [ref("02-ready-p0"), ref("07-bumpable"), ref("08-plain")]);
       assert.deepEqual(snap.tickets.filter((x) => x.gate === "dispatch").map((x) => x.ref), [ref("02-ready-p0")], "only frontier[0], and it has the gate despite the lock");

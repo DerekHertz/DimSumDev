@@ -53,7 +53,7 @@ function stubClaude() {
 
 function run(root, extra = [], env = {}) {
   const base = { ...process.env };
-  delete base.ORGANISM_ROOT;
+  delete base.DEN_ROOT;
   const r = spawnSync(process.execPath, [SCRIPT, "--root", root, ...extra], {
     encoding: "utf8",
     timeout: 20_000,

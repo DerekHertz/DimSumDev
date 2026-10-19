@@ -47,7 +47,7 @@ async function open({ width = 1280 } = {}) {
   page.on('pageerror', (e) => errors.push(e.message));
   await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n` }));
   await page.route('**/state', (r) => r.fulfill({ json: snapshot }));
-  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+  await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   // By path, not by a glob: the page also loads the bridge's meetings/types.mjs as a module, and that is not the bridge's route.
   await page.route((url) => url.pathname === '/meetings' || url.pathname.startsWith('/meetings/'), (r) => {
     const req = r.request();

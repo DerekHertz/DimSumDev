@@ -10,7 +10,7 @@ import { queueModel, detailModel } from "./queue-model.mjs";
 const t = (over) => ({
   ref: "fx/00-x", feature: "fx", title: "T", type: "feature", status: "ready-for-agent", ready: true,
   priority: "P2", effectivePriority: "P2", bumps: 0, bumped: false, readySince: null,
-  blockedBy: [], blockedReason: null, holder: null, lastCell: null, gate: null, request: null, handoff: null,
+  blockedBy: [], blockedReason: null, holder: null, lastRole: null, gate: null, request: null, handoff: null,
   ...over,
 });
 
@@ -25,12 +25,12 @@ const fixture = snap(
     t({ ref: "fx/01-plain", title: "Plain P2", effectivePriority: "P2" }),
     t({ ref: "fx/02-top", title: "Top P0", priority: "P0", effectivePriority: "P0" }),
     t({ ref: "fx/03-bumped", title: "Bumped", priority: "P2", effectivePriority: "P1", bumps: 3, bumped: true }),
-    t({ ref: "fx/04-claimed", title: "Being built", status: "claimed", ready: false, holder: { cell: "developer", since: "2026-09-29T05:00:00.000Z" } }),
+    t({ ref: "fx/04-claimed", title: "Being built", status: "claimed", ready: false, holder: { role: "developer", since: "2026-09-29T05:00:00.000Z" } }),
     t({
-      ref: "fx/05-blocked", title: "Stuck", status: "blocked", ready: false, lastCell: "qa",
+      ref: "fx/05-blocked", title: "Stuck", status: "blocked", ready: false, lastRole: "qa",
       blockedBy: [{ ref: "fx/06-dep", status: "ready-for-agent" }], blockedReason: "Waiting on the user for the API key",
     }),
-    t({ ref: "fx/07-review", title: "In review", status: "in-review", ready: false, lastCell: "security" }),
+    t({ ref: "fx/07-review", title: "In review", status: "in-review", ready: false, lastRole: "security" }),
   ],
   ["fx/02-top", "fx/03-bumped", "fx/01-plain"],
 );
@@ -100,7 +100,7 @@ const withHandoff = snap(
   [
     t({
       ref: "fx/10-with", title: "Has handoff", status: "in-review", ready: false,
-      holder: { cell: "security", since: "2026-09-29T05:00:00.000Z" },
+      holder: { role: "security", since: "2026-09-29T05:00:00.000Z" },
       handoff: { path: "fx/handoffs/10-security.md", mtime: "2026-09-29T05:40:00.000Z", truncated: false, text: "## State\nall good\n" },
     }),
     t({

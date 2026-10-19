@@ -45,9 +45,9 @@ describe("startTask", () => {
   });
 
   test("a refusal rejects with the bridge's status and reason", async () => {
-    const { client } = clientOver(() => refuse(429, { error: "max_concurrent_cells (2) reached" }));
+    const { client } = clientOver(() => refuse(429, { error: "max_concurrent_agents (2) reached" }));
     const err = await rejection(client.startTask("scout", { text: "x" }));
-    assert.deepEqual({ status: err.status, reason: err.reason }, { status: 429, reason: "max_concurrent_cells (2) reached" });
+    assert.deepEqual({ status: err.status, reason: err.reason }, { status: 429, reason: "max_concurrent_agents (2) reached" });
   });
 
   test("empty, oversized or non-string text and a missing role send nothing", async () => {

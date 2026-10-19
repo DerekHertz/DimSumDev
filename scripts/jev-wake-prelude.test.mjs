@@ -129,7 +129,7 @@ test("[91] AC2: wind-down items still wake at 90%+ usage, including exactly 90% 
   }
 });
 
-test("codeDecides: a cell in flight wakes; none does not", async () => {
+test("codeDecides: an agent in flight wakes; none does not", async () => {
   const { codeDecides } = await load();
   const r = codeDecides({ ...noCode, inFlightCount: 1 });
   assert.equal(r.wake, true);
@@ -290,7 +290,7 @@ test("runPrelude: comment with no author (unknown) wakes without calling Jev", a
 
 // ─── AC3: ambiguous inputs call Jev; labels determine outcome ─────────────────
 
-test("runPrelude: cell-authored non-verdict comment calls Jev exactly once", async () => {
+test("runPrelude: agent-authored non-verdict comment calls Jev exactly once", async () => {
   const { runPrelude } = await load();
   const calls = [];
   await runPrelude({

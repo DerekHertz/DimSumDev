@@ -20,7 +20,7 @@ test('walking up to a resident shows its nearby card; moving away and leaving hi
     const snapshot = { schema: 1, seq: 1, tickets: [], frontier: [], usage: null, requests: [], agents: [] };
     await page.route('**/events', r => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n` }));
     await page.route('**/state', r => r.fulfill({ json: snapshot }));
-    await page.route('**/metrics', r => r.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+    await page.route('**/metrics', r => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
     await page.route('**/session', r => r.fulfill({ status: 404, json: {} }));
     await page.goto(server.resolvedUrls.local[0]);
     const enter = page.getByRole('button', { name: 'Enter the den', exact: true });

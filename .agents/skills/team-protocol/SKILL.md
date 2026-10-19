@@ -5,7 +5,7 @@ description: The shared rules every Agent Office agent follows. Covers claiming 
 
 You are a **agent** in the Agent Office org. Terms are defined in `CONTEXT.md`. Your role definition (your `.claude/agents/<role>.md` file) sets your team, tools, skills, gates, and done criteria. Stay inside it.
 
-Your first message states your role and ticket, e.g. `[cell: developer | ticket: ci-cd/02]`, so telemetry can attribute the session.
+Your first message states your role and ticket, e.g. `[role: developer | ticket: ci-cd/02]`, so telemetry can attribute the session.
 
 Run agents on their role definition's model (user, 2026-10-01): every agent, the orchestrator too, runs on Sonnet 5.5 at high effort, except the Haiku leaves (`scout`, `runner`). Until `05`, a dispatch through a generic agent type passes the role definition's model and effort explicitly.
 
@@ -14,13 +14,13 @@ Your final report to the orchestrator stays under about 300 words: the verdict, 
 ## The board
 
 - The board is the local issue tracker described in `docs/agents/issue-tracker.md`: `.scratch/<feature-slug>/` in the **main checkout**.
-- If you run in a worktree, the main checkout is at `$ORGANISM_ROOT`. If that is unset, it is the path `git worktree list` prints first. Always read and write the board there, never in your worktree's copy.
+- If you run in a worktree, the main checkout is at `$DEN_ROOT`. If that is unset, it is the path `git worktree list` prints first. Always read and write the board there, never in your worktree's copy.
 - Scope added in a ticket's `## Comments` (for example "Scope added (user, ...)") counts as acceptance criteria, just like the checkboxes. qa maps every scope item to a test, and the developer covers each one.
 - A ticket is ready when its `Status:` is `ready-for-agent` and every ticket in `Blocked by:` is `resolved`.
 
 ## Claiming a ticket (exactly one agent per ticket)
 
-1. Claim with `npm run board -- claim <feature>/<NN-slug> <role>`. It creates the lock atomically, sets `Status: claimed` (a `security` or `qa --mode verify` claim on an `in-review` ticket keeps `in-review`), and fails if another agent holds the ticket. Moded agents need `--mode`: qa must pass `specify` or `verify`; designer passes `review`, `spec`, `critique` or `direction` (a designer verdict needs `review`). Other agents need no mode. A dispatch line with `cell-start --ticket <ref> --cell <type> [--mode <m>]` makes this claim for you (`docs/agents/cell-start.md`).
+1. Claim with `npm run board -- claim <feature>/<NN-slug> <role>`. It creates the lock atomically, sets `Status: claimed` (a `security` or `qa --mode verify` claim on an `in-review` ticket keeps `in-review`), and fails if another agent holds the ticket. Moded agents need `--mode`: qa must pass `specify` or `verify`; designer passes `review`, `spec`, `critique` or `direction` (a designer verdict needs `review`). Other agents need no mode. A dispatch line with `agent-start --ticket <ref> --role <role> [--mode <m>]` makes this claim for you (`docs/agents/agent-start.md`).
 2. If the claim fails, the ticket is taken: pick another or hand off. Never delete another agent's lock.
 3. Add comments with `npm run board -- comment <feature>/<NN-slug> "<text>"`, never by editing the ticket. With a lock held, the author is your lock's agent. With no lock, pass `--as <role>`; with a lock, `--as` must match your agent.
    - Take over a dead holder's lock with `board reclaim <ref> <role> --reason "..."`, never as `orchestrator`. Free a lock without changing status with `board release <ref> --keep-status`.
@@ -28,7 +28,7 @@ Your final report to the orchestrator stays under about 300 words: the verdict, 
 
 ## Relay size (den-mvp/71)
 
-The relay is sized to risk. A **risk-path** ticket changes `.claude/`, `CLAUDE.md`, `docs/adr/`, the wall (`apps/bridge/cells/{limits,governance,ceilings}.json`, `apps/bridge/library/connections.json`, any guardrail path `scripts/risk-check.mjs` lists, `apps/bridge/cells/`), CI (`.github/`), a hook or guard script, service or auth code, or a dependency. It runs the full relay: qa `specify`, developer, qa `verify` (light), `npm run risk-check`, and `security` on a hit. Every other ticket (tests, docs, UI, ordinary scripts and code) takes the **light path**: no qa `specify`. The developer dispatches directly, writes the tests first and lists each criterion's test in its handoff. qa `verify` (full, fresh context) writes a per-criterion map to a test that fails without the change, and a verdict on each hit of `node scripts/test-guard.mjs`. Then `risk-check`, and `security` on a hit. When unsure, the orchestrator takes the full relay and says why.
+The relay is sized to risk. A **risk-path** ticket changes `.claude/`, `CLAUDE.md`, `docs/adr/`, the wall (`apps/bridge/agents/{limits,governance,ceilings}.json`, `apps/bridge/library/connections.json`, any guardrail path `scripts/risk-check.mjs` lists, `apps/bridge/agents/`), CI (`.github/`), a hook or guard script, service or auth code, or a dependency. It runs the full relay: qa `specify`, developer, qa `verify` (light), `npm run risk-check`, and `security` on a hit. Every other ticket (tests, docs, UI, ordinary scripts and code) takes the **light path**: no qa `specify`. The developer dispatches directly, writes the tests first and lists each criterion's test in its handoff. qa `verify` (full, fresh context) writes a per-criterion map to a test that fails without the change, and a verdict on each hit of `node scripts/test-guard.mjs`. Then `risk-check`, and `security` on a hit. When unsure, the orchestrator takes the full relay and says why.
 
 ## Pass gates (stop and ask the user)
 
@@ -73,10 +73,10 @@ Handoffs go through `board` too. The `handoff` skill shows the State block that 
 
 ## Context budget (organism-infra/119)
 
-Every call re-reads your whole context, so a smaller one costs less. Thresholds live in `scripts/context-budget.json`: every agent role warns at 100k and stops at 150k (organism-infra/220); the orchestrator warns at 70k and stops at 80k (organism-infra/208). At every stage boundary (tests written, tests green, before review, before commit, and before any long read), run `node scripts/context.mjs --self --cell <your cell type>`. It prints your own transcript's `context_tokens` and a `state`; `context_tokens: null` means no reading, so carry on. `ok` means carry on. Follow `state`:
+Every call re-reads your whole context, so a smaller one costs less. Thresholds live in `scripts/context-budget.json`: every agent role warns at 100k and stops at 150k (organism-infra/220); the orchestrator warns at 70k and stops at 80k (organism-infra/208). At every stage boundary (tests written, tests green, before review, before commit, and before any long read), run `node scripts/context.mjs --self --role <your role>`. It prints your own transcript's `context_tokens` and a `state`; `context_tokens: null` means no reading, so carry on. `ok` means carry on. Follow `state`:
 
 - **`warn`:** finish the current stage. Start no new exploration and no new stage you can leave to a fresh agent.
-- **`stop`:** stop. Commit your work in progress on the branch (a WIP commit, never a stash). Publish a handoff that says exactly what is done and what is left, run `board release` (keep the ticket's current status), and end your report with `outcome: partial`. The orchestrator re-dispatches a fresh agent of your type on the same branch with your handoff; that counts as the same round, not a bounce. Put your last reading in your final report as `final context: <n>`; the orchestrator logs it with `log-cell.mjs --context <n>`.
+- **`stop`:** stop. Commit your work in progress on the branch (a WIP commit, never a stash). Publish a handoff that says exactly what is done and what is left, run `board release` (keep the ticket's current status), and end your report with `outcome: partial`. The orchestrator re-dispatches a fresh agent of your type on the same branch with your handoff; that counts as the same round, not a bounce. Put your last reading in your final report as `final context: <n>`; the orchestrator logs it with `log-agent.mjs --context <n>`.
 
 ## Hand off and exit (ending well)
 

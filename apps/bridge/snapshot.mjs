@@ -1,12 +1,13 @@
 // Snapshot builder for the bridge (ADR 0011 decision 3). Reads a .scratch/ tree
 // and returns the GET /state payload. Read-only: no Board write paths.
 import { newerUsage } from "./usage-reading.mjs";
+import { roleOf } from "../board/legacy-terms.mjs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { parsePriority, orderFrontier } from "../organism-infra/priority.mjs";
+import { parsePriority, orderFrontier } from "../board/priority.mjs";
 import { buildRequests } from "./requests-log.mjs";
 import { compareRefs } from "../../packages/board-refs/src/compare-refs.mjs";
-import { readGoals } from "../organism-infra/goals.mjs";
+import { readGoals } from "../board/goals.mjs";
 
 const HANDOFF_CAP = 8192;
 
@@ -189,13 +190,13 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
     const readySince = ready ? readyAt.get(t.ref) ?? new Date(t.mtimeMs).toISOString() : null;
     let holder = null;
     if (t.locked !== null) {
-      const [cell, since] = t.locked.trim().split(/\s+/);
-      holder = { cell: cell ?? null, since: since ?? null };
+      const [role, since] = t.locked.trim().split(/\s+/);
+      holder = { role: role ?? null, since: since ?? null };
     }
     const req = pendingByRef.get(t.ref);
     const verdict = lastVerdict.get(t.ref);
     const mergeGate =
-      t.status === "in-review" && !holder && verdict && verdict.cell === "security" && verdict.verdict === "pass";
+      t.status === "in-review" && !holder && verdict && roleOf(verdict) === "security" && verdict.verdict === "pass";
     const row = {
       ref: t.ref,
       feature: t.feature,
@@ -212,7 +213,7 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
       blockedBy,
       blockedReason: t.status === "blocked" ? t.blockedReason : null,
       holder,
-      lastCell: lastRow.get(t.ref)?.cell ?? null,
+      lastRole: roleOf(lastRow.get(t.ref)) ?? null,
       gate: mergeGate ? "merge" : null,
       request: req ? { id: req.id, kind: req.kind, ts: req.ts } : null,
       handoff: await newestHandoff(scratch, t.feature, t.nn),

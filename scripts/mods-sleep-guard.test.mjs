@@ -19,7 +19,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, realpa
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { makeBoardFixture, REPO_ROOT } from "../apps/organism-infra/board-fixture.mjs";
+import { makeBoardFixture, REPO_ROOT } from "../apps/board/board-fixture.mjs";
 
 const PLUGIN = path.join(REPO_ROOT, "mods", "sleep-guard");
 const HOOK = path.join(PLUGIN, "hooks", "sleep-guard.mjs");
@@ -30,14 +30,14 @@ function run(stdin, { env = {}, cwd = REPO_ROOT } = {}) {
     cwd,
     encoding: "utf8",
     timeout: 20000,
-    env: { ...process.env, CLAUDE_PROJECT_DIR: REPO_ROOT, ORGANISM_ROOT: "", ...env },
+    env: { ...process.env, CLAUDE_PROJECT_DIR: REPO_ROOT, DEN_ROOT: "", ...env },
   });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
 const bash = (command, extra = {}) => JSON.stringify({ hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command }, ...extra });
 // Tests that are not about logging point the log at a board that does not exist.
-const NOLOG = { env: { ORGANISM_ROOT: path.join(tmpdir(), "sleep-guard-no-such-root") } };
+const NOLOG = { env: { DEN_ROOT: path.join(tmpdir(), "sleep-guard-no-such-root") } };
 
 const DENIED = [
   ["a sleep then another command with ;", "sleep 30; gh pr checks"],
@@ -120,7 +120,7 @@ test("AC2 deny message names gh pr checks --watch and Monitor, and says what was
   assert.equal(r.stdout.trim(), r.stderr.trim(), "stdout carries the same message for direct callers");
 });
 
-test("AC2 there is no override: an env flag, a marker comment or a cell identity does not bypass it", () => {
+test("AC2 there is no override: an env flag, a marker comment or an agent identity does not bypass it", () => {
   for (const [command, extra, env] of [
     ["SLEEP_GUARD_OFF=1 sleep 5; ls", {}, { SLEEP_GUARD_OFF: "1", SLEEP_GUARD_ALLOW: "1" }],
     ["sleep 5; ls # sleep-guard: allow", {}, {}],
@@ -149,7 +149,7 @@ test("AC4 block log: a block adds a comment on the standing mods-trial ticket, r
     const r = run(bash("sleep 30; gh pr checks 99", { agent_type: "developer", cwd: fx.worktree }), { cwd: fx.worktree });
     assert.equal(r.code, 2, r.stderr);
     const ticket = await fx.readTicket();
-    assert.match(ticket, /\*\*developer, \d{4}-\d{2}-\d{2}:\*\*/, "stamped with the cell");
+    assert.match(ticket, /\*\*developer, \d{4}-\d{2}-\d{2}:\*\*/, "stamped with the agent");
     assert.match(ticket, /sleep-guard/);
     assert.match(ticket, /sleep 30; gh pr checks 99/, "carries the head of the command");
   } finally {
@@ -266,7 +266,7 @@ test("AC4 block log: with no standing trial ticket the block still denies, quiet
 
 test("AC4 block log: with the board CLI unreachable the block still denies", () => {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "sleep-guard-nocli-")));
-  const r = run(bash("sleep 5; ls", { cwd: dir }), { cwd: dir, env: { CLAUDE_PROJECT_DIR: dir, ORGANISM_ROOT: dir } });
+  const r = run(bash("sleep 5; ls", { cwd: dir }), { cwd: dir, env: { CLAUDE_PROJECT_DIR: dir, DEN_ROOT: dir } });
   assert.equal(r.code, 2);
 });
 
@@ -339,7 +339,7 @@ function start(f, input) {
     cwd: f.project,
     encoding: "utf8",
     timeout: 20000,
-    env: { ...process.env, ORGANISM_ROOT: f.root, CLAUDE_PROJECT_DIR: f.project, HOME: f.home, GH_BIN: f.gh, SESSION_START_USAGE_SCRIPT: f.usage },
+    env: { ...process.env, DEN_ROOT: f.root, CLAUDE_PROJECT_DIR: f.project, HOME: f.home, GH_BIN: f.gh, SESSION_START_USAGE_SCRIPT: f.usage },
   });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }

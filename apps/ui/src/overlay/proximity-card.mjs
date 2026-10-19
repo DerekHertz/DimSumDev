@@ -1,10 +1,10 @@
 import { DESK_THREAD } from './transcript-panel.mjs';
-import { DESK_REF } from '../../../bridge/cells/policy.mjs';
+import { DESK_REF } from '../../../bridge/agents/policy.mjs';
 import { sameResident, runtimeOf, boundAgentKey, RUNTIME_UNAVAILABLE, LIVE_AGENT_STATES } from '../shell/resident-inventory.mjs';
 
 // den-v1/04: pure proximity selection. Positions and yaw use the walk core's world coordinates.
 // The scene supplies {id, name, role, station, position:{x,z}, ref?, state?, tool?, agent?} per panda.
-// den-v1 loop S1: the roles the bridge starts from the den (apps/bridge/cells/policy.mjs ROLES; a test keeps the two
+// den-v1 loop S1: the roles the bridge starts from the den (apps/bridge/agents/policy.mjs ROLES; a test keeps the two
 // equal). T on a resident with one of these roles opens the task box.
 export const START_ROLES = ['product', 'architect', 'orchestrator', 'developer', 'scout', 'qa', 'security', 'designer', 'herald'];
 

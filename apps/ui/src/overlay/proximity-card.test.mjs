@@ -2,8 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { agentFor, cardFor, costLabel, START_ROLES, STATE_LABELS } from './proximity-card.mjs';
-import { LIVE_STATES } from '../../../bridge/cells/policy.mjs';
-import { ROLES } from '../../../bridge/cells/policy.mjs';
+import { LIVE_STATES } from '../../../bridge/agents/policy.mjs';
+import { ROLES } from '../../../bridge/agents/policy.mjs';
 
 test('walking toward pandas shows the nearest one in reach and facing the viewer', () => {
   const pandas = [

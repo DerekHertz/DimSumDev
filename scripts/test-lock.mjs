@@ -2,7 +2,7 @@
 //
 // Usage: node scripts/test-lock.mjs <cmd> [args...]
 //
-// Two cells running the whole suite at once starve each other (Playwright and
+// Two agents running the whole suite at once starve each other (Playwright and
 // smoke timeouts), so a full run takes a lock file first. A second run waits,
 // printing one line that names the holder, then runs once the lock is free.
 // Targeted runs (`node --test <file>`, `npm run test:path`) never come here.

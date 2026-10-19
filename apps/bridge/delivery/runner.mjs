@@ -19,7 +19,7 @@
 // The route answers are { ok: true, status, delivery } or { ok: false, status, error }.
 import { randomBytes } from "node:crypto";
 import { hasSecret } from "../../../scripts/exposure.mjs";
-import { REF_RE } from "../cells/policy.mjs";
+import { REF_RE } from "../agents/policy.mjs";
 import { JOB_ID_RE } from "./jobs.mjs";
 import { DELIVERABLE_TYPES, VISUAL_TYPES, isCiPath, isUiPath, isUserMergePath, nextStep } from "./plan.mjs";
 import { readLookAt, readVerdict } from "./prompts.mjs";

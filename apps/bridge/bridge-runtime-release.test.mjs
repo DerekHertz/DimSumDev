@@ -1,7 +1,7 @@
 // codex-residents/01 + den-mvp/85: both sides of the snapshot merge remain observable over HTTP and SSE.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { makeBridge, openSse } from "./cells/host-test-helpers.mjs";
+import { makeBridge, openSse } from "./agents/host-test-helpers.mjs";
 
 test("runtime capacity and release readiness coexist in state and initial SSE snapshots", async () => {
   const t = await makeBridge();

@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 // organism-infra/211: report billed-token spend per ticket and per role from kind:"spend" rows.
 // Usage: node scripts/spend.mjs [--json]     (npm run spend)
-// Cell rows carry the same totals but are never summed here, so nothing is counted twice.
+// Agent rows carry the same totals but are never summed here, so nothing is counted twice.
 import path from "node:path";
-import { resolveRoot } from "../apps/organism-infra/board-service.mjs";
+import { resolveRoot } from "../apps/board/board-service.mjs";
 import { FOUR, readRows } from "./spend-lib.mjs";
 
 const args = process.argv.slice(2);

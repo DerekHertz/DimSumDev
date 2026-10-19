@@ -1,10 +1,10 @@
 // organism-infra/48: scripted usage rows. Two seams:
 //   1. `board release <ref> --status resolved --pr <n>` appends one resolved row.
-//   2. `scripts/log-cell.mjs` appends one validated cell row.
+//   2. `scripts/log-agent.mjs` appends one validated agent row.
 // All tests use a temp board root (makeBoardFixture); the live .scratch is never touched.
 //
 // Pinned contracts (the ticket leaves these open; the developer must follow them):
-//   - usage file: <root>/.scratch/usage.jsonl, root = $ORGANISM_ROOT (else cwd), as jev.mjs.
+//   - usage file: <root>/.scratch/usage.jsonl, root = $DEN_ROOT (else cwd), as jev.mjs.
 //   - resolved row: {"kind":"resolved","ts":<ISO string>,"ticket":"<feature>/<NN-slug>","pr":<number|null>,"bounces":<int>}.
 //   - bounce count source (structured verdict, coordinator change): `board comment <ref>
 //     --verdict pass|bounce "<text>"` records "verdict":"pass"|"bounce" on the op:"comment" event in
@@ -17,25 +17,25 @@
 //     For other Types (e.g. design) --pr may be omitted and the row has pr:null.
 //   - only --status resolved appends a resolved row; in-review/blocked releases append none.
 //   - a failed release (gate refusal) appends no row.
-//   - log-cell row: {"kind":"cell","ts":<ISO>,"ticket","cell","mode"(only if given),"tokens":<number>,"ms":<number>,"outcome":<string>}.
+//   - log-agent row: {"kind":"agent","ts":<ISO>,"ticket","role","mode"(only if given),"tokens":<number>,"ms":<number>,"outcome":<string>}.
 //     The ticket must exist at <root>/.scratch/<feature>/issues/<NN-slug>.md. tokens and ms must be
-//     non-negative integers; outcome non-empty; --cell one of the known cell types
+//     non-negative integers; outcome non-empty; --role one of the known roles
 //     (product architect orchestrator developer scout qa security designer).
 //     Every rejection exits non-zero, explains on stderr, and writes nothing.
 //
 // Criterion map:
 //   1 resolved row on release   -> "release --status resolved --pr ..." tests (row, one only, bounces, pr rules, no row otherwise)
-//   2 log-cell valid/rejects    -> "log-cell ..." tests
-//   3 ADR updated               -> the ADR 0008 test (names log-cell, the resolved row, bounce, verdict, events.jsonl)
+//   2 log-agent valid/rejects    -> "log-agent ..." tests
+//   3 ADR updated               -> the ADR 0008 test (names log-agent, the resolved row, bounce, verdict, events.jsonl)
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync, readdirSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { makeBoardFixture, runBoard, writeValidHandoff, REPO_ROOT } from "../apps/organism-infra/board-fixture.mjs";
+import { makeBoardFixture, runBoard, writeValidHandoff, REPO_ROOT } from "../apps/board/board-fixture.mjs";
 
-const LOG_CELL = path.join(REPO_ROOT, "scripts", "log-cell.mjs");
+const LOG_AGENT = path.join(REPO_ROOT, "scripts", "log-agent.mjs");
 const usagePath = (root) => path.join(root, ".scratch", "usage.jsonl");
 const rows = (root) => {
   const p = usagePath(root);
@@ -44,15 +44,15 @@ const rows = (root) => {
 };
 const codeTicket = (t) => `# ${t}\n\n**Type:** feature\n\n**Status:** ready-for-agent\n\n- [ ] criterion\n\n## Comments\n`;
 
-async function claimAndReady(fx, cell = "orchestrator") {
-  const c = await runBoard(["claim", fx.ticketRelPath, cell], { cwd: fx.worktree });
+async function claimAndReady(fx, role = "orchestrator") {
+  const c = await runBoard(["claim", fx.ticketRelPath, role], { cwd: fx.worktree });
   assert.equal(c.code, 0, c.stderr);
   await writeValidHandoff(fx);
 }
 const resolve = (fx, ...extra) =>
   runBoard(["release", fx.ticketRelPath, "--status", "resolved", ...extra], {
     cwd: fx.worktree,
-    env: { ORGANISM_ROOT: fx.root },
+    env: { DEN_ROOT: fx.root },
   });
 
 // --- Criterion 1 ---
@@ -159,7 +159,7 @@ for (const bad of [[], ["--pr", "abc"], ["--pr", "0"], ["--pr", "-3"], ["--pr", 
       assert.notEqual(r.code, 0);
       assert.match(r.stderr, /pr/i);
       assert.equal(rows(fx.root).length, 0);
-      const s = await runBoard(["status", fx.ticketRelPath], { cwd: fx.worktree, env: { ORGANISM_ROOT: fx.root } });
+      const s = await runBoard(["status", fx.ticketRelPath], { cwd: fx.worktree, env: { DEN_ROOT: fx.root } });
       assert.match(s.stdout, /claimed/);
     } finally {
       await fx.cleanup();
@@ -190,7 +190,7 @@ test("release to in-review or blocked appends no resolved row", async () => {
       await claimAndReady(fx, "developer");
       const r = await runBoard(["release", fx.ticketRelPath, "--status", status], {
         cwd: fx.worktree,
-        env: { ORGANISM_ROOT: fx.root },
+        env: { DEN_ROOT: fx.root },
       });
       assert.equal(r.code, 0, r.stderr);
       assert.equal(rows(fx.root).filter((x) => x.kind === "resolved").length, 0, status);
@@ -215,31 +215,31 @@ test("a gate-refused resolved release (no handoff) appends no row", async () => 
 
 // --- Criterion 2 ---
 
-function logCell(fx, args) {
-  return spawnSync(process.execPath, [LOG_CELL, ...args], {
+function logAgent(fx, args) {
+  return spawnSync(process.execPath, [LOG_AGENT, ...args], {
     cwd: fx.root,
-    env: { ...process.env, ORGANISM_ROOT: fx.root },
+    env: { ...process.env, DEN_ROOT: fx.root },
     encoding: "utf8",
     timeout: 15000,
   });
 }
 const good = (fx) => [
-  "--ticket", fx.ticketRelPath, "--cell", "qa", "--mode", "specify",
+  "--ticket", fx.ticketRelPath, "--role", "qa", "--mode", "specify",
   "--tokens", "51234", "--ms", "184000", "--outcome", "tests written, red",
   "--allow-no-handoff", "test setup",
 ];
 const without = (args, flag) => args.filter((x, i) => x !== flag && args[i - 1] !== flag);
 
-test("log-cell appends one valid cell row", async () => {
+test("log-agent appends one valid agent row", async () => {
   const fx = await makeBoardFixture();
   try {
-    const r = logCell(fx, good(fx));
+    const r = logAgent(fx, good(fx));
     assert.equal(r.status, 0, r.stderr);
     const got = rows(fx.root);
     assert.equal(got.length, 1);
-    assert.equal(got[0].kind, "cell");
+    assert.equal(got[0].kind, "agent");
     assert.equal(got[0].ticket, "sample/01-do-thing");
-    assert.equal(got[0].cell, "qa");
+    assert.equal(got[0].role, "qa");
     assert.equal(got[0].mode, "specify");
     assert.strictEqual(got[0].tokens, 51234);
     assert.strictEqual(got[0].ms, 184000);
@@ -250,12 +250,12 @@ test("log-cell appends one valid cell row", async () => {
   }
 });
 
-test("log-cell without --mode omits the mode key; two calls append two rows", async () => {
+test("log-agent without --mode omits the mode key; two calls append two rows", async () => {
   const fx = await makeBoardFixture();
   try {
     const args = without(good(fx), "--mode").map((x) => (x === "qa" ? "developer" : x));
-    assert.equal(logCell(fx, args).status, 0);
-    assert.equal(logCell(fx, args).status, 0);
+    assert.equal(logAgent(fx, args).status, 0);
+    assert.equal(logAgent(fx, args).status, 0);
     const got = rows(fx.root);
     assert.equal(got.length, 2);
     assert.ok(!("mode" in got[0]));
@@ -272,16 +272,16 @@ const badCases = {
   "negative tokens": swap("51234", "-5"),
   "fractional ms": swap("184000", "1.5"),
   "non-numeric ms": swap("184000", "soon"),
-  "unknown cell type": swap("qa", "wizard"),
+  "unknown role": swap("qa", "wizard"),
   "empty outcome": swap("tests written, red", ""),
   "missing --tokens": (fx) => without(good(fx), "--tokens"),
   "missing --outcome": (fx) => without(good(fx), "--outcome"),
 };
 for (const [name, mk] of Object.entries(badCases)) {
-  test(`log-cell rejects ${name} without writing`, async () => {
+  test(`log-agent rejects ${name} without writing`, async () => {
     const fx = await makeBoardFixture();
     try {
-      const r = logCell(fx, mk(fx));
+      const r = logAgent(fx, mk(fx));
       assert.notEqual(r.status, 0);
       assert.ok(r.stderr.length > 0, "explains the rejection on stderr");
       assert.equal(existsSync(usagePath(fx.root)), false, "no usage file written");
@@ -297,7 +297,7 @@ test("ADR 0008 documents the scripted rows and where the bounce count comes from
   const dir = path.join(REPO_ROOT, "docs", "adr");
   const f = readdirSync(dir).find((n) => n.startsWith("0008-"));
   const text = readFileSync(path.join(dir, f), "utf8");
-  assert.match(text, /log-cell/);
+  assert.match(text, /log-cell/); // ADR 0008 predates ADR 0028 and keeps the old script name
   assert.match(text, /resolved/i);
   assert.match(text, /bounce/i);
   assert.match(text, /verdict/i);

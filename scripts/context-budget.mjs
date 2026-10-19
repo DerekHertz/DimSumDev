@@ -1,5 +1,5 @@
 // The context budget thresholds (organism-infra/145): one config value, read by the 162 hook
-// (scripts/hooks/context-budget.mjs), cell-start (orchestrator key) and context.mjs --cell.
+// (scripts/hooks/context-budget.mjs), agent-start (orchestrator key) and context.mjs --role.
 // budgetFor(role) -> {warn, stop} in tokens. The file is scripts/context-budget.json, or the file named
 // by CONTEXT_BUDGET_CONFIG (the test seam), read on every call.
 //   unknown or missing role                                  -> the config's `default`
@@ -15,7 +15,7 @@ const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SHIPPED = path.join(HERE, "context-budget.json");
 
 export const BUILT_IN = Object.freeze({
-  cell: Object.freeze({ warn: 100_000, stop: 150_000 }),
+  agent: Object.freeze({ warn: 100_000, stop: 150_000 }),
   orchestrator: Object.freeze({ warn: 70_000, stop: 80_000 }),
 });
 
@@ -33,10 +33,12 @@ function loadConfig() {
 
 export function budgetFor(role) {
   const cfg = loadConfig();
-  if (!cfg || !valid(cfg.default)) return { ...(role === "orchestrator" ? BUILT_IN.orchestrator : BUILT_IN.cell) };
+  if (!cfg || !valid(cfg.default)) return { ...(role === "orchestrator" ? BUILT_IN.orchestrator : BUILT_IN.agent) };
   const fallback = pick(cfg.default);
   let entry;
+  // Per-role entries live under `roles` (`cells` before ADR 0028; still read).
+  const perRole = cfg.roles ?? cfg.cells;
   if (role === "orchestrator") entry = cfg.orchestrator;
-  else if (typeof role === "string" && cfg.cells && typeof cfg.cells === "object" && Object.hasOwn(cfg.cells, role)) entry = cfg.cells[role];
+  else if (typeof role === "string" && perRole && typeof perRole === "object" && Object.hasOwn(perRole, role)) entry = perRole[role];
   return valid(entry) ? pick(entry) : fallback;
 }

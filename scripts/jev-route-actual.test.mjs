@@ -11,11 +11,11 @@
 //       { ticket, ts, variant, pick, logged, actual }
 //     ticket/ts/pick are the row's own values, variant defaults to "new", logged is the row's own `actual`
 //     field (kept for comparison), and `actual` is the role really dispatched:
-//       the cell of the first board event with op "claim" on the same feature and ticket number whose
-//       ts is strictly after the row's ts, any cell (an orchestrator claim counts, it is a real claim),
+//       the agent of the first board event with op "claim" on the same feature and ticket number whose
+//       ts is strictly after the row's ts, any agent (an orchestrator claim counts, it is a real claim),
 //       events taken in ts order whatever order they arrive in. null when no later claim exists.
-//     Cell to role: qa with mode "specify" -> "qa-specify"; qa with mode "verify" -> "qa-verify";
-//     qa with no mode -> "qa"; every other cell -> its own name ("developer", "product", ...).
+//     Agent to role: qa with mode "specify" -> "qa-specify"; qa with mode "verify" -> "qa-verify";
+//     qa with no mode -> "qa"; every other agent -> its own name ("developer", "product", ...).
 //   Input rows are never mutated, and the CLI never writes usage.jsonl.
 //   formatReport prints one line per route row:
 //     "route actual <ticket>: pick <pick|none>, actual <role|none yet>"
@@ -42,8 +42,8 @@ function route(n, over = {}) {
     model: "jev-1.13.0", variant: "new", ...over,
   };
 }
-function claim(n, cell, ts = T2, mode = null, feature = "feat") {
-  return { seq: ++seq, ts, feature, ticket: `${String(n).padStart(2, "0")}-t${n}`, cell, mode, op: "claim" };
+function claim(n, role, ts = T2, mode = null, feature = "feat") {
+  return { seq: ++seq, ts, feature, ticket: `${String(n).padStart(2, "0")}-t${n}`, role, mode, op: "claim" };
 }
 async function actuals(rows, events) {
   const { buildReport } = await load();
@@ -66,7 +66,7 @@ test("qa claimed with mode specify gives qa-specify; verify gives qa-verify; no 
   assert.deepEqual(out.map((a) => a.actual), ["qa-specify", "qa-verify", "qa"]);
 });
 
-test("other cells report their own name", async () => {
+test("other agents report their own name", async () => {
   const rows = [route(1), route(2), route(3), route(4)];
   const events = [claim(1, "product"), claim(2, "architect"), claim(3, "designer"), claim(4, "security")];
   const out = await actuals(rows, events);
@@ -102,9 +102,9 @@ test("an orchestrator claim after the route call reports orchestrator (it really
 });
 
 test("no routed ticket with a later non-orchestrator claim reports orchestrator", async () => {
-  const cells = ["product", "architect", "developer", "qa", "designer"];
-  const rows = cells.map((_, i) => route(i + 1));
-  const events = cells.map((c, i) => claim(i + 1, c, T2, c === "qa" ? "specify" : null));
+  const roles = ["product", "architect", "developer", "qa", "designer"];
+  const rows = roles.map((_, i) => route(i + 1));
+  const events = roles.map((c, i) => claim(i + 1, c, T2, c === "qa" ? "specify" : null));
   const out = await actuals(rows, events);
   assert.ok(out.every((a) => a.actual !== "orchestrator"), JSON.stringify(out));
   assert.ok(out.every((a) => a.logged === "orchestrator"));
@@ -117,7 +117,7 @@ test("every route row is covered: both variants, every mode, fallback rows, and 
     route(3, { pick: null, fallback: "http" }),
     route(4, { variant: undefined }),
     { kind: "jev", ts: T1, ticket: "feat/05-t5", point: "tier", pick: "sonnet", actual: "sonnet" },
-    { kind: "cell", ticket: "feat/06-t6", cell: "developer", tokens: 10 },
+    { kind: "agent", ticket: "feat/06-t6", role: "developer", tokens: 10 },
   ];
   const events = [1, 2, 3, 4, 5, 6].map((n) => claim(n, "developer"));
   const out = await actuals(rows, events);
@@ -171,7 +171,7 @@ test("CLI: existing usage.jsonl rows report their real next role from the siblin
       [claim(1, "developer"), claim(2, "qa", T2, "specify")].map((e) => JSON.stringify(e)).join("\n") + "\n",
     );
     const env = { ...process.env };
-    delete env.ORGANISM_ROOT;
+    delete env.DEN_ROOT;
     const run = (argv) => spawnSync(process.execPath, [SCRIPT, "--usage", usage, ...argv], { cwd: dir, env, encoding: "utf8", timeout: 20000 });
 
     const plain = run([]);

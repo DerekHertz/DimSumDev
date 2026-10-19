@@ -26,8 +26,8 @@ const NOW = new Date("2026-09-30T10:00:00Z");
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
 
-const cell = (ticket, c, mode, tokens) =>
-  ({ kind: "cell", ticket, cell: c, mode, tokens, ms: 1, outcome: "pass" });
+const role = (ticket, c, mode, tokens) =>
+  ({ kind: "agent", ticket, role: c, mode, tokens, ms: 1, outcome: "pass" });
 const resolved = (ticket, bounces) =>
   ({ kind: "resolved", ts: "2026-09-30T01:00:00Z", ticket, pr: 1, bounces });
 const jevRow = (ticket, point, pick, extra = {}) => ({
@@ -54,7 +54,7 @@ test("47/1: buildReport does not produce NaN in projected.tier when jev pick is 
   const { buildReport } = await import("./jev-report.mjs");
   const rows = [
     jevRow("f/01-alpha", "tier", "constructor"),   // pick hits Object.prototype.constructor
-    cell("f/01", "developer", "implement", 1000),
+    role("f/01", "developer", "implement", 1000),
     resolved("f/01", 0),
   ];
   const { tickets } = buildReport(rows);
@@ -70,8 +70,8 @@ test("47/1: buildReport does not produce NaN in projected.verify when jev pick i
   const { buildReport } = await import("./jev-report.mjs");
   const rows = [
     jevRow("f/01-alpha", "verify", "toString"),   // pick hits Object.prototype.toString
-    cell("f/01", "qa", "verify", 400),
-    cell("f/01", "developer", "implement", 1000),
+    role("f/01", "qa", "verify", 400),
+    role("f/01", "developer", "implement", 1000),
     resolved("f/01", 0),
   ];
   const { tickets } = buildReport(rows);
@@ -87,7 +87,7 @@ test("47/1: buildReport does not produce NaN in projected.verify when jev pick i
 
 test("47/1: buildReport excludes tickets whose key contains '|'", async () => {
   const { buildReport } = await import("./jev-report.mjs");
-  const rows = [cell("feat|bad/01", "developer", "implement", 500)];
+  const rows = [role("feat|bad/01", "developer", "implement", 500)];
   const { tickets } = buildReport(rows);
   assert.ok(
     !tickets.some((t) => t.ticket.includes("|")),
@@ -97,7 +97,7 @@ test("47/1: buildReport excludes tickets whose key contains '|'", async () => {
 
 test("47/1: buildReport excludes tickets whose key contains a control character", async () => {
   const { buildReport } = await import("./jev-report.mjs");
-  const rows = [cell("feat\x01bad/01", "developer", "implement", 500)];
+  const rows = [role("feat\x01bad/01", "developer", "implement", 500)];
   const { tickets } = buildReport(rows);
   assert.ok(
     !tickets.some((t) => /[\x00-\x1f]/.test(t.ticket)),
@@ -109,7 +109,7 @@ test("47/1: formatReport output contains no '|' from a bad ticket key", async ()
   const { buildReport, formatReport } = await import("./jev-report.mjs");
   const rows = [
     jevRow("feat|bad/01-thing", "tier", "sonnet"),
-    cell("feat|bad/01", "developer", "implement", 500),
+    role("feat|bad/01", "developer", "implement", 500),
     resolved("feat|bad/01", 0),
   ];
   const out = formatReport(buildReport(rows));
@@ -136,7 +136,7 @@ test("47/2: jev.mjs exits non-zero when --ticket names no issue file on the boar
   const res = spawnSync(
     process.execPath,
     [JEV_SCRIPT, "tier", "--ticket", "feat/99-does-not-exist"],
-    { encoding: "utf8", env: { ...process.env, ORGANISM_ROOT: dir, TYPESAFE_API_KEY: "" } },
+    { encoding: "utf8", env: { ...process.env, DEN_ROOT: dir, TYPESAFE_API_KEY: "" } },
   );
   assert.notEqual(
     res.status, 0,
@@ -150,7 +150,7 @@ test("47/2: jev.mjs appends no row when --ticket names no issue file", () => {
   spawnSync(
     process.execPath,
     [JEV_SCRIPT, "tier", "--ticket", "feat/99-does-not-exist"],
-    { encoding: "utf8", env: { ...process.env, ORGANISM_ROOT: dir, TYPESAFE_API_KEY: "" } },
+    { encoding: "utf8", env: { ...process.env, DEN_ROOT: dir, TYPESAFE_API_KEY: "" } },
   );
   const content = readFileSync(usagePath, "utf8").trim();
   assert.equal(content, "", "no row must be appended when the ticket file does not exist");
@@ -161,7 +161,7 @@ test("47/2: jev.mjs stderr includes a clear message when the ticket file is miss
   const res = spawnSync(
     process.execPath,
     [JEV_SCRIPT, "tier", "--ticket", "feat/99-does-not-exist"],
-    { encoding: "utf8", env: { ...process.env, ORGANISM_ROOT: dir, TYPESAFE_API_KEY: "" } },
+    { encoding: "utf8", env: { ...process.env, DEN_ROOT: dir, TYPESAFE_API_KEY: "" } },
   );
   assert.ok(
     res.stderr.toLowerCase().includes("ticket") || res.stderr.toLowerCase().includes("not found"),
@@ -201,8 +201,8 @@ test("Low-72: newInputs drops events whose feature contains '..' (path traversal
   const noOp = (f, t) => { calledWith.push(`${f}/${t}`); return ""; };
   const since = "2026-09-30T00:00:00Z";
   const events = [
-    { op: "comment", feature: "../../etc", ticket: "passwd", cell: "developer", ts: "2026-09-30T01:00:00Z", text: "done" },
-    { op: "comment", feature: "../sibling", ticket: "01-thing", cell: "developer", ts: "2026-09-30T01:00:00Z", text: "done" },
+    { op: "comment", feature: "../../etc", ticket: "passwd", role: "developer", ts: "2026-09-30T01:00:00Z", text: "done" },
+    { op: "comment", feature: "../sibling", ticket: "01-thing", role: "developer", ts: "2026-09-30T01:00:00Z", text: "done" },
   ];
   newInputs(events, since, noOp);
   assert.equal(
@@ -216,7 +216,7 @@ test("Low-72: newInputs drops events whose ticket slug contains '..' ", async ()
   const calledWith = [];
   const noOp = (f, t) => { calledWith.push(`${f}/${t}`); return ""; };
   const events = [
-    { op: "comment", feature: "organism-infra", ticket: "../../../etc/passwd", cell: "developer", ts: "2026-09-30T01:00:00Z", text: "ok" },
+    { op: "comment", feature: "organism-infra", ticket: "../../../etc/passwd", role: "developer", ts: "2026-09-30T01:00:00Z", text: "ok" },
   ];
   newInputs(events, "2026-09-30T00:00:00Z", noOp);
   assert.equal(

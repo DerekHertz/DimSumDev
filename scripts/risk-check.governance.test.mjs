@@ -40,7 +40,7 @@ function runCheck(dir) {
   }
 }
 
-const GOVERNANCE = "apps/bridge/cells/governance.json";
+const GOVERNANCE = "apps/bridge/agents/governance.json";
 
 test("a change to the governance file exits non-zero, names the file and calls it a guardrail", () => {
   const dir = initRepo();

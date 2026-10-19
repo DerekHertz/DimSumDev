@@ -26,7 +26,7 @@
 import { lstatSync, mkdirSync, realpathSync, rmdirSync } from "node:fs";
 import { lstat, readdir } from "node:fs/promises";
 import path from "node:path";
-import { EnforcementError } from "../cells/resource-group.mjs";
+import { EnforcementError } from "../agents/resource-group.mjs";
 
 export const UI_CONFIG = "apps/ui/vite.config.mjs";
 export const UI_OUT = "apps/ui/dist";

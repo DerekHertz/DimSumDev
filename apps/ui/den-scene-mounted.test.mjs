@@ -128,7 +128,7 @@ async function openGarden({ viewport = { width: 1440, height: 900 }, failModels 
     window.EventSource = FakeEventSource;
   }, {snap:initialSnapshot, snapshotDelayMs});
   await page.route(url => url.pathname === '/state', route => route.fulfill({ json: initialSnapshot }));
-  await page.route(url => url.pathname === '/metrics', route => route.fulfill({ json: { throughput: { windows: [] }, tokensByCell: {}, incidentsByTool: {} } }));
+  await page.route(url => url.pathname === '/metrics', route => route.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   await page.route(url => url.pathname === '/requests', route => route.fulfill({ json: [] }));
   await page.route(url => url.pathname === '/session', route => route.fulfill({ status: 404, json: {} }));
   await page.route(url => url.pathname.startsWith('/conversations/'), route => route.fulfill({ json: { entries: [], more: false } }));
@@ -308,7 +308,7 @@ const profileLive = (seq = 2, ended = false) => {
   const rows = ended ? [['work/02-maker', 'c-maker-past', 'done']] : [['work/02-maker', 'c-maker-current', 'working'], ['work/03-visitor', 'c-maker-visitor', 'working']];
   return {
     ...quietProfiles(), seq,
-    tickets: rows.map(([ref]) => ({ ref, feature: 'work', title: ref === 'work/03-visitor' ? 'Visitor-specific task' : 'Maker-specific task', type: 'task', status: 'claimed', ready: false, holder: ended ? null : { cell: 'developer', since: at }, gate: null, blockedBy: [] })),
+    tickets: rows.map(([ref]) => ({ ref, feature: 'work', title: ref === 'work/03-visitor' ? 'Visitor-specific task' : 'Maker-specific task', type: 'task', status: 'claimed', ready: false, holder: ended ? null : { role: 'developer', since: at }, gate: null, blockedBy: [] })),
     agents: rows.map(([ref, id, state]) => ({ id, ref, role: 'developer', state, runtime: 'claude', mode: 'direct', startedAt: at, lastEventAt: at, tool: { name: 'Read', summary: ref + ' tool details' }, capabilities: { send: true, stop: true, approve: true }, followUp: ended })),
     transcripts: Object.fromEntries(rows.map(([, id]) => [id, { dropped: 0, entries: [{ id: 1, kind: 'message', role: 'agent', at, text: 'Conversation for ' + id }] }])),
   };

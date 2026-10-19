@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 // organism-infra/211: append one kind:"spend" row (billed tokens) to .scratch/usage.jsonl.
-// Usage: node scripts/spend-log.mjs --transcript <file.jsonl> --role <orchestrator|cell type>
+// Usage: node scripts/spend-log.mjs --transcript <file.jsonl> --role <orchestrator|role>
 //          [--ticket <feature>/<NN-slug>] [--session <id>]
 // The row holds the delta since earlier spend rows for the same session; an all-zero delta writes
-// nothing. stdout is the four delta totals as JSON. Root is $ORGANISM_ROOT, else the main checkout.
+// nothing. stdout is the four delta totals as JSON. Root is $DEN_ROOT, else the main checkout.
 // Any rejection exits 1 and writes nothing.
 import { existsSync } from "node:fs";
 import path from "node:path";
-import { resolveRoot, resolveShortRef } from "../apps/organism-infra/board-service.mjs";
+import { resolveRoot, resolveShortRef } from "../apps/board/board-service.mjs";
 import { appendUsageRows, sessionOf, spendDelta, spendRow, transcriptTotals } from "./spend-lib.mjs";
 
 const ROLES = ["product", "architect", "orchestrator", "developer", "scout", "qa", "security", "designer"];

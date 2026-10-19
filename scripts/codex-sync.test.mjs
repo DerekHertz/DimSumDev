@@ -3,7 +3,7 @@
 // Red until scripts/codex-sync.mjs exists and its output is generated and committed.
 //
 // Interface these tests pin (see the qa handoff for the Codex doc citations behind it):
-//   export render(genomeMarkdown: string) -> string   one .codex/agents/<role>.toml
+//   export render(roleDefinitionMarkdown: string) -> string   one .codex/agents/<role>.toml
 //   export renderAgents(claudeMd: string) -> string   AGENTS.md
 //   export MODEL_MAP   { haiku, sonnet, opus } -> Codex model id
 //   export EFFORT_MAP  { low, medium, high, ... } -> model_reasoning_effort value
@@ -25,7 +25,7 @@ const ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SCRIPT = path.join(ROOT, "scripts/codex-sync.mjs");
 const mod = () => import(pathToFileURL(SCRIPT).href);
 
-const GENOMES = readdirSync(path.join(ROOT, ".claude/agents")).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3)).sort();
+const ROLE_DEFINITIONS = readdirSync(path.join(ROOT, ".claude/agents")).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3)).sort();
 const MARK = String.raw`C:\temp\keep`;
 
 // Reads the TOML shape pinned above. Not a general TOML parser.
@@ -44,19 +44,19 @@ function parseToml(text) {
 
 const SAMPLE = (over = {}) => `---
 name: ${over.name ?? "sample"}
-description: A "quoted" sample genome (with a backslash \\ in it)
+description: A "quoted" sample role definition (with a backslash \\ in it)
 tools: Read, Grep, Agent(scout, runner), Skill, mcp__github
 model: ${over.model ?? "sonnet"}
 effort: ${over.effort ?? "high"}
 color: green
 skills:
   - team-protocol
-organism:
+org:
   station: tea-pantry
   purpose: Sample.
 ---
 
-You are a **sample** cell.
+You are a **sample** agent.
 Plain line that stays exactly as written.
 Delegate big reads with Agent(scout, runner) and keep your own context small.
 Open the PR through \`mcp__github\` when it is there.
@@ -70,8 +70,8 @@ test("render carries name and description, and the body verbatim as developer_in
   const { render } = await mod();
   const t = parseToml(render(SAMPLE()));
   assert.equal(t.name, "sample");
-  assert.equal(t.description, 'A "quoted" sample genome (with a backslash \\ in it)');
-  assert.match(t.developer_instructions, /You are a \*\*sample\*\* cell\./);
+  assert.equal(t.description, 'A "quoted" sample role definition (with a backslash \\ in it)');
+  assert.match(t.developer_instructions, /You are a \*\*sample\*\* agent\./);
   assert.ok(t.developer_instructions.includes("Plain line that stays exactly as written."));
   assert.ok(t.developer_instructions.includes(MARK), "backslashes in the body must survive");
   assert.ok(!t.developer_instructions.startsWith("---"), "front matter leaked into the instructions");
@@ -80,7 +80,7 @@ test("render carries name and description, and the body verbatim as developer_in
 test("render leaves Claude front matter keys out of the TOML (Codex has no per-agent tools, color or turns)", async () => {
   const { render } = await mod();
   const t = parseToml(render(SAMPLE()));
-  for (const k of ["tools", "color", "maxTurns", "isolation", "skills", "organism"]) assert.ok(!(k in t), `${k} leaked into the TOML`);
+  for (const k of ["tools", "color", "maxTurns", "isolation", "skills", "org"]) assert.ok(!(k in t), `${k} leaked into the TOML`);
   assert.deepEqual(Object.keys(t).sort(), ["description", "developer_instructions", "model", "model_reasoning_effort", "name"]);
 });
 
@@ -145,7 +145,7 @@ const CLAUDE_MD = `# Project
 
 Single paragraph that Codex needs too.
 
-Run a cell as the main session with \`claude --agent <cell-type>\`. If a session is asked to act as a cell without that flag, read \`.claude/agents/<cell-type>.md\` first and follow it.
+Run an agent as the main session with \`claude --agent <role>\`. If a session is asked to act as an agent without that flag, read \`.claude/agents/<role>.md\` first and follow it.
 
 ## Section
 
@@ -191,7 +191,7 @@ function fixture() {
 const run = (dir, ...args) => spawnSync("node", [SCRIPT, "--root", dir, ...args], { encoding: "utf8", timeout: 60000 });
 const out = (r) => `${r.stdout}${r.stderr}`;
 
-test("write mode creates a toml per genome, every skill file (licences included), and AGENTS.md; then --check is clean", () => {
+test("write mode creates a toml per role definition, every skill file (licences included), and AGENTS.md; then --check is clean", () => {
   const { dir } = fixture();
   try {
     const w = run(dir);
@@ -209,7 +209,7 @@ test("write mode creates a toml per genome, every skill file (licences included)
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("--check fails and names the file when a genome changes without regenerating", () => {
+test("--check fails and names the file when a role definition changes without regenerating", () => {
   const { dir, w } = fixture();
   try {
     run(dir);
@@ -254,7 +254,7 @@ test("--check fails when CLAUDE.md changes (AGENTS.md is generated), and when a 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("a stale mirror (genome or skill removed) fails --check and write mode removes it", () => {
+test("a stale mirror (role definition or skill removed) fails --check and write mode removes it", () => {
   const { dir } = fixture();
   try {
     run(dir);
@@ -274,11 +274,11 @@ test("a stale mirror (genome or skill removed) fails --check and write mode remo
 
 // ---------- the real repo ----------
 
-test("every genome in .claude/agents/ has a generated .codex/agents/<role>.toml, runner and security included, and no extras", () => {
-  assert.ok(GENOMES.includes("runner") && GENOMES.includes("security"), `genomes: ${GENOMES}`);
+test("every role definition in .claude/agents/ has a generated .codex/agents/<role>.toml, runner and security included, and no extras", () => {
+  assert.ok(ROLE_DEFINITIONS.includes("runner") && ROLE_DEFINITIONS.includes("security"), `role definitions: ${ROLE_DEFINITIONS}`);
   const toml = readdirSync(path.join(ROOT, ".codex/agents")).filter((f) => f.endsWith(".toml")).map((f) => f.slice(0, -5)).sort();
-  assert.deepEqual(toml, GENOMES);
-  for (const role of GENOMES) {
+  assert.deepEqual(toml, ROLE_DEFINITIONS);
+  for (const role of ROLE_DEFINITIONS) {
     const t = parseToml(readFileSync(path.join(ROOT, `.codex/agents/${role}.toml`), "utf8"));
     assert.equal(t.name, role);
     assert.ok(t.description && t.model && t.model_reasoning_effort && t.developer_instructions.length > 100, `${role}.toml is incomplete`);

@@ -5,7 +5,7 @@
 //     queue is the object scripts/queue.mjs --json returns ({ inFlight, ready, waitingOnUser, blocked, proposed }).
 //     Pure and dependency-free (a mod runs with no Node). The result is one or two lines joined by "\n"
 //     (no ANSI needed: the mod draws it in a dim Text), each at most 120 characters:
-//       line 1  in flight: for each inFlight row, the ticket number (no leading zeros), its title and its cell.
+//       line 1  in flight: for each inFlight row, the ticket number (no leading zeros), its title and its agent.
 //       line 2  next: the ticket numbers and titles of the first 3 `proposed` rows; when `proposed` is
 //               empty, the first 3 `ready` rows instead.
 //     A queue with nothing to show, or anything that is not a queue (null, undefined, a string, an object
@@ -25,7 +25,7 @@ import { spawnSync } from "node:child_process";
 import { readFileSync, existsSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { REPO_ROOT } from "../apps/organism-infra/board-fixture.mjs";
+import { REPO_ROOT } from "../apps/board/board-fixture.mjs";
 import { boardRoot, ticket } from "./queue-fixture.mjs";
 
 const MOD = path.join(REPO_ROOT, "mods", "queue");
@@ -38,8 +38,8 @@ const lines = (s) => strip(s).split("\n").filter((l) => l.trim());
 const row = (num, title, extra = {}) => ({ ref: `alpha/${num}-slug`, title, priority: 1, ...extra });
 const queue = (over = {}) => ({ inFlight: [], ready: [], waitingOnUser: [], blocked: [], proposed: [], ...over });
 
-test("AC4 the band shows each in-flight ticket with its number, title and cell", async () => {
-  const text = strip(await renderBand(queue({ inFlight: [row("0412", "Build the queue band", { cell: "developer", mode: null })] })));
+test("AC4 the band shows each in-flight ticket with its number, title and agent", async () => {
+  const text = strip(await renderBand(queue({ inFlight: [row("0412", "Build the queue band", { role: "developer", mode: null })] })));
   assert.match(text, /\b412\b/);
   assert.ok(text.includes("Build the queue band"), text);
   assert.ok(text.includes("developer"), text);
@@ -71,7 +71,7 @@ test("AC4 with no proposed order the band falls back to the top 3 ready tickets"
 
 test("AC4 the band is at most two lines, each at most 120 characters, even with many tickets and long titles", async () => {
   const longTitle = "A very long title that keeps going ".repeat(10).trim();
-  const inFlight = [1, 2, 3, 4].map((n) => row(`80${n}`, longTitle, { cell: "developer" }));
+  const inFlight = [1, 2, 3, 4].map((n) => row(`80${n}`, longTitle, { role: "developer" }));
   const proposed = [1, 2, 3, 4, 5].map((n) => row(`81${n}`, longTitle, { rank: n }));
   const out = lines(await renderBand(queue({ inFlight, proposed, ready: proposed })));
   assert.ok(out.length >= 1 && out.length <= 2, `${out.length} lines`);
@@ -85,7 +85,7 @@ test("AC4 with nothing in flight the band shows just the next tickets", async ()
 });
 
 test("AC4 with only in-flight tickets the band shows just that line", async () => {
-  const out = lines(await renderBand(queue({ inFlight: [row("902", "Only in flight", { cell: "qa", mode: "verify" })] })));
+  const out = lines(await renderBand(queue({ inFlight: [row("902", "Only in flight", { role: "qa", mode: "verify" })] })));
   assert.equal(out.length, 1);
   assert.match(out[0], /\b902\b/);
 });
@@ -104,7 +104,7 @@ test("AC4 the band's data comes from scripts/queue.mjs: its CLI JSON feeds rende
   const root = boardRoot();
   ticket(root, "alpha/951-shipping", { status: "claimed", title: "Shipping now", lock: "developer 2026-10-09T02:00:00.000Z" });
   ticket(root, "alpha/952-next-up", { title: "Next up soon", priority: "P1" });
-  const r = spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts", "queue.mjs"), "--json"], { env: { ...process.env, ORGANISM_ROOT: root }, cwd: tmpdir(), encoding: "utf8", timeout: 20000 });
+  const r = spawnSync(process.execPath, [path.join(REPO_ROOT, "scripts", "queue.mjs"), "--json"], { env: { ...process.env, DEN_ROOT: root }, cwd: tmpdir(), encoding: "utf8", timeout: 20000 });
   assert.equal(r.status, 0, r.stderr);
   const text = strip(await renderBand(JSON.parse(r.stdout)));
   assert.match(text, /\b951\b/);

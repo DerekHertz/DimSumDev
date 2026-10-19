@@ -11,8 +11,8 @@ import { copyFile, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { resolveRoot } from "../../organism-infra/board-service.mjs";
-import { createResourceLauncher, findUserBus } from "../cells/resource-group.mjs";
+import { resolveRoot } from "../../board/board-service.mjs";
+import { createResourceLauncher, findUserBus } from "../agents/resource-group.mjs";
 import { createBuildBox, findBwrap } from "../build/box.mjs";
 import { clearUpdateFailure, createReleases, currentRelease, isOlder, readUpdateFailure } from "../build/releases.mjs";
 import { ensureServiceToken } from "../../router/service-token.mjs";
@@ -147,7 +147,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
   }
 
   // The files this script runs from the checkout while it builds a release of main (its imports, and the build box).
-  const OWN_CODE = ["apps/bridge/service", "apps/bridge/build", "apps/bridge/cells/resource-group.mjs", "apps/organism-infra/board-service.mjs", "apps/router", "scripts/batch-groups.mjs", ...USAGE_FILES];
+  const OWN_CODE = ["apps/bridge/service", "apps/bridge/build", "apps/bridge/agents/resource-group.mjs", "apps/board/board-service.mjs", "apps/board/legacy-terms.mjs", "apps/router", "scripts/batch-groups.mjs", ...USAGE_FILES];
   // Fetch main, then the packages and the release for its tip. `state.sha` is what the later steps use.
   // `target` is undefined (the newest v* tag), "--main" (the tip of main) or a tag name. Sets state.tag for a tag.
   const TAG = /^v\d+\.\d+\.\d+$/;

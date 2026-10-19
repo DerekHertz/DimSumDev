@@ -23,7 +23,7 @@ const subagents = (_m, args) => {
   const names = args.split(",").map((s) => s.trim()).filter(Boolean);
   return names.length ? `the ${list(names)} subagent${names.length > 1 ? "s" : ""}` : "the subagents";
 };
-// The Claude-only line rules, applied to genome bodies and to CLAUDE.md. First match wins per text span, in order.
+// The Claude-only line rules, applied to role definition bodies and to CLAUDE.md. First match wins per text span, in order.
 export const RULES = [
   { name: "agent-call", pattern: /\bAgent\(([^)]*)\)/g, action: "rewrite", to: subagents,
     why: "Codex has no Agent(...) tool list; delegation is natural language naming the subagent" },
@@ -35,13 +35,13 @@ export const RULES = [
 ];
 const applyRules = (text) => RULES.reduce((t, r) => t.replace(r.pattern, r.to), text);
 
-export function render(genome) {
-  const m = genome.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
-  if (!m) throw new Error("genome has no front matter");
+export function render(roleDefinition) {
+  const m = roleDefinition.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!m) throw new Error("role definition has no front matter");
   const fm = {};
   for (const line of m[1].split(/\r?\n/)) {
     const kv = line.match(/^([A-Za-z_]+):\s*(.*)$/);
-    if (!kv) continue; // nested keys (organism:, skills:) are Claude-only and dropped
+    if (!kv) continue; // nested keys (org:, skills:) are Claude-only and dropped
     if (/^[|>]/.test(kv[2])) throw new Error(`front matter key ${kv[1]} is a multi-line scalar; codex-sync cannot read it`);
     fm[kv[1]] = kv[2].trim();
   }

@@ -11,7 +11,7 @@ import bpy, math
 from mathutils import Vector
 
 D = r"D:/claude_sessions/agent_office/design/3d/"
-for f in ("panda_build.py", "cell_types.py", "toon.py", "level1_set.py", "dormant.py", "plush.py", "cell_types_plush.py"):
+for f in ("panda_build.py", "role_types.py", "toon.py", "level1_set.py", "dormant.py", "plush.py", "role_types_plush.py"):
     exec(open(D + f, encoding="utf-8").read())
 
 BAO_S = 11.0

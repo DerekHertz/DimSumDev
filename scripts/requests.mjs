@@ -1,11 +1,11 @@
 // Orchestrator-facing Gate requests (ADR 0011 decision 6).
 //   node scripts/requests.mjs --list
 //   node scripts/requests.mjs --handle <id> --outcome <text>
-// Root comes from ORGANISM_ROOT (fallback cwd). Nothing executes; --handle appends one line.
+// Root comes from DEN_ROOT (fallback cwd). Nothing executes; --handle appends one line.
 import { readRequestRows, foldRequests, appendRequestLine } from "../apps/bridge/requests-log.mjs";
 
 const args = process.argv.slice(2);
-const root = process.env.ORGANISM_ROOT || process.cwd();
+const root = process.env.DEN_ROOT || process.env.ORGANISM_ROOT || process.cwd();
 const value = (flag) => {
   const i = args.indexOf(flag);
   return i >= 0 ? args[i + 1] : undefined;

@@ -4,7 +4,7 @@
 // record is what the bridge acts on (which options a brief has, what was decided, who is still to be asked).
 import { appendFile, chmod, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { AGENT_ID_RE, REF_RE } from "../cells/policy.mjs";
+import { AGENT_ID_RE, REF_RE } from "../agents/policy.mjs";
 import { MEETING_DIR_RE } from "./store.mjs";
 import { CHAIR, MEETING_STATES, SEATS_MAX, SEAT_STATES, SPECIALISTS, TOPIC_MAX_BYTES } from "./types.mjs";
 

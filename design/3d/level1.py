@@ -1,6 +1,6 @@
 """Level 1 hero frame: giant Bao on its back in the bamboo grove, organs as workstations.
 
-Run inside Blender after panda_build.py, cell_types.py and toon.py:
+Run inside Blender after panda_build.py, role_types.py and toon.py:
     exec(open(r"D:/claude_sessions/agent_office/design/3d/level1.py").read())
     build_bao_lying()
 

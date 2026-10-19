@@ -7,7 +7,7 @@ import { existsSync, mkdirSync, mkdtempSync, readdirSync, rmSync, symlinkSync, w
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { CHECKS_SLICE, EnforcementError, GUARD_SLICE, LIMITS, guardLimits } from "../apps/bridge/cells/resource-group.mjs";
+import { CHECKS_SLICE, EnforcementError, GUARD_SLICE, LIMITS, guardLimits } from "../apps/bridge/agents/resource-group.mjs";
 import { guardLauncher, staticGuard, stripComments, testGuard } from "./test-guard.mjs";
 
 const SCRIPT = fileURLToPath(new URL("./test-guard.mjs", import.meta.url));

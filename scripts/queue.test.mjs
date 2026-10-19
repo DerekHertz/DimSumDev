@@ -1,20 +1,20 @@
 // organism-infra/212: scripts/queue.mjs, the board's queue as buckets and as a text kanban.
 //
-// Seam pinned by qa: the CLI. `node scripts/queue.mjs [--json]` with ORGANISM_ROOT as the board root
+// Seam pinned by qa: the CLI. `node scripts/queue.mjs [--json]` with DEN_ROOT as the board root
 // (run from an unrelated cwd, so the env var is what picks the board). Exit 0, even on a bare or odd board.
 //   --json prints one object { inFlight, ready, waitingOnUser, blocked, proposed }, each an array of rows.
 //   Row fields (pinned):
 //     every row   ref ("feature/NN-slug"), title (heading text after "NN: ", at most 60 chars; longer
 //                 ones are cut and end in "…"), priority (number: "P1" -> 1; a ticket with no Priority
 //                 line counts as 2)
-//     inFlight    cell (first token of the lock; null when there is no lock), mode (third token of the
+//     inFlight    agent (first token of the lock; null when there is no lock), mode (third token of the
 //                 lock when it is specify/verify, else null). A ticket is in flight when it has a lock
 //                 file or its status is claimed or in-review, so a qa-specify lock on a
 //                 ready-for-agent ticket is in flight and not ready.
 //     blocked     blockedBy: array of the unresolved blocker refs (full refs). Status `blocked` with no
 //                 unresolved blocker listed gives [].
 //     ready       rank: the 1-based position in the ready list. The ready list is in the Queue's order
-//                 (queue/06: buildQueue from apps/organism-infra/frontier-queue.mjs: P0-with-reason tier,
+//                 (queue/06: buildQueue from apps/board/frontier-queue.mjs: P0-with-reason tier,
 //                 then the active feature, then the rest; inside a tier unblock count, then P, then number).
 //                 Locked tickets are in flight, so they take no rank and do not count in it.
 //     proposed    [{ ref, title, rank }]: the ready tickets in that same order, with the same ranks.
@@ -38,12 +38,12 @@ import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { REPO_ROOT } from "../apps/organism-infra/board-fixture.mjs";
+import { REPO_ROOT } from "../apps/board/board-fixture.mjs";
 import { boardRoot, ticket, usage } from "./queue-fixture.mjs";
 
 const SCRIPT = path.join(REPO_ROOT, "scripts", "queue.mjs");
 const run = (root, ...args) =>
-  spawnSync(process.execPath, [SCRIPT, ...args], { env: { ...process.env, ORGANISM_ROOT: root }, cwd: tmpdir(), encoding: "utf8", timeout: 20000 });
+  spawnSync(process.execPath, [SCRIPT, ...args], { env: { ...process.env, DEN_ROOT: root }, cwd: tmpdir(), encoding: "utf8", timeout: 20000 });
 const readJson = (root) => {
   const r = run(root, "--json");
   assert.equal(r.status, 0, r.stderr);
@@ -130,15 +130,15 @@ test("Q6 a P0 with a P0-reason leads even outside the active feature; a bare P0 
   ]);
 });
 
-test("AC1 in flight holds locked and claimed or in-review tickets, with the holding cell and mode", () => {
+test("AC1 in flight holds locked and claimed or in-review tickets, with the holding agent and mode", () => {
   const q = readJson(mixedBoard());
   const byRef = Object.fromEntries(q.inFlight.map((r) => [r.ref, r]));
   assert.deepEqual(refs(q.inFlight).sort(), ["alpha/305-specifying", "alpha/306-building", "alpha/307-reviewing"]);
-  assert.equal(byRef["alpha/305-specifying"].cell, "qa");
+  assert.equal(byRef["alpha/305-specifying"].role, "qa");
   assert.equal(byRef["alpha/305-specifying"].mode, "specify");
-  assert.equal(byRef["alpha/306-building"].cell, "developer");
+  assert.equal(byRef["alpha/306-building"].role, "developer");
   assert.equal(byRef["alpha/306-building"].mode ?? null, null);
-  assert.equal(byRef["alpha/307-reviewing"].cell ?? null, null, "no lock means no holding cell");
+  assert.equal(byRef["alpha/307-reviewing"].role ?? null, null, "no lock means no holding agent");
 });
 
 test("AC1 waiting on user holds ready-for-human tickets", () => {

@@ -13,8 +13,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { makeBridge, until, FEATURE } from "../cells/host-test-helpers.mjs";
-import { claim } from "../../organism-infra/board-service.mjs";
+import { makeBridge, until, FEATURE } from "../agents/host-test-helpers.mjs";
+import { claim } from "../../board/board-service.mjs";
 
 const REF = `${FEATURE}/08-plain`;
 const git = (dir, ...args) =>
@@ -141,7 +141,7 @@ describe("one approved job, from the den to a merged pull request", () => {
     const dev = await t.spawn(0);
     assert.equal(dev.args.role, "developer");
     assert.equal(git(dev.args.cwd, "rev-parse", "HEAD"), base, "the developer starts at the main branch's commit");
-    assert.match(dev.args.prompt, /You are the developer cell for ticket fx\/08-plain/);
+    assert.match(dev.args.prompt, /You are the developer agent for ticket fx\/08-plain/);
     assert.match(dev.args.prompt, /Run no board command, and do not push/);
     await until(() => t.lock() === "developer" && t.status() === "claimed", { what: "the bridge's claim for the developer" });
 
@@ -156,7 +156,7 @@ describe("one approved job, from the den to a merged pull request", () => {
     assert.ok(worktrees(t.root).includes(dev.args.cwd), "the developer's worktree survives while the delivery is open");
     assert.ok(worktrees(t.root).includes(qa.args.cwd));
     const devHandoff = t.handoffs().find((n) => n.startsWith("08-developer-"));
-    assert.match(readFileSync(path.join(t.root, ".scratch", FEATURE, "handoffs", devHandoff), "utf8"), /"cell": "developer"[\s\S]*Added feature\.txt\. The tests pass\./);
+    assert.match(readFileSync(path.join(t.root, ".scratch", FEATURE, "handoffs", devHandoff), "utf8"), /"role": "developer"[\s\S]*Added feature\.txt\. The tests pass\./);
 
     t.work(qa, { say: "I ran the tests.\nVERDICT: pass" });
     const done = await t.when((j) => j.state === "merged", "the delivery to merge");
@@ -219,7 +219,7 @@ describe("one approved job, from the den to a merged pull request", () => {
 
   test("Bao's desk is never retired by the host", async () => {
     const t = await setup();
-    const { DESK_REF } = await import("../cells/policy.mjs");
+    const { DESK_REF } = await import("../agents/policy.mjs");
     assert.deepEqual(await t.bridge.host.retire({ ref: DESK_REF, agentId: "p0-0123456789abcdef", merged: true }), { removed: false, saved: null });
   });
 
@@ -241,7 +241,7 @@ describe("one approved job, from the den to a merged pull request", () => {
   test("a change to the bridge or a guardrail is reviewed by security, opened as a pull request, and left for the user to merge", async () => {
     const t = await setup();
     await t.start();
-    t.git.files = ["apps/bridge/cells/host.mjs"];
+    t.git.files = ["apps/bridge/agents/host.mjs"];
     await t.toQaPass();
     t.work(await t.spawn(2), { say: "VERDICT: pass" });
     const waiting = await t.paused("guardrail");

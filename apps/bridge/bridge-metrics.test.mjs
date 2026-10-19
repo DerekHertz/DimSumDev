@@ -27,7 +27,7 @@ test("GET /metrics is 200 JSON, exactly what metrics.mjs --json prints for the s
     assert.match(res.headers.get("content-type"), /application\/json/);
     assert.equal(res.headers.get("cache-control"), "no-store");
     const body = await res.json();
-    const cli = JSON.parse(execFileSync(process.execPath, [METRICS_CLI, "--json"], { env: { ...process.env, ORGANISM_ROOT: fx.root }, encoding: "utf8" }));
+    const cli = JSON.parse(execFileSync(process.execPath, [METRICS_CLI, "--json"], { env: { ...process.env, DEN_ROOT: fx.root }, encoding: "utf8" }));
     assert.deepEqual(body, cli);
     assert.equal(body.schema, 1);
     assert.equal(body.usage.sampledAt, "2026-09-29T05:00:00.000Z"); // latest usage row by ts

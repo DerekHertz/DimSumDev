@@ -1,13 +1,13 @@
 // organism-infra/53: acceptance tests for the organ -> station rename (and Brain gate -> Pass gate).
 // See .scratch/organism-infra/issues/53-organ-to-station-rename.md.
 //
-// Seams: the repo's text surface (genomes, skills, docs/agents, CLAUDE.md, apps/, scripts/) and the
-// genome frontmatter under .claude/agents/. No code in apps/ parses `organism.organ:` today
-// (schemas.mjs has no genome schema), so "the schema accepts station:" is tested as: every genome
+// Seams: the repo's text surface (role definitions, skills, docs/agents, CLAUDE.md, apps/, scripts/) and the
+// role definition frontmatter under .claude/agents/. No code in apps/ parses `organism.organ:` today
+// (schemas.mjs has no role definition schema), so "the schema accepts station:" is tested as: every role definition
 // carries a valid `station:` value and no `organ:` key.
 //
 // Not testable automatically (human-verified): that the prose reads well after the rename.
-// Fixtures under apps/organism-infra/fixtures/ are frozen historical ticket copies and are skipped.
+// Fixtures under apps/board/fixtures/ are frozen historical ticket copies and are skipped.
 
 import { test } from "node:test";
 import assert from "node:assert/strict";
@@ -69,7 +69,7 @@ test("no bare word 'organ'/'organs' remains in scope except 'was: organ' notes (
   assert.deepEqual(hits(/\borgans?\b/i, { allowNotes: true }), []);
 });
 
-test("every role definition declares org.team with its team value (criterion 2; ADR 0028 renamed organism.station)", () => {
+test("every role definition declares org.team with its team value (criterion 2; ADR 0028 renamed org.station)", () => {
   for (const [name, station] of Object.entries(STATION_OF)) {
     const fm = frontmatter(name);
     assert.match(fm, new RegExp(`^\\s+team:\\s*${station}\\s*$`, "m"), `${name}.md team: ${station}`);
@@ -82,8 +82,8 @@ test("no role definition frontmatter keeps an 'organ:' key (criterion 2)", () =>
   }
 });
 
-test("agent prose uses team names, not Brain/Muscles/Immune/Skin cell (criterion 1)", () => {
-  assert.deepEqual(hits(/\b(Brain|Muscles|Immune|Skin) (cell|organ)\b|\((Brain|Muscles|Immune|Skin)\)/), []);
+test("agent prose uses team names, not Brain/Muscles/Immune/Skin agent (criterion 1)", () => {
+  assert.deepEqual(hits(/\b(Brain|Muscles|Immune|Skin) (role|organ)\b|\((Brain|Muscles|Immune|Skin)\)/), []);
   const qa = fs.readFileSync(path.join(ROOT, ".claude", "agents", "qa.md"), "utf8");
   assert.match(qa, /\*\*qa\*\* agent of the Tea (&|and) Pantry team/i);
   const orch = fs.readFileSync(path.join(ROOT, ".claude", "agents", "orchestrator.md"), "utf8");

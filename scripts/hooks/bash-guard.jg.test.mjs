@@ -70,7 +70,7 @@ test("bash-guard allows `node scripts/jg.mjs` (the approved wrapper)", () => {
 });
 
 test("bash-guard allows `node scripts/jg.mjs` with a subdirectory root", () => {
-  const r = run('node scripts/jg.mjs "find the relay" apps/organism-infra');
+  const r = run('node scripts/jg.mjs "find the relay" apps/board');
   assert.equal(r.status, 0, `expected exit 0 (allow); got ${r.status}. stdout: ${r.stdout}`);
 });
 
