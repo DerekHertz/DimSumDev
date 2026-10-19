@@ -269,6 +269,12 @@ Rules, so the callers agree:
 
 **What this changes in earlier text.** Decision 19's `.scratch/` exclude and its `board.mjs` path do not apply to a target (Amendment 4 replaced 19; rules 6 and 7 close the leftovers). Decision 20's start check now runs at registration, activation and run start.
 
+## Amendment 6 (decided by the user 2026-10-18, question tool, in the kernel review): any way out brings the read limit, and the whole den has one bound
+
+**Read limit.** A remote connection reaches the network outside the wall (ADR 0025), so it now brings the read limit as a host does. Before, a run with a connection and no host could read all of home but the credential stores. The limit closes `~/` to the shell and reopens the worktree, the project's `node_modules` and main `.git`, the Node install, `~/.gitconfig` and the Playwright browsers; a reopened path that reaches a credential store refuses the run. The user chose this over a wider denylist and over taking connections from the roles that write. Live Haiku probe (developer, `--settings` from `compileCeiling`, detached worktree): node, npm, a test file, a detached commit and the browsers worked; `~/.bashrc`, `~/context` and `~/.ssh` were hidden. Reopening the project root itself left the worktree read-only, so the root is never reopened.
+
+**The den's bound.** `den.slice` (written by `den:install`) caps the bridge and every group it starts at 75% of RAM: the groups' own limits add up to 12 GiB, more than the 7 GiB machine. Runs raise their OOM score to 500 at the start gate, so a kill in the slice takes a run before the bridge (100). `den.service` gains `NoNewPrivileges`, `RestrictSUIDSGID` and `LockPersonality`, which the agents inherit; nested scopes and bwrap still start under them.
+
 ## Consequences
 
 - den-v1/14 (allowlist, then auto mode) is replaced by the wall spike. Auto mode is not adopted: inside the wall no decision is needed, and crossing it reaches the user, not a classifier.
