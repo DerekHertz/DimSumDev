@@ -54,6 +54,16 @@ export function createLauncher({ stateDir, repo, node = process.execPath, port =
       throw err;
     }
   }
+  // den-mvp/86: the UI served is the running bridge release's. When ui/current names the release that failed, it goes back to the
+  // release the bridge now runs (ui/previous stays); a ui/current that names another release (a UI-only go-live) is left alone.
+  async function moveUiBack(failed, to) {
+    try {
+      if (LINK_RE.exec(await readlink(path.join(stateDir, "ui", "current")))?.[1] !== failed.id) return;
+      const tmp = path.join(stateDir, "ui", `.new-current-${process.pid}-${randomBytes(4).toString("hex")}`);
+      await symlink(`../releases/${to.id}`, tmp);
+      await rename(tmp, path.join(stateDir, "ui", "current")).catch((err) => rm(tmp, { force: true }).then(() => Promise.reject(err)));
+    } catch {}
+  }
   const record = (rel, reason) => replace("failed.json", (tmp) => writeFile(tmp, `${JSON.stringify({ sha: rel.sha, ...(rel.tag ? { tag: rel.tag } : {}), reason, at: new Date().toISOString() })}\n`));
 
   // Whether `sha` is a strict git ancestor of `than`: true, false, or "unknown" when git cannot tell. Unknown is refused,
@@ -112,6 +122,7 @@ export function createLauncher({ stateDir, repo, node = process.execPath, port =
     if (!prev || prev.sha === cur.sha) throw new Error(`the bridge release ${cur.id} was not started (${why}) and there is no previous release`);
     // bridge/current names the previous release again, so a crash restart cannot start the bad one; previous stays.
     await replace("current", (tmp) => symlink(`../releases/${prev.id}`, tmp));
+    await moveUiBack(cur, prev);
     const back = await start(prev);
     if (!back.ok) throw new Error(`the bridge release ${cur.id} was not started (${why}), and the previous one ${prev.id} failed too: ${back.reason}`);
     return { sha: prev.sha, ...(prev.tag ? { tag: prev.tag } : {}), child: back.child, rolledBack: true };
