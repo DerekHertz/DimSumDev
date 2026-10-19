@@ -34,6 +34,7 @@ import { parseCatalog } from "../library/catalog.mjs";
 import { createLibrary } from "../library/library.mjs";
 import { grantRefusal } from "./grant-policy.mjs";
 import { capacity as capacityOf } from "./capacity.mjs";
+import { runtimeId, runtimeRegistry, validProject, validRuntimeSession } from "./identity.mjs";
 import { createSessions } from "./sessions.mjs";
 import { createConversations } from "./conversations.mjs";
 import { createApprovalStore, cleanText } from "./approvals.mjs";
@@ -98,14 +99,19 @@ const NO_CONNECTIONS = parseCatalog({ connections: [] });
 
 // den-mvp outcome 4: `library` is the catalog of connections and its record (library/library.mjs). Without one, an agent is
 // started with no connection and every connection tool is refused.
-export function createHost({ root, projects: projectsOption, runtime, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }) }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }) }) {
+  const adapters = runtimeRegistry(runtime, runtimes);
+  const adapterOf = (a) => adapters[a.runtimeId];
+  const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
   const maxConcurrent = Math.min(policy.maxConcurrent ?? MAX_CONCURRENT_AGENTS, SESSION_CAP);
   const sessionCap = Math.min(policy.sessionCap ?? SESSION_CAP, SESSION_CAP);
   const graceMs = policy.killGraceMs ?? KILL_GRACE_MS;
   const spawnWaitMs = Math.min(policy.spawnWaitMs ?? SHUTDOWN_SPAWN_WAIT_MS, SHUTDOWN_SPAWN_WAIT_MS);
   const messageSettleMs = Math.min(policy.messageSettleMs ?? MESSAGE_SETTLE_MS, MESSAGE_SETTLE_MS);
   const sessions = createSessions(root);
-  const conversations = createConversations(root);
+  // Legacy conversation attribution outlives the bounded snapshot history.
+  const projectByRun = new Map();
+  const conversations = createConversations(root, { projectForRun: (id) => projectByRun.get(id) ?? "den" });
   const workspaces = createWorkspaces(root);
   // den-mvp/49: the roots a run can be made under. Without a registry (a host test, `createHost({ root })`) the den is the only one.
   const controlHandle = { slug: "den", root, control: root, workspaces };
@@ -114,14 +120,14 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
   const isControl = (a) => a.role === "orchestrator" || a.ref === DESK_REF || Boolean(a.meeting);
   const workspacesOf = async (slug) => (slug === undefined || slug === "den" ? workspaces : (await projects.get(slug))?.workspaces ?? null);
   const agents = new Map(); // id -> record; insertion order is snapshot order
-  const liveByRef = new Map(); // ref -> record, for every reserved or running agent
+  const liveByRef = new Map(); // project/ref -> record, for every reserved or running agent
   const pending = new Set(); // spawns in flight
   const transcripts = new Map(); // agentId -> { entries, dropped, next }, for the newest TRANSCRIPT_AGENTS agents
   let shuttingDown = false;
   let shutdownPromise = null;
 
   const view = (a) => ({
-    id: a.id, ref: a.ref, role: a.role, mode: a.mode, runtime: a.runtimeId, sessionId: a.sessionId, state: a.state,
+    id: a.id, ref: a.ref, role: a.role, mode: a.mode, runtime: a.runtimeId, sessionId: a.sessionId, runtimeSessionId: a.runtimeSessionId ?? null, state: a.state,
     startedAt: a.startedAt, lastEventAt: a.lastEventAt, tool: a.tool, tokens: a.tokens, capabilities: a.capabilities,
     resume: a.resume, reason: a.reason, project: a.project ?? "den", worktree: a.worktree ?? null, branch: a.branch ?? null,
     model: a.model ?? null, usage: a.usage ?? null, costUsd: a.costUsd ?? null, reply: a.reply ?? null, durationMs: a.durationMs ?? null,
@@ -198,7 +204,7 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
   const runTokens = new Map();
   const tokenHash = (t) => createHash("sha256").update(t).digest("hex");
   const ALLOWED_CALLS_MAX = 20;
-  const canContinue = (a) => runtime?.capabilities?.resume === true && typeof a.sessionId === "string" && UUID_RE.test(a.sessionId) && typeof a.worktree === "string";
+  const canContinue = (a) => adapterOf(a)?.capabilities?.resume === true && validRuntimeSession(a.runtimeSessionId) && typeof a.sessionId === "string" && UUID_RE.test(a.sessionId) && typeof a.worktree === "string";
   const publish = (a) => onChange({ type: "agent", agent: view(a) });
   // Held permission requests (organism-infra/141). The store knows no process; these callbacks are its only way out.
   const approvals = createApprovalStore({
@@ -227,7 +233,7 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
   // den-mvp outcome 2: each entry, and each change to one, is also appended to the role's durable conversation, tagged
   // with this run and its ticket. A failed write is logged; the conversation is a record to read, not an authority.
   const keep = (agent, fields) =>
-    conversations.append(agent.role, { runId: agent.id, ref: agent.ref, ...fields }).catch((err) => console.error(`bridge: could not write the ${agent.role} conversation: ${err?.message ?? err}`));
+    conversations.append(agent.role, { runId: agent.id, ref: agent.ref, ...fields }, { runtime: agent.runtimeId, project: agent.project }).catch((err) => console.error(`bridge: could not write the ${agent.role} conversation: ${err?.message ?? err}`));
   function record(agent, entry) {
     let buffer = transcripts.get(agent.id);
     if (!buffer) {
@@ -290,15 +296,17 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     agent.lastEventAt = new Date().toISOString();
     publish(agent);
   }
-  const resumeFor = (sessionId) => (runtime ? runtime.resumeCommand(sessionId) : null);
+  const resumeFor = (a) => validRuntimeSession(a.runtimeSessionId) && typeof adapterOf(a)?.resumeCommand === "function" ? adapterOf(a).resumeCommand(a.runtimeSessionId) : null;
 
   async function replay() {
     for (const h of await sessions.replay()) {
+      projectByRun.set(h.agentId, h.project);
+      const runtime = adapters[h.runtime];
       agents.set(h.agentId, {
-        id: h.agentId, ref: h.ref, role: h.role, mode: null, runtimeId: runtime?.id ?? null, sessionId: h.sessionId,
+        id: h.agentId, ref: h.ref, role: h.role, mode: null, runtimeId: h.runtime, sessionId: h.sessionId, runtimeSessionId: h.runtimeSessionId, resourceId: h.resourceId,
         state: h.state, startedAt: h.startedAt, lastEventAt: h.endedAt ?? h.startedAt, tool: null, tokens: null,
         capabilities: { stop: false, approve: false, send: false, handover: runtime?.capabilities?.handover === true },
-        resume: resumeFor(h.sessionId), reason: h.reason, worktree: h.worktree, branch: h.branch, proc: null,
+        resume: resumeFor({ runtimeId: h.runtime, runtimeSessionId: h.runtimeSessionId }), reason: h.reason, worktree: h.worktree, branch: h.branch, proc: null,
         ...(h.origin ? { origin: h.origin, resumeOf: h.resumeOf } : {}), ...(h.project ? { project: h.project } : {}),
         model: h.model, usage: h.usage, costUsd: h.costUsd, durationMs: h.durationMs,
       });
@@ -310,7 +318,7 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
   function trimHistory() {
     for (const [id, a] of agents) {
       if (agents.size <= HISTORY_CAP) return;
-      if (!liveByRef.has(a.ref) || liveByRef.get(a.ref) !== a) agents.delete(id);
+      if (!liveByRef.has(refKey(a)) || liveByRef.get(refKey(a)) !== a) agents.delete(id);
     }
   }
 
@@ -326,12 +334,12 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
 
   // The refusals that depend on no ticket. admit() applies them in this order; direct() asks them all before a
   // ticket is written.
-  const down = () => (!runtime ? refuse(503, "no runtime is configured") : shuttingDown ? refuse(503, "the bridge is shutting down") : null);
+  const down = (runtime) => (!runtime ? refuse(503, "no runtime is configured") : shuttingDown ? refuse(503, "the bridge is shutting down") : null);
   // den-mvp outcome 1: a host that cannot enforce the hardware limits starts no agent, and the refusal says what is missing.
   // Asked before a worktree or a ticket is made; the runtime checks again on its own launch path.
   const RESOURCE_LIMITS = ["memory", "processes", "storage"];
   const refused = (reason) => refuse(503, `the run was refused: ${clean(reason, 300) ?? "the hardware limits cannot be enforced"}`);
-  const unenforced = async () => {
+  const unenforced = async (runtime) => {
     if (typeof runtime?.preflight !== "function") return null;
     try {
       const check = await runtime.preflight();
@@ -348,15 +356,16 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
   // den-mvp outcome 1: that rule counts the worker slots. Bao and a scout each have a reserved slot of their own: their
   // agents (and the locks those agents hold) are not worker load, and no worker may take their slot.
   const liveIn = (cls) => [...liveByRef.values()].filter((a) => slotClassOf(a.role) === cls);
-  const capacityNow = (locked) => {
-    const reservedRefs = new Set([...liveByRef.values()].filter((a) => slotClassOf(a.role) !== "worker").map((a) => a.ref));
-    const c = capacityOf({ liveRefs: liveIn("worker").map((a) => a.ref), lockedRefs: (locked ?? []).filter((ref) => !reservedRefs.has(ref)), max: maxConcurrent, cap: sessionCap });
+  const capacityNow = (locked, project = "den") => {
+    const reservedRefs = new Set([...liveByRef.values()].filter((a) => slotClassOf(a.role) !== "worker").map(refKey));
+    const c = capacityOf({ liveRefs: liveIn("worker").map(refKey), lockedRefs: (locked ?? []).map((ref) => refKey({ ref, project })).filter((key) => !reservedRefs.has(key)), max: maxConcurrent, cap: sessionCap });
     const reserved = Object.fromEntries(Object.keys(SLOTS).filter((cls) => cls !== "worker").map((cls) => [cls, { max: SLOTS[cls], refs: liveIn(cls).map((a) => a.ref) }]));
-    return { ...c, reserved };
+    const refs = c.refs.map(({ ref: key, kind }) => ({ ref: key.slice(key.indexOf("/") + 1), project: key.slice(0, key.indexOf("/")), kind }));
+    return { ...c, refs, reserved };
   };
-  const readLocked = async () => {
+  const readLocked = async (project) => {
     try {
-      const refs = await lockedRefs();
+      const refs = await lockedRefs({ project });
       return Array.isArray(refs) ? refs : [];
     } catch (err) {
       console.error(`bridge: could not read the claim locks: ${err?.message ?? err}`);
@@ -364,8 +373,8 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     }
   };
   const unreadable = () => refuse(503, "could not read the board's claim locks");
-  const full = (locked, role) => {
-    const c = capacityNow(locked);
+  const full = (locked, role, project) => {
+    const c = capacityNow(locked, project);
     const cls = slotClassOf(role);
     if (cls !== "worker") return c.reserved[cls].refs.length < c.reserved[cls].max ? null : refuse(429, `the ${cls} slot is in use: ${c.reserved[cls].refs.join(", ")}`);
     if (c.room > 0) return null;
@@ -373,11 +382,30 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     return refuse(429, `the ${c.cap}-session cap is reached`);
   };
 
+  async function select(input, { execute = true } = {}) {
+    const selectedRuntime = runtimeId(input?.runtime);
+    if (!selectedRuntime) return refuse(400, "unknown runtime");
+    const control = input.role === "orchestrator" || input.ref === DESK_REF || Boolean(input.meeting);
+    if (input.project !== undefined && !validProject(input.project)) return refuse(400, "invalid project");
+    const active = await projects.active();
+    const project = input.project ?? (control ? "den" : active);
+    if (!validProject(project)) return refuse(409, "the active project is not ready");
+    if (control && project !== "den") return refuse(409, "this run belongs to the den project");
+    const handle = await projects.get(project).catch(() => null);
+    if (!handle) return refuse(409, "the project is not onboarded");
+    if (execute && !control && project !== active) return refuse(409, "the project is not active");
+    if (execute && input.delivery && project !== "den") return refuse(409, "Deliver runs on the den project only, for now");
+    return { runtime: selectedRuntime, project };
+  }
+
   // entry: "dispatch" | "start" | "direct" (the three entries in the header).
-  async function admit(input, { entry }) {
+  async function admit(input, { entry, selected: captured }) {
     const bad = checkShape(input);
     if (bad) return bad;
     const { ref, role } = input;
+    const selected = captured ?? await select(input);
+    if (selected.ok === false) return selected;
+    const runtime = adapters[selected.runtime];
     const mode = entry === "direct" ? DIRECT_MODE : input.mode ?? null;
     // A delivery step is the internal entry's alone: no route reads these fields.
     let step = null;
@@ -393,33 +421,34 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
       if (step || !MEETING_PARTS.includes(part) || typeof file !== "string" || file.length > MEETING_FILE_MAX) return refuse(400, "a meeting run needs its part and its note");
       meeting = { part, file };
     }
-    const notUp = down();
+    const notUp = down(runtime);
     if (notUp) return notUp;
     if (entry === "dispatch") {
-      const gate = await checkGate(ref);
+      const gate = await checkGate(ref, selected);
       if (gate === "unknown") return refuse(404, "no such ticket");
       if (gate !== "ok") return refuse(409, "the ticket is not in the frontier");
     }
-    const usage = await readUsage();
+    const usage = await readUsage(selected.runtime);
     const over = overUsage(usage);
     if (over) return over;
-    const noLimits = await unenforced();
+    const noLimits = await unenforced(runtime);
     if (noLimits) return noLimits;
-    const locked = await readLocked();
+    const locked = await readLocked(selected.project);
     if (locked === null) return unreadable();
 
     // From here to the registration of the reservation there is no await: this is the one synchronous step.
     if (shuttingDown) return refuse(503, "the bridge is shutting down");
-    if (liveByRef.has(ref)) return refuse(409, "this ticket already has a live agent");
-    const noRoom = full(locked, role);
+    if (liveByRef.has(refKey({ ...selected, ref }))) return refuse(409, "this ticket already has a live agent");
+    const noRoom = full(locked, role, selected.project);
     if (noRoom) return noRoom;
-    const agent = newAgent({ ref, role, mode, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}) });
+    const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}) });
     return launch(agent, ENTRY_ROUTES[entry], usage === null);
   }
   // A new run's record. Called inside the synchronous step; launch() registers it and starts the spawn.
-  function newAgent({ ref, role, mode, grants, sessionId, ...follows }) {
+  function newAgent({ ref, role, mode, grants, sessionId, runtimeId, ...follows }) {
+    const runtime = adapters[runtimeId];
     const agent = {
-      id: `c-${randomBytes(8).toString("hex")}`, ref, role, mode, runtimeId: runtime.id, sessionId, state: "working",
+      id: `c-${randomBytes(8).toString("hex")}`, ref, role, mode, runtimeId, sessionId, state: "working",
       startedAt: new Date().toISOString(), lastEventAt: null, tool: null, tokens: null,
       capabilities: {
         stop: runtime.capabilities?.stop === true, approve: runtime.capabilities?.approve === true,
@@ -438,7 +467,7 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     return agent;
   }
   function launch(agent, routeName, usageUnknown) {
-    liveByRef.set(agent.ref, agent);
+    liveByRef.set(refKey(agent), agent);
     const run = spawnAgent(agent, routeName, usageUnknown);
     pending.add(run);
     run.finally(() => pending.delete(run));
@@ -489,25 +518,29 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
   async function directOne(input) {
     const { role, createTicket, grants } = input && typeof input === "object" ? input : {};
     if (typeof role !== "string" || !ROLES.includes(role)) return refuse(400, `role must be one of: ${ROLES.join(", ")}`);
+    const selected = await select(input);
+    if (selected.ok === false) return selected;
     const badGrants = await grantsRefused(role, grants);
     if (badGrants) return badGrants;
-    const early = down() ?? overUsage(await readUsage()) ?? (await unenforced());
+    const runtime = adapters[selected.runtime];
+    const early = down(runtime) ?? overUsage(await readUsage(selected.runtime)) ?? (await unenforced(runtime));
     if (early) return early;
-    const lockedNow = await readLocked();
+    const lockedNow = await readLocked(selected.project);
     if (lockedNow === null) return unreadable();
-    const noRoom = full(lockedNow, role);
+    const noRoom = full(lockedNow, role, selected.project);
     if (noRoom) return noRoom;
     let ref;
     try {
-      ({ ref } = await createTicket(role));
+      ({ ref } = await createTicket(role, selected));
     } catch (err) {
       console.error(`bridge: could not write a ticket for a ${role} task: ${err?.message ?? err}`);
       return refuse(500, "could not write the task's ticket");
     }
-    return { ...(await admit({ ref, role, grants: grants === undefined ? undefined : grants.map((g) => ({ kind: g.kind, value: g.value })) }, { entry: "direct" })), ticket: { ref } };
+    return { ...(await admit({ ref, role, grants: grants === undefined ? undefined : grants.map((g) => ({ kind: g.kind, value: g.value })) }, { entry: "direct", selected })), ticket: { ref } };
   }
 
   async function spawnAgent(agent, routeName, usageUnknown) {
+    const runtime = adapterOf(agent);
     // The agent's own worktree and branch (ADR 0016 decision 3, amendment 7): no agent runs in the repo root, and
     // without a worktree nothing is spawned.
     // den-mvp outcome 2: a follow-up run reopens the worktree its session ran in; nothing is created, and a cleanup below
@@ -515,27 +548,28 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     let workspace;
     let project;
     try {
-      project = await projects.get(agent.project ?? (isControl(agent) ? "den" : await projects.active()));
+      project = await projects.get(agent.project);
     } catch {
       project = null;
     }
     if (!project) {
-      liveByRef.delete(agent.ref);
+      liveByRef.delete(refKey(agent));
       return agent.resumeOf ? refuse(409, "the earlier run's project is no longer onboarded; start a new task instead") : refuse(409, "the active project is not ready; check it with den:project");
     }
     // den-mvp/49: a delivery run (a resume included) is the control checkout's work until delivery carries a project.
     if (agent.delivery && project.slug !== "den") {
-      liveByRef.delete(agent.ref);
+      liveByRef.delete(refKey(agent));
       return refuse(409, "Deliver runs on the den project only, for now; switch the active project to the den first");
     }
     agent.project = project.slug;
+    agent.projectRoot = project.root;
     const workspaces = project.workspaces; // this run's root, whatever the active project becomes later
     try {
       workspace = agent.resumeOf
         ? await workspaces.reopen({ ref: agent.ref, agentId: agent.id, origin: agent.origin, catchUp: agent.ref === DESK_REF })
         : await workspaces.create({ ref: agent.ref, agentId: agent.id, ...(agent.delivery ? { base: agent.delivery.at } : {}) });
     } catch (err) {
-      liveByRef.delete(agent.ref);
+      liveByRef.delete(refKey(agent));
       console.error(`bridge: could not ${agent.resumeOf ? "reopen the" : "create a"} worktree for ${agent.ref}: ${err?.message ?? err}`);
       return agent.resumeOf ? refuse(409, "the earlier run's worktree is gone; start a new task instead") : refuse(500, "could not create the agent's worktree");
     }
@@ -554,7 +588,7 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
         workspace.base = agent.startSha; // a step that commits nothing publishes no branch
       } catch (err) {
         await workspaces.remove(workspace);
-        liveByRef.delete(agent.ref);
+        liveByRef.delete(refKey(agent));
         console.error(`bridge: could not prepare the worktree of a delivery step for ${agent.ref}: ${err?.message ?? err}`);
         return refuse(500, "could not prepare the agent's worktree");
       }
@@ -565,7 +599,7 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
         agent.meeting = { part: agent.meeting.part }; // the note is in the worktree now; the run's record does not carry it
       } catch (err) {
         await workspaces.remove(workspace);
-        liveByRef.delete(agent.ref);
+        liveByRef.delete(refKey(agent));
         console.error(`bridge: could not prepare the worktree of a meeting run for ${agent.ref}: ${err?.message ?? err}`);
         return refuse(500, "could not prepare the agent's worktree");
       }
@@ -576,16 +610,16 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
       ({ mainGit } = await prepareMainGit(project.root));
     } catch (err) {
       await workspaces.remove(workspace);
-      liveByRef.delete(agent.ref);
+      liveByRef.delete(refKey(agent));
       console.error(`bridge: the main .git is not ready for ${agent.role} on ${agent.ref}: ${err?.message ?? err}`);
       return refuse(502, "the repository's git directory is not ready for the agent");
     }
     const connections = await library.connectionsFor(agent.role);
     const args = {
-      role: agent.role, ...(agent.mode ? { mode: agent.mode } : {}), ref: agent.ref, cwd: workspace.dir, sessionId: agent.sessionId,
+      role: agent.role, ...(agent.mode ? { mode: agent.mode } : {}), ref: agent.ref, cwd: workspace.dir, sessionId: agent.sessionId, runId: agent.id, ...(agent.runtimeSessionId ? { runtimeSessionId: agent.runtimeSessionId } : {}),
       prompt: agent.followUp ? agent.followUp.text : promptFor(agent), ticketFile: ticketFile(agent.ref, project.root), mainGit,
       // den-mvp/49: derived here, from the bridge's own root and the run's project; never from a request. The runtime refuses a spawn without it outside the control checkout.
-      project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude") },
+      project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent) },
       ...(agent.resumeOf ? { resume: true, runId: agent.id, promptId: agent.followUp.messageId } : {}),
       // agent-os/02: data for the adapter, never in the prompt. The main checkout's path rides along so the adapter can deny
       // the governed paths a path grant reaches there.
@@ -605,13 +639,26 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
       proc = await runtime.spawn(args);
     } catch (err) {
       await workspaces.remove(workspace);
-      liveByRef.delete(agent.ref);
+      liveByRef.delete(refKey(agent));
       if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
       console.error(`bridge: runtime failed to spawn ${agent.role} for ${agent.ref}: ${err?.message ?? err}`);
       return err?.name === "EnforcementError" ? refused(err.reason) : refuse(502, "the runtime failed to start the agent");
     }
+    const acknowledged = proc.runtimeSessionId === undefined && agent.runtimeId === "claude" ? agent.sessionId : proc.runtimeSessionId;
+    if (!validRuntimeSession(acknowledged) || (agent.resumeOf && acknowledged !== agent.runtimeSessionId)) {
+      agent.proc = proc;
+      agent.runtimeSessionId = null;
+      agent.finished = watch(agent);
+      await terminate(agent);
+      await agent.finished;
+      if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
+      return refuse(502, "the runtime did not acknowledge the requested session");
+    }
+    agent.runtimeSessionId = acknowledged;
+    agent.resourceId = agent.id;
     agent.proc = proc;
     agents.set(agent.id, agent);
+    projectByRun.set(agent.id, agent.project);
     trimHistory();
     // The run's marker in the role's conversation, then, for a follow-up, the user's message that started it. A runtime
     // that reports when a message is taken gets a receipt for it; one that cannot is not shown a status it could never change.
@@ -626,7 +673,7 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     agent.finished = watch(agent);
     try {
       await sessions.append({
-        event: "spawn", agentId: agent.id, ref: agent.ref, role: agent.role, sessionId: agent.sessionId, route: routeName, project: agent.project, worktree: agent.worktree, branch: agent.branch,
+        event: "spawn", agentId: agent.id, ref: agent.ref, role: agent.role, sessionId: agent.sessionId, runtime: agent.runtimeId, runtimeSessionId: agent.runtimeSessionId, resourceId: agent.id, route: routeName, project: agent.project, worktree: agent.worktree, branch: agent.branch,
         ...(agent.resumeOf ? { resumeOf: agent.resumeOf, origin: agent.origin } : {}),
       });
     } catch (err) {
@@ -645,9 +692,10 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
   // text is in its ticket file (the board is in the main checkout, not in the agent's worktree), so its template
   // names that file by a path built from the bridge's own root and the validated ref.
   const ticketFile = (ref, base = root) => path.join(base, ".scratch", ref.split("/")[0], "issues", `${ref.split("/")[1]}.md`);
+  const recipeOf = (a) => path.join(root, a.runtimeId === "codex" ? ".codex" : ".claude", "agents", `${a.role}.${a.runtimeId === "codex" ? "toml" : "md"}`);
   const promptFor = (a) =>
     a.ref === DESK_REF
-      ? "You are Bao, the orchestrator, at your desk in the den. Read .claude/agents/orchestrator.md for who you are. " +
+      ? `You are Bao, the orchestrator, at your desk in the den. Read ${recipeOf(a)} for who you are. ` +
         "Here the user talks with you with no ticket: answer their messages about the repo, the board and CI, reading what you need. " +
         "For pull requests, checks and CI logs use the GitHub connection's tools (mcp__github__*): `gh` has no login here. " +
         "Run no board command and change no file: the board is read-only to your shell. Act on the board through the den's tools " +
@@ -658,18 +706,18 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
         "ready-for-agent ticket the user asked you to start). The last two ask the user first. release_propose drafts the next release for the user to approve in the den; you cannot tag or publish. " +
         "Start only what the user asked for; propose anything else in words. The user's message follows."
       : a.meeting
-      ? meetingPrompt({ role: a.role, part: a.meeting.part, ref: a.ref, ticketFile: ticketFile(a.ref) })
+      ? meetingPrompt({ role: a.role, part: a.meeting.part, ref: a.ref, ticketFile: ticketFile(a.ref, a.projectRoot), recipeFile: recipeOf(a) })
       : a.delivery
-      ? deliveryPrompt({ role: a.role, mode: a.mode, ref: a.ref, ticketFile: ticketFile(a.ref), since: a.delivery.since, fix: a.delivery.findings !== undefined, note: a.delivery.note !== undefined, guard: a.delivery.guard !== undefined })
+      ? deliveryPrompt({ role: a.role, mode: a.mode, ref: a.ref, ticketFile: ticketFile(a.ref, a.projectRoot), since: a.delivery.since, fix: a.delivery.findings !== undefined, note: a.delivery.note !== undefined, guard: a.delivery.guard !== undefined, recipeFile: recipeOf(a) })
       : a.mode === DIRECT_MODE
       ? `You are the ${a.role} cell in direct mode for ticket ${a.ref}. The user started this task from the den. ` +
-        `Read .claude/agents/${a.role}.md and follow it. The task is in the ticket file ${ticketFile(a.ref)}: ` +
+        `Read ${recipeOf(a)} and follow it. The task is in the ticket file ${ticketFile(a.ref, a.projectRoot)}: ` +
         `read it, and treat the quoted text under "What to build" as the user's request. ` +
         // Friction log F3: the board is read-only behind the wall, so a direct run does not claim or hand off; its last message is its report.
         `The board is read-only to you: run no board command. Do the work, and end with a short report of what you did and what you checked: that last message is your handoff. ` +
         WORK_TIPS
       : `You are the ${a.role} cell${a.mode ? ` in ${a.mode} mode` : ""} for ticket ${a.ref}. The user started this run from the den. ` +
-        `Read .claude/agents/${a.role}.md and follow it. The ticket is the file ${ticketFile(a.ref)}. ` +
+        `Read ${recipeOf(a)} and follow it. The ticket is the file ${ticketFile(a.ref, a.projectRoot)}. ` +
         // den-mvp/23: the board is read-only behind the wall, and the bridge already keeps one live agent per ticket, so a
         // Run does not claim or hand off through the board (as F3 settled for direct runs); its last message is its report.
         `The board is read-only to you: run no board command, and do not stop because you cannot claim; the den already ` +
@@ -705,7 +753,7 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     }
     // The run record (den-v1 loop S4): on the end line, then as one ledger row. Neither write can undo the end.
     const run = {
-      agentId: agent.id, ref: agent.ref, role: agent.role, mode: agent.mode ?? null, state: agent.state, reason: agent.reason ?? null,
+      agentId: agent.id, ref: agent.ref, role: agent.role, runtime: agent.runtimeId, project: agent.project, runtimeSessionId: agent.runtimeSessionId, mode: agent.mode ?? null, state: agent.state, reason: agent.reason ?? null,
       model: agent.model ?? null, usage: agent.usage ?? null, costUsd: agent.costUsd ?? null, durationMs: agent.durationMs,
       cliMs: agent.cliMs ?? null, turns: agent.turns ?? null,
     };
@@ -878,10 +926,10 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     approvals.release(agent.id);
     if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
     agent.allowedCalls = [];
-    agent.resume = resumeFor(agent.sessionId);
+    agent.resume = resumeFor(agent);
     agent.lastEventAt = new Date().toISOString();
     agent.durationMs = Math.max(0, Date.parse(agent.lastEventAt) - Date.parse(agent.startedAt));
-    if (liveByRef.get(agent.ref) === agent) liveByRef.delete(agent.ref);
+    if (liveByRef.get(refKey(agent)) === agent) liveByRef.delete(refKey(agent));
     for (const entry of agent.openTools.values()) revise(agent, entry, { status: "stopped" });
     agent.openTools.clear();
     clearTimeout(agent.settleTimer);
@@ -1049,21 +1097,28 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     if (badText) return badText;
     const runId = body?.runId;
     if (runId !== undefined && (typeof runId !== "string" || !AGENT_ID_RE.test(runId))) return refuse(400, "runId must be an agent id");
+    const selected = await select({ ...body, role }, { execute: false });
+    if (selected.ok === false) return selected;
+    const matches = (a) => a.role === role && a.runtimeId === selected.runtime && (a.project ?? "den") === selected.project;
     const isLive = (a) => !!a.proc && !a.exited;
     let target;
     if (runId !== undefined) {
       target = agents.get(runId);
-      if (!target || target.role !== role) return refuse(404, `no such ${role} run`);
+      if (!target || !matches(target)) return refuse(404, `no such ${role} run`);
     } else {
       // den-mvp/30: Bao's thread with no run named is the desk's: its live run, a follow-up of its last, or a new one.
       const atDesk = role === "orchestrator";
-      const mine = [...agents.values()].filter((a) => a.role === role && (!atDesk || a.ref === DESK_REF));
+      const mine = [...agents.values()].filter((a) => matches(a) && (!atDesk || a.ref === DESK_REF));
       const live = mine.filter(isLive);
       if (live.length > 1) return refuse(409, `${live.length} ${role} runs are live; say which run the message is for`);
       target = live[0] ?? mine.at(-1);
-      if (atDesk && (!target || (!isLive(target) && !canContinue(target)))) return desk(text);
+      if (atDesk && (!target || (!isLive(target) && !canContinue(target)))) return selected.runtime === "claude" ? desk(text) : refuse(503, "the Codex desk is not configured");
       if (!target) return refuse(404, `no ${role} run to follow up; start a task first`);
     }
+    const eligible = await select({ role, ref: target.ref, runtime: selected.runtime, project: selected.project });
+    if (eligible.ok === false) return eligible;
+    const unavailable = down(adapters[selected.runtime]);
+    if (unavailable) return unavailable;
     if (isLive(target) && !target.releasing && !target.stopRequested) {
       const sent = await message(target.id, { text }, CONVERSE_ROUTE);
       return sent.ok ? { ...sent, runId: target.id, resumed: false } : sent;
@@ -1072,7 +1127,7 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     if (isLive(target)) await target.finished;
     const followed = await followUp(target, text);
     // den-mvp/30: a desk session that cannot be continued (its worktree was cleaned up) is not a dead end: Bao starts afresh.
-    if (!followed.ok && followed.status === 409 && target.ref === DESK_REF && !liveByRef.has(DESK_REF)) return desk(text);
+    if (!followed.ok && followed.status === 409 && target.ref === DESK_REF && !liveByRef.has(refKey(target))) return selected.runtime === "claude" ? desk(text) : refuse(503, "the Codex desk is not configured");
     return followed;
   }
 
@@ -1091,16 +1146,18 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
   }
 
   async function followUp(prev, text) {
-    const notUp = down();
+    const runtime = adapterOf(prev);
+    const selected = { runtime: prev.runtimeId, project: prev.project ?? "den" };
+    const notUp = down(runtime);
     if (notUp) return notUp;
     if (!canContinue(prev)) return refuse(409, "this run left no session to continue; start a new task instead");
     // A run with no recorded end (the bridge died under it) may still be alive in this worktree. Its resource group is
     // asked for by name; while it is there, or cannot be asked, nothing new starts on the session (security review, PR 243).
     for (const a of agents.values()) {
-      if (a.sessionId !== prev.sessionId || a.proc || a.reason !== UNVERIFIED || typeof runtime.stillRunning !== "function") continue;
+      if (a.sessionId !== prev.sessionId || a.runtimeId !== prev.runtimeId || a.project !== prev.project || a.proc || a.reason !== UNVERIFIED) continue;
       let alive = true;
       try {
-        alive = (await runtime.stillRunning(a.resumeOf ? a.id : a.sessionId)) !== false;
+        alive = (await runtime.stillRunning(a.resourceId ?? (a.resumeOf ? a.id : a.sessionId))) !== false;
       } catch (err) {
         console.error(`bridge: could not tell whether ${a.id} is still running: ${err?.message ?? err}`);
       }
@@ -1109,24 +1166,24 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     const grants = Array.isArray(prev.grants) ? prev.grants : [];
     const badGrants = await grantsRefused(prev.role, grants.length === 0 ? undefined : grants);
     if (badGrants) return refuse(409, `the earlier run's grants are no longer allowed (${badGrants.error}); start a new task instead`);
-    const usage = await readUsage();
+    const usage = await readUsage(selected.runtime);
     const over = overUsage(usage);
     if (over) return over;
-    const noLimits = await unenforced();
+    const noLimits = await unenforced(runtime);
     if (noLimits) return noLimits;
-    const locked = await readLocked();
+    const locked = await readLocked(selected.project);
     if (locked === null) return unreadable();
 
     // The same synchronous step as admit(): from here to the reservation there is no await.
     if (shuttingDown) return refuse(503, "the bridge is shutting down");
-    if (liveByRef.has(prev.ref)) return refuse(409, "this ticket already has a live agent");
+    if (liveByRef.has(refKey(prev))) return refuse(409, "this ticket already has a live agent");
     // A claim lock on this ticket is not counted beside the run itself: once the run is live the capacity rule counts
     // the ticket once, whoever holds its lock, and the earlier run usually left the lock there itself.
-    const noRoom = full(locked.filter((ref) => ref !== prev.ref), prev.role);
+    const noRoom = full(locked.filter((ref) => ref !== prev.ref), prev.role, selected.project);
     if (noRoom) return noRoom;
     const messageId = randomUUID();
     const agent = newAgent({
-      ref: prev.ref, role: prev.role, mode: prev.mode ?? null, grants, sessionId: prev.sessionId,
+      ref: prev.ref, role: prev.role, mode: prev.mode ?? null, runtimeId: prev.runtimeId, runtimeSessionId: prev.runtimeSessionId, grants, sessionId: prev.sessionId,
       resumeOf: prev.id, origin: prev.origin ?? prev.id, project: prev.project ?? "den", followUp: { text, messageId },
     });
     const started = await launch(agent, CONVERSE_ROUTE, usage === null);
@@ -1186,7 +1243,12 @@ export function createHost({ root, projects: projectsOption, runtime, policy = {
     handover,
     converse,
     // (role, { before?, limit? }) -> a page of the role's durable conversation, or null for a name that is no role
-    conversation: (role, page) => (typeof role === "string" && ROLES.includes(role) ? conversations.read(role, page) : Promise.resolve(null)),
+    conversation: async (role, page = {}) => {
+      if (typeof role !== "string" || !ROLES.includes(role)) return null;
+      const selected = await select({ ...page, role }, { execute: false });
+      if (selected.ok === false) return selected;
+      return conversations.read(role, { ...page, ...selected });
+    },
     shutdown,
     killAllSync,
     // den-mvp/49: what the project switch looks at: each run's project and whether it is the den's own (desk, meeting, orchestrator).

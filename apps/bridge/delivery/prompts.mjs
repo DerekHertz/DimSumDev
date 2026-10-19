@@ -51,8 +51,8 @@ const SHARED =
   WORK_TIPS;
 
 /** { role, mode?, ref, ticketFile, since, fix?, note? } -> the step's prompt. `since` is the commit the delivery started from. */
-export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false, note = false, guard = false }) {
-  const head = `You are the ${role} cell${mode ? ` in ${mode} mode` : ""} for ticket ${ref}. Read .claude/agents/${role}.md for how to work, with these changes. ${SHARED}The ticket is the file ${ticketFile}. ${note ? "The user left you a note when they resumed this delivery: it is at the top of .den/findings.md. Read it first and follow it. " : ""}`;
+export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false, note = false, guard = false, recipeFile = `.claude/agents/${role}.md` }) {
+  const head = `You are the ${role} cell${mode ? ` in ${mode} mode` : ""} for ticket ${ref}. Read ${recipeFile} for how to work, with these changes. ${SHARED}The ticket is the file ${ticketFile}. ${note ? "The user left you a note when they resumed this delivery: it is at the top of .den/findings.md. Read it first and follow it. " : ""}`;
   if (role === "developer") {
     return (
       head +
