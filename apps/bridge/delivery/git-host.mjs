@@ -213,9 +213,10 @@ export function createGitHost(root, { exec = execFileP, remote = "origin", main 
       return tags[0] ?? null;
     },
     /** den-mvp/45: the pull requests merged into `sha` since `tag` (null: all). -> [{ number, title, body }] */
-    async mergedSince({ tag, sha }) {
+    async mergedSince({ tag, sha, base = null }) {
       if (tag !== null && !/^v\d+\.\d+\.\d+$/.test(tag)) throw new TypeError("git host: not a release tag");
-      const out = await git("log", "--first-parent", "-z", "--format=%s%x1f%b", tag === null ? commit(sha, "sha") : `refs/tags/${tag}..${commit(sha, "sha")}`);
+      const from = base !== null ? `${commit(base, "base")}..` : tag === null ? "" : `refs/tags/${tag}..`; // den-mvp/85: a commit works as the start too
+      const out = await git("log", "--first-parent", "-z", "--format=%s%x1f%b", `${from}${commit(sha, "sha")}`);
       const prs = [];
       for (const rec of out.split("\0")) {
         const [subject = "", body = ""] = rec.replace(/^\n/, "").split("\x1f");
@@ -225,6 +226,37 @@ export function createGitHost(root, { exec = execFileP, remote = "origin", main 
         else if (squash) prs.push({ number: Number(squash[2]), title: oneLine(squash[1], 200), body });
       }
       return prs;
+    },
+    /** den-mvp/85: the login the git host knows the bridge as (the user's), or null. */
+    async login() {
+      const name = (await gh("api", "user", "--jq", ".login")).trim();
+      return NAME_RE.test(name) ? name : null;
+    },
+    /** den-mvp/85: whether a release tag exists on the remote, merged into main or not. */
+    async tagExists(version) {
+      if (!/^v\d+\.\d+\.\d+$/.test(version)) throw new TypeError("git host: not a release version");
+      await git("fetch", "--quiet", "--tags", remote);
+      return (await git("tag", "--list", version)).trim() === version;
+    },
+    /** den-mvp/85: the commit a release tag names. */
+    async tagSha(tag) {
+      if (!/^v\d+\.\d+\.\d+$/.test(tag)) throw new TypeError("git host: not a release tag");
+      return commit((await git("rev-parse", "--verify", `refs/tags/${tag}^{commit}`)).trim(), "the tag");
+    },
+    /**
+     * den-mvp/85: the pull requests merged into `sha` since `tag` (null: the last 30), newest first, with the merge commit,
+     * who merged each and the files it changed. A pull request not merged into main is left out.
+     * -> [{ number, title, sha, mergedBy, files }]
+     */
+    async mergedPrs({ tag, sha }) {
+      const found = (await this.mergedSince({ tag, sha })).slice(0, 30);
+      const out = [];
+      for (const p of found) {
+        const v = JSON.parse(await gh("pr", "view", prNumber(p.number), "--json", "state,baseRefName,mergedBy,mergeCommit,files"));
+        if (v?.state !== "MERGED" || v.baseRefName !== main || !COMMIT_RE.test(v.mergeCommit?.oid ?? "")) continue;
+        out.push({ number: p.number, title: p.title, sha: v.mergeCommit.oid, mergedBy: oneLine(v.mergedBy?.login, 100) || null, files: (Array.isArray(v.files) ? v.files : []).map((f) => String(f?.path ?? "")).filter(Boolean) });
+      }
+      return out;
     },
     /** den-mvp/45: tags `sha` and publishes the GitHub Release for it, in one call. The user's Approve is the only caller. */
     async publishRelease({ version, sha, notes }) {
