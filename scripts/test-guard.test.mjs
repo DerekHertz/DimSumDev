@@ -79,6 +79,7 @@ describe("a weakening diff is flagged", () => {
     ["test.todo", 'test.todo("adds", () => { assert.strictEqual(1, 1); });'],
     ["a skip option", 'test("adds", { skip: true }, () => { assert.strictEqual(1, 1); });'],
     ["a todo option", 'test("adds", { todo: "later" }, () => { assert.strictEqual(1, 1); });'],
+    ["an only option", 'test("adds", { only: true }, () => { assert.strictEqual(1, 1); });'],
     ["t.skip()", 'test("adds", (t) => { t.skip("later"); assert.strictEqual(1, 1); });'],
   ]) {
     test(`an added ${name}`, () => {
@@ -86,6 +87,12 @@ describe("a weakening diff is flagged", () => {
       flagged(reasons(root), /a\.test\.mjs: skip, todo or only added/);
     });
   }
+
+  test("a test title with skip:, todo: or only: in it is not a skip", () => {
+    const line = 'test("new admissions only: an active one, skip: none", () => { assert.strictEqual(1, 1); });';
+    const root = fixture({ "a.test.mjs": T('test("adds", () => { assert.strictEqual(1, 1); });\n') }, { "a.test.mjs": T(`test("adds", () => { assert.strictEqual(1, 1); });\n${line}\n`) });
+    assert.ok(!reasons(root).some((r) => /skip, todo or only added/.test(r)), reasons(root).join("\n"));
+  });
 
   test("an early return in a test", () => {
     const root = fixture(
