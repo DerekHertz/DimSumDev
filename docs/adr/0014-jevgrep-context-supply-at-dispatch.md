@@ -1,5 +1,7 @@
 # Cells get codebase context from jevgrep as a file path at dispatch, tried on a bounded trial first
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** accepted for a trial (2026-09-29, architect, ticket organism-infra/57). Adoption waits on the user's go/no-go after the trial (decision 8). Building `scripts/dispatch-context.mjs`, editing genomes, and installing and authenticating `jg` each need the user's explicit yes.
 
 **Context.** Cells start cold and spend tokens finding code. Jevgrep (`jg`, MIT, npm `@dzhng/jevgrep`, primary docs read 2026-09-29) takes a natural-language repository question and prints ranked files, reading leads and verbatim excerpts, ending in `End context.`. It calls Jev through a provider the user chose at `jg auth`. It ignores environment keys, and it sends eligible source (ignore-file filtered, no hidden, dependency or obvious credential files) to that provider. The user said (2026-09-29) that Jev would also be good for handing agents codebase information fast, and wants jg in use.

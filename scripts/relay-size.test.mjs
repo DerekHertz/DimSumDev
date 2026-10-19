@@ -1,6 +1,6 @@
 // den-mvp/71: the relay is sized to risk, and every file that describes the relay says so the same way. A risk-path
 // ticket runs qa `specify`; any other ticket goes straight to the developer, and qa `verify` maps every criterion to a test
-// and gives a verdict on each test-guard hit. A grep pins the wording; organism-protocol holds the definition ("Relay size").
+// and gives a verdict on each test-guard hit. A grep pins the wording; team-protocol holds the definition ("Relay size").
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
@@ -9,10 +9,10 @@ import { fileURLToPath } from "node:url";
 
 const ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const read = (rel) => readFileSync(path.join(ROOT, rel), "utf8");
-const FILES = ["CLAUDE.md", ".claude/skills/organism-protocol/SKILL.md", ".claude/agents/orchestrator.md", ".claude/agents/qa.md", ".claude/agents/developer.md"];
+const FILES = ["CLAUDE.md", ".claude/skills/team-protocol/SKILL.md", ".claude/agents/orchestrator.md", ".claude/agents/qa.md", ".claude/agents/developer.md"];
 
-test("organism-protocol defines the relay size: risk path, light path, no specify off the risk path", () => {
-  const s = read(".claude/skills/organism-protocol/SKILL.md");
+test("team-protocol defines the relay size: risk path, light path, no specify off the risk path", () => {
+  const s = read(".claude/skills/team-protocol/SKILL.md");
   assert.match(s, /^## Relay size/m);
   assert.match(s, /\*\*risk-path\*\*/);
   assert.match(s, /light path/i);
@@ -54,7 +54,7 @@ test("no file still says every ticket is specified first", () => {
 });
 
 // den-mvp/90: the risk path names the wall's files, every guardrail risk-check knows is on it, and a doubt means the full relay.
-const section = () => read(".claude/skills/organism-protocol/SKILL.md").split(/^## /m).find((x) => x.startsWith("Relay size")) ?? "";
+const section = () => read(".claude/skills/team-protocol/SKILL.md").split(/^## /m).find((x) => x.startsWith("Relay size")) ?? "";
 
 test("the risk path names .claude/, CLAUDE.md, docs/adr/ and the cells JSON files", () => {
   const s = section();

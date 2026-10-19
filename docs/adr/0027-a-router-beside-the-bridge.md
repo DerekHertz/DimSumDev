@@ -1,5 +1,7 @@
 # A router beside the bridge starts approved work in order
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** proposed. The user accepts it by merging its PR. It amends the den MVP spec's out-of-scope line on unattended queue operation (below). It narrows the station-inboxes brief (`docs/research/station-inboxes-grill-brief-2026-10-17.md`) to its first question: full inboxes wait for evidence.
 
 **Context.** On 2026-10-17 a terminal orchestrator, run as a subagent, dispatched qa cells in the background and ended. Their reports came back to the main session, which then had to route the relay by hand (friction F42). The user's rule: the terminal session is a temporary executive session, and the agentic system must work without it. Deliver (ADR 0024) already runs one ticket end to end inside the bridge, but it moves only when a run ends or the user clicks. Nothing picks the next ticket, and a bridge restart leaves every delivery paused as `bridge-restart` until someone resumes it. The work order exists only as prose (`.scratch/den-mvp/order-2026-10-17.md`), and the queue cannot express it.

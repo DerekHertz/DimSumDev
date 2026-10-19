@@ -1,5 +1,7 @@
 # Adopt agent view for cell dispatch and dynamic workflows for the relay, as optional local paths behind the existing seams
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** accepted (user, 2026-10-02, as written; numbered 0018 because ADR 0017 is meetings and decision briefs. architect-style draft from a user request, 2026-10-02: "transition to agent view and dynamic workflows as in https://code.claude.com/docs/en/agents"). Scope chosen by the user: plan and ADR only, no runtime code. Nothing here supersedes ADR 0002 or 0016 until the user accepts it.
 
 **Context.** The Claude Code docs now list five ways to run work in parallel. Two matter here:

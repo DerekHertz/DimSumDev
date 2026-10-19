@@ -25,7 +25,7 @@ Dispatch `scout` agents in parallel, one per slice of history (last 2-4 weeks, s
 
 Signals:
 - Response preferences: length, tone, format, corrections like "shorter" or "dumb it down".
-- Delegation: subagents, cell types, models, parallelism.
+- Delegation: subagents, roles, models, parallelism.
 - Verification: what "done" means (tests, live repro, reviewer, CI).
 - Code and prose discipline: style, principles cited, lint and format tools.
 - Process: worktrees, commits, PRs, merge tooling, gates the user always stops at.
@@ -49,7 +49,7 @@ Frontmatter:
 - `description` triggers on their name and `/<handle>-mode` ("work in <name>'s style"), never on generic phrases like "write code" or "review PR". One quoted YAML scalar.
 - `disable-model-invocation: true` unless the user wants the mode on every turn.
 
-Write imperatives to "the user", not the user's first name. Point at other skills and docs by path or name rather than pasting their content. Where a rule conflicts with `CLAUDE.md` or `organism-protocol`, those win; say so in the draft and let the user decide.
+Write imperatives to "the user", not the user's first name. Point at other skills and docs by path or name rather than pasting their content. Where a rule conflicts with `CLAUDE.md` or `team-protocol`, those win; say so in the draft and let the user decide.
 
 ## 5. Prune and iterate
 

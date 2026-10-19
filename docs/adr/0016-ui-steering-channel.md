@@ -1,5 +1,7 @@
 # The UI steers live cells through the bridge: SSE down, authenticated POST up, a `CellRuntime` adapter whose Claude implementation runs headless stream-json child processes the bridge owns, with a three-slice path from "dispatch, watch, approve, kill" to full steering
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 ## Interface amendment: canonical runtime and native sessions
 
 Approved by the user in the Codex residents plan (codex-residents/01). Run views and persisted spawn records carry canonical runtime/project and validated `runtimeSessionId`; clients address bridge run IDs. An unavailable configured runtime is refused without fallback. All runtimes share existing admission, approval and shutdown controls. Every launch receives a new bridge `runId` for its resource group; resumed conversations preserve both the bridge UUID and acknowledged native session. Runtime identity is recorded before launch success is returned. This amendment enables injected adapters only; production Codex execution remains gated on separate real-launch conformance.

@@ -1,5 +1,7 @@
 # Agents run behind a wall with grants, the bridge performs every privileged action, and Bao coordinates and merges
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** accepted (user, 2026-10-10, in chat: "ADR0021 looks good"; drafted the same day by a plain session from the agent-system grill, 33 questions answered by the user). It amends ADR 0016 (decision 6's push and PR deny for den-started agents, the ten-minute deny, who holds credentials), ADR 0019 (decision 8, one active feature; decision 9, the testbed) and ADR 0002 (what counts against `max_concurrent_cells`). Spec: `.scratch/agent-os/spec.md`.
 
 **Context.** Den Loop v1 (den-v1/13, PR #214) lets the user start one agent on one ticket from the den. Its first passing live run showed the system is tight in the wrong place and loose in the wrong place:

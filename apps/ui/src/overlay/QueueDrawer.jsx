@@ -1,6 +1,6 @@
 // den-mvp/62 (spec .scratch/den-mvp/handoffs/62-designer-spec.md): the Queue drawer. Needs you, then the goals with their
 // tickets in dependency order. A ticket row expands in place to the den's own Run and Deliver controls (passed in as
-// `controls`), so acting on a ticket works exactly as it does in Stations & queue.
+// `controls`), so acting on a ticket works exactly as it does in Teams & queue.
 import { useEffect, useMemo, useRef, useState } from "react";
 import { queueDrawerModel } from "./queue-drawer-model.mjs";
 

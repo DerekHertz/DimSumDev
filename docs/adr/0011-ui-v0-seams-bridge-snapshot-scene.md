@@ -1,5 +1,7 @@
 # UI v0 has three seams: the bridge HTTP/SSE surface, the metrics JSON, and scene-from-state; it is a React and Vite app that a localhost bridge serves
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** accepted (user, 2026-09-29; dependencies in decision 9 approved; dispatch gate derived from Board state).
 
 **Context.** `.scratch/dimsumden-ui-v0/spec.md` asks for a live 3D scene plus a control panel, fed by a thin Node bridge that watches the Board. It names three test seams and leaves their shapes open, along with the app layout and whether metrics ride in the snapshot. Tickets 02 to 13 build against whatever this ADR fixes, so the shapes below are written to be tested against literally. Facts found while designing:

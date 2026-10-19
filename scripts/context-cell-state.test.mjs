@@ -1,5 +1,5 @@
 // organism-infra/145 (batch C): `node scripts/context.mjs [--self] --cell <type>` adds the shared
-// budget to the JSON, so organism-protocol can say "follow `state`" instead of repeating numbers.
+// budget to the JSON, so team-protocol can say "follow `state`" instead of repeating numbers.
 //
 // Seam: the context.mjs CLI. With --cell <type> the output keeps its existing keys and gains
 //   warn  (number: the role's warn threshold from the shared config, via budgetFor(type))

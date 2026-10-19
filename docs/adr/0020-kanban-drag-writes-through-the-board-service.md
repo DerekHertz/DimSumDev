@@ -1,5 +1,7 @@
 # Kanban drag writes through the board service
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** proposed (product, 2026-10-08, from the user's answers in the kanban spec session; the architect cell must accept it before any drag code)
 
 The kanban lets the user drag a card across their own gates (approve, park, waiting on you). The bridge handles the drop by calling the board service (ADR 0008) in-process, so claim rules, locks and `events.jsonl` stay identical to the `board` CLI. The UI never edits ticket files, and a card with a live claim lock is pinned and refuses the move.

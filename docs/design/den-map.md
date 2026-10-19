@@ -34,7 +34,7 @@ Kiosk yaw is the turn toward the table, capped at ±0.52 rad (30°) so the noren
 
 ## Where pandas stand
 
-| Station | Pandas | Where |
+| Team | Pandas | Where |
 |---|---|---|
 | The Pass 传 | orchestrator, product, architect | On Bao, `PASS` fractions (crown, left shoulder, right shoulder). Unchanged. |
 | Steamers 蒸 | developer, scout, debugger | Behind the counter, spaced `STALL_SPACING` 0.75; the kiosk widens past 3 slots |
@@ -54,10 +54,10 @@ Pandas never roam open grass. The only time one leaves its spot is a handoff, wh
 | Eave trim | A line along the eave | `station-<name>` |
 | Posts, counter band | — | `station-<name>` |
 | Counter body | Wood | wood (existing `WOOD`) |
-| Noren curtain | Hangs under the eave; station name in `display` | `station-<name>`, text `surface-200` |
+| Noren curtain | Hangs under the eave; team name in `display` | `station-<name>`, text `surface-200` |
 | Lantern | One, at the front eave corner nearest the table | unlit `surface-200`; lit `lantern-fill` only when a panda there is `waiting_on_user` |
 
-Station hues replace the `HUE` map in `Market.jsx`. Delete the sphere lanterns.
+Team hues replace the `HUE` map in `Market.jsx`. Delete the sphere lanterns.
 
 ## Lazy susan
 
@@ -80,8 +80,8 @@ A claim turns the bottom tier one step (`dur-slow`) and moves the basket up as a
 
 | Where | What | Design system component |
 |---|---|---|
-| Right sidebar, 400px | Title + Live · Needs you · Stations (pills + glyphs, dashed "coming online") · Queue | ApprovalCard, PandaTile |
-| Bottom-left | Zoom switcher: 1 · Den, 2 · Station, 3 · Panda, 4 · Workspace, with + and − | — |
+| Right sidebar, 400px | Title + Live · Needs you · Teams (pills + glyphs, dashed "coming online") · Queue | ApprovalCard, PandaTile |
+| Bottom-left | Zoom switcher: 1 · Den, 2 · Team, 3 · Panda, 4 · Workspace, with + and − | — |
 | Bottom-centre | Intent bar: autonomy, input, `Ctrl K`, Send, with the current intent above | AutonomyControl |
 | Bottom-right | Timeline: Live, time, "Drag back to replay the den's history" | — |
 

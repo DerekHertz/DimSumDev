@@ -1,14 +1,14 @@
 ---
 name: scout
-description: Cheap read-only helper that runs verbose work (full test runs, log digging, codebase surveys, doc or web lookups) and returns only a short summary. Use it to keep other cells' context small.
+description: Cheap read-only helper that runs verbose work (full test runs, log digging, codebase surveys, doc or web lookups) and returns only a short summary. Use it to keep other agents' context small.
 tools: Read, Grep, Glob, Bash, WebFetch, WebSearch, mcp__context7, mcp__github, mcp__deepwiki
 model: haiku
 effort: low
 color: yellow
 maxTurns: 25
-organism:
-  station: steamers
-  purpose: Absorb verbose output so other cells only receive conclusions.
+org:
+  team: steamers
+  purpose: Absorb verbose output so other agents only receive conclusions.
   inputs: ["one precise question or command"]
   outputs: ["summary of 300 words or fewer, with file:line references"]
   gates: []

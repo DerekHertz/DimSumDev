@@ -1,8 +1,8 @@
 # Gated patches: edits only the user can apply
 
-Cells can't edit `.claude/` (genomes, skills, settings) or `CLAUDE.md`. When a cell needs one of those changed, it writes a patch and the user applies it with one command. Don't write `.sh` or `.mjs` apply scripts or paste heredocs for this; they pile up and a pasted heredoc can hang the terminal.
+Agents can't edit `.claude/` (role definitions, skills, settings) or `CLAUDE.md`. When an agent needs one of those changed, it writes a patch and the user applies it with one command. Don't write `.sh` or `.mjs` apply scripts or paste heredocs for this; they pile up and a pasted heredoc can hang the terminal.
 
-## For a cell that needs a gated edit
+## For an agent that needs a gated edit
 
 1. Make the change on a scratch copy of the file (outside the gated path), then produce a patch with `git diff` or `git format-patch`. A `format-patch` file carries a commit message; a plain diff gets a generic one naming the file.
 2. Save it as `.scratch/_handoffs/gated/<NN>-<slug>.patch` in the main checkout. `<NN>` is the ticket number, so patches sort in the order to apply. Patch paths are relative to the repo root (`a/.claude/agents/developer.md`).

@@ -36,11 +36,11 @@ npm ci && npm run ui    # then open http://127.0.0.1:4317/?demo=den
 ## What it is
 
 - **A team, not a swarm.** Nine roles (`product`, `architect`, `orchestrator`, `developer`, `scout`, `qa`, `security`, `designer`, `herald`), each a Claude Code session running one ticket in its own git worktree. A role is a markdown file in `.claude/agents/` that fixes its model, tools, skills and done criteria.
-- **A kitchen, roughly.** Roles sit at stations named for a dim sum kitchen. The Pass (orchestrator, product, architect) decides and sequences. Steamers (developer, scout) build and dig. Tea & Pantry (qa, security) test and guard. Front of House (designer, herald) keeps things looking right and drafts the public posts.
+- **A kitchen, roughly.** Roles sit at teams named for a dim sum kitchen. The Pass (orchestrator, product, architect) decides and sequences. Steamers (developer, scout) build and dig. Tea & Pantry (qa, security) test and guard. Front of House (designer, herald) keeps things looking right and drafts the public posts.
 - **A relay for every code ticket.** qa writes failing tests, a developer makes them pass, qa verifies, a risk check decides whether security reviews, and the orchestrator opens the PR and merges on green CI ([ADR 0002](docs/adr/0002-relay-not-swarm.md)).
 - **Gates you can't miss.** Agents stop before pushing, adding a dependency, or editing an ADR or their own role files. You approve a ticket once; the orchestrator runs its whole relay and only comes back for a visual check, a design question, a ticket that failed twice, or a red merge.
 - **A board you can diff.** Tickets are markdown under `.scratch/`, claimed with lock files and handed off through a `board` CLI ([ADR 0003](docs/adr/0003-local-file-board.md), [ADR 0008](docs/adr/0008-board-service.md)). No database, no hosted service.
-- **The den.** `apps/ui` is a React Three Fiber garden: Bao at the center, a pavilion per station, and plush pandas dressed for their role. Beside it, your desk holds the queue, what needs you, meetings and the library, with tabs for Work, Pandas and Library and a Talk to Bao button. Zoom from the whole den to a station, a panda or its workspace, or press Enter the den to walk around; walk up to an agent to read its transcript, message it, or approve or deny what it's waiting on.
+- **The den.** `apps/ui` is a React Three Fiber garden: Bao at the center, a pavilion per team, and plush pandas dressed for their role. Beside it, your desk holds the queue, what needs you, meetings and the library, with tabs for Work, Pandas and Library and a Talk to Bao button. Zoom from the whole den to a team, a panda or its workspace, or press Enter the den to walk around; walk up to an agent to read its transcript, message it, or approve or deny what it's waiting on.
 - **Demo mode.** Open `?demo=den` or press **Watch the demo** to replay a recorded session into the den. It makes no bridge calls and reads no tokens, and every action that would steer a real agent is greyed out.
 - **Cheap decisions, logged before trusted.** Routine relay choices (which model a developer needs, how deep qa verifies) go to Jev, a small typed-decision model, through `scripts/jev.mjs`. It runs in shadow mode: each pick is logged beside what the relay actually did, and any error or missing key falls back to the current rule ([ADR 0010](docs/adr/0010-jev-precheck-tier-and-verify-depth.md)).
 
@@ -109,7 +109,7 @@ npm run next-session            # prints the command to resume from the latest h
 | M | Jump to the note field on a card |
 | Ctrl/Cmd + Enter | Send the card's action |
 | Ctrl/Cmd + K | Focus the input bar |
-| 1 Den · 2 Station · 3 Panda · 4 Workspace | Jump the overview camera to a zoom level |
+| 1 Den · 2 Team · 3 Panda · 4 Workspace | Jump the overview camera to a zoom level |
 | + / − / wheel / pinch | Zoom the overview camera |
 | ← / → / drag | Pan the overview camera |
 
@@ -180,7 +180,7 @@ The board (`.scratch/`) is not part of this repo; without one, the board is simp
 
 ## More
 
-- [`CONTEXT.md`](CONTEXT.md): the glossary (organism, station, cell, genome, Bao, perch and the rest).
+- [`CONTEXT.md`](CONTEXT.md): the glossary (org, team, agent, role definition, Bao, perch and the rest).
 - [`docs/adr/`](docs/adr/): every recorded decision and why it was made.
 - [`docs/agents/`](docs/agents/): how agents use the board, worktrees and process hygiene.
 

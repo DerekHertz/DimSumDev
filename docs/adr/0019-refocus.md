@@ -1,5 +1,7 @@
 # Refocus: the bridge owns every agent and runs the relay, Jev routes each step and is judged by outcomes, Blender leaves the repo, SWE words replace the biology
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** accepted (user, 2026-10-03; decisions settled in the refocus grilling session, 2026-10-02). Supersedes ADR 0018. Amends ADR 0006 (asset pipeline), 0010 (decision 10, go-live), 0012 (vocabulary), 0015 (decisions 4 and 5, go-live bars) and 0016 (decision 3, slice 1 dispatch policy). Written in the decision 10 vocabulary; older ADRs keep theirs (CONTEXT.md, Old terms). **Amended 2026-10-06** (Amendment 1, at the end): decision 7's layout freeze is lifted for the PR #162 layout, and decision 8's one-active-feature rule is relaxed for den-layout alongside den-v1.
 
 **Context.** A week in, the den could not interact with agents, and the plan usage went elsewhere. An audit of `.scratch/usage.jsonl` and the board on 2026-10-02 found:

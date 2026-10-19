@@ -1,5 +1,7 @@
 # The den serves itself from release folders: preview, go live, roll back, update
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** proposed (den-mvp outcome 5, `.scratch/den-mvp/spec.md` section 7). Part A is built by the first PR and Part B by the second; the user accepts each by merging its PR. It amends ADR 0024: decision 1 (what makes a delivery visual), decision 5 (new pauses, and what a decline does) and adds a step after the merge. It amends ADR 0017 Amendment 1 in one point (a meeting holds its ticket).
 
 **Context.** Until now the user starts the bridge by hand (`npm run ui`), and it runs its own code and serves `apps/ui/dist` straight from the main checkout. So the running den changes whenever the checkout does, a UI change cannot be looked at before it is merged, nothing keeps the bridge up, and a bad build is undone in a terminal. The spec asks that "a functional change is previewed, approved, delivered, served, and recoverable without terminal coordination", with a supervisor "outside the bridge's own process".

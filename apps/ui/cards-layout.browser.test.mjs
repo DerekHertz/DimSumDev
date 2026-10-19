@@ -13,7 +13,7 @@ const card = (overlay, title, open, body) =>
 const rows = Array.from({ length: 28 }, (_, i) =>
   `<li class="queue-row"><div class="queue-line"><span class="pchip">P2</span><span class="queue-title">Ticket ${i + 1}</span></div><span class="code-small muted queue-ref">den/${i + 1}</span></li>`).join("");
 const page = `<style>${css}</style><body style="margin:0;position:relative;height:100vh"><div class="cards">${
-  card("stations", "Stations & queue", true, `<p class="ov">Next on the susan</p><ul class="queue-rows queue-rows-flow">${rows}</ul>`) +
+  card("stations", "Teams & queue", true, `<p class="ov">Next on the susan</p><ul class="queue-rows queue-rows-flow">${rows}</ul>`) +
   card("meetings", "Meetings", false, "<p>x</p>") + card("library", "Library", false, "<p>x</p>")}</div></body>`;
 
 let chromium = null;

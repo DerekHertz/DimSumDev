@@ -30,8 +30,8 @@ export const RULES = [
   { name: "mcp-tool", pattern: /`?mcp__((?:(?!__)\w)+)(?:__\w+)?`?/g, action: "rewrite", to: (_m, server) => `the ${server} MCP server`,
     why: "Codex addresses MCP servers by config, not mcp__ tool names" },
   { name: "claude-launch", pattern: /^[^\n]*claude --agent[^\n]*$/gm, action: "rewrite",
-    to: "To act as a cell, read its genome first and follow it: `.codex/agents/<cell-type>.toml` (generated from `.claude/agents/<cell-type>.md`).",
-    why: "the claude --agent launch flag is meaningless to Codex; the read-the-genome rule still holds" },
+    to: "To act as an agent, read its role definition first and follow it: `.codex/agents/<role>.toml` (generated from `.claude/agents/<role>.md`).",
+    why: "the claude --agent launch flag is meaningless to Codex; the read-the-role-definition rule still holds" },
 ];
 const applyRules = (text) => RULES.reduce((t, r) => t.replace(r.pattern, r.to), text);
 

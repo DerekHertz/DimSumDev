@@ -1,5 +1,7 @@
 # A delivery is a bridge job: developer, independent qa, the checks, a pull request and a guarded merge
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** proposed with the build (den-mvp outcome 3, `.scratch/den-mvp/spec.md` sections 1, 4 and 8). The user accepts it by merging the PR. It builds the relay runner of ADR 0022 in a different shape and amends it: decision 1 (the plan reads the job's own record, not handoffs), decision 5 of its user answers (board writes are bridge calls now) and decision 6 (the bridge opens the pull request and merges). It builds ADR 0021 steps 4 and 6 for one job.
 
 **Context.** After outcome 1 any panda can be given a job, and after outcome 2 the user can talk to it. Software still could not reach `main` from the den: an agent behind the wall cannot write the board (it is outside its worktree), holds no git-host credential, and nothing connected a developer's commit to a review, a pull request or a merge. The spec asks for "scoped board operations, appropriate routing, independent verification, PR and guarded merge" to "complete one approved job".

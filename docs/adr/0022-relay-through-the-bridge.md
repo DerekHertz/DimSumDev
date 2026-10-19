@@ -1,5 +1,7 @@
 # A ticket's relay runs through the bridge: a pure hop planner, the next hop as the den's default, a finish event that advances the relay, and ceilings for the five roles that have none
 
+> Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+
 **Status:** accepted (user, 2026-10-12, for organism-infra/229). The user answered the seven decisions at the end; each answer is recorded there. It amends ADR 0016 decision 3 (the relay-hop 409, "Slice 3") and builds the relay runner that ADR 0019 decision 3 placed in `apps/bridge/relay/`. It leans on ADR 0021 (decisions 3, 7, 8, 10, 11, 12) and changes none of them. No code in this ticket.
 
 **Context.** The user (2026-10-12, at the visual verdict on organism-infra/228) asked for two things: "dispatch the agent needed for a task directly ... the default in the drop down was the first agent needed", and "after completing the task it should trigger some event that wakes up orchestrator/bao and then it can be routed to the next task and so on". They also asked whether they will stop approving every request. Facts from the code (read 2026-10-12):

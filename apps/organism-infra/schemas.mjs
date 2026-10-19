@@ -9,7 +9,7 @@
 // back either `{ok: true}` or `{ok: false, errors: [string]}`, never an
 // exception, even when handed `null`, a primitive, or an empty object.
 //
-// `pending` convention (validateState): the organism-protocol relay hands
+// `pending` convention (validateState): the team-protocol relay hands
 // unfinished work to a named next cell rather than leaving it implicit, so a
 // non-empty `pending` is valid only when every item is an object shaped
 // `{item, owner}` with a non-empty `owner` string. This module never

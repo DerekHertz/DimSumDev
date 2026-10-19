@@ -5,7 +5,7 @@ description: "Implement a piece of work based on a spec or set of tickets. Use w
 
 Implement the work described in the spec or tickets.
 
-Claim the ticket first, following the `organism-protocol` skill. Stop and hand off if the ticket is already claimed or blocked.
+Claim the ticket first, following the `team-protocol` skill. Stop and hand off if the ticket is already claimed or blocked.
 
 Use /tdd where possible, at pre-agreed seams.
 
@@ -13,7 +13,7 @@ Run typechecking regularly, single test files regularly, and the full test suite
 
 Once done, use /code-review to review the work.
 
-Commit your work to the current branch (your cell's worktree branch). Never merge to main: merging is a pass gate.
+Commit your work to the current branch (your agent's worktree branch). Never merge to main: merging is a pass gate.
 
 Finish with /handoff.
 
