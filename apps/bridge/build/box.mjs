@@ -19,7 +19,8 @@
 // box ends with the bridge (bubblewrap is the bridge's direct child and dies with it; the rest is its namespace).
 // The rest of the folder is read-only because a release's folder also holds the bridge code the service runs: a build
 // that could write there could change it.
-// A build has no time limit; the caller stops it with `signal`. What comes out (apps/ui/dist) is counted afterwards:
+// A build that does not finish within `timeoutMs` (20 minutes) is stopped and refused with code "build", and builds run one
+// at a time in a process (a second waits for the first). The caller can also stop one with `signal`. What comes out (apps/ui/dist) is counted afterwards:
 // anything that is not a plain file or folder, a hard link, or a tree over the bounds is a refusal.
 // The launcher is the bridge's own instance, never a second one: its probe units are named per instance.
 import { lstatSync, mkdirSync, realpathSync, rmdirSync } from "node:fs";
@@ -35,6 +36,7 @@ export const MAX_BYTES = 100 * 1024 * 1024;
 const MAX_DEPTH = 16;
 const TAIL_CHARS = 4000;
 const KILL_SETTLE_MS = 2000;
+export const BUILD_TIMEOUT_MS = 20 * 60 * 1000;
 // A build runs under the worker class: limits.json has no class of its own for it (a new one is a guardrail change).
 const SLOT_CLASS = "worker";
 const BWRAP_PATHS = ["/usr/bin/bwrap", "/bin/bwrap"];
@@ -122,10 +124,11 @@ const resolved = (dir) => {
 };
 
 let builds = 0; // one count for the process: the unit name of a build must not repeat, whichever box started it
+let turn = Promise.resolve(); // the end of the last build asked for: the next one starts after it, whichever box it is asked of
 
-export function createBuildBox({ launcher, bwrap = findBwrap(), node = process.execPath, maxFiles = MAX_FILES, maxBytes = MAX_BYTES } = {}) {
+export function createBuildBox({ launcher, bwrap = findBwrap(), node = process.execPath, maxFiles = MAX_FILES, maxBytes = MAX_BYTES, timeoutMs = BUILD_TIMEOUT_MS } = {}) {
 
-  async function build({ folder, packages, signal } = {}) {
+  async function buildNow({ folder, packages, signal } = {}) {
     for (const [name, value] of Object.entries({ folder, packages })) {
       if (typeof value !== "string" || !path.isAbsolute(value)) throw new TypeError(`build box: ${name} must be an absolute path`);
     }
@@ -179,10 +182,15 @@ export function createBuildBox({ launcher, bwrap = findBwrap(), node = process.e
       return refused("the build box has no resource group to run in");
     }
     let stopped = false;
+    let timedOut = false;
     const stop = () => {
       stopped = true;
       group.kill();
     };
+    const timer = setTimeout(() => {
+      timedOut = true;
+      group.kill();
+    }, timeoutMs);
     signal?.addEventListener("abort", stop, { once: true });
     if (signal?.aborted) stop();
     child.stdin.on("error", () => {});
@@ -193,12 +201,14 @@ export function createBuildBox({ launcher, bwrap = findBwrap(), node = process.e
     const ended = [child.stdout, child.stderr].map((stream) => new Promise((resolve) => stream.once("close", resolve)));
     // "exit", not "close": the launcher's anchor holds the gate pipe open until the group is killed.
     const code = await new Promise((resolve) => child.once("exit", (exit) => resolve(exit)));
+    clearTimeout(timer);
     signal?.removeEventListener("abort", stop);
     // Nothing of the build may still be running while its output is counted.
     group.kill();
     const settled = await group.settled(KILL_SETTLE_MS);
     if (settled) await Promise.all(ended);
     if (stopped) return refused("the build was stopped", "stopped");
+    if (timedOut) return refused(`the build did not finish within ${Math.round(timeoutMs / 1000)} seconds and was stopped`, "build");
     if (!settled) return refused(`the build's processes outlived a kill of ${group.unit}`);
     // bubblewrap reports its own failures (it could not make a namespace or a mount) before the command starts.
     const own = /^bwrap: .*$/m.exec(tail)?.[0];
@@ -211,6 +221,13 @@ export function createBuildBox({ launcher, bwrap = findBwrap(), node = process.e
       if (err instanceof Refusal) return refused(err.message, "build");
       throw err;
     }
+  }
+
+  // Builds run one at a time: this one starts when the one before it has ended, however that went.
+  function build(args) {
+    const run = turn.then(() => buildNow(args));
+    turn = run.then(() => {}, () => {});
+    return run;
   }
 
   return { build };
