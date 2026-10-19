@@ -13,6 +13,13 @@ const shortOf = (ref) => {
   return m ? `${m[1]}/${Number(m[2])}` : String(ref);
 };
 
+// A path covers another when they are equal or one is a directory (or glob, cut at its first "*") holding the other.
+const stem = (p) => (p.includes("*") ? p.slice(0, p.indexOf("*")) : p);
+const overlaps = (a, b) => {
+  const [x, y] = [stem(a), stem(b)];
+  return x === y || (x.endsWith("/") && y.startsWith(x)) || (y.endsWith("/") && x.startsWith(y));
+};
+
 function readingProblem(usage) {
   if (!usage || typeof usage !== "object") return "no usage reading";
   if (usage.error) return `the live usage reading failed: ${usage.error}`;
@@ -21,7 +28,7 @@ function readingProblem(usage) {
   return null;
 }
 
-export function decide({ order, tickets = [], state, usage, stops: known = [], downForMs = 0 }) {
+export function decide({ order, tickets = [], state, usage, stops: known = [], downForMs = 0, changed = new Map() }) {
   const seen = new Set(known);
   const stops = [];
   const actions = [];
@@ -66,9 +73,18 @@ export function decide({ order, tickets = [], state, usage, stops: known = [], d
   }
   const delivered = new Set(deliveries.map((d) => d?.ref));
   const claimed = new Set((state.capacity?.refs ?? []).map((r) => r?.ref));
-  // What holds files now: a running or paused delivery (its pull request is open) and any claim. Unknown files hold everything.
-  const holders = [...new Set([...deliveries.filter((d) => d?.state === "running" || d?.state === "paused").map((d) => d.ref), ...claimed])]
-    .map((ref) => ({ short: shortOf(ref), paths: byRef.has(ref) ? pathsOf(byRef.get(ref).text) : [] }));
+  // What holds files now: a running or paused delivery (its branch is open) and any claim. A delivery holds the files its
+  // branch changed when the runner read them, else the files its ticket names; a delivery on a finished ticket holds
+  // nothing. Unknown files (null) hold everything.
+  const named = (ref) => (byRef.has(ref) ? pathsOf(byRef.get(ref).text) : []);
+  const held = new Map();
+  for (const d of deliveries) {
+    if ((d?.state !== "running" && d?.state !== "paused") || ["resolved", "closed"].includes(status.get(d.ref))) continue;
+    const paths = changed.get(d.id) ?? named(d.ref);
+    held.set(d.ref, changed.has(d.id) || paths.length ? paths : null);
+  }
+  for (const ref of claimed) if (!held.has(ref)) held.set(ref, named(ref).length ? named(ref) : null);
+  const holders = [...held].filter(([, paths]) => paths === null || paths.length).map(([ref, paths]) => ({ short: shortOf(ref), paths }));
 
   for (const e of order?.entries ?? []) {
     if (room <= 0) break;
@@ -77,10 +93,10 @@ export function decide({ order, tickets = [], state, usage, stops: known = [], d
     if (!ticket || ticket.locked || delivered.has(ticket.ref) || claimed.has(ticket.ref)) continue;
     if (status.get(ticket.ref) !== "ready-for-agent" || !unblocked(ticket, status, byNumber)) continue;
     const paths = pathsOf(ticket.text);
-    const clash = holders.some((h) => !h.paths.length || !paths.length || apart.get(short)?.has(h.short) || h.paths.some((p) => paths.includes(p)));
+    const clash = holders.some((h) => !h.paths || !paths.length || apart.get(short)?.has(h.short) || h.paths.some((p) => paths.some((q) => overlaps(p, q))));
     if (clash) continue;
     actions.push({ type: "start", ref: ticket.ref });
-    holders.push({ short, paths });
+    holders.push({ short, paths: paths.length ? paths : null });
     room -= 1;
   }
   return done(actions.length ? null : room > 0 ? "no ticket in the order can start now" : "no free slot");

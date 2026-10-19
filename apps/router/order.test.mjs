@@ -4,9 +4,9 @@
 //     - <feature>/<NN> not-beside: <ref>[, <ref>...]
 //   Blank lines are allowed in the section. Any other line in it is an error. Everything outside the section is prose and ignored.
 //   parseOrder(text) -> { entries: [{ ref, notBeside: [ref...] }] }; throws OrderError (naming the line) on a bad file.
-import { test } from "node:test";
+import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { parseOrder, OrderError } from "./order.mjs";
+import { parseOrder, OrderError, appendToOrder } from "./order.mjs";
 
 const FILE = `# Work order
 
@@ -51,4 +51,24 @@ test("a bad file is refused with the line named, never half-read", () => {
     "## Order\n- fx/12-with-a-slug\n",
   ]) assert.throws(() => parseOrder(bad), OrderError, JSON.stringify(bad));
   assert.throws(() => parseOrder("## Order\n- fx/1\n- oops\n"), /line 3|oops/);
+});
+
+describe("appendToOrder", () => {
+  const FILE = "# Work order\n\nprose\n\n## Order\n- fx/01\n- fx/02 not-beside: fx/01\n\n## Notes\nnotes\n";
+  test("lists the ticket last in the section, by its short ref, and leaves the rest alone", () => {
+    const out = appendToOrder(FILE, "fx/07-some-slug");
+    assert.equal(out, "# Work order\n\nprose\n\n## Order\n- fx/01\n- fx/02 not-beside: fx/01\n- fx/07\n\n## Notes\nnotes\n");
+    assert.deepEqual(parseOrder(out).entries.map((e) => e.ref), ["fx/01", "fx/02", "fx/07"]);
+  });
+  test("a ticket already listed, with or without its slug or padding, is null", () => {
+    assert.equal(appendToOrder(FILE, "fx/02-x"), null);
+    assert.equal(appendToOrder("## Order\n- fx/01\n", "fx/1"), null);
+  });
+  test("a missing file or section gains one", () => {
+    assert.equal(appendToOrder("", "fx/03-x"), "## Order\n- fx/03\n");
+    assert.equal(appendToOrder("# W\n", "fx/03"), "# W\n\n## Order\n- fx/03\n");
+  });
+  test("a section at the end of the file", () => {
+    assert.equal(appendToOrder("## Order\n- fx/01\n", "fx/02"), "## Order\n- fx/01\n- fx/02\n");
+  });
 });

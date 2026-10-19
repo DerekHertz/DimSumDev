@@ -25,3 +25,22 @@ export function parseOrder(text) {
   }
   return { entries };
 }
+
+// The order text with `ref` ("fx/01-slug" or "fx/01") listed last, or null when it is listed already. A missing file (an empty
+// text) or one without the section gains it. An approval in the den adds the ticket here, so the router can start it.
+export function appendToOrder(text, ref) {
+  const m = /^([A-Za-z0-9._-]+)\/(\d+)/.exec(String(ref));
+  if (!m) throw new OrderError(`not a ticket ref: ${ref}`);
+  const same = (r) => r.split("/")[0] === m[1] && Number(r.split("/")[1]) === Number(m[2]);
+  const entry = `- ${m[1]}/${m[2]}`;
+  const lines = String(text).split("\n");
+  const start = lines.findIndex((l) => /^## Order\s*$/.test(l));
+  if (start < 0) return `${String(text).trimEnd()}${text.trim() ? "\n\n" : ""}## Order\n${entry}\n`;
+  if (parseOrder(text).entries.some((e) => same(e.ref))) return null;
+  let end = start + 1;
+  while (end < lines.length && !/^## /.test(lines[end])) end++;
+  let last = end;
+  while (last > start + 1 && !lines[last - 1].trim()) last--;
+  lines.splice(last, 0, entry);
+  return lines.join("\n");
+}
