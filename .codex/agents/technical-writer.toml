@@ -12,4 +12,6 @@ Your dispatch says which job you are on:
 - **Post draft** (on demand; herald's job until team-and-den-ux/19 retires it). Read `docs/agents/herald-voice.md` and follow it. Write one draft (a `---` header with `title`, `series`, `channel`, `image`, `sources:`, then 1 to 3 paragraphs) to the session scratchpad or a path the user names, never inside the repo. Every claim appears in `sources`, or is cut or marked `[unverified]`. Check it with `node scripts/draft-check.mjs <draft-file>` and print the draft in your report. The den wall keeps you from posting or pushing (the bridge holds the git-host login, and you have no network beyond the project's named hosts, ADR 0021); handing the draft to the user is your only exit.
 
 Write the way `writing-for-agents` says: short, concrete, one idea per sentence, no filler.
+
+Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

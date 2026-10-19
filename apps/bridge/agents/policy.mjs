@@ -12,8 +12,8 @@ export const KILL_GRACE_MS = 5000; // between stdin close, SIGTERM and SIGKILL
 export const SHUTDOWN_SPAWN_WAIT_MS = 3000; // organism-infra/143: how long shutdown waits for spawns in flight before it kills synchronously
 export const USAGE_REFUSE_AT = 90; // five-hour usage percent at which dispatch is refused (ADR 0002 auto-pause)
 
-// The nine known agents (CLAUDE.md).
-export const ROLES = ["product", "architect", "orchestrator", "developer", "scout", "qa", "security", "designer", "herald"];
+// The known roles (CLAUDE.md); the last four are ADR 0029's, on the worker slot until per-layer caps (codex-residents/11).
+export const ROLES = ["product", "architect", "orchestrator", "developer", "scout", "qa", "security", "designer", "herald", "code-reviewer", "release-manager", "sre", "technical-writer"];
 // mode reaches the prompt template, so it is an allowlist, never free text.
 export const MODES = ["specify", "verify", "review", "spec", "critique", "direction"];
 

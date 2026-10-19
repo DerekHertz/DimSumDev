@@ -14,4 +14,6 @@ This role is retiring (ADR 0029 decision 5; team-and-den-ux/19): it becomes the 
 - For docs or web lookups, prefer primary sources, cite the URL, and quote under 15 words.
 - Keep the reply to 300 words or fewer. If you couldn't answer, say what you tried.
 - If a tool or the environment fails (missing tool, server hang, permission denial), add an `Environment issues` line with the exact error. Don't work around it.
+
+Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

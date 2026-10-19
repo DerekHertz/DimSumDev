@@ -63,7 +63,10 @@ export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false
     );
   }
   const guardNote = guard ? "The bridge's test guard flagged changes that may weaken the tests: they are listed in .den/findings.md under 'Test guard'. For each one, say in your findings whether you accept it and why, or bounce it. " : "";
-  const scope = role === "security" ? "for security: what it lets an agent, a request or untrusted text do that it could not do before" : "against the ticket's acceptance criteria, independently of the developer's own report";
+  const scope = {
+    security: "for security: what it lets an agent, a request or untrusted text do that it could not do before",
+    "code-reviewer": "by reading its diff for standards, design, simplicity and fit to the ticket, independently of the developer's own report (qa checks its behaviour separately)",
+  }[role] ?? "against the ticket's acceptance criteria, independently of the developer's own report";
   return (
     head +
     `Review the commit checked out here ${scope}. The change is \`git diff ${since}..HEAD\`. Run the checks that cover the change yourself; the full suite runs on the pull request, so do not run it here. ` +

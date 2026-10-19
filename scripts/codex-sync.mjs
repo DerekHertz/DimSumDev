@@ -8,6 +8,7 @@
 //   drifted path and exits 1 on drift.
 // Codex facts (learn.chatgpt.com/docs: models, agent-configuration/subagents, build-skills, hooks, agent-configuration/agents-md):
 //   agent TOML keys name, description, developer_instructions, model, model_reasoning_effort; no per-agent tools.
+import { execFileSync } from "node:child_process";
 import { readFileSync, writeFileSync, readdirSync, existsSync, mkdirSync, rmSync, rmdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -35,6 +36,9 @@ export const RULES = [
 ];
 const applyRules = (text) => RULES.reduce((t, r) => t.replace(r.pattern, r.to), text);
 
+// Codex has no per-agent tool list, so a role definition's tool limits (scout read-only, herald's draft check only) bind only as instructions.
+export const CODEX_CAVEAT = "Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.";
+
 export function render(roleDefinition) {
   const m = roleDefinition.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!m) throw new Error("role definition has no front matter");
@@ -50,7 +54,7 @@ export function render(roleDefinition) {
   if (!model) throw new Error(`unknown model "${fm.model}" (add it to MODEL_MAP)`);
   const effort = EFFORT_MAP[fm.effort];
   if (!effort) throw new Error(`unknown effort "${fm.effort}" (add it to EFFORT_MAP)`);
-  const body = applyRules(m[2].replace(/^\s*\n/, "")).trimEnd();
+  const body = applyRules(m[2].replace(/^\s*\n/, "")).trimEnd() + "\n\n" + CODEX_CAVEAT;
   if (body.includes("'''")) throw new Error("body contains ''' and cannot be a TOML literal string");
   return [
     `name = ${JSON.stringify(fm.name)}`,
@@ -72,6 +76,17 @@ function walk(dir, base = dir) {
     e.isDirectory() ? walk(path.join(dir, e.name), base) : [path.relative(base, path.join(dir, e.name)).split(path.sep).join("/")]);
 }
 
+// Skill files to mirror: tracked files only, so a stray untracked file is never copied. A root that is not a
+// git checkout (a test fixture) falls back to the directory walk.
+function skillFiles(root) {
+  try {
+    const out = execFileSync("git", ["ls-files", "-z", "--", ".claude/skills"], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+    const files = out.split("\0").filter(Boolean).map((f) => f.slice(".claude/skills/".length));
+    if (files.length) return files;
+  } catch {}
+  return walk(path.join(root, ".claude/skills"));
+}
+
 // Every mirror the root should hold: relPath -> Buffer|string. Stale paths are listed separately.
 function plan(root) {
   const want = new Map();
@@ -79,7 +94,7 @@ function plan(root) {
   const agentsDir = path.join(root, ".claude/agents");
   const roles = readdirSync(agentsDir).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3));
   for (const role of roles) want.set(`.codex/agents/${role}.toml`, render(readFileSync(path.join(agentsDir, `${role}.md`), "utf8")));
-  for (const f of walk(path.join(root, ".claude/skills"))) want.set(`.agents/skills/${f}`, readFileSync(path.join(root, ".claude/skills", f)));
+  for (const f of skillFiles(root)) want.set(`.agents/skills/${f}`, readFileSync(path.join(root, ".claude/skills", f)));
   want.set("AGENTS.md", renderAgents(readFileSync(path.join(root, "CLAUDE.md"), "utf8")));
   for (const f of walk(path.join(root, ".codex/agents"))) if (f.endsWith(".toml") && !want.has(`.codex/agents/${f}`)) stale.push(`.codex/agents/${f}`);
   // .agents/skills/jevgrep is hand-kept: never stale.

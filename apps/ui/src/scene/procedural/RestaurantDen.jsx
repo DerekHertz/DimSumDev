@@ -135,7 +135,7 @@ export function RestaurantDen({ snapshot, cells, frontier, tally, selected, onSe
           const cell = a.live ? (snap?.cells ?? []).filter(row => row.ref === a.live.ref && (!row.cellType || row.cellType === a.role))
             .reduce((latest, row) => !latest || Date.parse(row.lastEventAt) > Date.parse(latest.lastEventAt) ? row : latest, null) : null;
           const tool = cell?.tool ?? null; // The card keeps the current tool after its floating bubble fades.
-          return { id, name: a.name, role: a.role, station: a.station, position: { x: position.x, z: position.z }, ref: a.live?.ref, state: a.live?.state, tool, agent };
+          return { id, name: a.name, role: a.role, dispatchable: !a.concept, station: a.station, position: { x: position.x, z: position.z }, ref: a.live?.ref, state: a.live?.state, tool, agent };
         });
         const camera = walking ? stage.explorer.camera : null;
         card = camera ? cardFor(pandas, snap?.approvals ?? [], { x: camera.position.x, z: camera.position.z, yaw: camera.rotation.y })

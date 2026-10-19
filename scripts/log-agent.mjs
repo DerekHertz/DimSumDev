@@ -16,7 +16,7 @@ import { appendUsageRows, agentRow, sessionOf, spendDelta, spendRow, transcriptT
 import { resolveRoot, resolveShortRef } from "../apps/board/board-service.mjs";
 import { normalizeLegacyFlags, roleOf } from "../apps/board/legacy-terms.mjs";
 
-const ROLES = ["product", "architect", "orchestrator", "developer", "scout", "qa", "security", "designer"];
+const ROLES = ["product", "architect", "orchestrator", "developer", "scout", "qa", "security", "designer", "code-reviewer", "release-manager", "sre", "technical-writer"];
 const REF_RE = /^([a-z0-9-]+)\/([A-Za-z0-9][A-Za-z0-9._-]*)$/;
 const FLAGS = ["ticket", "role", "mode", "model", "tokens", "ms", "outcome", "failures", "allow-no-handoff", "context", "transcript"];
 const TOOLS = ["bash-guard", "board-claim", "board-release", "board-comment", "board-handoff", "handoff-state", "git", "npm", "write", "ci", "other"];

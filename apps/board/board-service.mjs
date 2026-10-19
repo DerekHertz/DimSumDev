@@ -727,6 +727,8 @@ export function modeAllowed(role, mode) {
 const KNOWN_ROLES = new Set([
   "product", "architect", "orchestrator", "developer", "scout",
   "qa", "security", "designer",
+  // ADR 0029 (team-and-den-ux/02)
+  "code-reviewer", "release-manager", "sre", "technical-writer",
 ]);
 
 /** Is this a role the board can hold a ticket for? (den-mvp/23: a role it does not know runs unclaimed.) */
@@ -1497,7 +1499,7 @@ export async function getStatus(root, ref) {
   return readStatus(content);
 }
 
-const VERDICT_ROLES = new Set(["qa", "security", "orchestrator", "designer"]);
+const VERDICT_ROLES = new Set(["code-reviewer", "qa", "security", "orchestrator", "designer"]);
 
 export async function comment(root, ref, text, options = {}) {
   const { as, verdict } = options;

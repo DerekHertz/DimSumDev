@@ -136,7 +136,7 @@ export function check(command) {
 
 // ---- block log ------------------------------------------------------------------------------
 
-const ROLES = new Set(["developer", "qa", "security", "architect", "designer", "herald", "product", "orchestrator", "scout"]);
+const ROLES = new Set(["developer", "qa", "security", "architect", "designer", "herald", "product", "orchestrator", "scout", "code-reviewer", "release-manager", "sre", "technical-writer"]);
 const HEAD_MAX = 200;
 const REDACT_INPUT_MAX = 2000; // cap before redact() so a huge command cannot stall the regexes
 const STEP_TIMEOUT_MS = 3000;

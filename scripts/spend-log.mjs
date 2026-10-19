@@ -10,7 +10,7 @@ import path from "node:path";
 import { resolveRoot, resolveShortRef } from "../apps/board/board-service.mjs";
 import { appendUsageRows, sessionOf, spendDelta, spendRow, transcriptTotals } from "./spend-lib.mjs";
 
-const ROLES = ["product", "architect", "orchestrator", "developer", "scout", "qa", "security", "designer"];
+const ROLES = ["product", "architect", "orchestrator", "developer", "scout", "qa", "security", "designer", "code-reviewer", "release-manager", "sre", "technical-writer"];
 const REF_RE = /^([a-z0-9-]+)\/([A-Za-z0-9][A-Za-z0-9._-]*)$/;
 const FLAGS = ["transcript", "role", "ticket", "session"];
 

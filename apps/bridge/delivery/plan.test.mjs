@@ -15,7 +15,10 @@ import { createGitHost } from "./git-host.mjs";
 const BASE = "a".repeat(40), SHA = "b".repeat(40), OLD = "c".repeat(40), RUN = "c-0123456789abcdef";
 const BRANCH = "den/fx/08-plain-01234567";
 const riskOf = (more = {}) => ({ sha: SHA, clean: true, hits: 0, secret: false, security: false, userMerge: false, ...more });
-const job = (evidence = {}, more = {}) => ({ base: BASE, candidate: { sha: SHA }, bounces: 0, visual: false, evidence, ...more });
+// team-and-den-ux/02: every candidate gets the code reviewer first. The rows below are about what follows it, so a job
+// carries a passing review unless a test says otherwise (pass review: undefined to leave it out).
+const REVIEWED = { sha: SHA, verdict: "pass" };
+const job = (evidence = {}, more = {}) => ({ base: BASE, candidate: { sha: SHA }, bounces: 0, visual: false, evidence: { review: REVIEWED, ...evidence }, ...more });
 // F29: before the push the candidate is merged with main (a dry run); a clean result is part of "passed".
 const MAIN = "d".repeat(40);
 const synced = (more = {}) => ({ sha: SHA, main: MAIN, conflicts: [], at: "push", ...more });
@@ -24,6 +27,26 @@ const open = { ...passed, pr: { sha: SHA, state: "OPEN", mergeable: "MERGEABLE" 
 const green = { ...open, ci: { sha: SHA, state: "green" } };
 
 describe("the delivery plan", () => {
+  // team-and-den-ux/02 (ADR 0029 decisions 2 and 6): the code reviewer, then qa, at one commit; one fix round for both.
+  test("a new candidate goes to the code reviewer first, and a review of an older commit does not count", () => {
+    assert.deepEqual(nextStep(job({ review: undefined })), { kind: "run", role: "code-reviewer", at: SHA, since: BASE });
+    assert.deepEqual(nextStep(job({ review: { sha: OLD, verdict: "pass" } })), { kind: "run", role: "code-reviewer", at: SHA, since: BASE });
+    assert.deepEqual(nextStep(job({ review: undefined }, { testGuard: true })), { kind: "run", role: "code-reviewer", at: SHA, since: BASE });
+  });
+
+  test("a code review bounce still sends the commit to qa, so the fix round has both reviews' findings", () => {
+    const bounced = { sha: SHA, verdict: "bounce" };
+    assert.deepEqual(nextStep(job({ review: bounced }, { bounces: 1 })), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE });
+    for (const qa of [{ sha: SHA, verdict: "pass" }, { sha: SHA, verdict: "bounce" }]) {
+      assert.deepEqual(nextStep(job({ review: bounced, qa }, { bounces: 1 })), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true });
+    }
+    assert.equal(nextStep(job({ review: bounced, qa: { sha: SHA, verdict: "pass" } }, { bounces: MAX_BOUNCES })).pause, "failed-twice");
+  });
+
+  test("a passing review and a passing qa go on to the scripted checks", () => {
+    assert.deepEqual(nextStep(job({ qa: { sha: SHA, verdict: "pass" } })), { kind: "check" });
+  });
+
   test("local checks that could not run wait for the user, and red twice is failed-twice", () => {
     const err = nextStep(job({ ...passed, tests: { sha: SHA, state: "error", reason: "bwrap is not installed" } }, { localChecks: true }));
     assert.equal(err.pause, "checks-error");

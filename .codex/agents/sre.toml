@@ -15,4 +15,6 @@ Checks, each with the command or file you read:
 Then write the report: one line per check (reading, source, ok or finding), findings first. For each finding, either propose a ticket (title, one paragraph, the evidence) or a fix for the user (the exact command, what it changes, how to undo it). Never run the fix.
 
 Read logs narrowly: a time window and a line cap. Never print a secret or a token from a log; name where it appears.
+
+Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

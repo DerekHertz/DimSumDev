@@ -84,6 +84,11 @@ const TABLE = [
   { role: "architect", mode: undefined, style: "either", release: "in-review" },
   { role: "designer", mode: "spec", style: "either", release: "ready-for-agent" },
   { role: "designer", mode: "direction", style: "either", release: "ready-for-agent" },
+  // team-and-den-ux/02 (ADR 0029)
+  { role: "code-reviewer", mode: undefined, style: "detach", release: "keep" },
+  { role: "release-manager", mode: undefined, style: "detach", release: "keep" },
+  { role: "sre", mode: undefined, style: "detach", release: "keep" },
+  { role: "technical-writer", mode: undefined, style: "branch", release: "in-review" },
 ];
 
 for (const row of TABLE) {

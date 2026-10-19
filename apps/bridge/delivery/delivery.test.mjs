@@ -173,8 +173,11 @@ describe("one approved job, from the den to a merged pull request", () => {
     // den-mvp/43: a merged delivery's worktrees and den/ branches are gone, and no wip/ branch is made for a clean, merged commit.
     await until(async () => worktrees(t.root).length === 0, { what: "the worktrees to be removed" });
     assert.equal(git(t.root, "branch", "--list", "den/*", "wip/*"), "");
-    assert.deepEqual(done.evidence, { qa: "pass", security: null, risk: { clean: true, hits: 0, security: false, userMerge: false }, ci: "green", tests: null });
-    assert.deepEqual(done.runs.map((r) => [r.role, r.state]), [["developer", "done"], ["qa", "done"]]);
+    assert.deepEqual(done.evidence, { review: "pass", qa: "pass", security: null, risk: { clean: true, hits: 0, security: false, userMerge: false }, ci: "green", tests: null });
+    // team-and-den-ux/02: the code reviewer reads the commit before qa, and the pull request names both reviews.
+    assert.deepEqual(done.runs.map((r) => [r.role, r.state]), [["developer", "done"], ["code-reviewer", "done"], ["qa", "done"]]);
+    assert.match(t.git.calls[1][1].body, /- Code review: pass \(run c-[0-9a-f]+\)\n- qa verify: pass/);
+    assert.match(t.git.calls[1][1].body, /as the release manager's step/);
   });
 
   // den-mvp/70: the test guard runs on the candidate before qa verifies; its hits reach the verifier's brief, the delivery's
@@ -483,6 +486,72 @@ describe("a review that sends the work back", () => {
     assert.equal(t.lock(), null);
     assert.equal((await t.post(`/deliveries/${waiting.id}/resume`)).status, 202);
     assert.equal((await t.spawn(4)).args.role, "developer");
+  });
+});
+
+// team-and-den-ux/02 (ADR 0029 decisions 2, 5 and 6): the code reviewer reads every candidate before qa; both report
+// before a fix round, which carries both reports and counts once; push, PR, merge and resolve are the release manager's.
+describe("the code reviewer beside qa", () => {
+  const drive = () => setup({ runtimeConfig: { answer: {} } });
+
+  test("the code reviewer reviews the developer's commit first, in a worktree of its own, with a reviewer's brief", async () => {
+    const t = await drive();
+    await t.start();
+    const dev = await t.spawn(0);
+    const sha = t.work(dev, { commit: "feature.txt", say: "Done." });
+    const review = await t.spawn(1);
+    assert.equal(review.args.role, "code-reviewer");
+    assert.equal(git(review.args.cwd, "rev-parse", "HEAD"), sha);
+    assert.notEqual(review.args.cwd, dev.args.cwd);
+    assert.match(review.args.prompt, /You are the code-reviewer agent/);
+    assert.match(review.args.prompt, /standards, design, simplicity and fit to the ticket/);
+    assert.match(review.args.prompt, /VERDICT: pass/);
+    t.work(review, { say: "Clean.\nVERDICT: pass" });
+    const qa = await t.spawn(2);
+    assert.deepEqual([qa.args.role, git(qa.args.cwd, "rev-parse", "HEAD")], ["qa", sha]);
+    t.work(qa, { say: "VERDICT: pass" });
+    await t.when((j) => j.state === "merged", "the delivery to merge");
+    assert.ok(t.handoffs().some((h) => /-code-reviewer-/.test(h)), "the bridge writes the reviewer's handoff");
+    const ops = readFileSync(path.join(t.root, ".scratch", "_run", "delivery.jsonl"), "utf8").trim().split("\n").map((l) => JSON.parse(l)).filter((e) => e.op && e.phase === "done");
+    for (const name of ["push", "pr", "merge", "resolve"]) assert.equal(ops.find((e) => e.op === name)?.by, "release-manager", name);
+    assert.equal(ops.find((e) => e.op === "claim")?.by, undefined, "only the release steps carry the release manager's name");
+  });
+
+  test("a review bounce still goes to qa; one fix round carries both reports and counts as one bounce", async () => {
+    const t = await drive();
+    await t.start();
+    const first = t.work(await t.spawn(0), { commit: "feature.txt", say: "Done." });
+    t.work(await t.spawn(1), { say: "The helper is duplicated.\nVERDICT: bounce" });
+    const qa = await t.spawn(2);
+    assert.deepEqual([qa.args.role, git(qa.args.cwd, "rev-parse", "HEAD")], ["qa", first], "qa runs on the bounced commit too");
+    t.work(qa, { say: "The empty case fails.\nVERDICT: bounce" });
+    const fix = await t.spawn(3);
+    assert.equal(fix.args.role, "developer");
+    const findings = readFileSync(path.join(fix.args.cwd, ".den", "findings.md"), "utf8");
+    assert.match(findings, /The helper is duplicated\./);
+    assert.match(findings, /The empty case fails\./);
+    assert.equal((await t.job()).bounces, 1, "two bounces of one commit are one fix round");
+    const second = t.work(fix, { commit: "fix.txt", say: "Fixed both." });
+    const review = await t.spawn(4);
+    assert.deepEqual([review.args.role, git(review.args.cwd, "rev-parse", "HEAD")], ["code-reviewer", second], "a new commit is reviewed again");
+    t.work(review, { say: "VERDICT: pass" });
+    t.work(await t.spawn(5), { say: "VERDICT: pass" });
+    const done = await t.when((j) => j.state === "merged", "the delivery to merge");
+    assert.equal(done.bounces, 1);
+  });
+
+  test("a second fix round asked for by either review pauses as failed-twice", async () => {
+    const t = await drive();
+    await t.start();
+    t.work(await t.spawn(0), { commit: "a.txt", say: "Done." });
+    t.work(await t.spawn(1), { say: "VERDICT: bounce" });
+    t.work(await t.spawn(2), { say: "VERDICT: pass" });
+    t.work(await t.spawn(3), { commit: "b.txt", say: "Fixed." });
+    t.work(await t.spawn(4), { say: "VERDICT: pass" });
+    t.work(await t.spawn(5), { say: "Still wrong.\nVERDICT: bounce" });
+    const waiting = await t.paused("failed-twice");
+    assert.equal(waiting.bounces, 2);
+    assert.equal(t.fake.spawns.length, 6, "no third developer run starts by itself");
   });
 });
 
