@@ -42,6 +42,8 @@ const BODIES = {
   "POST /release/decline": { real: { get id() { return draftId; } }, bogus: { id: "no-draft" }, prepare: async () => void (draftId = (await bridge.releases.propose()).id) },
   "POST /tickets/approve": { real: { ref: `${FEATURE}/06-human` }, bogus: { ref: `${FEATURE}/99-nope` } },
   "POST /tickets/decline": { real: { ref: `${FEATURE}/06-human`, note: "not now" }, bogus: { ref: `${FEATURE}/99-nope`, note: "no" } },
+  "POST /tickets/transfer": { real: { ref: `${FEATURE}/08-plain`, owner: "jiao" }, bogus: { ref: `${FEATURE}/08-plain`, owner: "nobody" } },
+  "POST /admission/runtime": { real: { allow: "both" }, bogus: { allow: "none" } },
   "POST /projects/active": { real: { slug: "den" }, bogus: { slug: "nope" } },
   "POST /requests": {
     real: { kind: "dispatch-approve", ref: DISPATCH_REF },
