@@ -123,7 +123,12 @@ export function createLauncher({ stateDir, repo, node = process.execPath, port =
     active?.kill("SIGTERM");
   }
 
-  return { launch, stop };
+  /** Passes a signal to the bridge being started or run (SIGUSR2 from npm run den:link). */
+  function signal(name) {
+    active?.kill(name);
+  }
+
+  return { launch, stop, signal };
 }
 
 // import.meta.url is the real path; argv[1] is as the unit gave it, possibly through a symlinked state dir (server.mjs does the same).
@@ -142,6 +147,8 @@ if (startedDirectly()) {
     stopping = true;
     launcher.stop();
   });
+  // npm run den:link signals the unit's main process, which is this launcher; unhandled, SIGUSR2 would kill the den.
+  process.on("SIGUSR2", () => launcher.signal("SIGUSR2"));
   try {
     const { sha, child, rolledBack } = await launcher.launch();
     console.log(`den-launcher: the bridge ${sha.slice(0, 12)} answers${rolledBack ? " (rolled back; see bridge/failed.json)" : ""}`);
