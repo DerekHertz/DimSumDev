@@ -134,22 +134,29 @@ export function TallyCard({ tally, metrics, failed, onRetry, onClose, stage }) {
           </svg>
         </button>
       </header>
-      <div className="tally-card-body" role="region" aria-label="Tally metrics" tabIndex={0}>
-        <section className="tally-section">
-          <h3 className="tally-h3">The rods</h3>
-          <p className="small tally-caption">{tally.caption}</p>
-          {tally.rods.map((rod) => (
-            <Fragment key={rod.id}>
-              <RodRow rod={rod} />
-              {rod.id === "week" && tally.sampledText ? <p className="small tally-caption">{tally.sampledText}</p> : null}
-            </Fragment>
-          ))}
-        </section>
-        <section className="tally-section">
-          <h3 className="tally-h3">Pipeline</h3>
-          <Dashboard metrics={metrics} failed={failed} onRetry={onRetry} />
-        </section>
-      </div>
+      <TallyBody tally={tally} metrics={metrics} failed={failed} onRetry={onRetry} />
+    </div>
+  );
+}
+
+/** The rods and the pipeline charts: the Tally card's body, and the rail's Tally sheet (team-and-den-ux/04). */
+export function TallyBody({ tally, metrics, failed, onRetry }) {
+  return (
+    <div className="tally-card-body" role="region" aria-label="Tally metrics" tabIndex={0}>
+      <section className="tally-section">
+        <h3 className="tally-h3">The rods</h3>
+        <p className="small tally-caption">{tally.caption}</p>
+        {tally.rods.map((rod) => (
+          <Fragment key={rod.id}>
+            <RodRow rod={rod} />
+            {rod.id === "week" && tally.sampledText ? <p className="small tally-caption">{tally.sampledText}</p> : null}
+          </Fragment>
+        ))}
+      </section>
+      <section className="tally-section">
+        <h3 className="tally-h3">Pipeline</h3>
+        <Dashboard metrics={metrics} failed={failed} onRetry={onRetry} />
+      </section>
     </div>
   );
 }

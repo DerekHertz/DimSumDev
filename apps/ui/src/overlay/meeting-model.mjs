@@ -78,6 +78,7 @@ export function meetingRows(snapshot, max = 5) {
     decisions: (m.decisions ?? []).map((d) => ({ option: d.option, title: d.title, ticket: d.ticket })),
     roles: m.seats.map((s) => s.role),
     canStop: m.state === "running", canResume: m.state === "paused", canClose: m.state !== "running" && m.state !== "closed",
+    canEnd: m.state !== "closed", // team-and-den-ux/04: End meeting… stops a running one first
     canAsk: canAsk(m), canDecide: canDecide(m), hasBrief: !!m.brief,
     next: m.state === "paused" ? m.pause?.next || "" : "",
   }));

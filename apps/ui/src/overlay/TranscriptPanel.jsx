@@ -18,11 +18,11 @@ const timeOf = (at) => {
 
 // Panel state lives in App so the nearby card's R button and the R key share one rule (transcript-panel.mjs).
 // The panel is pinned to its agent: identity is kept from the card it opened from.
-export function useTranscript({ card, exploring, onOpen, blocked }) {
+export function useTranscript({ card, exploring, onOpen, blocked, returnFocus }) {
   const [panel, setPanel] = useState(initialTranscriptState);
   const [identity, setIdentity] = useState(null);
   const latest = useRef({});
-  latest.current = { panel, card, exploring, onOpen, blocked };
+  latest.current = { panel, card, exploring, onOpen, blocked, returnFocus };
   const intercept = useRef(null); // the thread's own use for Esc (the stop confirm); true means Esc was taken
 
   const commit = useCallback((next) => {
@@ -33,7 +33,9 @@ export function useTranscript({ card, exploring, onOpen, blocked }) {
       latest.current.onOpen?.();
     }
     if (!next.agentId && previous.agentId) {
+      const back = latest.current.returnFocus; // team-and-den-ux/04: the shell returns focus to what opened the conversation
       queueMicrotask(() => {
+        if (back?.()) return;
         const free = document.querySelector(".den-cursor-free .proximity-card button[data-key=R]");
         (free ?? document.querySelector('main[aria-label="Den scene"]'))?.focus({ preventScroll: true });
       });
@@ -63,9 +65,8 @@ export function useTranscript({ card, exploring, onOpen, blocked }) {
     return () => document.removeEventListener("keydown", onKey, true);
   }, [commit]);
 
-  // Leaving the den closes the transcript, unless it was opened from a panel (Needs you), which needs no den at all;
-  // a different nearby card clears an old notice.
-  useEffect(() => { if (!exploring && latest.current.panel.agentId && !latest.current.panel.pinned) commit(closeTranscript(latest.current.panel)); }, [exploring, commit]);
+  // team-and-den-ux/04 (spec section 5): leaving the den never closes a conversation; only its own close does.
+  // A different nearby card clears an old notice.
   useEffect(() => { if (latest.current.panel.notice) commit({ ...latest.current.panel, notice: null }); }, [card?.id, commit]);
 
   return {
@@ -77,8 +78,8 @@ export function useTranscript({ card, exploring, onOpen, blocked }) {
     // follow-up run that continues it. Both keep the panel open outside walk mode.
     openFor: useCallback((agentId, who) => {
       if (!agentId || latest.current.blocked?.current) return;
-      if (latest.current.panel.agentId) commit(closeTranscript(latest.current.panel));
       latest.current.card = who ?? null;
+      setIdentity({ name: who?.name || who?.role || agentId, role: who?.role ?? "", state: who?.state ?? "" });
       commit({ agentId, notice: null, pinned: true });
     }, [commit]),
     follow: useCallback((agentId) => {
@@ -266,7 +267,7 @@ function Foot({ tx, agent, role, client, connection, signedIn, demo, onAnnounce 
   };
 
   return <form className="thread-foot" onSubmit={send} aria-busy={view.busy || sending || undefined}>
-    {view.confirm ? <div className="thread-confirm" role="group" aria-label="Stop this agent?">
+    {view.confirm ? <div className="thread-confirm" role="group" aria-label="Stop this agent?" data-confirm>
       <p>Stop this agent?</p>
       <button type="button" className="thread-stop" onClick={doStop}>Stop</button>
       <button type="button" className="thread-keep" ref={keepRef} onClick={cancel}>Keep going</button>
@@ -310,7 +311,7 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
   lastN.current = view.rows.at(-1)?.n ?? 0;
 
   useEffect(() => { setExpanded([]); setAtBottom(true); setSeenThrough(0); bottomRef.current = true; }, [agentId]);
-  useEffect(() => { if (agentId) document.querySelector(".transcript-close")?.focus({ preventScroll: true }); }, [!!agentId]);
+  useEffect(() => { if (agentId) document.querySelector("#sheet-side-title")?.focus({ preventScroll: true }); }, [agentId]);
 
   // The role's earlier runs (den-mvp outcome 2): asked from the bridge when the thread opens or moves to a new run, a
   // page at a time. Demo mode and a page with no client read nothing.
@@ -374,11 +375,11 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
   const ref = typeof agent?.ref === "string" ? agent.ref.slice(agent.ref.indexOf("/") + 1) : "";
   return <>
     {notice}
-    <aside className="transcript-panel thread-panel" role="complementary" aria-label={`Conversation with ${name}`}>
+    <aside id="sheet-side" className="transcript-panel thread-panel" data-sheet="side" role="dialog" aria-modal="false" aria-label={`Conversation with ${name}`}>
       <header className="transcript-head">
         <div>
           <p className="transcript-overline">Conversation</p>
-          <h2>{[name, ref].filter(Boolean).join(" · ")}</h2>
+          <h2 id="sheet-side-title" tabIndex={-1}>{[name, ref].filter(Boolean).join(" · ")}</h2>
           <p className="transcript-meta"><code>{agentId}</code>{role && role !== name ? ` · ${role}` : ""}</p>
           <p className="transcript-state"><span className={`transcript-glyph transcript-glyph-${state}`} aria-hidden="true" />{STATES[state] ?? state}</p>
         </div>

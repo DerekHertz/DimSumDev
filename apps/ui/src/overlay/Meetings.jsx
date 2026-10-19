@@ -31,7 +31,31 @@ export function useMeetings(client) {
   }, []);
   const start = useCallback((body) => call("new", () => client.startMeeting(body)), [call, client]);
   const steer = useCallback((id, action, body) => call(id, () => client.steerMeeting(id, action, body)), [call, client]);
-  return useMemo(() => ({ inflight, results, start, steer }), [inflight, results, start, steer]);
+  // team-and-den-ux/04 (spec section 5): End meeting stops a running meeting and then closes it; the takes are kept.
+  const end = useCallback((id, running) => call(id, async () => {
+    if (running) await client.steerMeeting(id, "stop");
+    await client.steerMeeting(id, "close");
+  }), [call, client]);
+  return useMemo(() => ({ inflight, results, start, steer, end }), [inflight, results, start, steer, end]);
+}
+
+/** End meeting…, then an inline confirm: End meeting / Keep it running (spec section 5). */
+function EndMeeting({ row, meetings, off }) {
+  const [asking, setAsking] = useState(false);
+  const keep = useRef(null);
+  const ask = setAsking;
+  useEffect(() => { if (asking) keep.current?.focus({ preventScroll: true }); }, [asking]);
+  if (!row.canEnd) return null;
+  const acting = meetings.inflight.has(row.id);
+  if (!asking) return <button type="button" className="btn btn-outline run-btn" title={off ?? undefined} disabled={!!off || acting} aria-label={`End the meeting ${row.title}`} onClick={() => ask(true)}>End meeting…</button>;
+  return (
+    <span className="meeting-confirm" role="group" aria-label={`End the meeting ${row.title}?`} data-confirm
+      onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); ask(false); } }}>
+      <span className="small">End it? The takes are kept.</span>
+      <button type="button" className="btn btn-solid run-btn" disabled={acting} onClick={async () => { if (await meetings.end(row.id, row.state === "running")) ask(false); }}>End meeting</button>
+      <button type="button" ref={keep} className="btn btn-outline run-btn" onClick={() => ask(false)}>Keep it running</button>
+    </span>
+  );
 }
 
 function Setup({ snapshot, steer, meetings }) {
@@ -163,7 +187,26 @@ function Detail({ row, client, steer, meetings, openRole = null }) {
   );
 }
 
-export function MeetingsCard({ client, snapshot, open, onToggle, busy, steer, meetings, shown, onShow, shownRole = null }) {
+/**
+ * team-and-den-ux/04: one meeting in the side sheet. The sheet's × only hides it (the meeting keeps running); Leave meeting
+ * stops following it (it runs on to its brief, and its row offers Rejoin); End meeting… stops it after an inline confirm.
+ */
+export function MeetingSheet({ row, client, steer, meetings, openRole = null, onLeave }) {
+  const off = steer.demo ? "Demo mode: actions are off" : steer.state === "none" ? "Not signed in to steer" : null;
+  return (
+    <>
+      <p className="small" aria-live="polite">{row.line}</p>
+      <Detail row={row} client={client} steer={steer} meetings={meetings} openRole={openRole} />
+      {meetings.results[row.id]?.error ? <p className="small gate-error" role="alert">{meetings.results[row.id].error}</p> : null}
+      <div className="run-controls den-sheet-actions">
+        <button type="button" className="btn btn-outline run-btn" onClick={onLeave}>Leave meeting</button>
+        <EndMeeting row={row} meetings={meetings} off={off} />
+      </div>
+    </>
+  );
+}
+
+export function MeetingsCard({ client, snapshot, open, onToggle, busy, steer, meetings, shown, onShow, shownRole = null, left = null }) {
   const rows = meetingRows(snapshot);
   const waiting = rows.filter((r) => r.state === "briefed" || r.state === "paused").length;
   const running = rows.filter((r) => r.state === "running").length;
@@ -186,13 +229,13 @@ export function MeetingsCard({ client, snapshot, open, onToggle, busy, steer, me
                   <li className="small"><span aria-hidden="true">{r.hasBrief ? "●" : "○"}</span> <span className="library-name">Bao</span> chairs: {r.chair}</li>
                 </ul>
                 <div className="run-controls">
-                  <button type="button" className="btn btn-outline run-btn" aria-expanded={isOpen} onClick={() => onShow(isOpen ? null : r.id)}>{isOpen ? "Hide" : r.hasBrief ? "Open the brief" : "Open"}</button>
-                  {r.canStop ? <button type="button" className="btn btn-outline run-btn" title={off ?? undefined} disabled={!!off || acting} aria-label={`Stop the meeting ${r.title}`} onClick={() => meetings.steer(r.id, "stop")}>Stop</button> : null}
+                  {/* team-and-den-ux/04: the meeting opens in the side sheet; one you left offers Rejoin. */}
+                  <button type="button" className="btn btn-outline run-btn" aria-pressed={isOpen} onClick={(e) => onShow(r.id, e.currentTarget)}>{left?.has(r.id) ? "Rejoin" : r.hasBrief ? "Open the brief" : "Open"}</button>
+                  {r.canStop ? <button type="button" className="btn btn-outline run-btn" title={off ?? undefined} disabled={!!off || acting} aria-label={`Pause the meeting ${r.title}`} onClick={() => meetings.steer(r.id, "stop")}>Pause</button> : null}
                   {r.canResume ? <button type="button" className="btn btn-solid run-btn" title={off ?? undefined} disabled={!!off || acting} onClick={() => meetings.steer(r.id, "resume")}>Resume</button> : null}
-                  {r.canClose ? <button type="button" className="btn btn-outline run-btn" title={off ?? undefined} disabled={!!off || acting} aria-label={`Close the meeting ${r.title}`} onClick={() => meetings.steer(r.id, "close")}>Close</button> : null}
+                  <EndMeeting row={r} meetings={meetings} off={off} />
                 </div>
                 {meetings.results[r.id]?.error ? <p className="small gate-error" role="alert">{meetings.results[r.id].error}</p> : null}
-                {isOpen ? <Detail row={r} client={client} steer={steer} meetings={meetings} openRole={shownRole} /> : null}
               </li>
             );
           })}
