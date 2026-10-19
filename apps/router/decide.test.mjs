@@ -17,10 +17,10 @@ import assert from "node:assert/strict";
 import { decide, STOP_AT_PERCENT, BRIDGE_DOWN_MS } from "./decide.mjs";
 
 const full = (n) => `fx/${String(n).padStart(2, "0")}-slug`;
-const tk = (n, { status = "ready-for-agent", paths = ["apps/a/default.mjs"], locked = false, blockedBy = "None" } = {}) => ({
+const tk = (n, { status = "ready-for-agent", paths = ["apps/a/default.mjs"], locked = false, blockedBy = "None", type = "feature" } = {}) => ({
   ref: full(n),
   locked,
-  text: `# ${n}\n\n**Type:** feature\n\n**Status:** ${status}\n\n**Blocked by:** ${blockedBy}\n\n## What to build\n${paths.map((p) => `\`${p}\``).join(" ")}\n\n## Acceptance criteria\n- [ ] x\n`,
+  text: `# ${n}\n\n**Type:** ${type}\n\n**Status:** ${status}\n\n**Blocked by:** ${blockedBy}\n\n## What to build\n${paths.map((p) => `\`${p}\``).join(" ")}\n\n## Acceptance criteria\n- [ ] x\n`,
 });
 const order = (...es) => ({ entries: es.map((e) => (typeof e === "string" ? { ref: `fx/${e}`, notBeside: [] } : { ref: `fx/${e[0]}`, notBeside: e[1].map((n) => `fx/${n}`) })) });
 const dl = (n, state = "running", pause = null, id = `d-${n}`) => ({ id, ref: full(n), state, pause: pause && { kind: pause }, updatedAt: "2026-10-17T10:00:00Z" });
@@ -34,6 +34,11 @@ const starts = (r) => r.actions.filter((a) => a.type === "start").map((a) => a.r
 const resumes = (r) => r.actions.filter((a) => a.type === "resume").map((a) => a.id);
 
 describe("starting (den-mvp/88 from 80)", () => {
+  test("den-mvp/105 a user acts ticket is never started, and the next eligible ticket starts instead", () => {
+    const r = run({ order: order("1", "2"), tickets: [tk(1, { type: "user acts" }), tk(2)], state: bridge({ room: 1 }) });
+    assert.deepEqual(starts(r), [full(2)]);
+    assert.deepEqual(starts(run({ order: order("1"), tickets: [tk(1, { type: "user acts" })] })), []);
+  });
   test("with a free slot, the first ready ticket in the order is started, by its full board ref", () => {
     assert.deepEqual(starts(run({ order: order("2", "1"), tickets: [tk(1), tk(2)], state: bridge({ room: 1 }) })), [full(2)]);
   });

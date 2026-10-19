@@ -91,6 +91,8 @@ export function decide({ order, tickets = [], state, usage, stops: known = [], d
     const short = shortOf(e.ref);
     const ticket = byRef.get(byNumber.get(short));
     if (!ticket || ticket.locked || delivered.has(ticket.ref) || claimed.has(ticket.ref)) continue;
+    // den-mvp/105: a `user acts` ticket needs the user, not an agent.
+    if (/^user acts\b/i.test(field(ticket.text, "Type") ?? "")) continue;
     if (status.get(ticket.ref) !== "ready-for-agent" || !unblocked(ticket, status, byNumber)) continue;
     const paths = pathsOf(ticket.text);
     const clash = holders.some((h) => !h.paths || !paths.length || apart.get(short)?.has(h.short) || h.paths.some((p) => paths.some((q) => overlaps(p, q))));
