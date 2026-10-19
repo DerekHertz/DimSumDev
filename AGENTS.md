@@ -10,19 +10,20 @@ The den runs as a systemd user service (ADR 0026), from release folders under `~
 
 ## Agents
 
-Roles are defined by role definitions in `.claude/agents/`, grouped into teams:
-- `product`, `architect`, `orchestrator` (Pass)
+Roles are defined by role definitions in `.claude/agents/`, grouped into teams. Each role's contract (inputs, outputs, authority, hand-offs) and the user's approval points are in `docs/agents/team-charter.md` (ADR 0029):
+- `product`, `architect`, `orchestrator`, `release-manager` (Pass)
 - `developer`, `scout`, `runner` (Steamers); `scout` and `runner` are Haiku leaves that start no agent: the agent tree is Bao and the router, then Sonnet agents, then leaves
-- `qa`, `security` (Tea & Pantry)
-- `designer`, `herald` (Front of House); herald drafts public posts, the user publishes
+- `code-reviewer`, `qa`, `security`, `sre` (Tea & Pantry); `sre` runs on Haiku, observes and proposes only
+- `designer`, `technical-writer`, `herald` (Front of House); the writer keeps docs true and drafts public posts, the user publishes
+- `orchestrator`, `herald` and `scout` are retiring (team-and-den-ux/19): into Bao and Jiao, the technical writer, and the runner
 
-Code tickets run a relay sized to risk (`team-protocol`, "Relay size"). A risk-path ticket (the wall, CI, hooks, service, auth, dependencies) runs qa `specify` (failing tests), developer, qa `verify` (light). Any other ticket (tests, docs, UI, ordinary scripts) goes straight to the developer, then qa `verify` (full: a per-criterion map, and a verdict on each test-guard hit). Then `npm run risk-check`: a clean exit skips `security`, a hit dispatches it. The orchestrator opens the PR and merges on green CI. designer specs UI tickets with the user (a detailed spec plus low-cost mockups), and the user does all visual critique of UI and asset tickets until a cheaper automated critique exists. Every agent follows the `team-protocol` skill: claim before working, stop at pass gates, hand off, then end.
+Code tickets run a relay sized to risk (`team-protocol`, "Relay size"). A risk-path ticket (the wall, CI, hooks, service, auth, dependencies) runs qa `specify` (failing tests), developer, qa `verify` (light). Any other ticket (tests, docs, UI, ordinary scripts) goes straight to the developer, then qa `verify` (full: a per-criterion map, and a verdict on each test-guard hit). On every code ticket the `code-reviewer` reviews the developer's commit beside qa, and the developer does not review its own work; one fix round carries both reviews' findings. Then `npm run risk-check`: a clean exit skips `security`, a hit dispatches it. Push, PR and merge on green CI are the release manager's steps: the bridge runs them in a delivery, the orchestrator in a terminal relay. designer specs UI tickets with the user (a detailed spec plus low-cost mockups), and the user does all visual critique of UI and asset tickets until a cheaper automated critique exists. Every agent follows the `team-protocol` skill: claim before working, stop at pass gates, hand off, then end.
 
 Relay autonomy (see `team-protocol`): once the user approves a ticket, the orchestrator runs its relay end to end, PR and merge included. Other gates still apply. It stops for user verdicts, open scope questions, a twice-failed ticket, environment issues, 5-hour usage at 90%+, or a red or conflicted merge. Up to two worker agents run at once (`max_concurrent_agents: 2`), on different tickets with non-overlapping files; Bao and one scout each have a reserved slot beside them.
 
 Direct work (`.scratch/den-mvp/spec.md`): the user may give any panda a focused job from the den without the relay, including developer, qa and security. The bridge starts every agent behind the wall and inside a resource group (`apps/bridge/agents/limits.json`), and refuses the run when it cannot enforce them. Push, PR and merge still need the delivery checks.
 
-Delivery (ADR 0024): Deliver on a ticket in the den runs developer, qa `verify`, the scripted checks and, on a hit, security; then the bridge pushes, opens the PR and merges on green checks. The bridge makes the board calls and holds the git-host login; a change to the bridge, a guardrail or CI is left for the user to merge.
+Delivery (ADR 0024, ADR 0029): Deliver on a ticket in the den runs developer, `code-reviewer`, qa `verify`, the scripted checks and, on a hit, security; then the bridge pushes, opens the PR and merges on green checks, as the release manager's steps. The bridge makes the board calls and holds the git-host login; a change to the bridge, a guardrail or CI is left for the user to merge.
 
 Meetings (ADR 0017, Amendment 1): from the den the user asks up to six specialists for one take each, in sequence; Bao then writes a decision brief with two or three options. The bridge runs it and writes the takes and the brief under `.scratch/<feature>/meetings/`. Choosing an option writes a ticket at `ready-for-human`; a brief authorizes nothing.
 

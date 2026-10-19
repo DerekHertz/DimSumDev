@@ -25,7 +25,7 @@ The den's list of onboarded projects: a slug, a plain path, a board kind and the
 _Avoid_: Project config, workspace list
 
 **Team**:
-A group of roles that owns one SDLC outcome, drawn as a place on Bao: the Pass (orchestrator, product, architect), Steamers (developer, scout), Tea & Pantry (qa, security), Front of House (designer), Service, Meter, Recipe book, Order rail. See the table in `design-brief.md` §4.2.
+A group of roles that owns one SDLC outcome, drawn as a place on Bao: the Pass (orchestrator, product, architect, release manager), Steamers (developer, scout, runner), Tea & Pantry (code reviewer, qa, security, SRE), Front of House (designer, technical writer, herald), Service, Meter, Recipe book, Order rail. See the table in `design-brief.md` §4.2.
 _Avoid_: Station and organ (the old names, ADR 0028 and organism-infra/53), department, squad
 
 **Role**:
@@ -35,6 +35,26 @@ _Avoid_: Cell type (the old name, ADR 0028), agent type, persona
 **Role definition**:
 The file that defines a role: `.claude/agents/<role>.md`.
 _Avoid_: Genome (the old name, ADR 0028), agent config
+
+**Owner**:
+The executive, Bao (Claude) or Jiao (Codex), that owns a ticket, project or task, recorded as `owner: bao|jiao`. It is the root of the task's tree and does the last review (ADR 0029).
+_Avoid_: Lead, assignee
+
+**Code reviewer**:
+The role that reads every code ticket's candidate commit, independently of the developer who wrote it, and returns pass or bounce for that commit. qa checks the same commit's behaviour.
+_Avoid_: Self-review (the developer's old step), approver
+
+**Release manager**:
+The role that owns push, pull request and merge-on-green. The bridge runs those steps under its name and holds the git login; the release manager's agent runs only for judgment (a red or conflicted PR, release notes, den update proposals).
+_Avoid_: Merger, deployer
+
+**SRE**:
+The role that measures the den's health (service, logs, resources, deliveries, updates) and proposes fixes. It changes nothing itself.
+_Avoid_: Ops, on-call
+
+**Technical writer**:
+The role that keeps the docs true to the code, sweeps for docs drift, and drafts public posts for the user to publish. It takes over herald's drafts.
+_Avoid_: Docs-writer (the scenery panda's old name), herald (retiring)
 
 **Agent**:
 One running instance of a role, working one ticket, usually in its own git worktree.
@@ -69,7 +89,7 @@ A reserved plot at the rear of the den for a team that does not exist yet. It is
 _Avoid_: Empty slot, placeholder team
 
 **Scenery panda**:
-A panda with no role definition: it fills a planned future role (release-manager, knowledge-keeper, docs-writer, stem-cub) so the den reads as populated, but nothing can dispatch it. It is not a resident panda and is not a role. The four roles above stay scenery until one gets a role definition and its own CONTEXT.md entry.
+A panda with no role definition: it fills a planned future role (knowledge-keeper, stem-cub) so the den reads as populated, but nothing can dispatch it. It is not a resident panda and is not a role. A role stays scenery until it gets a role definition and its own CONTEXT.md entry. The release-manager and docs-writer scenery pandas now have roles (release manager, technical writer; ADR 0029) and stay scenery on screen until team-and-den-ux/03 seats them as residents.
 _Avoid_: NPC, extra, placeholder agent
 
 **Runtime**:

@@ -1,6 +1,8 @@
 # A router beside the bridge starts approved work in order
 
 > Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+>
+> Amended by ADR 0029: decision 3 (only the user's `ready-for-agent` approves a ticket) gains self-filed tickets inside approved work (decision 8; team-and-den-ux/21); decision 11's open question on qa `specify` is settled: it retires, and the developer writes the failing tests first (decision 5; team-and-den-ux/19).
 
 **Status:** proposed. The user accepts it by merging its PR. It amends the den MVP spec's out-of-scope line on unattended queue operation (below). It narrows the station-inboxes brief (`docs/research/station-inboxes-grill-brief-2026-10-17.md`) to its first question: full inboxes wait for evidence.
 

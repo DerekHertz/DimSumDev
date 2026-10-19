@@ -1,6 +1,8 @@
 # A delivery is a bridge job: developer, independent qa, the checks, a pull request and a guarded merge
 
 > Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+>
+> Amended by ADR 0029: push, pull request and merge-on-green are the release manager's steps, still run by the bridge (decision 5); every candidate gets the code reviewer and qa, with one fix round on both findings (decisions 2 and 6); the job's record becomes the tree's record (decision 7).
 
 **Status:** proposed with the build (den-mvp outcome 3, `.scratch/den-mvp/spec.md` sections 1, 4 and 8). The user accepts it by merging the PR. It builds the relay runner of ADR 0022 in a different shape and amends it: decision 1 (the plan reads the job's own record, not handoffs), decision 5 of its user answers (board writes are bridge calls now) and decision 6 (the bridge opens the pull request and merges). It builds ADR 0021 steps 4 and 6 for one job.
 

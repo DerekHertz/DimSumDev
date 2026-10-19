@@ -8,7 +8,9 @@ import {actorBindings} from '../scene/meshy/layout.mjs';
 import {agentFor,pickedCard} from '../overlay/proximity-card.mjs';
 
 test('one inventory covers trusted recipes in both runtimes and only five scenery residents',()=>{
- const recipes=readdirSync(new URL('../../../../.codex/agents/',import.meta.url)).filter(f=>f.endsWith('.toml')).map(f=>f.slice(0,-5)).filter(r=>!['default','explorer','worker'].includes(r));
+ // team-and-den-ux/02 added these role definitions (ADR 0029); team-and-den-ux/03 seats them as residents and drops this list.
+ const AWAITING_SEATS=['code-reviewer','release-manager','sre','technical-writer'];
+ const recipes=readdirSync(new URL('../../../../.codex/agents/',import.meta.url)).filter(f=>f.endsWith('.toml')).map(f=>f.slice(0,-5)).filter(r=>!['default','explorer','worker',...AWAITING_SEATS].includes(r));
  for(const runtime of ['claude','codex'])assert.deepEqual(RESIDENTS.filter(r=>r.runtime===runtime&&r.dispatchable).map(r=>r.role).sort(),recipes.sort());
  assert.equal(RESIDENTS.length,25);assert.equal(new Set(RESIDENTS.map(r=>r.id)).size,25);
  assert.equal(RESIDENTS.filter(r=>!r.dispatchable).length,5);
