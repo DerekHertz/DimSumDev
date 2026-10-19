@@ -17,6 +17,8 @@ import { createLedger } from "./cells/ledger.mjs";
 import { createDelivery } from "./delivery/runner.mjs";
 import { createDeliveryBoard } from "./delivery/board.mjs";
 import { createReleaseDrafts } from "./delivery/release-draft.mjs";
+import { createAutoRelease } from "./delivery/release-auto.mjs";
+import { createReadyRelease } from "./build/ready-release.mjs";
 import { createGitHost } from "./delivery/git-host.mjs";
 import { createJobLog } from "./delivery/jobs.mjs";
 import { createCiWatch } from "./delivery/ci-watch.mjs";
@@ -139,6 +141,10 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     : null;
   // den-mvp/45: Bao's release draft; only the user's Approve (POST /release/approve) tags and publishes.
   const releases = createReleaseDrafts({ git, onChange: (release) => hub.publish({ type: "release", release }) });
+  // den-mvp/85: the bridge tags a patch release for a merged bridge change, and builds the newest tag ahead of the update.
+  // Both run on timers (watchCi) and are no agent's tool.
+  const autoRelease = createAutoRelease({ git });
+  const readyRelease = denBuild ? createReadyRelease({ git, releases: denBuild.releases, stateDir: denState, repo: root, onChange: (change) => hub.publish(change) }) : null;
   const auth = createAuth(authOptions);
   let host;
   let delivery;
@@ -172,6 +178,7 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     checks: () => checksView(),
     build: () => readBuild_(),
     release: () => releases.current(),
+    readyRelease: () => readyRelease?.snapshot() ?? null,
     wall: () => wallTables(),
     readUsage: usageReading,
     boardRoot: () => projects.activeRoot(),
@@ -233,7 +240,11 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
   });
   await meetings.ready;
   await ciWatch.ready;
-  if (watchCi) ciWatch.start();
+  if (watchCi) {
+    ciWatch.start();
+    autoRelease.start();
+    readyRelease?.start();
+  }
   let postChain = Promise.resolve();
   await hub.ready;
   const server = http.createServer(async (req, res) => {
@@ -938,6 +949,7 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
     previewReads,
     host: { start: host.start, message: host.message, retire: host.retire, shutdown: host.shutdown },
     releases: { propose: releases.propose }, // den-mvp/45: a test seam; the tool route is the agents' only way in
+    pollRelease: () => autoRelease.poll().then(() => readyRelease?.poll()), // den-mvp/85: one look of each release timer, for a test
     pollCi: () => ciWatch.poll(), // one look of the CI watch now, for a test (its timer is off there)
     close: async () => {
       await host.shutdown();
@@ -945,6 +957,8 @@ export async function startBridge({ root, port = 4317, uiDir = DEFAULT_UI_DIR, d
       await delivery.shutdown();
       await meetings.shutdown();
       ciWatch.stop();
+      autoRelease.stop();
+      readyRelease?.stop();
       uninstallProcessHandlers();
       await new Promise((resolve) => {
         hub.close();

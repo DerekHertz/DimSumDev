@@ -11,6 +11,7 @@ function normalize(result) {
   if (limits?.limitId !== "codex") throw new Error("response has no Codex limits");
   const out = { provider: "codex", source: "account/rateLimits/read" };
   for (const window of [limits.primary, limits.secondary]) {
+    if (window == null) continue;
     const label = { 300: "5-hour", 10080: "weekly" }[window?.windowDurationMins];
     if (!label || out[label] || typeof window.windowDurationMins !== "number" ||
         typeof window.usedPercent !== "number" || !Number.isFinite(window.usedPercent) ||
@@ -22,7 +23,9 @@ function normalize(result) {
     if (!Number.isFinite(reset.getTime())) throw new Error("response has invalid reset time");
     out[label] = { percent: Math.round(window.usedPercent), resets_at: reset.toISOString(), resets_local: toLocalReset(reset) };
   }
-  if (!out["5-hour"] || !out.weekly) throw new Error("response is missing usage windows");
+  if (!out["5-hour"] && !out.weekly) throw new Error("response is missing usage windows");
+  out["5-hour"] ??= { percent: null, resets_at: null, resets_local: null };
+  out.weekly ??= { percent: null, resets_at: null, resets_local: null };
   return out;
 }
 
