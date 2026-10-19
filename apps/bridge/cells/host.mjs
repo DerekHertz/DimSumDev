@@ -20,6 +20,7 @@
 // session of a run that has ended (see "follow-ups" below).
 import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { realpath } from "node:fs/promises";
+import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
 import { hasSecret } from "../../../scripts/exposure.mjs";
@@ -36,6 +37,7 @@ import { grantRefusal } from "./grant-policy.mjs";
 import { capacity as capacityOf } from "./capacity.mjs";
 import { runtimeId, runtimeRegistry, validProject, validRuntimeSession } from "./identity.mjs";
 import { createSessions } from "./sessions.mjs";
+import { createAdmission } from "./admission.mjs";
 import { createConversations } from "./conversations.mjs";
 import { createApprovalStore, cleanText } from "./approvals.mjs";
 import { createWorkspaces, prepareMainGit } from "./workspace.mjs";
@@ -99,7 +101,13 @@ const NO_CONNECTIONS = parseCatalog({ connections: [] });
 
 // den-mvp outcome 4: `library` is the catalog of connections and its record (library/library.mjs). Without one, an agent is
 // started with no connection and every connection tool is refused.
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }) }) {
+// The files a run changed between two commits (paths relative to its worktree).
+async function gitChangedFiles(dir, from, to) {
+  const { stdout } = await new Promise((resolve, reject) => execFile("git", ["diff", "--name-only", "-z", from, to], { cwd: dir, maxBuffer: 4 << 20 }, (err, out) => (err ? reject(err) : resolve({ stdout: String(out) }))));
+  return stdout.split("\0").filter(Boolean);
+}
+
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -122,6 +130,15 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const agents = new Map(); // id -> record; insertion order is snapshot order
   const liveByRef = new Map(); // project/ref -> record, for every reserved or running agent
   const pending = new Set(); // spawns in flight
+  // codex-residents/05: leaving the live map also settles the attempt in the admission journal, so the work can start again.
+  const drop = (agent) => {
+    liveByRef.delete(refKey(agent));
+    if (agent.intentId) {
+      const id = agent.intentId;
+      agent.intentId = null;
+      admission.settle(id, "ended");
+    }
+  };
   const transcripts = new Map(); // agentId -> { entries, dropped, next }, for the newest TRANSCRIPT_AGENTS agents
   let shuttingDown = false;
   let shutdownPromise = null;
@@ -439,12 +456,17 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const locked = await readLocked(selected.project);
     if (locked === null) return unreadable();
 
+    // codex-residents/05: the one admission transaction, before the synchronous step; its hold is released on every refusal below.
+    const ticket = await admission.admit({ ref, project: selected.project, runtime: selected.runtime, entry: step ? "delivery" : entry, role, capability: input.capability, scopes: input.scopes, unscoped: input.scopes === undefined });
+    if (!ticket.ok) return ticket;
+    const unhold = async (refusal) => (await admission.settle(ticket.intent.id, "never-started"), refusal);
     // From here to the registration of the reservation there is no await: this is the one synchronous step.
-    if (shuttingDown) return refuse(503, "the bridge is shutting down");
-    if (liveByRef.has(refKey({ ...selected, ref }))) return refuse(409, "this ticket already has a live agent");
+    if (shuttingDown) return unhold(refuse(503, "the bridge is shutting down"));
+    if (liveByRef.has(refKey({ ...selected, ref }))) return unhold(refuse(409, "this ticket already has a live agent"));
     const noRoom = full(locked, role, selected.project);
-    if (noRoom) return noRoom;
+    if (noRoom) return unhold(noRoom);
     const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}) });
+    agent.intentId = ticket.intent.id;
     return launch(agent, ENTRY_ROUTES[entry], usage === null);
   }
   // A new run's record. Called inside the synchronous step; launch() registers it and starts the spawn.
@@ -556,12 +578,12 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       project = null;
     }
     if (!project) {
-      liveByRef.delete(refKey(agent));
+      drop(agent);
       return agent.resumeOf ? refuse(409, "the earlier run's project is no longer onboarded; start a new task instead") : refuse(409, "the active project is not ready; check it with den:project");
     }
     // den-mvp/49: a delivery run (a resume included) is the control checkout's work until delivery carries a project.
     if (agent.delivery && project.slug !== "den") {
-      liveByRef.delete(refKey(agent));
+      drop(agent);
       return refuse(409, "Deliver runs on the den project only, for now; switch the active project to the den first");
     }
     agent.project = project.slug;
@@ -572,7 +594,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         ? await workspaces.reopen({ ref: agent.ref, agentId: agent.id, origin: agent.origin, catchUp: agent.ref === DESK_REF })
         : await workspaces.create({ ref: agent.ref, agentId: agent.id, ...(agent.delivery ? { base: agent.delivery.at } : {}) });
     } catch (err) {
-      liveByRef.delete(refKey(agent));
+      drop(agent);
       console.error(`bridge: could not ${agent.resumeOf ? "reopen the" : "create a"} worktree for ${agent.ref}: ${err?.message ?? err}`);
       return agent.resumeOf ? refuse(409, "the earlier run's worktree is gone; start a new task instead") : refuse(500, "could not create the agent's worktree");
     }
@@ -591,7 +613,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         workspace.base = agent.startSha; // a step that commits nothing publishes no branch
       } catch (err) {
         await workspaces.remove(workspace);
-        liveByRef.delete(refKey(agent));
+        drop(agent);
         console.error(`bridge: could not prepare the worktree of a delivery step for ${agent.ref}: ${err?.message ?? err}`);
         return refuse(500, "could not prepare the agent's worktree");
       }
@@ -602,7 +624,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         agent.meeting = { part: agent.meeting.part }; // the note is in the worktree now; the run's record does not carry it
       } catch (err) {
         await workspaces.remove(workspace);
-        liveByRef.delete(refKey(agent));
+        drop(agent);
         console.error(`bridge: could not prepare the worktree of a meeting run for ${agent.ref}: ${err?.message ?? err}`);
         return refuse(500, "could not prepare the agent's worktree");
       }
@@ -613,7 +635,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       ({ mainGit } = await prepareMainGit(project.root));
     } catch (err) {
       await workspaces.remove(workspace);
-      liveByRef.delete(refKey(agent));
+      drop(agent);
       console.error(`bridge: the main .git is not ready for ${agent.role} on ${agent.ref}: ${err?.message ?? err}`);
       return refuse(502, "the repository's git directory is not ready for the agent");
     }
@@ -642,7 +664,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       proc = await runtime.spawn(args);
     } catch (err) {
       await workspaces.remove(workspace);
-      liveByRef.delete(refKey(agent));
+      drop(agent);
       if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
       console.error(`bridge: runtime failed to spawn ${agent.role} for ${agent.ref}: ${err?.message ?? err}`);
       return err?.name === "EnforcementError" ? refused(err.reason) : refuse(502, "the runtime failed to start the agent");
@@ -748,6 +770,18 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       const published = await (await workspacesOf(agent.project)).publish(agent.workspace).catch((err) => console.error(`bridge: could not create the branch ${agent.branch}: ${err?.message ?? err}`));
       if (published === null) agent.branch = null;
       agent.sha = published?.sha ?? (published === null ? agent.startSha ?? null : null);
+    }
+    // codex-residents/05: what the run returned is checked against the scopes it was admitted with, before it is final.
+    // A run admitted with a scope that returns a change outside it, or on a governed path, failed. An unscoped run (the
+    // delivery gate already holds governed changes for the user) is not failed by this check.
+    const intent = agent.intentId ? admission.intentOf(agent.intentId) : null;
+    if (intent?.scopes && agent.sha && agent.startSha && agent.sha !== agent.startSha && agent.workspace?.dir) {
+      const files = await changedFiles(agent.workspace.dir, agent.startSha, agent.sha).catch((err) => (console.error(`bridge: could not list the changes of ${agent.id}: ${err?.message ?? err}`), null));
+      const bad = files ? await admission.checkReturned({ scopes: intent.scopes, changed: files }) : [];
+      if (bad.length > 0) {
+        agent.doneOk = false;
+        agent.reason = `returned-out-of-scope: ${bad.slice(0, 5).map((b) => `${b.path} (${b.why})`).join(", ")}`;
+      }
     }
     finalize(agent);
     // den-mvp/43: a meeting take has no follow-up, so its worktree goes with it; unsaved work is kept on a wip/ branch.
@@ -932,7 +966,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     agent.resume = resumeFor(agent);
     agent.lastEventAt = new Date().toISOString();
     agent.durationMs = Math.max(0, Date.parse(agent.lastEventAt) - Date.parse(agent.startedAt));
-    if (liveByRef.get(refKey(agent)) === agent) liveByRef.delete(refKey(agent));
+    if (liveByRef.get(refKey(agent)) === agent) drop(agent);
     for (const entry of agent.openTools.values()) revise(agent, entry, { status: "stopped" });
     agent.openTools.clear();
     clearTimeout(agent.settleTimer);
@@ -1177,18 +1211,22 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const locked = await readLocked(selected.project);
     if (locked === null) return unreadable();
 
+    const ticket = await admission.admit({ ref: prev.ref, project: selected.project, runtime: selected.runtime, entry: "follow-up", role: prev.role, unscoped: true });
+    if (!ticket.ok) return ticket;
+    const unhold = async (refusal) => (await admission.settle(ticket.intent.id, "never-started"), refusal);
     // The same synchronous step as admit(): from here to the reservation there is no await.
-    if (shuttingDown) return refuse(503, "the bridge is shutting down");
-    if (liveByRef.has(refKey(prev))) return refuse(409, "this ticket already has a live agent");
+    if (shuttingDown) return unhold(refuse(503, "the bridge is shutting down"));
+    if (liveByRef.has(refKey(prev))) return unhold(refuse(409, "this ticket already has a live agent"));
     // A claim lock on this ticket is not counted beside the run itself: once the run is live the capacity rule counts
     // the ticket once, whoever holds its lock, and the earlier run usually left the lock there itself.
     const noRoom = full(locked.filter((ref) => ref !== prev.ref), prev.role, selected.project);
-    if (noRoom) return noRoom;
+    if (noRoom) return unhold(noRoom);
     const messageId = randomUUID();
     const agent = newAgent({
       ref: prev.ref, role: prev.role, mode: prev.mode ?? null, runtimeId: prev.runtimeId, runtimeSessionId: prev.runtimeSessionId, grants, sessionId: prev.sessionId,
       resumeOf: prev.id, origin: prev.origin ?? prev.id, project: prev.project ?? "den", followUp: { text, messageId },
     });
+    agent.intentId = ticket.intent.id;
     const started = await launch(agent, CONVERSE_ROUTE, usage === null);
     if (!started.ok) return started;
     sessions
@@ -1259,6 +1297,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     snapshot: () => [...agents.values()].map(view),
     busy: () => liveByRef.size > 0, // den-mvp/86: any run reserved or running
     drain: (text) => void (draining = text || null), // den-mvp/86: the update's refusal text for a new run, or null to admit again
+    admission,
     capacity: capacityNow, // (lockedRefs) -> the capacity key the hub puts in the snapshot
     approvals: () => approvals.list(),
     transcripts: transcriptView,

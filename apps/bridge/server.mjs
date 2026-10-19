@@ -11,6 +11,7 @@ import path from "node:path";
 import { randomUUID } from "node:crypto";
 import os from "node:os";
 import { createHost } from "./cells/host.mjs";
+import { COORDINATORS } from "./cells/admission.mjs";
 import { createProjects } from "./projects.mjs";
 import { buildSnapshot } from "./snapshot.mjs";
 import { createLedger } from "./cells/ledger.mjs";
@@ -437,6 +438,9 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     "POST /release/approve": (req, res) => steerRelease(req, res, "approve"),
     "POST /release/decline": (req, res) => steerRelease(req, res, "decline"),
     "POST /tickets/approve": (req, res) => steerTicket(req, res, "approve"),
+    "POST /tickets/transfer": steerTransfer,
+    "POST /admission/runtime": steerAllowlist,
+    "POST /admission/reconcile": steerReconcile,
     "POST /tickets/decline": (req, res) => steerTicket(req, res, "decline"),
     "POST /checks": (req, res) => postChecks(req, res),
     "POST /den-tools/:tool": (req, res) => denTool(req, res),
@@ -893,6 +897,9 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     }
     const ticket = (await hub.snapshot()).tickets.find((t) => t.ref === body.ref);
     if (ticket?.status !== "ready-for-human") return reply(res, 409, { error: "the ticket is not waiting for you" });
+    // codex-residents/05: the user picks the coordinator at approval; no choice is Bao, as every earlier ticket was.
+    const owner = body.owner === undefined ? "bao" : body.owner;
+    if (action === "approve" && !COORDINATORS.includes(owner)) return reply(res, 400, { error: `owner must be one of: ${COORDINATORS.join(", ")}` });
     try {
       await setOffRelay(root, [body.ref], action === "approve" ? "approve" : "close", { reason: note });
     } catch (err) {
@@ -902,6 +909,10 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     // ADR 0027: the router starts only tickets in the work order, so an approval lists the ticket last there. A `user acts`
     // ticket (the snapshot keeps the type's first word: "user") needs the user, not an agent, and is not listed. A failed
     // write leaves the ticket approved and unlisted.
+    if (action === "approve") {
+      const owned = await host.admission.approve(body.ref, { owner });
+      if (!owned.ok) console.error(`bridge: could not record the owner of ${body.ref}: ${owned.error}`);
+    }
     let ordered = false;
     if (action === "approve" && ticket.type !== "user") {
       try {
@@ -913,6 +924,28 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       }
     }
     reply(res, 200, { ref: body.ref, status: action === "approve" ? "ready-for-agent" : "closed", ...(action === "approve" ? { ordered } : {}) });
+  }
+  // POST /tickets/transfer: { ref, owner }. Ownership moves only once no attempt on the ticket is live or unconfirmed.
+  async function steerTransfer(req, res) {
+    const body = await readJsonObject(req, res);
+    if (!body) return;
+    if (typeof body.ref !== "string" || !body.ref) return reply(res, 400, { error: "ref must be a string" });
+    const result = await host.admission.transfer(body.ref, body.owner);
+    reply(res, result.ok ? 200 : result.status, result.ok ? { ref: body.ref, owner: result.owner, epoch: result.epoch } : { error: result.error });
+  }
+  // POST /admission/runtime: { allow: "both" | "codex" | "claude" }. Governs new admissions only.
+  async function steerAllowlist(req, res) {
+    const body = await readJsonObject(req, res);
+    if (!body) return;
+    const result = await host.admission.setAllowlist(body.allow);
+    reply(res, result.ok ? 200 : result.status, result.ok ? { allow: result.allow } : { error: result.error });
+  }
+  // POST /admission/reconcile: { id, outcome: "ended" | "never-started" }. Clears an attempt a crash left unconfirmed.
+  async function steerReconcile(req, res) {
+    const body = await readJsonObject(req, res);
+    if (!body) return;
+    const result = await host.admission.reconcile(body.id, body.outcome);
+    reply(res, result.ok ? 200 : result.status, result.ok ? { id: body.id } : { error: result.error });
   }
   // POST /build/rollback (ADR 0026 decision 7): the user's roll back. Only `to` is read: the release the button showed as
   // previous. Anything else, and a den that runs from the checkout, is a 409 and nothing changes.
@@ -1011,7 +1044,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     port: actualPort,
     newLaunchCode: auth.newLaunchCode,
     previewReads,
-    host: { start: host.start, message: host.message, retire: host.retire, shutdown: host.shutdown },
+    host: { start: host.start, message: host.message, retire: host.retire, shutdown: host.shutdown, admission: host.admission },
     releases: { propose: releases.propose }, // den-mvp/45: a test seam; the tool route is the agents' only way in
     pollRelease: () => autoRelease.poll().then(() => readyRelease?.poll()), // den-mvp/85: one look of each release timer, for a test
     pollCi: () => ciWatch.poll(), // one look of the CI watch now, for a test (its timer is off there)
