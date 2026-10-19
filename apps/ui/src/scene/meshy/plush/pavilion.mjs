@@ -4,6 +4,7 @@
 import * as T from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { castsShadow } from './garden-kit.mjs';
 
 export const PAVILION_PALETTE = Object.freeze({
   jade: '#79aa8b', jadeDeep: '#39735d', jadeLight: '#b5d1a6', cream: '#fff6df',
@@ -295,11 +296,11 @@ export function createPavilion() {
       sourceGeometries.add(node.geometry);
       const geometry = node.geometry.index ? node.geometry.toNonIndexed() : node.geometry.clone();
       geometry.applyMatrix4(inverse.clone().multiply(node.matrixWorld));
-      const batch = batches.get(node.material) || []; batch.push(geometry); batches.set(node.material, batch); old.push(node);
+      const cast = castsShadow(node), key = node.material.uuid + (cast ? ':cast' : ''), batch = batches.get(key) || { material: node.material, cast, parts: [] }; batch.parts.push(geometry); batches.set(key, batch); old.push(node);
     });
     for (const node of old) node.removeFromParent();
-    for (const [material, parts] of batches) {
-      const merged = mergeGeometries(parts, false); const m = mesh(assembly, merged, material); m.name = `${assembly.name} · material batch`; m.castShadow = m.receiveShadow = true;
+    for (const { material, cast, parts } of batches.values()) {
+      const merged = mergeGeometries(parts, false); const m = mesh(assembly, merged, material); m.name = `${assembly.name} · material batch`; m.castShadow = cast; m.receiveShadow = true; m.userData.noShadow = !cast;
       for (const part of parts) part.dispose();
     }
   }

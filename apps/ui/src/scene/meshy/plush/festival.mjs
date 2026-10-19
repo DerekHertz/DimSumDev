@@ -4,6 +4,7 @@
 import * as T from 'three';
 import { RoundedBoxGeometry } from 'three/addons/geometries/RoundedBoxGeometry.js';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
+import { castsShadow } from './garden-kit.mjs';
 
 export const FESTIVAL_PALETTE = Object.freeze({
   red: '#c64236', redLight: '#df6650', redDeep: '#8d302d', gold: '#e3b04f', goldLight: '#f5d88a',
@@ -258,10 +259,10 @@ export function createFestival() {
       const g = node.geometry.index ? node.geometry.toNonIndexed() : node.geometry.clone(); g.applyMatrix4(inverse.clone().multiply(node.matrixWorld));
       // Every batch uses the same attributes, even hand-built cloth surfaces.
       if (!g.attributes.uv) g.setAttribute('uv', new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count * 2), 2));
-      const parts = batches.get(node.material) || []; parts.push(g); batches.set(node.material, parts); old.push(node);
+      const cast = castsShadow(node), key = node.material.uuid + (cast ? ':cast' : ''), batch = batches.get(key) || { material: node.material, cast, parts: [] }; batch.parts.push(g); batches.set(key, batch); old.push(node);
     });
     for (const node of old) node.removeFromParent();
-    for (const [material, parts] of batches) { const merged = mergeGeometries(parts, false); const m = mesh(assembly, merged, material); m.name = `${assembly.name} · material batch`; m.castShadow = m.receiveShadow = true; parts.forEach(g => g.dispose()); }
+    for (const { material, cast, parts } of batches.values()) { const merged = mergeGeometries(parts, false); const m = mesh(assembly, merged, material); m.name = `${assembly.name} · material batch`; m.castShadow = cast; m.receiveShadow = true; m.userData.noShadow = !cast; parts.forEach(g => g.dispose()); }
   }
   const retained = new Set(); root.traverse(node => { if (node.geometry) retained.add(node.geometry); });
   for (const g of sources) if (!retained.has(g)) g.dispose();

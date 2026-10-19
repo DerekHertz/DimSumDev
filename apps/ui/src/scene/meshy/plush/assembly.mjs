@@ -1,7 +1,7 @@
 // Assemble approved source factories in the working Garden loop layout.
 import * as T from 'three';
 import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { gardenKit } from './garden-kit.mjs';
+import { gardenKit, castsShadow } from './garden-kit.mjs';
 import { createPlaces, roads, routeToWalk, bounds, door } from './plan.mjs';
 import { createLibrary } from './library.mjs';
 import { createPavilion } from './pavilion.mjs';
@@ -21,8 +21,8 @@ function batchLibrary(library){
  for(const assembly of [...library.root.children]){
   if(assembly.isMesh)continue;
   const batches=new Map(),old=[],inverse=assembly.matrixWorld.clone().invert();
-  assembly.traverse(n=>{if(!n.isMesh)return;originals.add(n.geometry);const g=n.geometry.index?n.geometry.toNonIndexed():n.geometry.clone();g.applyMatrix4(inverse.clone().multiply(n.matrixWorld));if(!g.attributes.uv)g.setAttribute('uv',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));const list=batches.get(n.material)||[];list.push(g);batches.set(n.material,list);old.push(n);});
-  old.forEach(n=>n.removeFromParent());for(const[mat,parts]of batches){const mesh=new T.Mesh(mergeGeometries(parts,false),mat);mesh.name=assembly.name+' · assembly batch';mesh.castShadow=mesh.receiveShadow=true;assembly.add(mesh);parts.forEach(g=>g.dispose());}
+  assembly.traverse(n=>{if(!n.isMesh)return;originals.add(n.geometry);const g=n.geometry.index?n.geometry.toNonIndexed():n.geometry.clone();g.applyMatrix4(inverse.clone().multiply(n.matrixWorld));if(!g.attributes.uv)g.setAttribute('uv',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));const cast=castsShadow(n),key=n.material.uuid+(cast?':cast':''),entry=batches.get(key)||{mat:n.material,cast,parts:[]};entry.parts.push(g);batches.set(key,entry);old.push(n);});
+  old.forEach(n=>n.removeFromParent());for(const{mat,cast,parts}of batches.values()){const mesh=new T.Mesh(mergeGeometries(parts,false),mat);mesh.name=assembly.name+' · assembly batch';mesh.castShadow=cast;mesh.receiveShadow=true;mesh.userData.noShadow=!cast;assembly.add(mesh);parts.forEach(g=>g.dispose());}
  }
  originals.forEach(g=>g.dispose());
 }
@@ -34,7 +34,7 @@ export function createDenScene(){
  batchLibrary(assets.library);
  for(const[id,asset]of Object.entries(assets)){
   const place=byId[id];asset.root.position.set(place.x,GROUND,place.z);asset.root.rotation.y=-place.rotation*Math.PI/180;asset.root.userData.placeId=id;
-  asset.root.traverse(n=>{if(n.isMesh)n.castShadow=n.receiveShadow=true;});root.add(asset.root);
+  asset.root.traverse(n=>{if(n.isMesh){n.receiveShadow=true;n.castShadow=!n.userData.noShadow;}});root.add(asset.root);
  }
  const landscape=createGrove({island:false});landscape.root.position.set(27,0,-25);landscape.root.userData.placeId='grove';root.add(landscape.root);
  const westMountains=landscape.mountains.clone(true);westMountains.name='Matching western mountain backdrop';westMountains.position.set(-23,0,-25);root.add(westMountains);

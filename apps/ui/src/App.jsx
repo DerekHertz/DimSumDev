@@ -2,6 +2,7 @@ import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState,
 import { Canvas, events as defaultEvents } from "@react-three/fiber";
 import { CameraRig } from "./scene/procedural/CameraRig.jsx";
 import { MeshyDen } from "./scene/meshy/MeshyDen.jsx";
+import { FrameCap } from "./scene/frame-cap.mjs";
 import { PandaCard } from "./scene/procedural/PandaCard.jsx";
 import { ProximityCard } from "./overlay/ProximityCard.jsx";
 import { TranscriptPanel, useTranscript } from "./overlay/TranscriptPanel.jsx";
@@ -285,9 +286,10 @@ export function App() {
           </header>
           <div className="forest-canvas">
             <SceneBoundary>
-              <Canvas aria-hidden="true" orthographic shadows dpr={[1,1.5]}
+              <Canvas aria-hidden="true" orthographic shadows dpr={[1,1.5]} frameloop="demand"
                 camera={{ manual: true, zoom: 1, near: 0.1, far: 160 }}
                 gl={{antialias:true,powerPreference:'high-performance'}} events={sceneEvents} onPointerMissed={() => { setSelected(null); unpick(); }}>
+                <FrameCap />
                 <CameraRig store={camera} stage={stage} den={den} onModeChange={onExploreChange} onHint={setExploreHint} onCursorChange={setCursorFree} />
                 <Suspense fallback={null}>
                   <MeshyDen snapshot={snapshot} bindings={bindings} onLoadState={setGardenLoad} cells={sceneCells} frontier={frontier} tally={tally} onOpenTally={openTally}

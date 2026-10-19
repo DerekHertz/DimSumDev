@@ -18,7 +18,7 @@ export function createGardenInfill({places,walks,connectors,extraWalks,ground}){
   if(pathSets.some(path=>path.some((p,i)=>i&&distance({x,z},path[i-1],p)<1.0+margin)))return false;
   return (Math.abs(x)/46.5)**(2/.58)+(Math.abs(z+4)/41.5)**(2/.58)<.98;
  }
- const sphere=new T.SphereGeometry(1,12,8);
+ const sphere=new T.SphereGeometry(1,8,6);
  function soft(parent,r,at,color,scale=[1,1,1]){const m=mesh(parent,sphere,color,at);m.scale.set(r*scale[0],r*scale[1],r*scale[2]);return m;}
  function shape(points){const s=new T.Shape();points.forEach(([x,z],i)=>i?s.lineTo(x,-z):s.moveTo(x,-z));s.closePath();return s;}
  function layer(parent,points,base,top,color,bevel=.05){const b=Math.min(bevel,(top-base)*.4),g=new T.ExtrudeGeometry(shape(points),{depth:top-base-2*b,bevelEnabled:true,bevelThickness:b,bevelSize:b,bevelSegments:2,curveSegments:3});g.rotateX(-Math.PI/2);return mesh(parent,g,color,[0,base+b,0]);}

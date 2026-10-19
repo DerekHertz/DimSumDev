@@ -1,6 +1,5 @@
 import * as THREE from 'three';
 import {createModelLoader} from './assets.mjs';
-import {TessellateModifier} from 'three/addons/modifiers/TessellateModifier.js';
 import {mergeVertices} from 'three/addons/utils/BufferGeometryUtils.js';
 import {previewTextures} from './assets.mjs';
 
@@ -96,11 +95,7 @@ export function fitRoleAsset(source, id, override = {}) {
 
   group.traverse(node => {
     if (!node.isMesh) return;
-    if (fit.fit === 'torso' || fit.fit === 'collar') {
-      const original = node.geometry;
-      node.geometry = new TessellateModifier(.075, 3).modify(original);
-      original.dispose();
-    }
+    // No tessellation before the wrap (2026-10-19): it multiplied each garment's triangles for every panda wearing it.
     const position = node.geometry.attributes.position;
     for (let i = 0; i < position.count; i++) {
       point.fromBufferAttribute(position, i).sub(center);
