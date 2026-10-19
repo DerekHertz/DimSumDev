@@ -11,7 +11,7 @@ import { mkdir, mkdtemp, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { spawn as spawnChild, execFile } from "node:child_process";
-import { EnforcementError, GATE_REFUSED, LIMITS, START_GATE, buildScopeArgv, busPlaces, cgroupOf, checkLimits, createResourceLauncher, findUserBus, groupFiles, groupProperties, judgeProbe, PROBE_SCRIPT, measureTree, watchStorage } from "./resource-group.mjs";
+import { EnforcementError, GATE_REFUSED, LIMITS, OOM_SCORE, START_GATE, buildScopeArgv, busPlaces, cgroupOf, checkLimits, createResourceLauncher, findUserBus, groupFiles, groupProperties, judgeProbe, PROBE_SCRIPT, measureTree, watchStorage } from "./resource-group.mjs";
 import { createClaudeRuntime } from "./claude-runtime.mjs";
 import { hostPid } from "./launcher-test-helpers.mjs";
 import { SLOTS } from "./policy.mjs";
@@ -121,6 +121,20 @@ describe("the scope argv and the values it must produce", () => {
     } finally {
       await rm(dir, { recursive: true, force: true });
     }
+  });
+
+  // den.slice holds the bridge and every group: when it fills, the kernel must pick a run, not the bridge (score 100 from the user manager).
+  test("a released command runs with OOM score 500, so a run is killed before the bridge", async () => {
+    const out = await new Promise((resolve) => {
+      const child = spawnChild("/bin/sh", ["-c", START_GATE, "den-gate", "cat", "/proc/self/oom_score_adj"], { stdio: ["ignore", "pipe", "ignore", "pipe"] });
+      let text = "";
+      child.stdout.on("data", (d) => (text += d));
+      child.stdio[3].on("error", () => {});
+      child.stdio[3].end("go\n");
+      child.once("close", () => resolve(text.trim()));
+    });
+    assert.equal(out, String(OOM_SCORE));
+    assert.equal(OOM_SCORE, 500);
   });
 
   test("the control-group files that prove the limits", () => {

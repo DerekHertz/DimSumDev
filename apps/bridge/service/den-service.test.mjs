@@ -7,7 +7,7 @@ import { existsSync, readFileSync, readdirSync, readlinkSync, statSync } from "n
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { createDen, DenServiceError, renderUnit, ROUTER_UNIT_NAME, UNIT_NAME } from "./den-service.mjs";
+import { createDen, DenServiceError, renderUnit, ROUTER_UNIT_NAME, SLICE_NAME, UNIT_NAME } from "./den-service.mjs";
 import * as releasesModule from "../build/releases.mjs";
 const { createReleases } = releasesModule;
 const readUpdateFailure = (...a) => releasesModule.readUpdateFailure(...a);
@@ -42,6 +42,21 @@ describe("the unit text", () => {
     assert.match(text, new RegExp(`^Environment=DEN_STATE_DIR=${values.state}$`, "m")); // the folder the releases were made in
     assert.match(text, /^WantedBy=default\.target$/m);
     assert.doesNotMatch(text.replace(/^#.*$/gm, ""), /@[A-Z]+@/);
+  });
+
+  // Probed 2026-10-18 under systemd 255: with these the bridge still starts an agent scope with bwrap inside it.
+  test("the bridge gains no privileges and passes none on to the agents it starts", () => {
+    const text = renderUnit(TEMPLATE, values);
+    for (const line of ["NoNewPrivileges=yes", "RestrictSUIDSGID=yes", "LockPersonality=yes"]) assert.match(text, new RegExp(`^${line}$`, "m"), line);
+  });
+
+  test("den.slice bounds the whole den (bridge, agents, checks, guard) below the machine's memory", () => {
+    const slice = readFileSync(new URL("./den.slice", import.meta.url), "utf8");
+    assert.match(slice, /^\[Slice\]$/m);
+    assert.match(slice, /^MemoryMax=75%$/m);
+    assert.match(slice, /^MemorySwapMax=0$/m);
+    assert.match(slice, /^TasksMax=4096$/m);
+    assert.equal(SLICE_NAME, "den.slice");
   });
 
   test("a value a unit file could not hold safely is refused, not quoted", () => {
@@ -111,7 +126,8 @@ describe("den:install and den:update", () => {
     assert.match(unit, new RegExp(`ExecStart=/usr/bin/node ${state}/launcher/den-launcher.mjs\n`));
     assert.match(unit, new RegExp(`WorkingDirectory=${checkout}`));
     assert.deepEqual(sysCalls, ["show-environment", "daemon-reload", "enable den.service", "restart den.service", "enable den-router.service", "restart den-router.service"]);
-    assert.deepEqual(readdirSync(unitDir).sort(), [ROUTER_UNIT_NAME, UNIT_NAME].sort());
+    assert.deepEqual(readdirSync(unitDir).sort(), [ROUTER_UNIT_NAME, SLICE_NAME, UNIT_NAME].sort());
+    assert.equal(readFileSync(path.join(unitDir, SLICE_NAME), "utf8"), readFileSync(new URL("./den.slice", import.meta.url), "utf8"));
   });
 
   const LAUNCHER_SOURCE = path.join(path.dirname(new URL(import.meta.url).pathname), "den-launcher.mjs");
@@ -159,7 +175,7 @@ describe("den:install and den:update", () => {
     assert.equal(npmCalls.length, 1);
     assert.equal(boxCalls.length, 1);
     assert.deepEqual(sysCalls, ["show-environment", "daemon-reload", "enable den.service", "restart den.service", "enable den-router.service", "restart den-router.service"]);
-    assert.deepEqual(readdirSync(unitDir).sort(), [ROUTER_UNIT_NAME, UNIT_NAME].sort());
+    assert.deepEqual(readdirSync(unitDir).sort(), [ROUTER_UNIT_NAME, SLICE_NAME, UNIT_NAME].sort());
   });
 
   describe("on a host that cannot run it, install refuses and leaves nothing behind", () => {

@@ -69,8 +69,11 @@ const SLICE_RE = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 // Before the command starts, a small anchor process is left reading the same pipe. It keeps the scope alive after the
 // command's last process is gone (systemd removes an empty scope at once, and with it the record of a memory kill),
 // and it ends when the launcher closes the pipe or kills the group.
+// Once released, the command raises its own OOM score (raising needs no privilege): den.slice holds the bridge as well, and
+// when it fills, the kernel must kill a run, not the bridge. A host that refuses the write still runs the command.
 export const GATE_REFUSED = 126;
-export const START_GATE = `IFS= read -r go <&3 && [ "$go" = go ] || exit ${GATE_REFUSED}; ( (exec <&3 3<&- >/dev/null 2>&1; while read -r _; do :; done) & ); exec 3<&-; exec "$@"`;
+export const OOM_SCORE = 500;
+export const START_GATE = `IFS= read -r go <&3 && [ "$go" = go ] || exit ${GATE_REFUSED}; { echo ${OOM_SCORE} >/proc/self/oom_score_adj; } 2>/dev/null; ( (exec <&3 3<&- >/dev/null 2>&1; while read -r _; do :; done) & ); exec 3<&-; exec "$@"`;
 
 /**
  * The systemd-run argv (no binary name) that starts `bin args` in its own scope. The bus variables the launcher needs

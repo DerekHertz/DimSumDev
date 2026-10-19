@@ -104,6 +104,15 @@ describe("the runtime passes a role's connections", () => {
     for (const rule of DENY) assert.ok(settings.permissions.deny.includes(rule));
   });
 
+  // The kernel review (2026-10-18): a remote connection is a way out, so it brings the read limit with the toolchain reopened.
+  test("a remote connection brings the read limit; a script connection alone does not", async () => {
+    const remote = await launch("developer", { extra: { connections: [{ name: "docs", url: "https://docs.example.com/mcp" }] } });
+    assert.deepEqual(remote.settings.sandbox.filesystem.denyRead, ["~/"]);
+    for (const p of [remote.cwd, path.dirname(path.dirname(process.execPath))]) assert.ok(remote.settings.sandbox.filesystem.allowRead.includes(p), p);
+    const script = await launch("developer", { extra: { connections: [{ name: "board", script: "/opt/den/board-tools.mjs" }] } });
+    assert.notDeepEqual(script.settings.sandbox.filesystem?.denyRead, ["~/"]);
+  });
+
   test("none, or an empty list: no --mcp-config at all", async () => {
     for (const extra of [{}, { connections: [] }]) {
       const { argv } = await launch("developer", { extra });

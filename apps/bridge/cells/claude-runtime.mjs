@@ -16,6 +16,10 @@ import { snapshotPlaceholders, sweepPlaceholders } from "./placeholders.mjs";
 import { UUID_RE, slotClassOf } from "./policy.mjs";
 import { EnforcementError, createResourceLauncher, watchStorage } from "./resource-group.mjs";
 
+// The Node install this bridge runs from, which an agent's npm and node are too (the den's PATH): reopened under the read limit.
+// One the adapter cannot write as a rule is left out, and npm under the read limit then fails visibly rather than reading home.
+const NODE_PREFIX = path.dirname(path.dirname(process.execPath));
+const TOOLCHAIN = isWorktreePath(NODE_PREFIX) ? NODE_PREFIX : undefined;
 const RESOURCE_POLL_MS = 500; // how often a run's control group is asked whether it hit a hard limit
 const GROUP_SETTLE_MS = 2000; // how long an exit waits for the group's last process to go
 
@@ -102,7 +106,9 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       // den-mvp outcome 1: the credential stores that exist now are closed to reads; a deny target must exist to be applied.
       const home = isWorktreePath(env.HOME) ? env.HOME : undefined;
       const credentials = home === undefined ? [] : CREDENTIAL_PATHS.filter((p) => existsSync(`${home}${p.slice(1)}`));
-      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }) });
+      // The kernel review (2026-10-18): a remote connection reaches the network outside the wall, so it brings the read limit like a host.
+      const remote = Array.isArray(connections) && connections.some((c) => typeof c?.url === "string");
+      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN });
       // Every role has a ceiling (ceilings.json); one without would start with no wall, so it does not start.
       if (ceiling === null) throw new EnforcementError(`the ${role} role has no ceiling, so it cannot be started`);
       // den-mvp/33: a connection that holds a credential gets its token from the den's credentials folder (outside every
