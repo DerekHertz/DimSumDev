@@ -1,7 +1,7 @@
 // den-mvp/13: POST /tickets/approve and /tickets/decline over HTTP, on the shared state fixture.
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { startBridge } from "./server.mjs";
 import { makeStateFixture, FEATURE } from "./bridge-fixture.mjs";
@@ -38,6 +38,27 @@ describe("POST /tickets/approve", () => {
   });
   test("a ref that is not a string is a 400", async () => {
     assert.equal((await post("/tickets/approve", {})).status, 400);
+  });
+  // The router starts only tickets in the work order (ADR 0027), so an approval with no order entry would sit forever.
+  const order = () => readFile(path.join(fx.root, ".scratch", "work-order.md"), "utf8");
+  test("lists the approved ticket last in the work order, which the file need not have yet", async () => {
+    const res = await post("/tickets/approve", { ref: HUMAN });
+    assert.equal(res.body.ordered, true, res.text);
+    assert.equal(await order(), `## Order\n- ${FEATURE}/06\n`);
+  });
+  test("keeps the order's other entries and prose, and does not list a ticket twice", async () => {
+    const before = `# Work order\n\nprose\n\n## Order\n- ${FEATURE}/02\n\n## Notes\nn\n`;
+    await writeFile(path.join(fx.root, ".scratch", "work-order.md"), before);
+    await post("/tickets/approve", { ref: HUMAN });
+    assert.equal(await order(), `# Work order\n\nprose\n\n## Order\n- ${FEATURE}/02\n- ${FEATURE}/06\n\n## Notes\nn\n`);
+  });
+  test("a user acts ticket is approved but not listed: an agent cannot do it", async () => {
+    const ticket = path.join(fx.root, ".scratch", FEATURE, "issues", "06-human.md");
+    await writeFile(ticket, (await file()).replace("**Type:** feature", "**Type:** user acts"));
+    const res = await post("/tickets/approve", { ref: HUMAN });
+    assert.equal(res.status, 200, res.text);
+    assert.equal(res.body.ordered, false);
+    await assert.rejects(order(), { code: "ENOENT" });
   });
 });
 

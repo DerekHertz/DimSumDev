@@ -6,7 +6,7 @@
 import { readFile } from "node:fs/promises";
 import path from "node:path";
 import { defaultReadBoard } from "../../scripts/batch-groups.mjs";
-import { cachedReading, createBridgeClient, pushNtfy, readKnownStops, readLiveUsage } from "./client.mjs";
+import { cachedReading, createBridgeClient, pushNtfy, readChangedFiles, readKnownStops, readLiveUsage } from "./client.mjs";
 import { createRouter } from "./router.mjs";
 import { readServiceToken } from "./service-token.mjs";
 
@@ -33,6 +33,7 @@ const router = createRouter({
   readOrder: () => readFile(orderFile, "utf8"),
   readBoard: async () => defaultReadBoard(),
   readUsage: cachedReading(() => readLiveUsage(), { ttlMs: USAGE_TTL_MS }),
+  readChanged: (deliveries) => readChangedFiles(root, deliveries),
   stops: {
     known: () => readKnownStops(root),
     record: async (stop) => {

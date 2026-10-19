@@ -10,7 +10,7 @@ import { hasSecret } from "../../scripts/exposure.mjs";
 // the live reading is read, and decide() run again, only when something is.
 const ASSUMED_FINE = { "5-hour": { percent: 0 }, source: "live" };
 
-export function createRouter({ bridge, readOrder, readBoard, readUsage, stops, push, now = Date.now, log = () => {} }) {
+export function createRouter({ bridge, readOrder, readBoard, readUsage, readChanged = async () => new Map(), stops, push, now = Date.now, log = () => {} }) {
   let downSince = null;
   let downPushed = false; // "the bridge has not answered" was pushed this outage; it is recorded when the bridge answers
   const unrecorded = new Map(); // key -> stop: pushed, not yet on the board; the record is retried each tick, the push never
@@ -74,7 +74,9 @@ export function createRouter({ bridge, readOrder, readBoard, readUsage, stops, p
     }
     const tickets = await readBoard();
     const downForMs = downSince === null ? 0 : now() - downSince;
-    const args = { order, tickets, state, stops: [...known], downForMs };
+    // A failed read only costs pairing: each delivery then holds the files its ticket names.
+    const changed = state ? await readChanged(state.deliveries ?? []).catch(() => new Map()) : new Map();
+    const args = { order, tickets, state, stops: [...known], downForMs, changed };
     let out = decide({ ...args, usage: ASSUMED_FINE });
     if (state && out.actions.length) out = decide({ ...args, usage: await readUsage() });
     for (const s of out.stops) await report(s, known, up);

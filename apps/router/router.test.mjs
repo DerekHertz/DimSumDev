@@ -3,6 +3,7 @@
 //   bridge     { state() -> Promise<GET /state> (rejects when the bridge does not answer),
 //                startDelivery(ref) -> { ok, status, error?, draining? }, resumeDelivery(id) -> same }
 //   readOrder  () -> the order file's text      readBoard () -> [{ ref, text, locked }]      readUsage () -> usage.mjs --live's JSON, or { error }
+//   readChanged (deliveries) -> Map of delivery id -> files its branch changed (optional; a rejection means "unknown")
 //   stops      { known() -> Promise<string[]> (keys on the board), record(stop) -> Promise }   push (stop) -> Promise
 //   now        () -> ms. The only state the router holds is when the bridge first failed to answer, in memory.
 //   tick()     one reconcile: read, decide, act. A stop is recorded on the board first, then pushed, once.
@@ -281,5 +282,20 @@ describe("the live usage reading is read only when a start or resume is due", ()
     r.parts.stateNow = st([paused("visual-verdict")]);
     await r.router().tick();
     assert.deepEqual([reads, r.calls.pushed.length], [0, 1]);
+  });
+});
+
+describe("files a delivery holds (stalled queue, 2026-10-18)", () => {
+  const held = { id: "d-9", ref: "fx/09-other", state: "paused", pause: { kind: "failed-twice" }, updatedAt: "t1" };
+  const board = async () => [{ ref: REF, text: text(1), locked: false }, { ref: "fx/09-other", text: text(9, []), locked: false }];
+  test("a paused delivery whose ticket names no files does not block a start once its branch's files are read", async () => {
+    const r = rig({ stateNow: st([held]), readBoard: board, readChanged: async (ds) => new Map(ds.map((d) => [d.id, ["apps/b/y.mjs"]])) });
+    await r.router().tick();
+    assert.deepEqual(r.calls.start, [REF]);
+  });
+  test("when the read fails, the delivery holds everything and nothing starts", async () => {
+    const r = rig({ stateNow: st([held]), readBoard: board, readChanged: async () => { throw new Error("git"); } });
+    await r.router().tick();
+    assert.deepEqual(r.calls.start, []);
   });
 });

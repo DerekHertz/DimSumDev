@@ -69,6 +69,25 @@ export async function readLiveUsage({ run = runNode, script = USAGE_SCRIPT } = {
   }
 }
 
+const runGit = (cwd, args) => new Promise((resolve, reject) => {
+  execFile("git", args, { cwd, timeout: 15_000, maxBuffer: 1024 * 1024 }, (err, stdout) => (err ? reject(err) : resolve(String(stdout))));
+});
+
+/** Delivery id -> the files its branch changed since its base, for each running or paused delivery git can read. A delivery
+ *  git cannot read (no base, a missing commit) is left out, so it holds the files its ticket names. */
+export async function readChangedFiles(root, deliveries, { git = runGit } = {}) {
+  const out = new Map();
+  for (const d of deliveries) {
+    if ((d?.state !== "running" && d?.state !== "paused") || !/^[0-9a-f]{40}$/.test(d.base ?? "")) continue;
+    const head = /^[0-9a-f]{40}$/.test(d.candidate?.sha ?? "") ? d.candidate.sha : d.branch;
+    if (typeof head !== "string" || !head || head.startsWith("-")) continue;
+    try {
+      out.set(d.id, (await git(root, ["diff", "--name-only", d.base, head, "--"])).split("\n").filter(Boolean));
+    } catch {}
+  }
+  return out;
+}
+
 /** The keys of router-stop requests the board holds that still silence a stop (see knownStopKeys). */
 export async function readKnownStops(root) {
   return knownStopKeys(await readRequestRows(root));
