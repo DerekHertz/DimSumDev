@@ -420,7 +420,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       const { status, update, started, reason } = await updater.updateNow();
       reply(res, status, { update, started, ...(reason ? { reason } : {}) });
     },
-    "POST /update/restart": async (req, res) => {
+    "POST /update/relaunch": async (req, res) => {
       if (!(await readJsonObject(req, res))) return;
       if (!updater) return reply(res, 409, { error: "the den runs from the checkout: it cannot restart itself" });
       reply(res, 202, { restarting: true });

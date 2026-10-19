@@ -32,7 +32,7 @@ const BODIES = {
   },
   // den-mvp/86: with no release folders the bridge has no updater, so each answers 409 to a valid caller and nothing happens.
   "POST /update/now": { real: {}, bogus: {} },
-  "POST /update/restart": { real: {}, bogus: {} },
+  "POST /update/relaunch": { real: {}, bogus: {} },
   "POST /update/auto": { real: { auto: false }, bogus: { auto: true } },
   // den-mvp/34: the checks of an open pull request (the fake git host knows #7), run by the fake checks below.
   "POST /checks": { real: { pr: 7 }, bogus: { pr: 8 } },

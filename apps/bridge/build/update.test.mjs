@@ -127,7 +127,7 @@ describe("Restart now", () => {
     await t.post("/update/auto", { auto: false });
     const run = await t.dispatch("architect");
     assert.equal(run.status, 201);
-    const res = await t.post("/update/restart");
+    const res = await t.post("/update/relaunch");
     assert.equal(res.status, 202);
     await until(() => exits.length > 0, { what: "the exit" });
     assert.deepEqual(exits, [0]);

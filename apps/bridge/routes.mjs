@@ -42,7 +42,7 @@ export const ROUTES = [
   { method: "POST", path: "/release/approve", auth: "token", mutating: true },
   { method: "POST", path: "/release/decline", auth: "token", mutating: true },
   { method: "POST", path: "/update/now", auth: "token", mutating: true },
-  { method: "POST", path: "/update/restart", auth: "token", mutating: true },
+  { method: "POST", path: "/update/relaunch", auth: "token", mutating: true },
   { method: "POST", path: "/update/auto", auth: "token", mutating: true },
   { method: "POST", path: "/checks", auth: "token", mutating: true },
   { method: "GET", path: "/projects", auth: "token", mutating: false },
