@@ -188,7 +188,7 @@ test("Claude and Codex share two worker slots and concurrent same-ticket exclusi
   const competing = await Promise.all([t.dispatch("claude"), t.dispatch("codex")]);
   assert.deepEqual(competing.map((r) => r.status).sort(), [201, 409]);
   assert.equal(t.claude.spawns.length + t.codex.spawns.length, 1);
-  const second = await t.post("/tasks", { role: "scout", text: "Inspect lids.", runtime: competing[0].status === 201 ? "codex" : "claude" });
+  const second = await t.post("/tasks", { role: "developer", text: "Inspect lids.", runtime: competing[0].status === 201 ? "codex" : "claude" });
   assert.equal(second.status, 201, JSON.stringify(second.body));
   const third = await t.post("/tasks", { role: "herald", text: "Inspect cups.", runtime: "codex" });
   assert.equal(third.status, 429);
@@ -387,7 +387,7 @@ test("follow-up cannot borrow extra worker capacity from its selected runtime", 
   const t = await setup();
   const first = await t.dispatch("codex");
   await t.finish(first, t.codex);
-  assert.equal((await t.post("/tasks", { role: "scout", runtime: "claude", text: "Inspect baskets." })).status, 201);
+  assert.equal((await t.post("/tasks", { role: "developer", runtime: "claude", text: "Inspect baskets." })).status, 201);
   assert.equal((await t.post("/tasks", { role: "herald", runtime: "codex", text: "Inspect lids." })).status, 201);
   const result = await t.say({ runtime: "codex", runId: first.body.agent.id, text: "continue" });
   assert.equal(result.status, 429);
