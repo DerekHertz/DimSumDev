@@ -55,9 +55,13 @@ test('overview: a held permission request is shown and opens from Needs you, a c
     await page.route('**/metrics', r => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
     await page.route('**/session', r => r.fulfill({ status: 404, json: {} }));
     await page.goto(server.resolvedUrls.local[0]);
-    await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') !== 'true');
+    await page.waitForFunction(() => {
+      const button = document.querySelector('.den-entry button');
+      return !!button && button.getAttribute('aria-disabled') !== 'true';
+    });
 
     // 1. The Needs you card opens by itself and says who asks, for what, and how long is left.
+    await page.locator('[data-rail=needs]').click();
     const needs = page.locator('[data-overlay=needs-you]');
     await needs.locator('[data-answer=allow]').waitFor();
     const needsText = await needs.innerText();
@@ -78,6 +82,7 @@ test('overview: a held permission request is shown and opens from Needs you, a c
     await review.waitFor({ state: 'hidden' });
 
     // 3. A click on the scout panda shows the card walk mode shows, with every action on.
+    await page.locator('[data-rail=needs]').click();
     await page.waitForFunction(scoutOnScreen);
     const at = await page.evaluate(scoutOnScreen);
     await page.mouse.click(at.x, at.y);

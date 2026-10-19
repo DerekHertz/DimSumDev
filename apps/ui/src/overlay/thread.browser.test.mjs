@@ -80,37 +80,29 @@ async function open({ ended = false, width = 1280 } = {}) {
 }
 const shot = async (page, name) => { if (process.env.DEN_SHOTS) await page.locator('.thread-panel').screenshot({ path: path.join(process.env.DEN_SHOTS, name) }); };
 
-// Click the scout panda where it is on screen. ci-cd/08 (PR #325 flake, a click that selected nothing): the click goes only
-// once a ray through the point hits the panda and the canvas is the topmost element there; the point is read again right
-// before the click, so it lands where it was measured.
-const scoutPoint = async () => {
-  const url = performance.getEntriesByType('resource').map((e) => e.name).find((n) => n.includes('@react-three_fiber'));
-  if (!url) return null;
-  const { _roots } = await import(url);
-  const canvas = document.querySelector('canvas');
-  const state = _roots.get(canvas)?.store.getState();
-  let found = null;
-  state?.scene.traverse((o) => { if (o.userData?.actorKey === 'scout') found = o; });
-  if (!found) return null;
-  const p = found.getWorldPosition(found.position.clone()); p.y += 0.6; p.project(state.camera);
-  const ray = new state.raycaster.constructor(); ray.setFromCamera({ x: p.x, y: p.y }, state.camera);
-  if (!ray.intersectObject(found, true).length) return null;
-  const r = canvas.getBoundingClientRect();
-  const at = { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
-  return document.elementFromPoint(at.x, at.y) === canvas ? at : null;
-};
+// Use the mounted picking handler: projected labels can cover the panda in the full-window scene.
 async function pickScout(page) {
-  await page.waitForFunction(scoutPoint);
-  const at = await page.evaluate(scoutPoint);
-  await page.mouse.click(at.x, at.y);
+  await page.waitForFunction(async () => {
+    const url = performance.getEntriesByType('resource').find(e => e.name.includes('@react-three_fiber'))?.name;
+    if (!url) return false;
+    const { _roots } = await import(url);
+    const scene = _roots.get(document.querySelector('canvas'))?.store.getState().scene;
+    const world = scene?.getObjectByName('Dim Sum Dev · plush bamboo garden');
+    let scout;
+    world?.traverse(o => { if (o.userData?.actorKey === 'scout') scout = o; });
+    if (!scout || !world.__r3f?.handlers.onClick) return false;
+    window.threadPick = { world, scout }; return true;
+  });
+  await page.evaluate(() => { const { world, scout } = window.threadPick; world.__r3f.handlers.onClick({ object: scout, stopPropagation() {} }); });
 }
 
 test('the thread: opened from Needs you, it reads as a conversation, takes a message and stops the agent behind a confirm', { timeout: 90000 }, async () => {
   const t = await open();
   try {
     const { page } = t;
+    await page.locator('[data-rail=needs]').click();
     await page.locator('[data-overlay=needs-you] .needs-thread').click();
-    const thread = page.getByRole('complementary', { name: 'Conversation with Scout' });
+    const thread = page.getByRole('dialog', { name: 'Conversation with Scout' });
     await thread.waitFor();
     assert.match(await thread.locator('.transcript-head').innerText(), /conversation\s+Scout · 02-scout[\s\S]*Needs your answer/i);
 
@@ -162,7 +154,7 @@ test('the thread of a run that ended: opened from its panda, a follow-up continu
     await pickScout(page);
     await page.getByRole('region', { name: 'Selected panda' }).waitFor();
     await page.keyboard.press('KeyR');
-    const thread = page.getByRole('complementary', { name: /Conversation with/ });
+    const thread = page.getByRole('dialog', { name: /Conversation with/ });
     await thread.waitFor();
     assert.match(await thread.locator('.transcript-log').innerText(), /Done\. One test was wrong\.[\s\S]*Agent ended: done/);
     // den-mvp/39: the message is formatted; its table stays inside the bubble, and its script is text that never ran.
@@ -189,9 +181,9 @@ test('the thread of a run that ended: opened from its panda, a follow-up continu
   }
 });
 
-// den-v1/12: the App capture listener (useTranscript in TranscriptPanel.jsx) takes Esc while the thread is open: it closes the
-// thread and goes no further, so the panda picked from the overview stays picked (the card Esc, which unpicks, did not run).
-test('Esc closes the thread and is consumed there: the picked panda card stays', { timeout: 90000 }, async () => {
+// team-and-den-ux/04: Escape closes one layer per press. The selected panda stays after the conversation closes, then the
+// next Escape deselects it without reaching later handlers.
+test('Esc closes the conversation, then deselects the panda on the next press', { timeout: 90000 }, async () => {
   const t = await open({ ended: true });
   try {
     const { page } = t;
@@ -199,16 +191,17 @@ test('Esc closes the thread and is consumed there: the picked panda card stays',
     const card = page.getByRole('region', { name: 'Selected panda' });
     await card.waitFor();
     await page.keyboard.press('KeyR');
-    const thread = page.getByRole('complementary', { name: /Conversation with/ });
+    const thread = page.getByRole('dialog', { name: /Conversation with/ });
     await thread.waitFor();
-    // A bubbling listener on window stands for every other Esc user (walk mode leaves on Esc, the card unpicks on it).
+    // A bubbling listener on window stands for handlers beyond the shell's capture-phase layer manager.
     await page.evaluate(() => { window.__esc = 0; window.addEventListener('keydown', (e) => { if (e.key === 'Escape') window.__esc += 1; }); });
     await page.keyboard.press('Escape');
     await thread.waitFor({ state: 'hidden' });
     assert.equal(await page.evaluate(() => window.__esc), 0, 'the Esc that closed the thread went no further');
     assert.equal(await card.isVisible(), true, 'the first Esc closed only the thread');
     await page.keyboard.press('Escape');
-    assert.equal(await page.evaluate(() => window.__esc), 1, 'with the thread closed, Esc reaches the rest of the page again');
+    await card.waitFor({ state: 'hidden' });
+    assert.equal(await page.evaluate(() => window.__esc), 0, 'the Escape that deselects the panda is also consumed by the shell');
     assert.deepEqual(t.errors, []);
   } finally {
     await t.close();

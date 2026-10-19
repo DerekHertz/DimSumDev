@@ -29,7 +29,7 @@ test('walking up to a resident shows its nearby card; moving away and leaving hi
       return button && button.getAttribute('aria-disabled') !== 'true';
     });
     await enter.click();
-    const leave = page.getByRole('button', { name: 'Leave the den', exact: true });
+    const leave = page.getByRole('button', { name: 'Back to the diorama · Esc', exact: true });
     await page.waitForFunction(() => document.pointerLockElement?.tagName === 'CANVAS');
     await page.keyboard.press('Tab');
     await page.waitForFunction(() => document.pointerLockElement === null);
@@ -60,7 +60,7 @@ test('walking up to a resident shows its nearby card; moving away and leaving hi
     await page.keyboard.press('Tab');
     assert.equal(await leave.count(), 1);
     assert.equal(await card.count(), 1, 'using the cursor keeps the nearby card visible');
-    assert.equal(await card.isVisible(), true, 'the nearby card occupies the active desk panel');
+    assert.equal(await card.isVisible(), true, 'the nearby card stays anchored in the scene while the cursor is free');
     await page.getByRole('button', { name: 'Look around', exact: true }).click();
     assert.equal(await leave.count(), 1, 'the free cursor can resume looking without leaving the den');
     await page.keyboard.press('KeyT');

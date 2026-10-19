@@ -1,7 +1,5 @@
-// Connected Garden & Desk regression coverage. The original steering/session, Needs you,
-// team, zoom, keyboard and accessibility behaviors remain real mounted-App checks.
-// Layout assertions follow the approved focused desk and garden card; the removed disabled
-// intent/replay placeholders are replaced by Bao conversation and responsive control checks.
+// Mounted-App regression coverage for board/session behavior, zoom, keyboard access and the
+// full-window shell. Layout assertions follow the signed-off rail and docked-sheet model.
 import { test, before, after, describe } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "vite";
@@ -11,12 +9,12 @@ import { lightenScene } from "../../../ci-cd/light-scene.mjs";
 
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
-const ZOOM_NEAREST = 0.25; // the larger garden permits close inspection of personal workstations
+const ZOOM_NEAREST = 0.25;
 const ZOOM_FARTHEST = 1.2;
 const near = (a, b, tol = 1.5) => Math.abs(a - b) <= tol;
 
 // One browser and dev server; the model-loading scenarios use one context at a time.
-describe("garden desk cards", { concurrency: 1 }, () => {
+describe("full-window den shell", { concurrency: 1 }, () => {
 let server;
 let browser;
 let base;
@@ -111,9 +109,10 @@ async function openApp({ snapshot = fixture(), viewport = DESKTOP, hasTouch = fa
     return r.fulfill({ json: [] });
   });
   await page.goto(code === null ? base : `${base}#code=${code}`);
-  // The app is up once the Tally pill (ticket 05) is on screen; the overlays may not exist yet, and then
-  // the tests below fail on their own assertions rather than in setup.
-  await page.locator("button.chip-tally").waitFor({ state: "visible", timeout: 30000 });
+  // The app is up once its rail is rendered. Needs opens by default here because most legacy
+  // behavioral checks exercise the requests card; tests for other topics select them explicitly.
+  await page.locator('[data-rail="needs"]').waitFor({ state: "visible", timeout: 30000 });
+  await page.locator('[data-rail="needs"]').click();
   await page.locator('[data-overlay="logo"]').waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
   // organism-infra/104: 5 s was a load flake ("Ctrl+Enter in the Note", fill after the first POST timed out while
   // the machine was busy). Playwright actions return as soon as the element is ready, so a longer ceiling only
@@ -123,13 +122,15 @@ async function openApp({ snapshot = fixture(), viewport = DESKTOP, hasTouch = fa
     page, context, errors, posts, sessions, unauth,
     noSession: page.locator('[data-session="none"]'),
     logo: page.locator('[data-overlay="logo"]'),
-    needs: page.locator('[data-overlay="needs-you"]'),
-    teams: page.locator('[data-overlay="teams"]'),
+    needs: page.locator('[data-sheet="topic"]'),
+    teams: page.locator('[data-sheet="topic"]'),
     zoom: page.locator('[data-overlay="zoom"]'),
   };
 }
 
-const header = (card) => card.locator("button[aria-expanded]").first();
+// In a sheet the card's former collapsible header is gone. Focus a real control inside the
+// Needs-you body so its keyboard handler receives the key; sheet visibility belongs to the rail.
+const header = (sheet) => sheet.locator('[data-overlay="needs-you"] button').first();
 const zoomValue = async (zoom) => Number(await zoom.getAttribute("data-zoom"));
 const token = (page, name) =>
   page.evaluate((n) => {
@@ -150,52 +151,40 @@ const withApp = (opts, fn) => async () => {
     await app.context.close();
   }
 };
+const openWork = async (page) => {
+  await page.locator('[data-rail="work"]').click();
+  return page.locator('[data-sheet="topic"]');
+};
 
-// ---- Layout: distinct garden and focused desk -----------------------------------------------------------
+// ---- Layout: full-window shell, rail and docked topic sheet ---------------------------------------------
 
-test("the focused desk sits beside a separate garden card with no usage meters in board cards", { timeout: 90000 }, withApp({}, async ({ page, logo, needs, teams }) => {
-  assert.equal(await page.getByRole('complementary', { name: 'Your desk' }).count(), 1);
-  assert.equal(await page.locator('.panel').count(), 0);
-  const garden = await page.locator('main[aria-label="Den scene"]').boundingBox();
-  const desk = await page.getByRole('complementary', { name: 'Your desk' }).boundingBox();
-  assert.ok(garden.x >= 16 && desk.x >= garden.x + garden.width + 15, 'garden and desk retain a visible gutter');
-  assert.ok(desk.x + desk.width <= DESKTOP.width - 16);
-  assert.equal(await page.getByText(/Plan usage/i).count(), 0);
-  for (const card of [logo, needs, teams]) assert.equal(await card.locator('[role="meter"]').count(), 0, 'usage stays on Tally');
+test("the full-window shell has a top bar, a Den rail, a live scene, and one bounded topic sheet", { timeout: 90000 }, withApp({}, async ({ page, needs }) => {
+  assert.equal(await page.locator('.forest-shell').count(), 1);
+  assert.equal(await page.locator('.den-bar').count(), 1);
+  assert.equal(await page.getByRole('navigation', { name: 'Den' }).count(), 1);
+  assert.equal(await page.locator('main[aria-label="Den scene"]').count(), 1);
+  assert.equal(await page.getByRole('complementary', { name: 'Your desk' }).count(), 0);
+  assert.equal(await page.locator('.forest-masthead, .forest-desk-home').count(), 0);
+  assert.equal(await page.locator('[data-sheet="topic"]').count(), 1);
+  assert.equal(await needs.getAttribute('aria-modal'), 'false');
+  const shell = await page.locator('.forest-shell').boundingBox();
+  const bar = await page.locator('.den-bar').boundingBox();
+  const rail = await page.getByRole('navigation', { name: 'Den' }).boundingBox();
+  const scene = await page.locator('main[aria-label="Den scene"]').boundingBox();
+  const sheet = await needs.boundingBox();
+  assert.ok(bar.y >= shell.y && bar.y + bar.height <= scene.y + 1);
+  assert.ok(rail.x >= shell.x && rail.x + rail.width <= scene.x + 1);
+  assert.ok(scene.x + scene.width <= shell.x + shell.width + .5);
+  assert.ok(sheet.x >= rail.x + rail.width && sheet.x + sheet.width <= shell.x + shell.width);
 }));
 
-test("the masthead precedes garden controls and the desk keeps Needs you before Teams", { timeout: 90000 }, withApp({}, async ({ page }) => {
-  const order = await page.evaluate(() => {
-    const el = n => document.querySelector(`[data-overlay="${n}"]`);
-    const before = (a, b) => !!a && !!b && !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
-    return {
-      title: document.querySelector('.forest-masthead h1')?.textContent.trim(),
-      logoBeforeZoom: before(el('logo'), el('zoom')),
-      needsBeforeTeams: before(el('needs-you'), el('teams')),
-      deskContainsCards: ['needs-you', 'teams', 'library', 'meetings'].every(n => !!el(n)?.closest('aside[aria-label="Your desk"]')),
-    };
-  });
-  assert.equal(order.title, 'Dim Sum Dev');
-  assert.equal(order.logoBeforeZoom, true);
-  assert.equal(order.needsBeforeTeams, true);
-  assert.equal(order.deskContainsCards, true);
-}));
-
-test("desktop garden, toolbar, footer controls and desk occupy separate bounded areas", { timeout: 90000 }, withApp({}, async ({ page, zoom, needs, teams }) => {
-  const garden = await page.locator('main.scene').boundingBox();
-  const canvas = await page.locator('.forest-canvas').boundingBox();
-  const desk = await page.getByRole('complementary', { name: 'Your desk' }).boundingBox();
-  const toolbar = await page.locator('.forest-garden-toolbar').boundingBox();
-  const footer = await page.locator('.forest-garden-footer').boundingBox();
-  assert.ok(toolbar.y + toolbar.height <= canvas.y + 1);
-  assert.ok(canvas.y + canvas.height <= footer.y + 1);
-  assert.ok(desk.x >= garden.x + garden.width + 15);
-  const z = await zoom.boundingBox();
-  assert.ok(z.x >= footer.x && z.x + z.width <= footer.x + footer.width);
-  for (const card of [needs, teams]) {
-    const box = await card.boundingBox();
-    assert.ok(box.x >= desk.x && box.x + box.width <= desk.x + desk.width);
-  }
+test("the bar keeps the brand and zoom controls; rail entries replace the old masthead and desk navigation", { timeout: 90000 }, withApp({}, async ({ page, logo }) => {
+  assert.equal((await logo.locator('h1').textContent()).trim(), 'Dim Sum Dev');
+  assert.equal(await logo.getByText('Live', { exact: true }).count(), 1);
+  const entries = await page.locator('.den-rail-list:first-child [data-rail]').evaluateAll((els) => els.map((e) => e.dataset.rail));
+  assert.deepEqual(entries, ['bao', 'needs', 'queue', 'work', 'meetings', 'team', 'library', 'tally']);
+  assert.equal(await page.locator('.den-bar').getByRole('button', { name: /Talk to Bao/ }).count(), 1);
+  assert.equal(await page.locator('.forest-masthead, [aria-label="Workspace"]').count(), 0);
 }));
 
 test("logo pill shows 'Dim Sum Dev' and a Live badge in qi", { timeout: 90000 }, withApp({}, async ({ page, logo }) => {
@@ -206,11 +195,9 @@ test("logo pill shows 'Dim Sum Dev' and a Live badge in qi", { timeout: 90000 },
 
 // ---- Needs you ---------------------------------------------------------------------------------------------
 
-test("Needs you: open with waiting requests, named with the count, count pill, eyebrow, title, code well, key hints, other rows with an age (criterion: Needs you contents, key hints visible)", { timeout: 90000 }, withApp({}, async ({ needs }) => {
-  assert.match((await needs.getAttribute("aria-label")) ?? (await needs.evaluate((e) => e.getAttribute("aria-labelledby") && document.getElementById(e.getAttribute("aria-labelledby")).textContent)), /^Needs you(, 2 waiting)?/);
-  assert.equal(await header(needs).getAttribute("aria-expanded"), "true", "open when at least 1 waits");
-  assert.match(await header(needs).textContent(), /Needs you/);
-  assert.match(await header(needs).textContent(), /\b2\b/, "count pill shows 2");
+test("Needs you: open with waiting requests, named with the count, eyebrow, title, code well, key hints, other rows with an age (criterion: Needs you contents, key hints visible)", { timeout: 90000 }, withApp({}, async ({ page, needs }) => {
+  assert.match(await page.locator('[data-rail="needs"]').getAttribute("aria-label"), /^Needs you, 2 waiting$/);
+  assert.equal(await page.locator('[data-rail="needs"]').getAttribute("aria-expanded"), "true", "open when at least 1 waits");
   const text = await needs.innerText();
   assert.match(text, /Tea · qa · .*02-verify-it/, "eyebrow: Team · role · ticket");
   assert.match(text, /02-verify-it.* wants merge approval/, "title: <id> wants <action>");
@@ -328,7 +315,7 @@ test("card keys are card-scoped:'a' does nothing from the scene or from inside t
   assert.equal(await needs.getByRole("button", { name: /^Approve/ }).count(), 1, "precondition: the card is there with a request to act on");
   await page.locator('main[aria-label="Den scene"]').focus();
   await page.keyboard.press("a");
-  await page.locator("button.chip-tally").click();
+  await page.locator('[data-rail="tally"]').click();
   await page.getByRole("dialog", { name: "Tally" }).waitFor({ state: "visible" });
   await page.keyboard.press("a");
   await page.keyboard.press("d");
@@ -336,26 +323,24 @@ test("card keys are card-scoped:'a' does nothing from the scene or from inside t
   assert.deepEqual(posts, [], "no request filed from outside the card");
 }));
 
-test("Needs you collapses and reopens from its header (aria-expanded flips, body hides); with nothing waiting it says so and shows no count (criterion: collapsible; empty state)", { timeout: 90000 }, async () => {
+test("the Needs rail entry closes and reopens its sheet; an empty sheet says so and has no count", { timeout: 90000 }, async () => {
   const app = await openApp({});
   try {
-    const { needs } = app;
-    const approve = needs.getByRole("button", { name: /^Approve/ });
-    await header(needs).click();
-    assert.equal(await header(needs).getAttribute("aria-expanded"), "false");
-    assert.equal(await approve.isVisible(), false, "collapsed body is hidden");
-    await header(needs).click();
-    assert.equal(await header(needs).getAttribute("aria-expanded"), "true");
-    assert.equal(await approve.isVisible(), true);
+    const { page } = app;
+    const rail = page.locator('[data-rail="needs"]');
+    await rail.click();
+    assert.equal(await page.locator('[data-sheet="topic"]').count(), 0);
+    await rail.click();
+    assert.equal(await page.locator('[data-sheet="topic"]').count(), 1);
+    assert.equal(await page.getByRole("button", { name: /^Approve/ }).count(), 1);
   } finally {
     await app.context.close();
   }
   const quiet = await openApp({ snapshot: quietSnapshot() });
   try {
-    if ((await header(quiet.needs).getAttribute("aria-expanded")) === "false") await header(quiet.needs).click();
     await quiet.needs.getByText("Nothing is waiting on you.").waitFor({ state: "visible" });
     assert.equal(await quiet.needs.getByRole("button", { name: /^Approve/ }).count(), 0);
-    assert.doesNotMatch(await header(quiet.needs).textContent(), /\d/, "no count pill when nothing waits");
+    assert.doesNotMatch(await quiet.page.locator('[data-rail="needs"]').getAttribute('aria-label'), /\d/, "no count in the rail label when nothing waits");
   } finally {
     await quiet.context.close();
   }
@@ -363,18 +348,17 @@ test("Needs you collapses and reopens from its header (aria-expanded flips, body
 
 // ---- Teams & queue ----------------------------------------------------------------------------------------
 
-test("Teams & queue is closed by default and opens from its header (criterion: collapsible, default closed)", { timeout: 90000 }, withApp({}, async ({ teams }) => {
-  assert.equal(await header(teams).getAttribute("aria-expanded"), "false");
-  assert.equal(await teams.locator('[data-team-pill="steamers"]').isVisible(), false);
-  await header(teams).click();
-  assert.equal(await header(teams).getAttribute("aria-expanded"), "true");
-  await teams.locator('[data-team-pill="steamers"]').waitFor({ state: "visible" });
-  await header(teams).click();
-  assert.equal(await header(teams).getAttribute("aria-expanded"), "false");
+test("the Work rail entry opens and closes the topic sheet", { timeout: 90000 }, withApp({}, async ({ page }) => {
+  const work = await openWork(page);
+  await work.locator('[data-team-pill="steamers"]').waitFor({ state: "visible" });
+  assert.equal(await page.locator('[data-rail="work"]').getAttribute('aria-expanded'), 'true');
+  await page.locator('[data-rail="work"]').click();
+  assert.equal(await page.locator('[data-sheet="topic"]').count(), 0);
+  assert.equal(await page.locator('[data-sheet="side"]').count(), 0);
 }));
 
 test("open teams: one pill each in order with name and count; a pill shows '· waiting' in lantern only when one of its pandas waits (criterion: waiting pill)", { timeout: 90000 }, withApp({}, async ({ page, teams }) => {
-  await header(teams).click();
+  await openWork(page);
   const ids = await teams.locator("[data-team-pill]").evaluateAll((els) => els.map((e) => e.dataset.teamPill));
   assert.deepEqual(ids, ["pass", "steamers", "tea", "pantry", "front-of-house", "cubs", "library", "drum"]);
   const pill = (id) => teams.locator(`[data-team-pill="${id}"]`);
@@ -395,8 +379,8 @@ test("open teams: one pill each in order with name and count; a pill shows '· w
   }
 }));
 
-test("dormant teams are dashed, non-interactive pills: Library and Drum 'coming online', Cubs 'N asleep' (criterion: dormant pills)", { timeout: 90000 }, withApp({}, async ({ teams }) => {
-  await header(teams).click();
+test("dormant teams are dashed, non-interactive pills: Library and Drum 'coming online', Cubs 'N asleep' (criterion: dormant pills)", { timeout: 90000 }, withApp({}, async ({ page, teams }) => {
+  await openWork(page);
   const pill = (id) => teams.locator(`[data-team-pill="${id}"]`);
   assert.match(await pill("library").innerText(), /coming online/);
   assert.match(await pill("drum").innerText(), /coming online/);
@@ -413,7 +397,7 @@ test("dormant teams are dashed, non-interactive pills: Library and Drum 'coming 
 test("summary and queue: '5 open · N ready', 'Next on the susan', rows with a P-chip and title; an empty susan says so (criterion: Queue contents)", { timeout: 90000 }, async () => {
   const app = await openApp({});
   try {
-    await header(app.teams).click();
+    await openWork(app.page);
     const text = await app.teams.innerText();
     assert.match(text, /5 open · 2 ready/);
     assert.match(text, /Next on the susan/i);
@@ -425,7 +409,7 @@ test("summary and queue: '5 open · N ready', 'Next on the susan', rows with a P
   }
   const quiet = await openApp({ snapshot: quietSnapshot() });
   try {
-    await header(quiet.teams).click();
+    await openWork(quiet.page);
     await quiet.teams.getByText("The susan is empty.").waitFor({ state: "visible" });
     assert.match(await quiet.teams.innerText(), /0 ready/);
   } finally {
@@ -433,8 +417,8 @@ test("summary and queue: '5 open · N ready', 'Next on the susan', rows with a P
   }
 });
 
-test("clicking an open team pill zooms to that team (level 2 · Team becomes current)", { timeout: 90000 }, withApp({}, async ({ teams, zoom }) => {
-  await header(teams).click();
+test("clicking an open team pill zooms to that team (level 2 · Team becomes current)", { timeout: 90000 }, withApp({}, async ({ page, teams, zoom }) => {
+  await openWork(page);
   await teams.locator('[data-team-pill="tea"]').click();
   await zoom.getByRole("button", { name: "2 · Team" }).waitFor({ state: "visible" });
   assert.equal(await zoom.getByRole("button", { name: "2 · Team" }).getAttribute("aria-current"), "true");
@@ -533,43 +517,47 @@ test("two-finger pinch zooms: spreading the fingers moves closer, pinching in mo
 
 // ---- The connected Bao entry and uncluttered responsive layout -------------------------------------------
 
-test("Talk to Bao opens the real conversation composer in the focused desk", { timeout: 90000 }, withApp({}, async ({ page, posts }) => {
-  const talk = page.getByRole('button', { name: /Talk to Bao/ });
+test("Talk to Bao opens the real conversation composer in the side sheet", { timeout: 90000 }, withApp({}, async ({ page, posts }) => {
+  const talk = page.locator('.den-bar').getByRole('button', { name: /Talk to Bao/ });
   await talk.click();
-  const conversation = page.getByRole('complementary', { name: 'Conversation with Bao' });
+  const conversation = page.locator('[data-sheet="side"]');
   await conversation.waitFor({ state: 'visible' });
+  assert.equal(await conversation.getAttribute('role'), 'dialog');
+  assert.equal(await conversation.getAttribute('aria-modal'), 'false');
   assert.equal(await conversation.locator('.thread-box').count(), 1);
   assert.equal(await conversation.getByRole('button', { name: 'Send', exact: true }).count(), 1);
-  assert.equal(await page.locator('.forest-desk-home').isVisible(), false, 'home cards give the thread their space');
   assert.deepEqual(posts, [], 'opening a conversation does not dispatch work');
 }));
 
-test("closing Bao restores the existing desk without a second board or hidden detail", { timeout: 90000 }, withApp({}, async ({ page, needs }) => {
-  const before = await header(needs).getAttribute('aria-expanded');
-  await page.getByRole('button', { name: /Talk to Bao/ }).click();
+test("closing Bao removes only the side sheet and leaves the topic sheet open", { timeout: 90000 }, withApp({}, async ({ page }) => {
+  const topic = page.locator('[data-sheet="topic"]');
+  const opener = page.locator('.den-bar').getByRole('button', { name: /Talk to Bao/ });
+  await opener.click();
   await page.getByRole('button', { name: 'Close conversation' }).click();
-  assert.equal(await page.locator('.transcript-panel').count(), 0);
-  assert.equal(await page.locator('.forest-desk-home').isVisible(), true);
-  assert.equal(await header(needs).getAttribute('aria-expanded'), before);
-  assert.equal(await page.locator('[data-overlay="needs-you"]').count(), 1);
+  assert.equal(await page.locator('[data-sheet="side"]').count(), 0);
+  assert.equal(await topic.count(), 1);
+  assert.equal(await page.locator('[data-rail="needs"]').getAttribute('aria-expanded'), 'true');
 }));
 
 test("the connected shell offers Bao instead of disabled intent, autonomy and replay placeholders", { timeout: 90000 }, withApp({}, async ({ page, posts }) => {
   assert.equal(await page.locator('[data-overlay="intent"], [data-overlay="timeline"]').count(), 0);
   assert.equal(await page.getByRole('button', { name: /utonomy/ }).count(), 0);
-  assert.equal(await page.getByRole('button', { name: /Talk to Bao/ }).isEnabled(), true);
+  assert.equal(await page.locator('.den-bar').getByRole('button', { name: /Talk to Bao/ }).isEnabled(), true);
   assert.deepEqual(posts, []);
 }));
 
-test("garden controls stay separate from the desk and all page content stays within responsive gutters", { timeout: 120000 }, withApp({}, async ({ page, zoom }) => {
-  const overlap = (a, b) => a.x < b.x + b.width - .5 && b.x < a.x + a.width - .5 && a.y < b.y + b.height - .5 && b.y < a.y + a.height - .5;
+test("the shell, bar, rail, scene and open sheet stay bounded with no horizontal overflow", { timeout: 120000 }, withApp({}, async ({ page, zoom }) => {
   for (const width of [1440, 1280, 1024, 900, 899, 768, 600, 390]) {
     await page.setViewportSize({ width, height: 900 });
-    const garden = await page.locator('main.scene').boundingBox();
-    const desk = await page.getByRole('complementary', { name: 'Your desk' }).boundingBox();
-    assert.equal(overlap(garden, desk), false, `${width}: garden and desk do not overlap`);
-    assert.ok(garden.x >= 15 && garden.x + garden.width <= width - 15);
-    assert.ok(desk.x >= 15 && desk.x + desk.width <= width - 15);
+    const shell = await page.locator('.forest-shell').boundingBox();
+    const bar = await page.locator('.den-bar').boundingBox();
+    const rail = await page.getByRole('navigation', { name: 'Den' }).boundingBox();
+    const scene = await page.locator('main[aria-label="Den scene"]').boundingBox();
+    const sheet = await page.locator('[data-sheet="topic"]').boundingBox();
+    assert.ok(bar.x >= shell.x && bar.x + bar.width <= width + .5, `${width}: bar is bounded`);
+    assert.ok(rail.x >= shell.x && rail.x + rail.width <= scene.x + .5, `${width}: rail is bounded beside scene`);
+    assert.ok(scene.x + scene.width <= width + .5, `${width}: scene is bounded`);
+    assert.ok(sheet.x >= rail.x + rail.width && sheet.x + sheet.width <= width + .5, `${width}: sheet is bounded`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, `${width}: no horizontal overflow`);
     assert.equal(await zoom.getByRole('button', { name: 'Zoom in' }).isVisible(), true);
     assert.equal(await zoom.getByRole('button', { name: 'Zoom out' }).isVisible(), true);
@@ -577,23 +565,21 @@ test("garden controls stay separate from the desk and all page content stays wit
 }));
 
 test("Talk to Bao remains keyboard-operable without the old Ctrl K placeholder control", { timeout: 90000 }, withApp({}, async ({ page }) => {
-  const talk = page.getByRole('button', { name: /Talk to Bao/ });
+  const talk = page.locator('.den-bar').getByRole('button', { name: /Talk to Bao/ });
   await talk.focus();
   await page.keyboard.press('Enter');
-  await page.getByRole('complementary', { name: 'Conversation with Bao' }).waitFor({ state: 'visible' });
+  await page.locator('[data-sheet="side"]').waitFor({ state: 'visible' });
   assert.equal(await page.getByPlaceholder('Give the den an intent…').count(), 0);
   await page.keyboard.press('Escape');
-  await page.locator('.transcript-panel').waitFor({ state: 'hidden' });
-  assert.equal(await page.locator('.transcript-panel').count(), 0);
+  await page.locator('[data-sheet="side"]').waitFor({ state: 'hidden' });
+  assert.equal(await page.locator('[data-sheet="side"]').count(), 0);
 }));
 
-test("the full Talk to Bao label fits and stays clear of the welcome text across desktop and phone widths", { timeout: 120000 }, withApp({}, async ({ page }) => {
+test("the full Talk to Bao label fits in the bar across desktop and phone widths", { timeout: 120000 }, withApp({}, async ({ page }) => {
   for (const width of [1440, 1024, 768, 600, 390, 375]) {
     await page.setViewportSize({ width, height: 900 });
-    const button = await page.getByRole('button', { name: /Talk to Bao/ }).boundingBox();
-    const welcome = await page.getByRole('region', { name: 'Welcome' }).locator('div').first().boundingBox();
-    assert.ok(button.x + button.width <= width - 15 && button.x >= 15, `${width}: label stays within gutters`);
-    assert.ok(button.x >= welcome.x + welcome.width || button.y >= welcome.y + welcome.height, `${width}: entry does not cover welcome text`);
+    const button = await page.locator('.den-bar').getByRole('button', { name: /Talk to Bao/ }).boundingBox();
+    assert.ok(button.x + button.width <= width + .5 && button.x >= 0, `${width}: label stays within the bar`);
   }
 }));
 
@@ -602,53 +588,46 @@ test("phone coarse-pointer controls keep a 44px target for Bao, navigation and g
   try {
     const { page, zoom } = app;
     assert.equal(await page.evaluate(() => matchMedia('(pointer: coarse)').matches), true);
-    const controls = [page.getByRole('button', { name: /Talk to Bao/ }), page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Work', exact: true }), zoom.getByRole('button', { name: 'Zoom in' })];
+    const controls = [page.locator('.den-bar').getByRole('button', { name: /Talk to Bao/ }), page.locator('[data-rail="work"]'), zoom.getByRole('button', { name: 'Zoom in' })];
     for (const control of controls) assert.ok((await control.boundingBox()).height >= 44, 'touch target remains at least 44px tall');
   } finally { await app.context.close(); }
 });
 
 // ---- Phone width -----------------------------------------------------------------------------------------------
 
-test("phone cards stay inside the desk below the garden and opening one closes the other", { timeout: 90000 }, async () => {
+test("phone topic sheets stay within the shell and the rail switches one topic at a time", { timeout: 90000 }, async () => {
   const app = await openApp({ viewport: PHONE });
   try {
-    const { page, needs, teams, zoom } = app;
-    assert.equal(await header(needs).getAttribute('aria-expanded'), 'false');
-    assert.equal(await header(teams).getAttribute('aria-expanded'), 'false');
-    const garden = await page.locator('main.scene').boundingBox();
-    const desk = await page.getByRole('complementary', { name: 'Your desk' }).boundingBox();
-    assert.ok(desk.y >= garden.y + garden.height + 15);
-    for (const card of [needs, teams]) {
-      const box = await card.boundingBox();
-      assert.ok(box.x >= desk.x && box.x + box.width <= desk.x + desk.width);
-    }
+    const { page, zoom } = app;
+    assert.equal(await page.locator('[data-rail="needs"]').getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('[data-sheet="topic"]').count(), 1);
     assert.equal(await zoom.getByRole('button', { name: 'Zoom in' }).isVisible(), true);
     assert.equal(await page.locator('[data-overlay="intent"], [data-overlay="timeline"]').count(), 0);
-    await header(needs).click();
-    assert.equal(await header(needs).getAttribute('aria-expanded'), 'true');
-    await header(teams).click();
-    assert.equal(await header(teams).getAttribute('aria-expanded'), 'true');
-    assert.equal(await header(needs).getAttribute('aria-expanded'), 'false');
+    await page.locator('[data-rail="work"]').click();
+    assert.equal(await page.locator('[data-rail="work"]').getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('[data-rail="needs"]').getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.locator('[data-sheet="topic"]').count(), 1);
+    const sheet = await page.locator('[data-sheet="topic"]').boundingBox();
+    assert.ok(sheet.x >= 0 && sheet.x + sheet.width <= PHONE.width + .5);
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
   } finally { await app.context.close(); }
 });
 
 // ---- Keyboard, focus ring, accessible names, den words ---------------------------------------------------------
 
-test("every control is keyboard-reachable in the garden-then-desk tab order with a 2px focus-ring outline at 2px offset (criterion: keyboard, focus ring)", { timeout: 120000 }, async () => {
+test("every visible control is keyboard-reachable with the 2px focus ring (criterion: keyboard, focus ring)", { timeout: 120000 }, async () => {
   const app = await openApp({});
   try {
-    const { page, needs, teams } = app;
-    if ((await header(teams).getAttribute("aria-expanded")) === "false") await header(teams).click();
-    assert.equal(await header(needs).getAttribute("aria-expanded"), "true");
+    const { page } = app;
+    await page.locator('[data-rail="work"]').click();
     const ring = await token(page, "focus-ring");
     // Interactive elements that must be reachable, in the overlays.
     const unreachable = await page.evaluate(() =>
-      [...document.querySelectorAll('[data-overlay] :is(button, a[href], input, textarea, select, [role="slider"])')]
+      [...document.querySelectorAll('.den-rail :is(button, a[href], input, textarea, select, [role="slider"]), .den-bar :is(button, a[href], input, textarea, select, [role="slider"]), [data-sheet] :is(button, a[href], input, textarea, select, [role="slider"])')]
         .filter((e) => e.getClientRects().length > 0 && (e.tabIndex < 0 || e.disabled))
         .map((e) => e.outerHTML.slice(0, 80)));
     assert.deepEqual(unreachable, [], "no visible control is removed from the tab order");
-    // Reset the Tab starting point: clicking the Teams header above leaves Chromium's sequential-focus
-    // start at that header, which would skip the Needs you stops. Focus the scene, then walk from there.
+    // Focus the scene, then walk through the shell's keyboard stops.
     await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
     await page.locator('main[aria-label="Den scene"]').focus();
     const seen = [];
@@ -658,26 +637,23 @@ test("every control is keyboard-reachable in the garden-then-desk tab order with
         const a = document.activeElement;
         const cs = getComputedStyle(a);
         return {
-          overlay: a.closest("[data-overlay]")?.dataset.overlay ?? null,
+          overlay: a.closest("[data-overlay]")?.dataset.overlay ?? a.closest("[data-sheet]")?.dataset.sheet ?? (a.closest(".den-rail") ? "rail" : a.closest(".den-bar") ? "bar" : null),
           text: (a.getAttribute("aria-label") ?? a.textContent ?? "").trim().slice(0, 30),
           width: cs.outlineWidth, style: cs.outlineStyle, offset: cs.outlineOffset, color: cs.outlineColor,
         };
       });
       seen.push(info);
     }
-    const overlaySeq = [];
-    for (const s of seen) if (s.overlay && overlaySeq.at(-1) !== s.overlay) overlaySeq.push(s.overlay);
-    const first = (name) => overlaySeq.indexOf(name);
-    for (const name of ["needs-you", "teams", "zoom"]) assert.ok(first(name) >= 0, `${name} is reachable by Tab; saw ${overlaySeq}`);
-    assert.ok(first("zoom") < first("needs-you") && first("needs-you") < first("teams"), `tab order follows garden controls then Needs you and Teams; saw ${overlaySeq}`);
+    const overlaySeq = seen.map((s) => s.overlay).filter(Boolean);
+    for (const name of ["rail", "topic", "zoom"]) assert.ok(overlaySeq.includes(name), `${name} controls are reachable by Tab; saw ${overlaySeq}`);
     const labels = seen.filter((s) => s.overlay === "zoom").map((s) => s.text);
     for (const want of ["1 · Den", "2 · Team", "3 · Panda", "4 · Workspace", "Zoom in", "Zoom out"]) assert.ok(labels.includes(want), `Tab reaches ${want}`);
-    const inCards = seen.filter((s) => s.overlay);
-    assert.ok(inCards.length >= 10, `walked ${inCards.length} overlay stops`);
-    for (const s of inCards) {
+    const shellStops = seen.filter((s) => s.overlay);
+    assert.ok(shellStops.length >= 10, `walked ${shellStops.length} shell stops`);
+    for (const s of shellStops) {
       assert.equal(s.width, "2px", `${s.overlay} "${s.text}" outline width`);
       assert.equal(s.style, "solid", `${s.overlay} "${s.text}" outline style`);
-      assert.equal(s.offset, "2px", `${s.overlay} "${s.text}" outline offset`);
+      assert.equal(s.offset, s.overlay === "rail" ? "-2px" : "2px", `${s.overlay} "${s.text}" outline offset`);
       assert.equal(s.color, ring, `${s.overlay} "${s.text}" outline colour is focus-ring`);
     }
   } finally {
@@ -688,7 +664,7 @@ test("every control is keyboard-reachable in the garden-then-desk tab order with
 // Stand-in for axe (not a dependency; adding one is a security gate): the rules axe would flag on these
 // overlays, checked through Playwright's accessibility tree and the DOM.
 test("accessibility basics: every button, link and field has a name, ids are unique, landmarks are named, aria-controls resolve, and den words only (criterion: axe finds no serious issues; den words)", { timeout: 90000 }, withApp({}, async ({ page, teams }) => {
-  await header(teams).click();
+  await openWork(page);
   const tree = await page.locator("body").ariaSnapshot();
   const unnamed = tree.split("\n").filter((line) => /^\s*- (button|link|textbox|slider|combobox|checkbox|switch)\b/.test(line) && !/^\s*- \w+ "/.test(line));
   assert.deepEqual(unnamed, [], "controls without an accessible name");
@@ -761,7 +737,8 @@ test("reloading the page keeps the session: no new code, no new /session call, a
   await waitFor(() => sessions.length === 1, "POST /session");
   await waitFor(() => page.evaluate(() => sessionStorage.length > 0), "the token to be stored");
   await page.reload();
-  await page.locator("button.chip-tally").waitFor({ state: "visible", timeout: 30000 });
+  await page.locator('[data-rail="needs"]').waitFor({ state: "visible", timeout: 30000 });
+  await page.locator('[data-rail="needs"]').click();
   assert.ok(!page.url().includes("code="), "the reloaded URL carries no code");
   await header(needs).focus();
   await page.keyboard.press("a");
