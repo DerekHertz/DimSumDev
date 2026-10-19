@@ -24,6 +24,7 @@ The spec leaves the design open. Every choice below marked **(user)** was put to
 
 - `build.json` (`{ sha, builtAt, lock }`) is written last. A folder without it is not a release: it is never served and is removed at start.
 - A link is switched by making a new link and renaming it over the old one, so a reader sees one release or the other.
+- (den-mvp/16) A release and a preview are both made by the same `extractArchive` (`git archive` of the commit, read with that commit's own `.gitattributes`), so `export-ignore` and `export-subst` act identically on both and the live release cannot differ from the preview on that account; `.gitattributes` has none today. Two processes making or switching releases on one state folder take lock files (`releases.lock`, `making-<sha12>.lock`) under it.
 - Two releases are kept per pair, current and previous. A release no link points to is deleted.
 - The UI and the bridge have separate links because a UI change goes live without a restart, and a bridge change does not (Part B).
 - The project root stays the checkout: the board, the worktrees and the role files are read from there. What the bridge reads beside its own code (the guardrail files in `apps/bridge/cells/`) now comes from the release, that is, from a merged commit. **To check during the build:** list everything the bridge reads and say which side each is on.
@@ -38,7 +39,7 @@ A UI build runs the repository's own code (`apps/ui/vite.config.mjs`, its plugin
 - a cleared environment;
 - it is started through the same resource-group launcher as an agent run, and is refused when that launcher refuses.
 
-There is no fallback. When bubblewrap or the resource group is missing, a preview or a go-live is refused with the blocker named (spec: "missing enforcement is a startup refusal, never an unsandboxed fallback"). Both the preview build and the go-live build use the box. A build has no time limit of its own; Stop on the delivery ends it. What comes out is bounded in file count and total size, and only regular files are served: a link in the output is refused.
+There is no fallback. When bubblewrap or the resource group is missing, a preview or a go-live is refused with the blocker named (spec: "missing enforcement is a startup refusal, never an unsandboxed fallback"). Both the preview build and the go-live build use the box. Stop on the delivery ends a build, and so does the time limit below. What comes out is bounded in file count and total size, and only regular files are served: a link in the output is refused. (den-mvp/16) A build that does not finish within 20 minutes is stopped and refused with code `build`, and builds run one at a time in the bridge (a second waits for the first). No seccomp filter is added: bubblewrap takes only a compiled BPF program (`--seccomp FD`), the box has no way to build one without a seccomp library, which would be a new dependency, and the namespaces, the dropped capabilities and the resource group already bound what the build can do.
 
 **To check during the build:** which limits a build runs under without changing `limits.json` (a new class there is a guardrail change, prepared as a patch for the user); that bubblewrap can make its namespaces from inside the service.
 
