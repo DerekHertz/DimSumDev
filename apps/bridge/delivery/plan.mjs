@@ -58,7 +58,7 @@ const pause = (kind, reason, next) => ({ kind: "pause", pause: kind, reason, nex
 
 export function nextStep(job) {
   const c = job.candidate;
-  if (!c) return { kind: "run", role: "developer", at: job.base, since: job.base };
+  if (!c) return { kind: "run", role: "developer", at: job.startAt ?? job.base, since: job.base };
   const ev = job.evidence ?? {};
   const now = (e) => (e && e.sha === c.sha ? e : null);
   const [qa, security, risk, pr, ci] = [now(ev.qa), now(ev.security), now(ev.risk), now(ev.pr), now(ev.ci)];

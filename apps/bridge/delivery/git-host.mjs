@@ -12,6 +12,7 @@ import { PUBLISH_BRANCH_RE } from "../cells/workspace.mjs";
 
 const execFileP = promisify(execFile);
 const COMMIT_RE = /^[0-9a-f]{40,64}$/;
+const BRANCH_RE = /^[A-Za-z0-9][A-Za-z0-9._\/-]{0,199}$/;
 const NAME_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,99}$/;
 const DIFF_MAX = 32 * 1024 * 1024;
 // A file that is a key or an environment file by its name. `.env.example` and the like hold no values.
@@ -70,6 +71,16 @@ export function createGitHost(root, { exec = execFileP, remote = "origin", main 
     async mainSha() {
       await git("fetch", "--quiet", remote, main);
       return commit((await git("rev-parse", "--verify", `refs/remotes/${remote}/${main}^{commit}`)).trim(), "the main branch");
+    },
+    /** den-mvp/82: the tip of a branch of this repository (local, or on the remote), or null when there is none by that name. */
+    async branchSha(name) {
+      if (typeof name !== "string" || !BRANCH_RE.test(name) || name.includes("..") || name.includes("//") || /(\/|\.lock|\.)$/.test(name)) return null;
+      for (const ref of [`refs/heads/${name}`, `refs/remotes/${remote}/${name}`]) {
+        try {
+          return commit((await git("rev-parse", "--verify", "--quiet", `${ref}^{commit}`)).trim(), "the branch");
+        } catch {}
+      }
+      return null;
     },
     /** F29: the files that conflict when `sha` is merged with `main`, from a dry-run merge that touches no checkout. [] when clean. */
     async conflicts({ main: head, sha }) {

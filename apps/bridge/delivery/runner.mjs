@@ -205,11 +205,23 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     } catch (err) {
       return refuse(502, `could not read the main branch: ${errorText(err)}`);
     }
+    // den-mvp/82: the developer may start on a branch (qa's tests); the base stays main so the reviews see the tests and the work.
+    let startAt = null;
+    if (input.from !== undefined) {
+      if (typeof input.from !== "string" || typeof git.branchSha !== "function") return refuse(400, "from must name a branch of this repository");
+      try {
+        startAt = await git.branchSha(input.from);
+        if (!startAt) return refuse(409, `from: ${JSON.stringify(String(input.from).slice(0, 100))} is not a branch of this repository`);
+        if (!(await git.descends({ base, sha: startAt }))) return refuse(409, `from: the branch ${JSON.stringify(input.from.slice(0, 100))} does not descend from main`);
+      } catch (err) {
+        return refuse(502, `could not read the from branch: ${errorText(err)}`);
+      }
+    }
     // No await from here to the registration, so two clicks start one delivery.
     if ([...jobs.values()].some((j) => j.ref === ref && live(j))) return refuse(409, "this ticket already has a delivery; resume or close it");
     const job = {
       id: `d-${randomBytes(8).toString("hex")}`, ref, title: ticket.title ?? "", type: ticket.type, visual: VISUAL_TYPES.includes(ticket.type), state: "running", pause: null, step: null,
-      base, branch: null, candidate: null, evidence: { qa: null, security: null, risk: null, tests: null, pr: null, ci: null, verdict: null, preview: null, live: null }, localChecks: Boolean(checks), testGuard: typeof git.guard === "function", bounces: 0, declines: 0, findings: null, ciRerun: null, ciBounced: null,
+      base, ...(startAt ? { startAt, from: input.from.slice(0, 100) } : {}), branch: null, candidate: null, evidence: { qa: null, security: null, risk: null, tests: null, pr: null, ci: null, verdict: null, preview: null, live: null }, localChecks: Boolean(checks), testGuard: typeof git.guard === "function", bounces: 0, declines: 0, findings: null, ciRerun: null, ciBounced: null,
       live: null, claimed: false, runs: [], pr: null, startedAt: new Date().toISOString(), updatedAt: null, gen: 0,
     };
     jobs.set(job.id, job);

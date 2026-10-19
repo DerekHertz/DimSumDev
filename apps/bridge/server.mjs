@@ -784,7 +784,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     let ref = body.ref;
     let ticket = {};
     // The router delivers a ref it read off the board; it never writes a ticket (ADR 0027 decision 3).
-    if (routerRequests.has(req) && (typeof ref !== "string" || Object.keys(body).some((k) => k !== "ref"))) {
+    if (routerRequests.has(req) && (typeof ref !== "string" || Object.keys(body).some((k) => k !== "ref" && k !== "from"))) {
       return reply(res, 403, { error: "the router may deliver a ticket by its ref only" });
     }
     if (ref === undefined) {
@@ -801,7 +801,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       }
       ticket = { ticket: { ref } };
     }
-    const result = await delivery.start({ ref });
+    const result = await delivery.start({ ref, ...(body.from === undefined ? {} : { from: body.from }) });
     if (!result.ok) return reply(res, result.status, { error: result.error, ...ticket });
     reply(res, result.status, { delivery: result.delivery, ...ticket });
   }
