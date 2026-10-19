@@ -5,6 +5,7 @@ export const ROLE_PORTRAITS = Object.freeze({
   architect:'/den/portraits/architect.webp',
   developer:'/den/portraits/developer.webp',
   scout:'/den/portraits/scout.webp',
+  runner:'/den/portraits/runner.webp',
   debugger:'/den/portraits/debugger.webp',
   qa:'/den/portraits/qa.webp',
   security:'/den/portraits/security.webp',

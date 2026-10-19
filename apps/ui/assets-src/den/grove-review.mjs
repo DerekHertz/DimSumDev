@@ -1,10 +1,10 @@
 import * as T from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
-import {loadManifest,loadModel,disposeWorld} from './assets.mjs';
-import {fitRoleAsset} from './role-wardrobe.mjs';
-import {createPandaAppearanceFactory} from './panda-appearance.mjs';
-import {GROVE_ROLES} from './grove-style.mjs';
-import {createLeisureGesture} from './leisure-gesture.mjs';
+import {loadManifest,loadModel,disposeWorld} from '../../src/scene/meshy/assets.mjs';
+import {fitRoleAsset} from '../../src/scene/meshy/role-wardrobe.mjs';
+import {createPandaAppearanceFactory} from '../../src/scene/meshy/panda-appearance.mjs';
+import {GROVE_ROLES} from '../../src/scene/meshy/grove-style.mjs';
+import {createLeisureGesture} from '../../src/scene/meshy/leisure-gesture.mjs';
 
 const stage=document.querySelector('#stage'),roleSelect=document.querySelector('#role'),poseSelect=document.querySelector('#pose'),themeSelect=document.querySelector('#theme'),status=document.querySelector('#status');
 const renderer=new T.WebGLRenderer({antialias:true,preserveDrawingBuffer:true});renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));renderer.shadowMap.enabled=true;renderer.shadowMap.type=T.PCFSoftShadowMap;renderer.outputColorSpace=T.SRGBColorSpace;renderer.toneMapping=T.ACESFilmicToneMapping;renderer.toneMappingExposure=1.25;stage.prepend(renderer.domElement);
