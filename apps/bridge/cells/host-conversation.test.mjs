@@ -359,7 +359,7 @@ describe("what an ask and a stop leave in the thread (organism-infra/230)", () =
     const [a] = await until(async () => { const list = await approvalsOf(t, run.id); return list.length ? list : null; }, { what: "the approval" });
     const entry = async () => (await t.thread("architect")).entries.find((e) => e.kind === "permission");
     assert.deepEqual(await entry().then(({ at, id, runId, ref, ...rest }) => rest), {
-      kind: "permission", name: "Bash", status: "pending", approvalId: a.id,
+      kind: "permission", name: "Bash", status: "pending", approvalId: a.id, runtime: "claude", project: "den",
     }, "the entry points at its approval; the command and the reason stay there");
     assert.ok(!(await readFile(file(t.fx.root, "architect"), "utf8")).includes("rm -rf dist"), "no tool input is written to the conversation file");
     const res = await t.post(`/approvals/${a.id}`, { decision: "deny", note: "Keep dist for now." });

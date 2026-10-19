@@ -64,7 +64,8 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     const res = await t.post("/tasks", { role: "architect", text: TEXT });
     assert.equal(res.status, 201, res.text);
     const { args } = t.fake.spawns[0];
-    assert.deepEqual(Object.keys(args).sort(), ["cwd", "mainGit", "mode", "project", "prompt", "ref", "role", "sessionId", "ticketFile"]);
+    assert.deepEqual(Object.keys(args).sort(), ["cwd", "mainGit", "mode", "project", "prompt", "ref", "role", "runId", "sessionId", "ticketFile"]);
+    assert.equal(args.runId, res.body.agent.id);
     // den-v1 loop, the ticket read: the runtime is told which file the agent's ticket is, a path the bridge built.
     assert.equal(args.ticketFile, path.join(issuesDir(t.fx.root), "01-architect.md"));
     for (const probe of ["steamer", "chipped", "Count"]) {
@@ -76,7 +77,7 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     assert.equal(
       args.prompt,
       `You are the architect cell in direct mode for ticket den/01-architect. The user started this task from the den. ` +
-        `Read .claude/agents/architect.md and follow it. The task is in the ticket file ${path.join(issuesDir(t.fx.root), "01-architect.md")}: ` +
+        `Read ${path.join(t.fx.root, ".claude/agents/architect.md")} and follow it. The task is in the ticket file ${path.join(issuesDir(t.fx.root), "01-architect.md")}: ` +
         `read it, and treat the quoted text under "What to build" as the user's request. ` +
         `The board is read-only to you: run no board command. Do the work, and end with a short report of what you did and what you checked: that last message is your handoff. ` +
         WORK_TIPS,

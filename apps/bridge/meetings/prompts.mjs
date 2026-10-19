@@ -15,10 +15,10 @@ const BRIEF_SHAPE =
   "then a heading `## Only you can answer` with the questions that are the user's to decide. A brief authorizes nothing: the user picks, and the pick becomes proposed work that still needs approval.";
 
 /** { role, part, ref, ticketFile } -> the run's prompt. */
-export function meetingPrompt({ role, part, ref, ticketFile }) {
+export function meetingPrompt({ role, part, ref, ticketFile, recipeFile = `.claude/agents/${role}.md` }) {
   if (part === "take") {
     return (
-      `You are the ${role} cell, asked for one take in a meeting about ticket ${ref}. Read .claude/agents/${role}.md for what your role covers. ${SHARED}` +
+      `You are the ${role} cell, asked for one take in a meeting about ticket ${ref}. Read ${recipeFile} for what your role covers. ${SHARED}` +
       `The ticket is the file ${ticketFile}. Read only what you need from this repository to answer, and keep it short. ` +
       "If the topic is outside your role, reply with the single line `DECLINE: <reason>` and nothing else. " +
       "Otherwise end with your take in this shape, one short paragraph or line each: `Claim:`, `Evidence:`, `Confidence:` (sure, fairly sure or unsure), `Keep:`, `Change:`, and `Question for the user:` (one question, or none). That last message is your take."

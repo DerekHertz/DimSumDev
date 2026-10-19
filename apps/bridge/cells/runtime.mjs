@@ -3,17 +3,19 @@
 //
 //   CellRuntime = {
 //     id, capabilities: { spawn, stop, approve, send, handover, resume },
-//     spawn({ role, mode?, ref, cwd, prompt, model?, sessionId, resume?, runId?, promptId?, ticketFile? }) -> Promise<CellProcess>,
+//     spawn({ role, mode?, ref, cwd, prompt, model?, sessionId, runtimeSessionId?, resume?, runId, promptId?, ticketFile?, project? }) -> Promise<CellProcess>,
+//       (project.recipeFile is the bridge-derived trusted control-project recipe; no target config chooses it)
 //       (ticketFile: the absolute path of the agent's ticket, built by the host; a runtime may let the agent read it unasked)
-//       (den-mvp outcome 2: resume: true continues the session `sessionId` in `cwd`, for a runtime whose `resume`
+//       (resume: true continues `runtimeSessionId` in `cwd`; sessionId remains the bridge UUID, for a runtime whose `resume`
 //       capability is true; runId is the new run's own id; promptId is the id of the first message, which the runtime
 //       reports with a message-applied event once the child takes it)
-//     resumeCommand(sessionId) -> string          // shown to the user once an agent has ended; never run
+//     resumeCommand(runtimeSessionId) -> string   // shown to the user once an agent has ended; never run
 //     stillRunning?(id) -> Promise<boolean>       // is the run started under this id (runId, else sessionId) still alive?
 //                                                 // asked before a follow-up on a run with no recorded end; a reject means unknown
 //   }
 //   CellProcess = {
 //     handle: string, events: AsyncIterable<CellEvent>,
+//     runtimeSessionId?: string,                  // acknowledged native identity, required for Codex; Claude omission uses bridge UUID
 //     closeInput(), signal("SIGTERM" | "SIGKILL")  // synchronous
 //     exited: Promise<{ code, signal }>            // resolves once, never rejects
 //   }

@@ -6,6 +6,7 @@ import path from "node:path";
 import { AGENT_ID_RE, REF_RE, ROLES, UUID_RE } from "./policy.mjs";
 import { workspaceNames } from "./workspace.mjs";
 import { readCost, readCount, readModel, readTiers } from "./run-record.mjs";
+import { runtimeId, validProject, validRuntimeSession } from "./identity.mjs";
 
 const END_STATES = ["terminated", "done", "failed"];
 const MAX_REASON = 200;
@@ -32,6 +33,12 @@ export function validateLine(raw) {
   const base = { ts: raw.ts, agentId: raw.agentId, ref: raw.ref };
   if (raw.event === "spawn") {
     if (!ROLES.includes(raw.role) || typeof raw.sessionId !== "string" || !UUID_RE.test(raw.sessionId)) return null;
+    const runtime = runtimeId(raw.runtime);
+    const project = raw.project === undefined ? "den" : raw.project;
+    if (!runtime || !validProject(project)) return null;
+    const native = raw.runtimeSessionId === undefined && runtime === "claude" ? raw.sessionId : raw.runtimeSessionId;
+    const runtimeSessionId = validRuntimeSession(native) ? native : null;
+    const resourceId = raw.resourceId === raw.agentId ? raw.resourceId : undefined;
     // The worktree and branch are kept only when they equal what the bridge derives from this ref and id, so the
     // file cannot make the UI name another path; a line from before worktrees existed has neither.
     // den-mvp outcome 2: a follow-up run works in the worktree of the run that first opened the session (`origin`) and
@@ -39,7 +46,7 @@ export function validateLine(raw) {
     const follows = AGENT_ID_RE.test(raw.origin) && AGENT_ID_RE.test(raw.resumeOf) ? { origin: raw.origin, resumeOf: raw.resumeOf } : {};
     const names = { worktree: workspaceNames({ ref: raw.ref, agentId: follows.origin ?? raw.agentId }).worktree, branch: workspaceNames({ ref: raw.ref, agentId: raw.agentId }).branch };
     const own = raw.worktree === names.worktree && raw.branch === names.branch;
-    return { ...base, event: "spawn", role: raw.role, sessionId: raw.sessionId, worktree: own ? names.worktree : null, branch: own ? names.branch : null, ...(own ? follows : {}), ...(typeof raw.project === "string" && /^[a-z0-9][a-z0-9-]{0,31}$/.test(raw.project) ? { project: raw.project } : {}) };
+    return { ...base, event: "spawn", role: raw.role, sessionId: raw.sessionId, runtime, project, runtimeSessionId, ...(resourceId ? { resourceId } : {}), worktree: own ? names.worktree : null, branch: own ? names.branch : null, ...(own ? follows : {}) };
   }
   if (raw.event === "stop") return { ...base, event: "stop" };
   if (raw.event === "end") {
@@ -103,7 +110,7 @@ export function createSessions(root) {
         if (line.event === "spawn") {
           if (!agents.has(line.agentId)) {
             agents.set(line.agentId, {
-              agentId: line.agentId, ref: line.ref, role: line.role, sessionId: line.sessionId, worktree: line.worktree, branch: line.branch,
+              agentId: line.agentId, ref: line.ref, role: line.role, sessionId: line.sessionId, runtime: line.runtime, runtimeSessionId: line.runtimeSessionId, resourceId: line.resourceId, worktree: line.worktree, branch: line.branch,
               ...(line.origin ? { origin: line.origin, resumeOf: line.resumeOf } : {}), ...(line.project ? { project: line.project } : {}),
               startedAt: line.ts, endedAt: null, state: "terminated", reason: "bridge-restart-unverified",
             });
