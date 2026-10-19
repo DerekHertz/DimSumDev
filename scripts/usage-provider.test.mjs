@@ -179,14 +179,58 @@ test("Codex map selection ignores default and unrelated product limits", () => {
   assertUsage(r); assertClean(r);
 });
 
+const UNKNOWN_WINDOW = { percent: null, resets_at: null, resets_local: null };
+const singleWindows = [
+  ["weekly primary with null secondary", { primary: week, secondary: null }, "weekly"],
+  ["weekly secondary with null primary", { primary: null, secondary: week }, "weekly"],
+  ["weekly primary with omitted secondary", { primary: week }, "weekly"],
+  ["five-hour primary with null secondary", { primary: five, secondary: null }, "5-hour"],
+  ["five-hour secondary with null primary", { primary: null, secondary: five }, "5-hour"],
+  ["five-hour primary with omitted secondary", { primary: five }, "5-hour"],
+];
+for (const [name, windows, present] of singleWindows) {
+  test(`Codex accepts ${name} and reports the absent window as unknown`, () => {
+    // Match the Pro account's named-limit map, and prove duration, not slot, selects the window.
+    const response = { rateLimitsByLimitId: { codex: { limitId: "codex", planType: "pro", ...windows } } };
+    const r = fixtureRun(["--provider", "codex"], { response, remote: true });
+    assert.equal(r.error, undefined, "CLI must finish inside the test deadline");
+    assert.equal(r.status, 0, r.stderr);
+    const absent = present === "weekly" ? "5-hour" : "weekly";
+    assert.deepEqual(JSON.parse(r.stdout), {
+      provider: "codex", source: "account/rateLimits/read",
+      [present]: EXPECTED[present], [absent]: UNKNOWN_WINDOW,
+    });
+    assert.deepEqual(r.exchanges.filter(x => x.method).map(x => x.method), ["initialize", "initialized", "account/rateLimits/read"]);
+    assertClean(r);
+  });
+}
+
+test("Codex two-window canonical JSON stays byte-compatible", () => {
+  const r = fixtureRun(["--provider", "codex"]);
+  assert.equal(r.status, 0, r.stderr);
+  assert.equal(r.stdout, JSON.stringify({ provider: "codex", source: "account/rateLimits/read", ...EXPECTED }) + "\n");
+  assertClean(r);
+});
+
 const invalid = {
-  "missing weekly window": { rateLimits: codex(five, null) },
+  "both null windows": { rateLimits: codex(null, null) },
+  "both omitted windows": { rateLimits: { limitId: "codex" } },
+  "empty window beside a valid weekly window": { rateLimits: codex({}, week) },
+  "false window beside a valid weekly window": { rateLimits: codex(false, week) },
+  "array window beside a valid weekly window": { rateLimits: codex([], week) },
+  "string window beside a valid weekly window": { rateLimits: codex(SECRET, week) },
   "unsupported duration": { rateLimits: codex({ ...five, windowDurationMins: 60 }) },
+  "unsupported single window": { rateLimits: codex({ ...five, windowDurationMins: 60 }, null) },
+  "string duration": { rateLimits: codex({ ...five, windowDurationMins: "300" }) },
   "duplicate five-hour windows": { rateLimits: codex(five, five) },
+  "duplicate weekly windows": { rateLimits: codex(week, week) },
   "string percent": { rateLimits: codex({ ...five, usedPercent: "53" }) },
+  "null percent in a single window": { rateLimits: codex({ ...five, usedPercent: null }, null) },
   "out-of-range percent": { rateLimits: codex({ ...five, usedPercent: 101 }) },
   "negative percent": { rateLimits: codex({ ...five, usedPercent: -1 }) },
   "invalid reset": { rateLimits: codex({ ...five, resetsAt: "tomorrow" }) },
+  "zero reset in a single window": { rateLimits: codex({ ...five, resetsAt: 0 }, null) },
+  "out-of-range reset": { rateLimits: codex({ ...five, resetsAt: Number.MAX_VALUE }) },
   "missing reset": { rateLimits: codex({ usedPercent: 53, windowDurationMins: 300 }) },
   "only unrelated limit": { rateLimits: { ...codex(), limitId: "other-product", limitName: "Other" } },
   "empty result": {},
