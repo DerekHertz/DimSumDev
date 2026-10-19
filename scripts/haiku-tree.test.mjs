@@ -77,10 +77,36 @@ test("the architect reads codebase-design and domain-modeling when used, not pre
   assert.match(a.body, /domain-modeling/);
 });
 
-test("herald may run scripts/draft-check.mjs and no other Bash", () => {
-  const bash = front("herald").tools.filter((t) => /^Bash\b/.test(t));
-  assert.deepEqual(bash, ["Bash(node scripts/draft-check.mjs:*)"]);
-  assert.doesNotMatch(front("herald").body, /hold no Bash/);
+// den-mvp/104: Claude Code grants plain Bash for a Bash(cmd:*) rule (probed on 2.1.293), so herald names no scope the harness does not enforce.
+test("herald claims no Bash scope the harness does not enforce; the den wall is its guard", () => {
+  const h = front("herald");
+  assert.deepEqual(h.tools.filter((t) => /^Bash\b/.test(t)), ["Bash"]);
+  assert.match(h.body, /den wall/);
+  assert.match(h.body, /draft-check\.mjs/);
+  assert.doesNotMatch(h.body, /Your Bash runs only that script/);
+});
+
+test("runner's edit scope is pinned: fully specified changes; no board, commit, push or .claude/ edits", () => {
+  const b = front("runner").body;
+  assert.match(b, /never run `board`, `git commit`, `git push`, or edit anything under `\.claude\/` or `CLAUDE\.md`/);
+  assert.match(b, /fully specified/i);
+});
+
+test("qa verify: runner makes no edit, so a leaf cannot weaken a test the guard step compares", () => {
+  assert.match(read(".claude/agents/qa.md"), /runner[^\n]*(makes no edit|no edit)[^\n]*verify|verify[^\n]*runner[^\n]*makes no edit/i);
+});
+
+test("the orchestrator asks on a failed or stale usage reading, warns at 80% weekly, and passes the provider", () => {
+  const b = front("orchestrator").body;
+  assert.match(b, /usage\.mjs[^\n]*exits 1[^\n]*"stale": true[^\n]*ask the user/i);
+  assert.match(b, /80% (of )?weekly|weekly[^\n]*80%/i);
+  assert.match(b, /--provider/);
+  assert.doesNotMatch(b, /;\)/);
+});
+
+test("no genome mentions a Blender probe", () => {
+  for (const a of AGENTS) assert.doesNotMatch(front(a).body, /Blender probe|probes its tools/i, a);
+  assert.doesNotMatch(front("orchestrator").body, /Blender/i);
 });
 
 // mcp__socket stays on developer: the connections catalog grants it and catalog.test.mjs (den-mvp/36) pins that; the user decides.

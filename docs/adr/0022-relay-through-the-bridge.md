@@ -1,6 +1,8 @@
 # A ticket's relay runs through the bridge: a pure hop planner, the next hop as the den's default, a finish event that advances the relay, and ceilings for the five roles that have none
 
 > Terms: written before ADR 0028, which renamed the vocabulary (cell → agent, cell type → role, genome → role definition, station → team, organism → the org, apoptosis → hand off and exit).
+>
+> Amended by ADR 0029: decision 3 (the first hop) and decision 6 (where the relay ends) give way to a tree per task with a planner's floor of roles (decisions 1 and 3); decision 5's open item is settled: hop agents write no board state, the bridge keeps the record (decision 7). Decision 7 (interactive roles are never auto-advanced) stands.
 
 **Status:** accepted (user, 2026-10-12, for organism-infra/229). The user answered the seven decisions at the end; each answer is recorded there. It amends ADR 0016 decision 3 (the relay-hop 409, "Slice 3") and builds the relay runner that ADR 0019 decision 3 placed in `apps/bridge/relay/`. It leans on ADR 0021 (decisions 3, 7, 8, 10, 11, 12) and changes none of them. No code in this ticket.
 
