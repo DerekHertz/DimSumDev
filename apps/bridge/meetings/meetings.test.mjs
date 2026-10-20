@@ -25,7 +25,8 @@ const BRIEF = [
   "## Only you can answer", "- How long must a log be kept?",
 ].join("\n");
 
-// A meeting folder once the store has no write in flight: it writes "<file>.tmp" and then renames it (den-mvp/63).
+// A meeting folder once the store has no write in flight: it writes "<file>.tmp" and then renames it (den-mvp/63). It
+// cannot see a write not yet begun: the snapshot shows a new state before meeting.md is rewritten, so read that with `recorded`.
 const settled = (dir) => until(() => { const names = readdirSync(dir); return names.some((n) => n.endsWith(".tmp")) ? null : names.sort(); }, { what: `no .tmp left in ${dir}` });
 
 const cleanups = [];
@@ -54,6 +55,8 @@ async function setup(options = {}) {
   const file = (m, name) => readFileSync(path.join(dirOf(m), name), "utf8");
   const ticket = (ref) => readFileSync(path.join(root, ".scratch", ref.split("/")[0], "issues", `${ref.split("/")[1]}.md`), "utf8");
   const note = (rec) => readFileSync(path.join(rec.args.cwd, ".den", "meeting.md"), "utf8");
+  // meeting.md once the bridge has written the meeting's state into it.
+  const recorded = (m) => until(() => { const text = file(m, "meeting.md"); return text.includes(`**Status:** ${m.state}\n`) ? text : null; }, { what: `meeting.md to say ${m.state}` });
   const get = (id) => send(t.bridge, { path: `/meetings/${id}`, headers: t.headers });
   // One seated architect, its take and the chair's brief. -> the briefed meeting
   const toBrief = async (roles = ["architect"]) => {
@@ -62,7 +65,7 @@ async function setup(options = {}) {
     say(await spawn(roles.length), BRIEF);
     return when((m) => m.state === "briefed", "the brief");
   };
-  return { ...t, root, meeting, spawn, when, paused, say, start, dirOf, file, ticket, note, get, toBrief };
+  return { ...t, root, meeting, spawn, when, paused, say, start, dirOf, file, ticket, note, get, toBrief, recorded };
 }
 
 describe("a meeting, from a topic to a saved brief and a decision", () => {
@@ -112,7 +115,7 @@ describe("a meeting, from a topic to a saved brief and a decision", () => {
     assert.deepEqual(await settled(t.dirOf(briefed)), ["brief.md", "meeting.md", "take-architect.md"]);
     assert.match(t.file(briefed, "take-architect.md"), /Saved by the den's bridge from run c-[0-9a-f]{16}[\s\S]*\n---\n\nClaim: one log is enough/);
     assert.match(t.file(briefed, "brief.md"), /## Option B: One log per job/);
-    assert.match(t.file(briefed, "meeting.md"), /\*\*Status:\*\* briefed[\s\S]*- security: declined \(nothing here touches access or secrets\)[\s\S]*None yet\. A brief authorizes nothing by itself\./);
+    assert.match(await t.recorded(briefed), /\*\*Status:\*\* briefed[\s\S]*- security: declined \(nothing here touches access or secrets\)[\s\S]*None yet\. A brief authorizes nothing by itself\./);
 
     const read = await t.get(briefed.id);
     assert.equal(read.status, 200);
