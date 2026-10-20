@@ -1,0 +1,429 @@
+{
+  "sourceBase": "5d704cad25bf406736257f1ab99ea7720b95295e",
+  "productionRuntime": "efbb225f9569abeb269cd052236dac426c4d9af4",
+  "kind": "Functional prototype and prepared calibration; no performance verdict",
+  "evidenceRoot": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206",
+  "retainedBuild": "/tmp/den-cast-24-same-context",
+  "buildFiles": [
+    {
+      "name": "assets/index-CG_WP6JV.js",
+      "bytes": 1794644,
+      "sha256": "de806ceae6fb5b3c19fd1d0122463b8cbecde87102844ae0865162c88be6afcf"
+    },
+    {
+      "name": "assets/index-CozUYhRq.css",
+      "bytes": 75916,
+      "sha256": "546be53016154b2aec362d063661f022d6dca94cf5bf03ac3c4cdce92a673013"
+    },
+    {
+      "name": "assets/long-cang-latin-400-normal-D1w_jwav.woff2",
+      "bytes": 12340,
+      "sha256": "aa0b77b3c13446ff62afc170a1cebbeddece530569051dbeee6461755eed25dc"
+    },
+    {
+      "name": "den/manifest.json",
+      "bytes": 16772,
+      "sha256": "c72057907f8d78f7e15e3a0d973fcfe9b41e09f284b287ada21dc5699df308da"
+    },
+    {
+      "name": "den/models/bao.glb.gz",
+      "bytes": 941948,
+      "sha256": "793118be3b0c3fa311a9baf21081e7482c713abf60a564333726527b06cc616c"
+    },
+    {
+      "name": "den/models/characters/bao.glb.gz",
+      "bytes": 288510,
+      "sha256": "296860c4a4c62899c95ba376574d7c3f23eb09be17f71d7f9eb8ca112be03de8"
+    },
+    {
+      "name": "den/models/characters/developer.glb.gz",
+      "bytes": 326742,
+      "sha256": "c08988b2e0c30af8b1d0f1a8c2f9f843be43ef8d98a3fe17b2a2d615aae73449"
+    },
+    {
+      "name": "den/models/characters/technical-writer.glb.gz",
+      "bytes": 321738,
+      "sha256": "55330864e7989fbac2036a10f2f8729019fe73a19d78c7deff2639b3a9ab5b29"
+    },
+    {
+      "name": "den/models/props/architect.glb.gz",
+      "bytes": 1470703,
+      "sha256": "3d1d16088952773c38af486ce9f36ccc10e7b77d6e46f027ecd0dc67acf8fc2a"
+    },
+    {
+      "name": "den/models/props/debugger.glb.gz",
+      "bytes": 1597159,
+      "sha256": "cf0f3a714560d58e2d5849020836545077c2d79c0764217bb411b9550331602e"
+    },
+    {
+      "name": "den/models/props/designer.glb.gz",
+      "bytes": 1425660,
+      "sha256": "530880d78c2ac38430956684b92806ef909f445afba61f8a225291ec17f7e3de"
+    },
+    {
+      "name": "den/models/props/developer.glb.gz",
+      "bytes": 1586065,
+      "sha256": "a67a6b978aa7c489193527d2032bab94a0e8c10bbde5292a7f9c51bb4ae46f39"
+    },
+    {
+      "name": "den/models/props/docs-writer.glb.gz",
+      "bytes": 1488550,
+      "sha256": "13abbb9252915d68d4ced5f46344a227f3bfa2fb09e2cd76ffd54e1e97fe9e06"
+    },
+    {
+      "name": "den/models/props/herald.glb.gz",
+      "bytes": 1388372,
+      "sha256": "d9e9e8ff96d1ddc6e87593ff2832f150559a00a2a72954720aabe3d47178f32a"
+    },
+    {
+      "name": "den/models/props/knowledge-keeper.glb.gz",
+      "bytes": 1661779,
+      "sha256": "d5f9799c450526d8d8e90ef2abca5ce5998b20cf388dab3efa60a7a9a7a26c33"
+    },
+    {
+      "name": "den/models/props/orchestrator.glb.gz",
+      "bytes": 1514811,
+      "sha256": "ce477fd70cc06531d4fb2b0fd8ac7b8662e8e815d5a151804ad3e02f674e236f"
+    },
+    {
+      "name": "den/models/props/product.glb.gz",
+      "bytes": 1616271,
+      "sha256": "f2cb1a2465f2e118595482dd1415fe27cb4399d10f179a592179f656d271d323"
+    },
+    {
+      "name": "den/models/props/qa.glb.gz",
+      "bytes": 1345508,
+      "sha256": "e145b744d7c66632816acd75d5f2d32f376a4a1b458ed3b10775096a9afcc22e"
+    },
+    {
+      "name": "den/models/props/release-manager.glb.gz",
+      "bytes": 1452047,
+      "sha256": "ced99c3c4d19cf622967d38cc391f12f374e15cfdd11888bcf819bdae393b7f0"
+    },
+    {
+      "name": "den/models/props/scout.glb.gz",
+      "bytes": 1495988,
+      "sha256": "b70f292a73ad95607eb6a1fea927c0fafed8a7438be9312cd0ef8dd4c256c032"
+    },
+    {
+      "name": "den/models/props/security.glb.gz",
+      "bytes": 1465166,
+      "sha256": "1203939ed15dde82128d77bb016d2e58dec8f27b63a26cc0d2363d49a4904ea4"
+    },
+    {
+      "name": "den/models/props/stem-cub.glb.gz",
+      "bytes": 1362350,
+      "sha256": "4dc954445219c1a8709474c75b679b967dcc05d473d00e5aa54919a96c93751c"
+    },
+    {
+      "name": "den/models/vegetation/ancient-grove.glb.gz",
+      "bytes": 1637013,
+      "sha256": "098fc28ba93ab4fc67e606135f23e8661942cc140f35fdd3b3acd23a3edcea96"
+    },
+    {
+      "name": "den/models/vegetation/bamboo.glb.gz",
+      "bytes": 2122981,
+      "sha256": "17640b5729eb7f816ecf4970cecb2f8841857af65b38d12ce785b21e18372840"
+    },
+    {
+      "name": "den/models/wardrobe/developer-boba.glb.gz",
+      "bytes": 182546,
+      "sha256": "e8cbf41ef4866ab0bca0217aeeb292d9d4b9e5bd3b79e0f7e725ed9e1320dda4"
+    },
+    {
+      "name": "den/models/wardrobe/developer-headphones.glb.gz",
+      "bytes": 157683,
+      "sha256": "fd48dbd45aa51fccc6e7ab8337f542a9909587524f26a8b7857b7552be208314"
+    },
+    {
+      "name": "den/models/wardrobe/developer-tablet.glb.gz",
+      "bytes": 73584,
+      "sha256": "804ee4198d8bf95dbe1dcd76f296cdba5ee2af558635eaa2ec2b36f7801cb2e0"
+    },
+    {
+      "name": "den/models/wardrobe/developer-vest.glb.gz",
+      "bytes": 265083,
+      "sha256": "2bb504842d0c0bafb54ab1dde879c2e5676441d7c08363c4ceb3b855de4f84b3"
+    },
+    {
+      "name": "den/models/wardrobe/qa-scarf.glb.gz",
+      "bytes": 152331,
+      "sha256": "c1cae2a5dc650afe7ebd7084692ed486f364256b5719791a252bdaeeb8c2892b"
+    },
+    {
+      "name": "den/portraits/architect.webp",
+      "bytes": 22942,
+      "sha256": "9f40d607542b43da3f182f076b111f295948ddf4c201cab6a5c31d4cf7a1021c"
+    },
+    {
+      "name": "den/portraits/bao-jade.webp",
+      "bytes": 22024,
+      "sha256": "2d4afe6f7d8155585860ae5ff5fdd6b4b336bf1ae1d6fc6b32f01b19ebd32cf8"
+    },
+    {
+      "name": "den/portraits/code-reviewer.webp",
+      "bytes": 21760,
+      "sha256": "92bf71c7494bf85fea32d0c7f6d8b2698b4bd790976db5a32fafe804bf909566"
+    },
+    {
+      "name": "den/portraits/codex-architect.webp",
+      "bytes": 23898,
+      "sha256": "e28e2a99b46ff02207e7c691f0582e9304ac4db350870f744e9a8e94c3a7996f"
+    },
+    {
+      "name": "den/portraits/codex-code-reviewer.webp",
+      "bytes": 22818,
+      "sha256": "2603bed5f2c80314f99d476143787855715289efcbb366611144453c9554f21b"
+    },
+    {
+      "name": "den/portraits/codex-designer.webp",
+      "bytes": 22954,
+      "sha256": "16dc938fd5c78f13aa9368f4447393461234848a36b9e0537be12b78d3d612de"
+    },
+    {
+      "name": "den/portraits/codex-herald.webp",
+      "bytes": 23488,
+      "sha256": "d155e39611f51af8958400aab373a37ab0f11cace6069aa9002cff6581606ca5"
+    },
+    {
+      "name": "den/portraits/codex-orchestrator.webp",
+      "bytes": 24280,
+      "sha256": "939a7fcf0c5e38e19f490acc02e13aeaa1061464db1eb11ec69bcc87e031965a"
+    },
+    {
+      "name": "den/portraits/codex-product.webp",
+      "bytes": 23250,
+      "sha256": "5e2c30652e2652cdab4d7dd76f7a3e5bd4611bd05ab9aaeb72c217ca8889750b"
+    },
+    {
+      "name": "den/portraits/codex-qa.webp",
+      "bytes": 23880,
+      "sha256": "fc465e9a1faa3ff0a8878ca82f12e72ed61d4a7aad1f7e0767738056cfc0ff23"
+    },
+    {
+      "name": "den/portraits/codex-release-manager.webp",
+      "bytes": 22544,
+      "sha256": "cfb8f71ad276b8ea6b64cdc4a420bfb424c5701f32b9ee0a8fd473574579233a"
+    },
+    {
+      "name": "den/portraits/codex-runner.webp",
+      "bytes": 23614,
+      "sha256": "700a8d0669974a7ca7de5945c9911f2047e84e00218324fe317f9f35fd95fce5"
+    },
+    {
+      "name": "den/portraits/codex-scout.webp",
+      "bytes": 23992,
+      "sha256": "c1dfe6cc57017a5844e0eb85b50379dc24de9d94e29736e519861c044b053f05"
+    },
+    {
+      "name": "den/portraits/codex-security.webp",
+      "bytes": 22520,
+      "sha256": "e6f03b7fe41ef822a7bdc69e9eae55be89a6fce67719a6f535722ba3760eb7db"
+    },
+    {
+      "name": "den/portraits/codex-sre.webp",
+      "bytes": 25350,
+      "sha256": "a92a94d81ab19deb681fb106ccf368c9287096ed798ba865549be05fb1b044d7"
+    },
+    {
+      "name": "den/portraits/debugger.webp",
+      "bytes": 22000,
+      "sha256": "c59958479aed856067bf096d5d054ff82e49e793ce56ddac64d15912de9f5852"
+    },
+    {
+      "name": "den/portraits/designer.webp",
+      "bytes": 21220,
+      "sha256": "e12492a87209e646502006f9c592d2fc46a97f40a92e36e1c77dff430008a5b3"
+    },
+    {
+      "name": "den/portraits/developer-red-panda.webp",
+      "bytes": 36272,
+      "sha256": "70ca60c56a313aea892f3848f4ece0b3107142e2259fbd83f08021c152551eaf"
+    },
+    {
+      "name": "den/portraits/docs-writer.webp",
+      "bytes": 19190,
+      "sha256": "e983d2f4b924b405f1d04ca244d3297b6fa673e163b3aa680e3e78f29772cf53"
+    },
+    {
+      "name": "den/portraits/herald.webp",
+      "bytes": 22348,
+      "sha256": "3a06e48a41e530a32595234f4f7377be973fb11589a3bf4115d6b8898d494517"
+    },
+    {
+      "name": "den/portraits/knowledge-keeper.webp",
+      "bytes": 27482,
+      "sha256": "464fb11efa9bb1dc6aaf68a2807c17ba1d944fa92ea77a41c6f8c6020dfca4b8"
+    },
+    {
+      "name": "den/portraits/orchestrator.webp",
+      "bytes": 23740,
+      "sha256": "1340a10f8ef3c0926080d581fa3b443914ba1014a53b370b813fa2f4ab0f3bc5"
+    },
+    {
+      "name": "den/portraits/product.webp",
+      "bytes": 22230,
+      "sha256": "fe2ab866da32329ac9e158a7938cb934a2bd16f91c0b62266b013bcb52c2dcf4"
+    },
+    {
+      "name": "den/portraits/qa.webp",
+      "bytes": 22314,
+      "sha256": "3faf8adb52c629c048f8c064cd494f4292ccfaeb5cf34dda7eb2e4d5b6e17d44"
+    },
+    {
+      "name": "den/portraits/release-manager.webp",
+      "bytes": 21538,
+      "sha256": "d38a2f8ac845458e36eb2cde5e1711ed791b9ca0d9b73b4629fe07d7557b33b2"
+    },
+    {
+      "name": "den/portraits/runner.webp",
+      "bytes": 22194,
+      "sha256": "5887a322d653c9a8521f366b1c7b63a63534d1cb0b96aea523b8596fd9c5b4ed"
+    },
+    {
+      "name": "den/portraits/scout.webp",
+      "bytes": 23312,
+      "sha256": "07594bf17e9df014982235470435866bca8848f3717cb5fc94afe4cb2f22382a"
+    },
+    {
+      "name": "den/portraits/security.webp",
+      "bytes": 21412,
+      "sha256": "9512d0cf7f936cbeb123092772174d9b4b61e920d03f42df3f691feabf121892"
+    },
+    {
+      "name": "den/portraits/sre.webp",
+      "bytes": 24576,
+      "sha256": "9cf8f6d0b61d6b66974ead45687f851e6760a095f34cc17f4674648f2ebfbbec"
+    },
+    {
+      "name": "den/portraits/stem-cub.webp",
+      "bytes": 20752,
+      "sha256": "242a9164c58bd559b2974b3bdd31cf741b9f8e85bc14d2f3257dc5ad64ae7f48"
+    },
+    {
+      "name": "den/portraits/technical-writer-cloud-dragon.webp",
+      "bytes": 29866,
+      "sha256": "b832f2172f4a4061497572cfb5a815d06b2b394213600099a0b2ac452ff500a6"
+    },
+    {
+      "name": "index.html",
+      "bytes": 432,
+      "sha256": "bf1b49454e524ec5a08a35f9a9ae11331af1524c5aaa9b9ea8d04d6b3ee5c0be"
+    },
+    {
+      "name": "observer-meta.json",
+      "bytes": 625,
+      "sha256": "74d88d290f1b41851136c1e0c18118c586eb4c7d26762e1011b7b706ef2de1c2"
+    }
+  ],
+  "files": [
+    {
+      "name": "ticket24-same-context-functional/calibration-plan.json",
+      "bytes": 2154,
+      "sha256": "9386bbf62649d630ba86dc955e3991573d0a03432609a59f65463be0ce87cefb"
+    },
+    {
+      "name": "ticket24-same-context-functional/capture-review.cjs",
+      "bytes": 14184,
+      "sha256": "c515ba0c9f420460c0adc76159ccff6a2a1b5d56751e222702ebcb02d3bfd315"
+    },
+    {
+      "name": "ticket24-same-context-functional/functional-preflight.json",
+      "bytes": 25090,
+      "sha256": "ad4e442d666183a6e9f042068ab429e7be61346e59ab86e2b3053de904eb53e3"
+    },
+    {
+      "name": "ticket24-same-context-functional/same-context-preflight.cjs",
+      "bytes": 7387,
+      "sha256": "9885d63da613810b4b561c26e2c2cbbfebda2ffe0f8e5f988169518daa5eb5bf"
+    },
+    {
+      "name": "ticket24-same-context-calibration/calibration-plan.json",
+      "bytes": 1985,
+      "sha256": "943fd0140fb719ec64475b11de11ae8cf7996566fb836b97f2f914e44297f814"
+    },
+    {
+      "name": "ticket24-same-context-calibration/capture-review.cjs",
+      "bytes": 14184,
+      "sha256": "c515ba0c9f420460c0adc76159ccff6a2a1b5d56751e222702ebcb02d3bfd315"
+    },
+    {
+      "name": "ticket24-same-context-calibration/native-performance.cjs",
+      "bytes": 8991,
+      "sha256": "359390e90d3780db8692be24207f89494ad6c88846bad68ea4fc6a49984cb0c2"
+    },
+    {
+      "name": "ticket24-same-context-calibration/performance-resume.cjs",
+      "bytes": 4299,
+      "sha256": "266c5e8767154a8383e22a8a09b3a1a4ec92b086853f6cae6d4def881683e195"
+    },
+    {
+      "name": "ticket24-same-context-calibration/same-context-calibration.cjs",
+      "bytes": 11081,
+      "sha256": "fa9202d985e492b8ee384b1773f7920881312cc8a7df4e94f59945b835e741a3"
+    }
+  ],
+  "immutableVerified": [
+    {
+      "name": "performance-paused-45-runs.json",
+      "bytes": 11492605,
+      "sha256": "9f4bdcfd468b39c3e8264df670f4859aee181e5d88853f6e9ef15f01bd9af734"
+    },
+    {
+      "name": "resumed/performance-assembled-60.json",
+      "bytes": 15326918,
+      "sha256": "d3a5ca47a75a7bef4f586d560fed68039dc37d3b67ad72d56470d2e357221b1d"
+    },
+    {
+      "name": "quiet-diagnostic/performance-raw.json",
+      "bytes": 1550630,
+      "sha256": "692e851fa7894d92855e5b0db0f4ee419bac6bbd0f32739b5748d072ea87b699"
+    },
+    {
+      "name": "identical-control/performance-raw.json",
+      "bytes": 1537643,
+      "sha256": "1865d756b291bfbd760ceef6c003113eefcbd91578b6658f17bb3a0e514f438d"
+    },
+    {
+      "name": "native-trace-retry/trace-A.json",
+      "bytes": 173809893,
+      "sha256": "8452c16d74cb7f5996866e14e26ad0fe104d6a4b2f8af7f83c0d1924754d2cd5"
+    },
+    {
+      "name": "native-trace-retry/trace-B.json",
+      "bytes": 94371840,
+      "sha256": "84c5a48c1e80596ae2854120b70b891c5e85825ff3a12df9ceac2475a4877b56"
+    }
+  ],
+  "functional": {
+    "startedAt": "2026-10-20T22:05:05.456Z",
+    "finishedAt": "2026-10-20T22:05:15.324Z",
+    "counts": {
+      "actors": 42,
+      "visitors": 4,
+      "guests": 6
+    },
+    "claudeBaoRepresentations": [
+      {
+        "id": "orchestrator",
+        "visitor": false,
+        "guest": false,
+        "species": "giant-panda",
+        "switched": true
+      }
+    ],
+    "bodyRoots": 1,
+    "skeletons": 1,
+    "originalShadowMeshes": 19,
+    "selectedShadowMeshes": 1,
+    "swaps": 4,
+    "performanceSamples": 0,
+    "rigDisposals": {
+      "original": 1,
+      "selected": 1
+    },
+    "errors": [],
+    "writes": []
+  },
+  "next": "Fresh root dispatch and user quiet-host Ready before running prepared A/A. No full60 or A/B acceptance authorized by this receipt."
+}
