@@ -107,10 +107,14 @@ export function createMeshyActors(den){
    const yaw=a.seat?a.seat.yaw:a.baseYaw;
    if(!a.arriving&&!a.path&&a.routine?.stage!=='visit')p.rotation.y=yaw;
    if(key===held&&!reduced)continue;
-   if(moved){a.gait=(a.gait||0)+moved/p.scale.x/WADDLE.stride*WADDLE.duration;a.panda.rig.poseWaddle(a.gait);}else a.panda.rig.poseIdle(time+a.index*.63,{reducedMotion:reduced});
+   // team-and-den-ux/23: species with a seated pose sit once they reach their meeting seat.
+   const sits=a.seat&&!a.path&&!a.arriving&&a.panda.rig.profile?.sit;
+   if(moved){a.gait=(a.gait||0)+moved/p.scale.x/WADDLE.stride*WADDLE.duration;a.panda.rig.poseWaddle(a.gait);}else if(sits)a.panda.rig.poseSit(time+a.index*.63,{reducedMotion:reduced});else a.panda.rig.poseIdle(time+a.index*.63,{reducedMotion:reduced});
    a.gesture?.pose(!reduced&&a.routine?.stage==='visit'?a.routine.spot.kind:null,a.routine?.elapsed||0);
   }
  }
- den.walkAvoid=()=>[...actors.values()].map(a=>({x:a.panda.model.position.x,z:a.panda.model.position.z,r:.65}));
+ // A species publishes its own footprint (tail and props included); Bao-bodied pandas keep .65.
+ const footprint=a=>{const e=a.panda.rig.profile?.envelope;return e?(a.seat&&!a.path?e.seated:e.standing).radius*a.panda.model.scale.x:.65;};
+ den.walkAvoid=()=>[...actors.values()].map(a=>({x:a.panda.model.position.x,z:a.panda.model.position.z,r:footprint(a)}));
  return {actors,applyLive,applyMeeting,seatModels,seatOf,setSelected,hold,liveFigures,update,dispose(){routines.dispose();for(const a of actors.values()){a.gesture?.dispose();if(a.visitor||a.guest)den.destroyPanda(a.panda.model);}actors.clear();}};
 }

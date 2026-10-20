@@ -548,7 +548,43 @@
       "roleId": "qa",
       "decodedBytes": 197812,
       "compression": "gzip"
+    },
+    "characters.developer": {
+      "url": "/den/models/characters/developer.glb.gz",
+      "kind": "character",
+      "sourceFilename": "remesh-8k.glb",
+      "triangles": 8283,
+      "bytes": 326742,
+      "sha256": "c08988b2e0c30af8b1d0f1a8c2f9f843be43ef8d98a3fe17b2a2d615aae73449",
+      "compression": "gzip",
+      "decodedBytes": 464460,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "developer"
+    },
+    "characters.technical-writer": {
+      "url": "/den/models/characters/technical-writer.glb.gz",
+      "kind": "character",
+      "sourceFilename": "remesh-8k.glb",
+      "triangles": 8308,
+      "bytes": 321738,
+      "sha256": "55330864e7989fbac2036a10f2f8729019fe73a19d78c7deff2639b3a9ab5b29",
+      "compression": "gzip",
+      "decodedBytes": 444380,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "technical-writer"
     }
   },
-  "bytes": 26403598
+  "bytes": 27052078
 }

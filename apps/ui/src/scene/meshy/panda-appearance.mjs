@@ -1,15 +1,23 @@
 import * as T from 'three';
-import {createBalancedPandaRig} from './panda-rig.mjs';
+import {createBalancedPandaRig,createRig} from './panda-rig.mjs';
+import {CHARACTER_PROFILES} from './character-profiles.mjs';
 import {createRoleOutfit} from './role-outfits.mjs';
 import {createRoleTool} from './role-tools.mjs';
 import {disposeWorld} from './assets.mjs';
 
+// team-and-den-ux/23: `characters` maps a role to its own loaded species source; a role without one keeps Bao's body.
 /** Appearance only: callers own identity, placement, availability and actions. */
-export function createPandaAppearanceFactory({body,...templates}){
+export function createPandaAppearanceFactory({body,characters={},...templates}){
  const outfits=new T.Group(),cache=new Map(),instances=new Map();let disposed=false;
  function createPanda(role,{runtime='claude'}={}){
   if(disposed)throw Error('Panda appearance factory disposed');
   if(!['claude','codex'].includes(runtime))throw Error('Unknown panda runtime: '+runtime);
+  if(characters[role]){
+   // Same species and silhouette for both runtimes (labels and badges tell them apart); props are fused in the mesh.
+   const profile=CHARACTER_PROFILES[role],rig=createRig(characters[role],profile);
+   rig.model.userData={roleId:role,actorKey:role,runtime,species:profile.id};rig.model.scale.setScalar(.68);
+   instances.set(rig.model,{rig,tool:null});return {model:rig.model,rig};
+  }
   const key=runtime+':'+role;
   if(!cache.has(key)){const outfit=createRoleOutfit(role,templates,{runtime});cache.set(key,outfit);outfits.add(outfit);}
   const rig=createBalancedPandaRig(body);rig.addOutfit(cache.get(key));
@@ -18,7 +26,7 @@ export function createPandaAppearanceFactory({body,...templates}){
   rig.model.scale.setScalar(role==='orchestrator'?1.35:role==='stem-cub'?.52:.68);
   instances.set(rig.model,{rig,tool});return {model:rig.model,rig};
  }
- function destroyPanda(model){const entry=instances.get(model);if(!entry)return;entry.rig.dispose();disposeWorld(entry.tool);instances.delete(model);}
+ function destroyPanda(model){const entry=instances.get(model);if(!entry)return;entry.rig.dispose();if(entry.tool)disposeWorld(entry.tool);instances.delete(model);}
  function dispose(){if(disposed)return;disposed=true;for(const model of [...instances.keys()])destroyPanda(model);}
  // Outfit templates share fitted source geometry/textures: their asset owner
  // disposes `outfits` alongside those sources in one deduplicated resource pass.

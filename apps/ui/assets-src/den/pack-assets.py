@@ -218,9 +218,62 @@ def audit_pair(source_doc, source_binary, output_doc, output_binary):
         view_bytes(output_doc, output_binary, index)
 
 
+def strip_to_color(document, binary):
+    """Keep only base colour maps and make every material matte (ticket 23 budget).
+
+    Returns a new document and binary; geometry views are copied unchanged and the
+    dropped images' views are removed, so later audits compare against this pair.
+    """
+    document = copy.deepcopy(document)
+    for material in document.get("materials", []):
+        for key in ("normalTexture", "occlusionTexture", "emissiveTexture"):
+            material.pop(key, None)
+        pbr = material.setdefault("pbrMetallicRoughness", {})
+        pbr.pop("metallicRoughnessTexture", None)
+        pbr["metallicFactor"] = 0
+        pbr["roughnessFactor"] = 1
+    kept_textures = sorted({m["pbrMetallicRoughness"]["baseColorTexture"]["index"]
+                            for m in document.get("materials", []) if "baseColorTexture" in m["pbrMetallicRoughness"]})
+    texture_map = {old: new for new, old in enumerate(kept_textures)}
+    kept_images = sorted({document["textures"][t]["source"] for t in kept_textures})
+    image_map = {old: new for new, old in enumerate(kept_images)}
+    dropped = len(document.get("images", [])) - len(kept_images)
+    dropped_views = {image["bufferView"] for i, image in enumerate(document.get("images", [])) if i not in image_map}
+    view_map, views = {}, []
+    for index in range(len(document["bufferViews"])):
+        if index not in dropped_views:
+            view_map[index] = len(views)
+            views.append(view_bytes(document, binary, index))
+    document["bufferViews"] = [document["bufferViews"][i] for i in sorted(view_map)]
+    for accessor in document["accessors"]:
+        if "bufferView" in accessor:
+            accessor["bufferView"] = view_map[accessor["bufferView"]]
+    document["images"] = [{**document["images"][i], "bufferView": view_map[document["images"][i]["bufferView"]]} for i in kept_images]
+    document["textures"] = [{**document["textures"][t], "source": image_map[document["textures"][t]["source"]]} for t in kept_textures]
+    for material in document.get("materials", []):
+        color = material["pbrMetallicRoughness"].get("baseColorTexture")
+        if color:
+            color["index"] = texture_map[color["index"]]
+    if not document["images"]:
+        document.pop("images"); document.pop("textures", None)
+    stripped = bytearray()
+    for index, raw in enumerate(views):
+        stripped.extend(b"\0" * (-len(stripped) % 4))
+        document["bufferViews"][index].update(buffer=0, byteOffset=len(stripped), byteLength=len(raw))
+        stripped.extend(raw)
+    document["buffers"][0]["byteLength"] = len(stripped)
+    return document, bytes(stripped), dropped
+
+
 def pack_asset(asset, source_root, output_root):
     source = source_root / asset["source"]
     source_doc, source_binary, source_raw = read_glb(source)
+    dropped = 0
+    if asset.get("colorOnly"):
+        original_triangles = triangles(source_doc)
+        source_doc, source_binary, dropped = strip_to_color(source_doc, source_binary)
+        if triangles(source_doc) != original_triangles:
+            raise ValueError("Colour-only stripping changed the triangle count")
     document = copy.deepcopy(source_doc)
     replacements, image_info = transform_images(document, source_binary, asset.get("maxTextureSize", 1024))
     narrowed = narrow_indices(document, source_binary, replacements)
@@ -245,6 +298,8 @@ def pack_asset(asset, source_root, output_root):
                "sourceSha256": hashlib.sha256(source_raw).hexdigest(),
                "packedBytes": len(output_raw), "narrowedIndexAccessors": narrowed,
                "images": image_info, "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained"}
+    if asset.get("colorOnly"):
+        private["droppedImages"] = dropped
     return record, private
 
 
@@ -252,12 +307,20 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source_root", type=Path, help="The original artifact folder containing bao-customizer and frontend-layout-mockup")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--only", action="append", metavar="KEY",
+                        help="Repack just these catalog keys from source_root into the existing manifest and audit")
     args = parser.parse_args()
     catalog = json.loads((HERE / "sources.json").read_text())
     manifest = {"version": 1, "assets": {}}
     receipt = {"version": 1, "tool": "pack-assets.py", "assets": {}}
+    if args.only:
+        unknown = set(args.only) - {a["key"] for a in catalog["assets"]}
+        if unknown:
+            raise SystemExit(f"Unknown catalog keys: {', '.join(sorted(unknown))}")
+        manifest = json.loads((args.output / "manifest.json").read_text())
+        receipt = json.loads((HERE / "pack-audit.json").read_text())
     for asset in catalog["assets"]:
-        if asset.get("runtime") is False:
+        if asset.get("runtime") is False or (args.only and asset["key"] not in args.only):
             continue
         record, private = pack_asset(asset, args.source_root, args.output)
         manifest["assets"][asset["key"]] = record

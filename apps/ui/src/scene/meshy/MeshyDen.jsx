@@ -37,13 +37,15 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
  useEffect(()=>{live.current?.agents.setSelected(selected??null);},[den,selected]);
  useFrame((_,delta)=>{
   const l=live.current;if(!l)return;const dt=Math.min(delta,.1);l.agents.update(dt,l.media.matches);l.elapsed=(l.elapsed||0)+(l.media.matches?0:dt);l.den.ambient.pose(l.elapsed,null,l.media.matches);l.den.garden.assets.tea.koi.update(dt,l.media.matches);l.den.world.updateMatrixWorld(true);
+  // Labels float .4 above the head: Bao's crown is 3; a species publishes its own head top (antlers included).
+  const labelAt=model=>model.localToWorld(new THREE.Vector3(0,(l.den.pandaRigs.get(model)?.rig.profile.envelope?.head.top??3)+.4,0));
   const figures=l.agents.liveFigures(),anchorsNow=new Map();
-  for(const [key,{model,ref,runtime}]of figures){const at=model.localToWorld(new THREE.Vector3(0,3.4,0));anchorsNow.set(key,at);if(runtime==='claude')anchorsNow.set(ref,at);}
+  for(const [key,{model,ref,runtime}]of figures){const at=labelAt(model);anchorsNow.set(key,at);if(runtime==='claude')anchorsNow.set(ref,at);}
   for(const key of l.anchored)if(!anchorsNow.has(key)){stage.anchors.delete(key);l.anchored.delete(key);}
   for(const [key,at]of anchorsNow){stage.anchors.set(key,at);l.anchored.add(key);}
   for(const [ref,basket]of l.den.frontier)stage.anchors.set(ref,basket.localToWorld(new THREE.Vector3(0,.6,0)));
   const anchors=stage.meetingAnchors??(stage.meetingAnchors=new Map());anchors.clear();
-  if(l.meeting)for(const [role,model]of l.agents.seatModels())anchors.set(role,model.localToWorld(new THREE.Vector3(0,3.4,0)));
+  if(l.meeting)for(const [role,model]of l.agents.seatModels())anchors.set(role,labelAt(model));
   // The lazy susan turns toward whoever is speaking; with reduced motion it stays put.
   const speaker=seated(l.meeting)?l.meeting.seats.findIndex(s=>s.role===l.meeting.live?.role):-1;
   if(l.susan&&!l.media.matches&&speaker>=0){const spot=seatSpots(l.meeting.seats.length)[speaker],target=Math.atan2(spot.x-TABLE.x,spot.z-TABLE.z);let d=target-l.susan.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));l.susan.rotation.y+=d*Math.min(1,dt*1.5);}

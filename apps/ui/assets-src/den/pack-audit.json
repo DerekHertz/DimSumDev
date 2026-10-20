@@ -766,6 +766,42 @@
         "decodedBytes": 197812,
         "exactByteRoundTrip": true
       }
+    },
+    "characters.developer": {
+      "source": "20261019_183130_48-engineer-red-panda-2_01a156ef/remesh-8k.glb",
+      "sourceBytes": 9291316,
+      "sourceSha256": "e53dd33ce74591f0ea16846273f2faa7b8bd58229be70b7f9277013d8b8290d4",
+      "packedBytes": 464460,
+      "narrowedIndexAccessors": [],
+      "images": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp",
+          "sourceWidth": 2048,
+          "sourceHeight": 2048
+        }
+      ],
+      "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+      "droppedImages": 2
+    },
+    "characters.technical-writer": {
+      "source": "20261019_183134_48-writer-cloud-dragon-1_01a156ef/remesh-8k.glb",
+      "sourceBytes": 9099164,
+      "sourceSha256": "4d817b62365eff6d616fa8fe3a5fa9b4af332abee7e3e0d74a8722d6c4ff6c59",
+      "packedBytes": 444380,
+      "narrowedIndexAccessors": [],
+      "images": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp",
+          "sourceWidth": 2048,
+          "sourceHeight": 2048
+        }
+      ],
+      "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+      "droppedImages": 2
     }
   }
 }
