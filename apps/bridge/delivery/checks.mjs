@@ -387,12 +387,17 @@ export function createChecks({ repo, launcher, recordDir, depsDir, bwrap = findB
     const pastDeadline = () => finish("red", `the checks ran past their ${Math.round(deadlineMs / 60000)}-minute limit`);
     try {
       const wt = { packages, dir: realpathSync(wtDir), gitDir: String((await exec("git", ["-C", wtDir, "rev-parse", "--absolute-git-dir"])).stdout).trim() };
-      for (const job of jobs) {
+      // The audit job is seconds long and has its own box, so it runs alongside the test jobs, which run one at a time.
+      const done = (result) => (record.jobs.push(result), writeFile(path.join(base, `${id}.json`), `${JSON.stringify(record, null, 2)}\n`)); // progress, for a reader
+      const beside = Promise.all(jobs.filter((j) => j.network).map((job) => runJob(job, { wt, dir, sha, signal: both.signal }).then(done)));
+      beside.catch(() => {}); // a throw is read when it is awaited below; an early return must not leave it unhandled
+      for (const job of jobs.filter((j) => !j.network)) {
         if (late.signal.aborted) return await pastDeadline();
         if (signal?.aborted) return await finish("error", "stopped");
-        record.jobs.push(await runJob(job, { wt, dir, sha, signal: both.signal }));
-        await writeFile(path.join(base, `${id}.json`), `${JSON.stringify(record, null, 2)}\n`); // progress, for a reader
+        await done(await runJob(job, { wt, dir, sha, signal: both.signal }));
       }
+      await beside;
+      record.jobs.sort((a, b) => jobs.findIndex((j) => j.name === a.name) - jobs.findIndex((j) => j.name === b.name)); // ci.yml's order
       if (late.signal.aborted) return await pastDeadline();
       record.flaky = await earlierFlakes(sha, record.jobs);
       const state = runState(record.jobs);
