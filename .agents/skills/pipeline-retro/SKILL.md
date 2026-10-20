@@ -12,6 +12,7 @@ The last retro is the newest `{"kind":"retro"}` row in `.scratch/usage.jsonl`. W
 - The output of `npm run -s board -- audit` (read-only; exit 1 means findings). Each line is one board inconsistency, `<ref> <kind> <detail>`. Count each as an item, and fix the board state it names only with the user's yes.
 - `incident` rows in `.scratch/usage.jsonl` since then. Rows with `"source":"agent-report"` come from `log-agent --failures`.
 - `failures` in the State block of each handoff published since then (`.scratch/*/handoffs/`), and any "Failed calls" or "Environment issues" lines. Read only the State block and those lines, not the whole handoff. If there are more than 10 handoffs, send the gathering to `scout` and ask for just the list.
+- Review answers: in developer handoffs since then, the one-line answers to review findings (`fixed`, `wrong`, `intentional`, `didn't matter`). Count them per reviewing role. A reviewer whose findings are answered `wrong` or `didn't matter` more than a third of the time, or the same kind of finding answered `wrong` twice, is a noise cause for step 3; its fix goes in that reviewer's role definition.
 - Your own mistakes this session that you haven't logged yet. Log them now as `incident` rows.
 
 ## 1b. Review what earlier retros filed
