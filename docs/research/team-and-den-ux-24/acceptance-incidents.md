@@ -45,3 +45,14 @@ Continuation startup itself ran the existing lockfile install and reported engin
 - Native cmd emitted standard UNC cwd fallback notice; capture completed successfully from explicit paths. No automatic approval rejection, timeout, service action or Jev/TypeSafe call.
 - Runner exploratory arithmetic inspection read nonexistent raw.gpu[0]: TypeError: Cannot convert undefined or null to object. It switched to actual raw shape and completed independent checks; fixable schema-discovery friction.
 - Runner initially resolved immutable files under absent worktree .scratch: ENOENT for .scratch/resumed/performance-assembled-60.json. It used the supplied external acceptance root instead; both hashes matched. Fixable path-discovery friction.
+
+### Native tracing round
+- Expected TDD red: trace-control.test.mjs could not find trace-control.cjs before implementation; two guard tests passed after implementation.
+- Native category startup assertion failed: assert.ok(results.traceCategories.includes('devtools.timeline')); Tracing.getCategories categories array and filtered list both empty. Zero pages/samples/traces; browser closed; owned server10282 stopped and4425closed. No retry/workaround; requested-category/actual-event coverage proposal awaits user agreement. Environment discovery/coverage issue, not an identified local schema bug.
+- Native cmd standard UNC cwd fallback notice was nonfatal. No automatic approval rejection, timeout or Jev/TypeSafe call.
+- Root identified empty discovery refusal as a local unsupported assumption, authorized one direct-category retry. Actual-event coverage regression was red(categoryPolicy missing), then green. Failed0-sample folder retained.
+- Retry stopped at 256MiB total trace cap exceeded; completeA173809893bytes, partialB94371840bytes. No thirdtrace/capchange. B sampled row was unsaved because trace finalization preceded persistence; future generator now saves first, regression red then green; retained raw cannot recover B.
+- First streaming reader assumed one event per line and failed SyntaxError: Unexpected non-whitespace character after JSON at position124. Adjacent/nested/escaped fixture reproduced red; bounded event-object parser corrected it and validA analysis completed.
+- Additional expected test reds: readEvents missing before implementation; adjacent-object completion guard and persist-before-finalization assertion before corrections.
+- apply_patch rejected simultaneous delete/add same native-trace.md target: invalid patch multiple operations target. Preserved old checkpoint with historical banner and added separate results/plan files.
+- Runner selective plan inspection TypeError: int object is not iterable; final explicit-path verification succeeded. No file changes from runner.

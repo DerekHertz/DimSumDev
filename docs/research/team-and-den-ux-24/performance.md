@@ -128,3 +128,5 @@ The diagnostic raw retains the generic harness recipe label mentioning10scenario
 An independent runner also recomputed all six quiet-diagnostic GPU/combined CPU p95 values, medians and camera/count/draw consistency; they match the saved diagnostic summary. Its inline recomputation and output were not saved.
 
 The subsequent [original/original control](identical-control.md) exposes a29.07% apparent GPU improvement between identical asset labels, while combined CPU differs−0.62%. Its six rows remain separate; this failed60-run acceptance verdict is unchanged. Root owns the next bounded native tracing continuation; no full rerun was started.
+
+The [bounded native trace continuation](native-trace-results.md) retained one valid original trace and an incomplete second trace stopped by the strict output cap. It did not isolate high-mode causality or change the failed acceptance verdict. A [same-context protocol draft](measurement-plan-draft.md) now awaits root classification against the approved recipe; any collection also requires fresh quiet-host readiness.

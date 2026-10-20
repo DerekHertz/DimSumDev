@@ -236,6 +236,71 @@
       "name": "identical-control/summary.json",
       "bytes": 30795,
       "sha256": "6bc92f588a407c31715b6ec19f35d0b45a314c0f3efc8b546eb66845a0ae0dfb"
+    },
+    {
+      "name": "native-trace/capture-review.cjs",
+      "bytes": 14184,
+      "sha256": "c515ba0c9f420460c0adc76159ccff6a2a1b5d56751e222702ebcb02d3bfd315"
+    },
+    {
+      "name": "native-trace/native-performance.cjs",
+      "bytes": 11668,
+      "sha256": "df15b33e8ebd1229e3ed2082564192f6db3be14d321ae7e531e33cd2034d3244"
+    },
+    {
+      "name": "native-trace/performance-raw.json",
+      "bytes": 879,
+      "sha256": "ed99f01ad876f9c867259552e613f4ec4c6327aaa1e6d76cde62e5846a10f003"
+    },
+    {
+      "name": "native-trace/performance-resume.cjs",
+      "bytes": 4299,
+      "sha256": "266c5e8767154a8383e22a8a09b3a1a4ec92b086853f6cae6d4def881683e195"
+    },
+    {
+      "name": "native-trace/trace-plan.json",
+      "bytes": 848,
+      "sha256": "696610a9962f5696f042c27b377edd42cac92d756e1b636967456126b2b80454"
+    },
+    {
+      "name": "native-trace-retry/capture-review.cjs",
+      "bytes": 14184,
+      "sha256": "c515ba0c9f420460c0adc76159ccff6a2a1b5d56751e222702ebcb02d3bfd315"
+    },
+    {
+      "name": "native-trace-retry/native-performance.cjs",
+      "bytes": 13235,
+      "sha256": "062a63710fb4b79fee14775ec23bf86c1f7a107cf71a85294231bc5dfbf73383"
+    },
+    {
+      "name": "native-trace-retry/performance-raw.json",
+      "bytes": 307758,
+      "sha256": "265df12eb42eeafb45ed9e03ca9dba657454dd2da8baa41a47751d4987b65abf"
+    },
+    {
+      "name": "native-trace-retry/performance-resume.cjs",
+      "bytes": 4299,
+      "sha256": "266c5e8767154a8383e22a8a09b3a1a4ec92b086853f6cae6d4def881683e195"
+    },
+    {
+      "name": "native-trace-retry/summary.json",
+      "bytes": 158146,
+      "sha256": "7a66613fa5aee989e37c641ef64692d77563cb75e12387fedee616875dfc1c6c"
+    },
+    {
+      "name": "native-trace-retry/trace-A.json",
+      "bytes": 173809893,
+      "sha256": "8452c16d74cb7f5996866e14e26ad0fe104d6a4b2f8af7f83c0d1924754d2cd5"
+    },
+    {
+      "name": "native-trace-retry/trace-B.json",
+      "bytes": 94371840,
+      "sha256": "84c5a48c1e80596ae2854120b70b891c5e85825ff3a12df9ceac2475a4877b56"
+    },
+    {
+      "name": "native-trace-retry/trace-plan.json",
+      "bytes": 848,
+      "sha256": "06d34c684ed217cbe81af67258878faff02977cc7aaa56df67fa2bf0325f1b19"
     }
   ],
   "performanceSelection": {
@@ -287,5 +352,17 @@
     },
     "conclusion": "Identical-asset GPU comparison not repeatable at5%; cause unresolved; failed60 preserved",
     "next": "Root-owned bounded native trace continuation; no further capture in this round"
+  },
+  "nativeTrace": {
+    "kind": "Diagnostic only; one complete trace and second incomplete at strict totalcap",
+    "capturedCompleteTraces": 1,
+    "requestedMaximum": 2,
+    "initialFailure": "Local unsupported nonempty-category-discovery assumption, corrected",
+    "retryFailure": "256MiB total trace cap exceeded",
+    "traceABytes": 173809893,
+    "partialTraceBBytes": 94371840,
+    "unsavedSecondRow": true,
+    "completeTraceGpuP95": 4.042752,
+    "next": "Root-authorized1–3hour temporary-observer feasibility prototype in fresh developer; unchanged metrics/limits/separate cold acceptance; fresh quiet-host readiness before native performance"
   }
 }
