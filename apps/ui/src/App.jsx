@@ -35,6 +35,7 @@ import { viewFromBridge } from "./scene/expansion/integration/bridge-adapter.mjs
 import { routeWorkClick, unavailableReason } from "./scene/expansion/work-zones.mjs";
 import { useArchiveLibrary } from "./scene/expansion/archive-library.js";
 import { liveActorsFromSnapshot } from "./review/live-actors.mjs";
+import { ToolBubbleLayer } from './scene/ToolBubbleLayer.jsx';
 import { agentFor, pickedCard } from "./overlay/proximity-card.mjs";
 import { DESK_THREAD } from "./overlay/transcript-panel.mjs";
 import { Residents } from "./shell/Residents.jsx";
@@ -106,7 +107,7 @@ export function App() {
   const engaged = exploring || picked != null;
   const now = useNow();
   const previousBindings = useRef(new Map());
-  const bindings = useMemo(() => actorBindings(liveActorsFromSnapshot(snapshot, { now }), previousBindings.current), [snapshot, now]);
+  const bindings = useMemo(() => actorBindings(liveActorsFromSnapshot(snapshot, { toolActivity: inDemo ? {} : live.toolActivity, connection }), previousBindings.current, {meeting: tableMeeting(snapshot?.meetings, now)}), [snapshot, live.toolActivity, inDemo, connection, now]);
   useEffect(() => { previousBindings.current = bindings; }, [bindings]);
   const requests = useMemo(() => needsYouModel(snapshot, now).requests, [snapshot, now]);
   const onNearby = useCallback(card => setNearby(previous => JSON.stringify(previous) === JSON.stringify(card) ? previous : card), []);
@@ -145,15 +146,21 @@ export function App() {
   }, blocked: reviewOpen, returnFocus: () => focusBack('side') });
   const transcriptClose = useRef(null);
   transcriptClose.current = transcript.close;
-  const openConversation = useCallback((agentId, who, from) => {
+  const openConversation = useCallback((agentId, who, from, options) => {
     if (!agentId) return;
     releaseCursor();
     stamp('side', from);
     sideOwned.current = true;
     setMeetingId(null);
-    transcript.openFor(agentId, who);
+    transcript.openFor(agentId, who, options);
     sideOwned.current = false;
   }, [transcript.openFor, releaseCursor]);
+  const inspectTools = useCallback(row => {
+    const tools=row?.toolActivity;
+    if(!tools?.sources?.length||reviewOpen.current)return;
+    const source=tools.sources[0];
+    openConversation(source.runId,{...row,project:source.project,runtime:source.runtime,role:source.role},undefined,{source,sources:tools.sources,expandTool:true});
+  },[openConversation]);
   const bridge = useMemo(() => approvalDemo?.client ?? createBridgeClient({ fetch: steering.session.fetch }), [steering.session, approvalDemo]);
   const onReviewOpen = useCallback(() => { messageClose.current?.(); releaseCursor(); }, [releaseCursor]);
   // E and Q answer the panda card in view, or else the first waiting permission request (overlay-model.mjs answerCardFor).
@@ -390,6 +397,7 @@ export function App() {
               </Canvas>
             </SceneBoundary>
             <ChipLayer placements={sceneChips} labelsOverride={MESHY_TEAM_LABELS} hearts={hearts} tally={tally} tallyOpen={topic === 'tally'} tickets={snapshot?.tickets} selected={selected} onSelect={selectTicket} stage={stage} />
+            <ToolBubbleLayer bindings={bindings} stage={stage} onInspect={inspectTools} picked={picked} selected={selected} />
             <MeetingLayer snapshot={snapshot} stage={stage} claims={claims} onOpen={(meeting, role) => openMeeting(meeting, role)} />
             <div className="den-crosshair" aria-hidden="true" hidden={!exploring || cursorFree}>+</div>
             {exploring ? <p className="den-location" role="status" aria-label="Current location">{walkPlace}</p> : null}
@@ -428,7 +436,7 @@ export function App() {
           onShowMeeting={(id, from) => openMeeting(id, null, from)} onCloseMeeting={closeMeeting} onLeaveMeeting={leaveMeeting} left={left} />
         {topic === 'team' ? (
           <Sheet id="sheet-topic" slot="topic" eyebrow={SHEET_HEADS.team[0]} title={SHEET_HEADS.team[1]} closeLabel="Close panel" onClose={closeTopic} focusKey="team">
-            <Residents snapshot={snapshot} now={now} bindings={bindings} onTalk={talkToResident} onViewWork={viewResidentWork} getTalkState={residentTalkState} />
+            <Residents snapshot={snapshot} now={now} bindings={bindings} onInspectTools={inspectTools} onTalk={talkToResident} onViewWork={viewResidentWork} getTalkState={residentTalkState} />
             <p className="forest-muted">{RESIDENTS.length} residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}</p>
           </Sheet>
         ) : null}
@@ -442,7 +450,7 @@ export function App() {
         <aside className="den-float" aria-label="Selected" hidden={!floatOpen}>
           {selected?<PandaCard snapshot={snapshot} selected={selected} onClose={closeTicket} />:null}
           <div className="proximity-dock" hidden={!!(selected || approval.state.open)}>
-            {engaged ? <ProximityCard card={shownCard} onClose={exploring ? null : unpick} onTranscript={(c) => { if (!reviewOpen.current) transcript.toggle(c); }} onAnswer={approval.openFrom}
+            {engaged ? <ProximityCard card={shownCard} toolActivity={bindings.get(shownCard?.id)?.toolActivity} onInspectTools={()=>inspectTools(bindings.get(shownCard?.id))} onClose={exploring ? null : unpick} onTranscript={(c) => { if (!reviewOpen.current) transcript.toggle(c); }} onAnswer={approval.openFrom}
               onMessage={(c) => { if (!approvalOpen.current) message.openFrom(c); }} status={denDemo.active ? denDemoMode.statusFor(nearby) : message.composer.statusFor(nearby)} demo={inDemo} transcriptOpen={!!transcript.panel.agentId} /> : null}
             <MessageComposer composer={message.composer} state={message.state} />
           </div>

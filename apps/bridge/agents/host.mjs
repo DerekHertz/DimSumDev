@@ -40,6 +40,7 @@ import { runtimeId, runtimeRegistry, validProject, validRuntimeSession } from ".
 import { createSessions } from "./sessions.mjs";
 import { createAdmission } from "./admission.mjs";
 import { createConversations } from "./conversations.mjs";
+import { createToolReplayFilter } from "./tool-replay-filter.mjs";
 import { createApprovalStore, cleanText } from "./approvals.mjs";
 import { createWorkspaces, prepareMainGit } from "./workspace.mjs";
 import { TIERS, readCost, readCount, readModel, readTiers } from "./run-record.mjs";
@@ -273,25 +274,27 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     keep(agent, full);
     return full.id;
   }
-  function revise(agent, id, patch) {
+  function revise(agent, id, patch, original) {
     keep(agent, { id, ...patch, source: sourceOf(agent, id) });
     const buffer = transcripts.get(agent.id);
     const at = buffer ? buffer.entries.findIndex((e) => e.id === id) : -1;
-    if (at < 0) return; // already dropped from the buffer: no page shows it either
-    const full = { ...buffer.entries[at], ...patch };
-    buffer.entries[at] = full;
+    if (at < 0 && !original) return;
+    // Live assertions can outlast a scrolling row. Emit its sanitized correlation
+    // without reinserting the evicted row into the snapshot's bounded transcript.
+    const full = { ...(at < 0 ? original : buffer.entries[at]), ...patch, id, source: sourceOf(agent, id) };
+    if (at >= 0) buffer.entries[at] = full;
     onChange({ type: "transcript", agentId: agent.id, entry: full });
   }
   const sourceOf = (agent, entryId) => ({ project: agent.project, runtime: agent.runtimeId, role: agent.role, runId: agent.id, entryId });
-  // Correlation is run-local and explicit. Keep terminal identities until eviction so replays
-  // cannot create a second row, and late results can revise an ended invocation.
+  // Correlation is run-local and explicit. The replay filter outlives ledger eviction;
+  // retained terminal entries still allow a late authoritative result to revise its row.
   function closeTool(agent, toolId, patch) {
     const open = agent.openTools;
     const known = typeof toolId === "string" ? agent.toolEntries.get(toolId) : undefined;
     if (!known || (known.terminal && patch.result === undefined)) return;
     if (known.result !== undefined) return;
     Object.assign(known, patch, { terminal: true });
-    revise(agent, known.id, patch);
+    revise(agent, known.id, patch, known.entry);
     open.delete(toolId);
   }
   function notePermission(agent, approval) {
@@ -489,6 +492,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     agent.lastEventAt = agent.startedAt;
     agent.openTools = new Map(); // the runtime's tool id (or a local key) -> transcript entry id, while running
     agent.toolEntries = new Map(); // bounded replay/correlation ledger, including ended calls
+    agent.toolReplay = createToolReplayFilter();
     agent.permissionEntries = new Map(); // approval id -> transcript entry id
     agent.autoAllowed = { calls: 0, bytes: 0 }; // connection reads the bridge allowed by itself for this run (den-mvp outcome 4)
     agent.usageByMessage = new Map(); // message id -> the tiers last counted for it
@@ -843,15 +847,24 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       const name = clean(event.name, 100);
       if (!name) return;
       agent.tool = { name, summary: clean(event.summary, 200) ?? "" };
-      const usable = typeof event.id === "string" && event.id !== "" && event.id.length <= 200 && cleanText(event.id) === event.id;
-      if (usable && agent.toolEntries.has(event.id)) return;
+      const valid = typeof event.id === "string" && event.id !== "" && event.id.length <= 200 && cleanText(event.id) === event.id;
+      if (valid && agent.toolEntries.has(event.id)) return;
+      // A replay or filter collision is still an observed request, recorded safely,
+      // but has no trustworthy invocation correlation after its original was evicted.
+      const usable = valid && !agent.toolReplay.seen(event.id);
       const input = safeToolInput(event.input);
-      const entry = record(agent, { kind: "tool", name, summary: agent.tool.summary, status: "running", ...(usable ? { invocationId: event.id } : {}), ...(input === undefined ? {} : { input }) });
-      if (usable) agent.toolEntries.set(event.id, { id: entry, terminal: false });
+      const fields = { kind: "tool", at: new Date().toISOString(), name, summary: agent.tool.summary, status: "running", ...(usable ? { invocationId: event.id } : {}), ...(input === undefined ? {} : { input }) };
+      const entry = record(agent, fields);
+      if (usable) agent.toolEntries.set(event.id, { id: entry, entry: fields, terminal: false });
       agent.openTools.set(usable ? event.id : `#${entry}`, entry);
-      // A tool call that never ends is forgotten once its entry has left the buffer anyway.
+      // Losing correlation withdraws an assertion, not evidence of execution or success.
       if (agent.openTools.size > TRANSCRIPT_ENTRIES) agent.openTools.delete(agent.openTools.keys().next().value);
-      if (agent.toolEntries.size > TRANSCRIPT_ENTRIES) agent.toolEntries.delete(agent.toolEntries.keys().next().value);
+      if (agent.toolEntries.size > TRANSCRIPT_ENTRIES) {
+        const [id, old] = agent.toolEntries.entries().next().value;
+        if (!old.terminal) revise(agent, old.id, { status: "unknown" }, old.entry);
+        agent.openTools.delete(id);
+        agent.toolEntries.delete(id);
+      }
     } else if (event.type === "tool-end") {
       agent.tool = null;
       closeTool(agent, event.id, { status: "ended" });

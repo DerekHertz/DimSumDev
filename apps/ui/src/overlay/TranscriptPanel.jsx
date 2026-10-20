@@ -82,7 +82,7 @@ export function useTranscript({ card, exploring, onOpen, blocked, returnFocus })
       if (!agentId || latest.current.blocked?.current) return;
       latest.current.card = who ?? null;
       setIdentity({ name: who?.name || who?.role || agentId, role: who?.role ?? "", state: who?.state ?? "", runtime: who?.runtime, project: who?.project });
-      commit({ agentId, notice: null, pinned: true, request: options ? { source: options.source, expandTool: options.expandTool === true } : null });
+      commit({ agentId, notice: null, pinned: true, request: options ? { source: options.source, sources: options.sources, expandTool: options.expandTool === true } : null });
     }, [commit]),
     follow: useCallback((agentId) => {
       const current = latest.current.panel;
@@ -391,7 +391,10 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
     bottomRef.current = false;
     setAtBottom(false);
     setSeenThrough(lastN.current);
-    if (request.expandTool && matches[0].kind === "tool") setExpanded(open => [...open.filter(v => !sameSource(v, request.source)), request.source]);
+    if (request.expandTool && matches[0].kind === "tool") {
+      const sources=(request.sources??[request.source]).filter(s=>sourceKey(s)&&s.project===project&&s.runtime===runtime&&s.role===role&&s.runId===request.source.runId);
+      setExpanded(open => [...open.filter(v=>!sources.some(s=>sameSource(v,s))),...sources]);
+    }
     el.focus({ preventScroll: true });
     const scroller = log.current;
     scroller.scrollTop += el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
@@ -463,6 +466,7 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
         </button>
       </header>
       <TranscriptSummary key={JSON.stringify([project, runtime, role, agentId])} entries={list.entries} scope={{ project, runtime, role, runId: agentId, resumeOf: agent?.resumeOf, ref: agent?.ref }} onSource={source => tx.openFor(agentId, { ...identity, role, runtime, project }, { source })} />
+      {panel.request?.sources?.length>1 ? <nav className="transcript-active-tools" aria-label="Inspected active tool calls"><span>{panel.request.sources.length} inspected calls</span>{panel.request.sources.filter(source=>sourceKey(source)&&source.runId===agentId&&source.project===project&&source.runtime===runtime&&source.role===role).map((source,i)=><button key={sourceKey(source)} type="button" onClick={()=>tx.openFor(agentId,identity,{...panel.request,source})}>Call {i+1}</button>)}</nav> : null}
       {view.banner ? <p className="transcript-banner" role="status">{view.banner}</p> : null}
       {sourceState === "unavailable" ? <p className="transcript-banner" role="status">Source unavailable</p> : sourceState === "loading" ? <p className="transcript-banner" role="status">Loading source…</p> : null}
       <div className="thread-body">

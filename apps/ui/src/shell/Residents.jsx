@@ -18,7 +18,7 @@ function Portrait({ row, large = false }) {
 }
 
 // Selection only opens a profile. The parent connects these explicit actions to the live bridge flows.
-export function Residents({ snapshot, now, bindings, onTalk, onViewWork, getTalkState }) {
+export function Residents({ snapshot, now, bindings, onTalk, onViewWork, getTalkState, onInspectTools }) {
   const [selectedId, setSelectedId] = useState('orchestrator');
   const profileId = useId();
   const rows = deskResidents(snapshot, { now, bindings });
@@ -47,6 +47,7 @@ export function Residents({ snapshot, now, bindings, onTalk, onViewWork, getTalk
         {selected.bubble ? <p className="forest-profile-tool">{selected.bubble}</p> : null}
       </div>
       <div className="forest-profile-actions">
+        {selected.toolActivity ? <button type="button" className="btn" onClick={()=>onInspectTools?.(selected)}>Inspect {selected.toolActivity.count} active tool {selected.toolActivity.count===1?'call':'calls'}</button> : null}
         <button type="button" className="btn btn-solid" disabled={!canTalk} onClick={() => onTalk(selected)} aria-describedby={!canTalk ? `${profileId}-talk-reason` : undefined}>Talk to {selected.name.replace(/^The /, '')}</button>
         <button type="button" className="btn" disabled={!canViewWork} onClick={() => onViewWork(selected)} aria-describedby={!canViewWork ? `${profileId}-work-reason` : undefined}>View work <span aria-hidden="true">↗</span></button>
       </div>

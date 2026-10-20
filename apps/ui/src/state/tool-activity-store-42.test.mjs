@@ -1,0 +1,32 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {createLiveStore} from './live-store.mjs';
+import {liveActorsFromSnapshot} from '../review/live-actors.mjs';
+const agent={id:'run42',role:'developer',project:'den',runtime:'claude',ref:'fx/42',state:'working'};
+const tool=(id,status='running')=>({kind:'tool',id,invocationId:`call-${id}`,name:'Read',summary:`safe ${id}`,status,source:{project:'den',role:agent.role,runtime:'claude',runId:agent.id,entryId:id}});
+test('42 store SSE lifecycle, replay, gap, reconnect and teardown drive the real actor adapter',async()=>{
+ let stream,notifications=0;const store=createLiveStore({connect:callbacks=>(stream=callbacks,{close(){}}),fetchState:()=>new Promise(()=>{}),now:()=>0});
+ const unsubscribe=store.subscribe(()=>notifications++);store.start();
+ const snap=(seq,entries)=>({schema:1,seq,agents:[agent],tickets:[],transcripts:{run42:{entries,dropped:0}}});
+ const actors=()=>{const s=store.getState();return liveActorsFromSnapshot(s.snapshot,{toolActivity:s.toolActivity,connection:s.connection});};
+ stream.onSnapshot(snap(0,[]));
+ stream.onChange({seq:1,type:'transcript',agentId:agent.id,entry:tool(1)});stream.onChange({seq:2,type:'transcript',agentId:agent.id,entry:tool(2)});assert.equal(actors()[0].toolActivity.count,2);
+ stream.onChange({seq:1,type:'transcript',agentId:agent.id,entry:tool(1)});assert.equal(actors()[0].toolActivity.count,2);
+ stream.onChange({seq:3,type:'transcript',agentId:agent.id,entry:tool(2,'failed')});stream.onChange({seq:4,type:'transcript',agentId:agent.id,entry:tool(2)});assert.equal(actors()[0].toolActivity.count,1);
+ stream.onError();stream.onOpen();assert.equal(actors()[0].bubble,'');
+ stream.onSnapshot(snap(4,[tool(1,'ended'),tool(2,'failed')]));assert.equal(actors()[0].bubble,'');
+ stream.onChange({seq:6,type:'transcript',agentId:agent.id,entry:tool(3)});assert.equal(actors()[0].bubble,'');
+ stream.onSnapshot(snap(6,[tool(3)]));assert.equal(actors()[0].toolActivity.count,1);
+ stream.onChange({seq:7,type:'agent',agent:{...agent,state:'terminated'}});assert.equal(actors().length,0);
+ unsubscribe();const n=notifications;store.close();stream.onSnapshot(snap(9,[tool(9)]));stream.onChange({seq:8,type:'transcript',agentId:agent.id,entry:tool(8)});stream.onError();assert.deepEqual(store.getState().toolActivity,{});assert.equal(notifications,n);
+});
+test('42 accumulator and disposed runs remain bounded; active entries survive unrelated transcript eviction',()=>{
+ let stream;const store=createLiveStore({connect:c=>(stream=c,{close(){}}),fetchState:async()=>null,now:()=>0});store.start();
+ stream.onSnapshot({seq:0,agents:[agent],transcripts:{run42:{entries:[tool(1)]}}});
+ for(let seq=1;seq<=250;seq++)stream.onChange({seq,type:'transcript',agentId:agent.id,entry:{id:seq+1,kind:'message',text:'recorded'}});
+ assert.equal(store.getState().toolActivity.run42.rows.length,1);assert.equal(store.getState().transcripts.run42.entries.some(e=>e.id===1),false);
+ for(let seq=251;seq<=550;seq++)stream.onChange({seq,type:'transcript',agentId:agent.id,entry:tool(seq,'ended')});
+ assert.ok(store.getState().toolActivity.run42.rows.length<=200);
+ assert.equal(store.getState().toolActivity.run42.rows.some(row=>row.source.entryId===1&&!row.terminal),true);
+ stream.onSnapshot({seq:550,agents:[],transcripts:{}});assert.deepEqual(store.getState().toolActivity,{});store.close();
+});

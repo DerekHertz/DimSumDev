@@ -40,7 +40,7 @@ const KINDS = {
   },
   tool: (e) => {
     const name = text(e.name, 100);
-    const status = oneOf(e.status, ["running", "done", "failed", "stopped", "ended", "refused"]);
+    const status = oneOf(e.status, ["running", "done", "failed", "stopped", "ended", "refused", "unknown"]);
     if (!name || !status) return null;
     const result = text(e.result, TRANSCRIPT_RESULT_MAX + CLIP_NOTE);
     const input = safeToolInput(e.input);

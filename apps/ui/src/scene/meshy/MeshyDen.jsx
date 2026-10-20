@@ -25,7 +25,7 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
    live.current={den:d,agents,media,anchored:new Set(),proximity:0,meeting:null,susan:d.world.getObjectByName('Lazy susan'),glow};setDen(d);stage.tallyAnchor=d.tallyAnchor;onReady(d);
    inputs.current.onLoadState?.({status:'ready',message:'The forest garden is ready.'});
   }).catch(error=>{if(mounted&&error.name!=='AbortError'){console.error('Den scene',error);inputs.current.onLoadState?.({status:'error',message:'The garden models could not load. Reload to retry.'});}});
-  return()=>{mounted=false;abort.abort();onReady(null);stage.meetingAnchors?.clear();live.current?.agents.dispose();live.current=null;world?.dispose();stage.anchors.clear();};
+  return()=>{mounted=false;abort.abort();onReady(null);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current=null;world?.dispose();stage.anchors.clear();};
  },[gl,stage,onReady]);
  useEffect(()=>{const previous={background:scene.background,fog:scene.fog};const color='#e9f0d9';scene.background=new THREE.Color(color);scene.fog=new THREE.Fog(color,150,260);return()=>{scene.background=previous.background;scene.fog=previous.fog;};},[scene]);
  useEffect(()=>{if(!den)return;den.setFrontier(frontier||[]);den.setTally(tally?.rods);},[den,frontier,tally]);
@@ -40,6 +40,8 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
   // Labels float .4 above the head: Bao's crown is 3; a species publishes its own head top (antlers included).
   const labelAt=model=>model.localToWorld(new THREE.Vector3(0,(l.den.pandaRigs.get(model)?.rig.profile.envelope?.head.top??3)+.4,0));
   const figures=l.agents.liveFigures(),anchorsNow=new Map();
+  const toolAnchors=stage.toolAnchors??(stage.toolAnchors=new Map());toolAnchors.clear();
+  for(const [id,a]of l.agents.actors)toolAnchors.set(id,{top:labelAt(a.panda.model),base:a.panda.model.getWorldPosition(new THREE.Vector3())});
   for(const [key,{model,ref,runtime}]of figures){const at=labelAt(model);anchorsNow.set(key,at);if(runtime==='claude')anchorsNow.set(ref,at);}
   for(const key of l.anchored)if(!anchorsNow.has(key)){stage.anchors.delete(key);l.anchored.delete(key);}
   for(const [key,at]of anchorsNow){stage.anchors.set(key,at);l.anchored.add(key);}

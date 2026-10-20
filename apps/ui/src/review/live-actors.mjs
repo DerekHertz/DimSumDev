@@ -1,5 +1,6 @@
 import { compareRefs } from "../../../../packages/board-refs/src/compare-refs.mjs";
 import { DISPATCHABLE_ROLES, runtimeOf, projectOf, residentKey, sameResident, boundAgentKey, LIVE_AGENT_STATES } from '../shell/resident-inventory.mjs';
+import { toolActivityFor } from '../state/tool-activity.mjs';
 
 // den-layout/03 (absorbs den-v1/02): the pure adapter from a live-store snapshot to the actor state
 // PR #162's role pandas take at createReviewAgents(...).applyLive. No three, React or DOM.
@@ -8,7 +9,6 @@ import { DISPATCHABLE_ROLES, runtimeOf, projectOf, residentKey, sameResident, bo
 // ended, or an agent the bridge itself runs (agents[]), claimed or not. Dispatchable roles bind;
 // the scenery roles (debugger, knowledge-keeper, docs-writer, stem-cub) stay simulated.
 
-export const TOOL_BUBBLE_TTL_MS = 8000;
 
 export const LIVE_ROLES = DISPATCHABLE_ROLES;
 const BOUND = new Set(LIVE_ROLES);
@@ -31,14 +31,6 @@ function stateOf(t) {
 }
 const ACTIVITY = { working: "Working", "needs-you": "Needs your answer", blocked: "Blocked", idle:'Idle', throttled:'Throttled' };
 
-function bubbleOf(placement, now) {
-  const tool = placement?.tool;
-  if (!tool?.name) return "";
-  const at = Date.parse(placement.lastEventAt);
-  if (Number.isFinite(at) && now - at > TOOL_BUBBLE_TTL_MS) return "";
-  return tool.summary ? `${tool.name}: ${tool.summary}` : tool.name;
-}
-
 // den-v1 loop (live den run, 2026-10-10): the agent the bridge runs for this ticket and role, if it has not ended.
 // It comes from snapshot.agents[] (the steering host), not from the board, so it exists before any claim.
 function agentFor(agents, ref, identity) {
@@ -52,7 +44,7 @@ function agentFor(agents, ref, identity) {
  * @param {{now?: number}} [opts]
  * @returns {{role: string, ref: string, split: boolean, state: string, activity: string, bubble: string, task: string}[]}
  */
-export function liveActorsFromSnapshot(snapshot, { now = Date.now(), projectId } = {}) {
+export function liveActorsFromSnapshot(snapshot, { projectId, toolActivity, connection } = {}) {
   const tickets = snapshot?.tickets ?? [];
   const placements = snapshot?.placements ?? [];
   const agents = Array.isArray(snapshot?.agents) ? snapshot.agents : [];
@@ -68,14 +60,14 @@ export function liveActorsFromSnapshot(snapshot, { now = Date.now(), projectId }
     const latestPlacement = placementFor(placements, t.ref, identity),placement=ACTIVE.has(latestPlacement?.state)?latestPlacement:null,agent=agentFor(agents,t.ref,identity);
     if(!placement&&!agent)continue;
     bound.push({ ...identity, t, placement, agent });
-    shown.add(keyOf(identity,t.ref));
+    shown.add(agent?.id??keyOf(identity,t.ref));
   }
   for (const agent of agents) {
     if (!agent?.id || typeof agent.ref !== "string" || !BOUND.has(agent.role) || !runtimeOf(agent) || !inProject(agent) || !ACTIVE.has(agent.state)) continue;
-    const key = keyOf(agent,agent.ref);
+    const key = agent.id;
     if (shown.has(key)) continue;
     shown.add(key);
-    bound.push({ role: agent.role, runtime:runtimeOf(agent), projectId:agent.projectId, t: tickets.find((t) => t.ref === agent.ref && inProject(t)) ?? { ref: agent.ref }, placement: null, agent: agentFor(agents, agent.ref, agent), unclaimed: true });
+    bound.push({ role: agent.role, runtime:runtimeOf(agent), projectId:agent.projectId, t: tickets.find((t) => t.ref === agent.ref && inProject(t)) ?? { ref: agent.ref }, placement: null, agent, unclaimed: true });
   }
   bound.sort((a, b) => compareRefs(a.t.ref, b.t.ref));
   const seen = new Set();
@@ -85,6 +77,7 @@ export function liveActorsFromSnapshot(snapshot, { now = Date.now(), projectId }
     // An unclaimed ticket's own status says nothing about this agent (it is ready-for-agent until the claim).
     const processState=agent?.state??placement?.state;
     const state = processState === "waiting_on_user" ? "needs-you" : processState !== 'working' ? processState : unclaimed ? "working" : stateOf(t);
+    const tools=toolActivityFor(toolActivity,agent,connection);
     return {
       role,
       runtime, projectId, agentId:agent?.id ?? null,
@@ -92,7 +85,7 @@ export function liveActorsFromSnapshot(snapshot, { now = Date.now(), projectId }
       split,
       state,
       activity: ACTIVITY[state],
-      bubble: bubbleOf(placement, now) || bubbleOf(agent, now),
+      toolActivity:tools, bubble:tools?.text??'',
       task: t.title ? `${t.ref} · ${t.title}` : t.ref,
     };
   });

@@ -1,4 +1,15 @@
 /* The connected Garden & Desk layout. Scope overrides so isolated component fixtures keep their layout. */
+.tool-bubble-layer { position:absolute; inset:0; pointer-events:none; overflow:hidden; }
+.tool-bubble { position:absolute; pointer-events:auto; width:232px; min-height:44px; padding:6px 10px; border:1px solid var(--line); border-radius:var(--radius-s); background:var(--surface-200); color:var(--ink); box-shadow:var(--shadow-panel); font:12px/1.4 var(--font-sans); text-align:left; cursor:pointer; }
+.tool-bubble[data-waiting=true] { border-color:var(--lantern); }
+.tool-bubble-preview { display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; overflow-wrap:anywhere; }
+.tool-bubble-compact { display:none; }
+.tool-bubble[data-compact=true] { width:48px; text-align:center; }
+.tool-bubble[data-compact=true] .tool-bubble-preview { display:none; }
+.tool-bubble[data-compact=true] .tool-bubble-compact { display:block; }
+.tool-bubble:focus-visible { outline:2px solid var(--focus-ring); outline-offset:2px; }
+.transcript-active-tools { display:flex; flex-wrap:wrap; align-items:center; gap:6px; padding:6px 18px; font:12px/1.4 var(--font-sans); border-bottom:1px solid var(--line); }
+.transcript-active-tools button { color:var(--ink); background:var(--surface-200); border:1px solid var(--line); border-radius:var(--radius-s); min-height:32px; }
 .forest-shell {
   --surface-000: #e6eddf; --surface-100: #f7f7ef; --surface-200: #fffef9;
   --surface-300: #edf0e4; --surface-glass: #fffef9f5; --line: #dce3d3;

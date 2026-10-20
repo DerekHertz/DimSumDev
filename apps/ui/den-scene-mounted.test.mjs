@@ -117,6 +117,9 @@ async function openGarden({ viewport = { width: 1440, height: 900 }, failModels 
           const deliver = () => { for (const listener of this.l.snapshot ?? []) listener({ data: JSON.stringify(next) }); };
           if (snapshotDelayMs) setTimeout(deliver, snapshotDelayMs); else deliver();
         };
+        window.__pushGardenChange = next => {
+          for (const listener of this.l.change ?? []) listener({ data: JSON.stringify(next) });
+        };
         setTimeout(() => {
           this.onopen?.();
           for (const f of this.l.snapshot ?? []) f({ data: JSON.stringify(snap) });
@@ -318,8 +321,11 @@ const profileLive = (seq = 2, ended = false) => {
   return {
     ...quietProfiles(), seq,
     tickets: rows.map(([ref]) => ({ ref, feature: 'work', title: ref === 'work/03-visitor' ? 'Visitor-specific task' : 'Maker-specific task', type: 'task', status: 'claimed', ready: false, holder: ended ? null : { role: 'developer', since: at }, gate: null, blockedBy: [] })),
-    agents: rows.map(([ref, id, state]) => ({ id, ref, role: 'developer', state, runtime: 'claude', mode: 'direct', startedAt: at, lastEventAt: at, tool: { name: 'Read', summary: ref + ' tool details' }, capabilities: { send: true, stop: true, approve: true }, followUp: ended })),
-    transcripts: Object.fromEntries(rows.map(([, id]) => [id, { dropped: 0, entries: [{ id: 1, kind: 'message', role: 'agent', at, text: 'Conversation for ' + id }] }])),
+    agents: rows.map(([ref, id, state]) => ({ id, ref, project: 'den', role: 'developer', state, runtime: 'claude', mode: 'direct', startedAt: at, lastEventAt: at, capabilities: { send: true, stop: true, approve: true }, followUp: ended })),
+    transcripts: Object.fromEntries(rows.map(([ref, id]) => [id, { dropped: 0, entries: [
+      { id: 1, kind: 'message', role: 'agent', at, text: 'Conversation for ' + id },
+      { id: 2, kind: 'tool', name: 'Read', summary: ref + ' tool details', status: ended ? 'ended' : 'running', invocationId: id + '-read', source: { project: 'den', runtime: 'claude', role: 'developer', runId: id, entryId: 2 } },
+    ] }])),
   };
 };
 const openProfiles = async page => {
@@ -374,7 +380,8 @@ test("portrait profiles keep real work and visitor identities, and route explici
     profiles = await openProfiles(page);
     await page.evaluate(next => window.__pushGardenSnapshot(next), profileLive());
     await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^The Maker, developer, Claude, current project identity unavailable, Working$/ }).click();
-    await profiles.getByText(/Read: work\/02-maker tool details/).waitFor({ state: 'visible' });
+    await profiles.getByText('Read · work/02-maker tool details', { exact: true }).waitFor({ state: 'visible' });
+    assert.equal(await profiles.locator('.forest-profile-tool').innerText(), 'Read · work/02-maker tool details', 'the resident shows its own correlated tool preview');
     assert.match(await profiles.locator('.forest-profile-task').innerText(), /work\/02-maker[\s\S]*Maker-specific task/);
     assert.equal(await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 33, 'a second live role gets a distinct visitor portrait');
     await profiles.getByRole('button', { name: 'Talk to Maker', exact: true }).click();
@@ -382,7 +389,15 @@ test("portrait profiles keep real work and visitor identities, and route explici
     assert.match(await page.locator('.transcript-log').innerText(), /Conversation for c-maker-current/);
     await page.getByRole('button', { name: 'Close conversation' }).click();
     profiles = await openProfiles(page);
+    const makerLive = profileLive();
+    const makerRun = makerLive.agents.find(agent => agent.ref === 'work/02-maker');
+    const makerTool = makerLive.transcripts[makerRun.id].entries.find(entry => entry.kind === 'tool');
+    await page.evaluate(next => window.__pushGardenChange(next), { seq: 3, type: 'transcript', agentId: makerRun.id, entry: { ...makerTool, status: 'ended' } });
+    await profiles.locator('.forest-profile-tool').waitFor({ state: 'hidden' });
+    assert.equal(await profiles.getByRole('button', { name: /^Inspect .*active tool/ }).count(), 0, 'an SSE tool terminal clears the resident tool inspection action');
     await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^The Maker, developer, Claude, .*visitor on work\/03-visitor, Working$/ }).click();
+    await profiles.getByText('Read · work/03-visitor tool details', { exact: true }).waitFor({ state: 'visible' });
+    assert.equal(await profiles.locator('.forest-profile-tool').innerText(), 'Read · work/03-visitor tool details', 'ending the resident call preserves the visitor’s own correlated call');
     await profiles.getByRole('button', { name: /View work/ }).click();
     const ticket = page.getByRole('dialog', { name: 'Ticket details' });
     await ticket.waitFor({ state: 'visible' });
@@ -391,11 +406,12 @@ test("portrait profiles keep real work and visitor identities, and route explici
     assert.equal(await ticket.getByText('work/02-maker', { exact: true }).count(), 0, 'visitor work never reuses the permanent resident ticket');
     await ticket.getByRole('button', { name: 'Close ticket details' }).click();
     profiles = await openProfiles(page);
-    await page.evaluate(next => window.__pushGardenSnapshot(next), profileLive(3, true));
+    await page.evaluate(next => window.__pushGardenSnapshot(next), profileLive(4, true));
     const endedResidents = profiles.getByRole('list', { name: 'Residents and visitors' });
     await endedResidents.getByRole('button', { name: /^The Maker, developer, Claude, .*visitor on work\/03-visitor, Working$/ }).waitFor({ state: 'hidden' });
     await endedResidents.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
     assert.equal(await endedResidents.getByRole('button').count(), 32, 'the ended visitor is removed before opening the resident’s past conversation');
+    assert.equal(await profiles.locator('.forest-profile-tool').count(), 0, 'the terminal snapshot never revives a tool preview for the past run');
     await profiles.getByRole('button', { name: 'Talk to Maker', exact: true }).click();
     await page.locator('.transcript-meta code').filter({ hasText: /^c-maker-past$/ }).waitFor({ state: 'visible' });
     assert.match(await page.locator('.transcript-log').innerText(), /Conversation for c-maker-past/);

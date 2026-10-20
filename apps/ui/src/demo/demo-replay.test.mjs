@@ -48,6 +48,8 @@ function observe() {
       seen.roles.add(a.role);
       seen.states.add(a.state);
       if (a.split) seen.split = true;
+      // The recording contains transcript entries; this adapter call does not pass
+      // correlated toolActivity, so it must not infer a live bubble from snapshot data.
       if (a.bubble) seen.bubble = true;
     }
     for (const agent of s.snapshot.agents ?? []) {
@@ -85,8 +87,8 @@ describe("the recorded fixture (read through the driver)", () => {
   test("a second agent of one role becomes a split-off panda", () => {
     assert.equal(seen.split, true);
   });
-  test("tool calls show as bubbles, fresh against the clock", () => {
-    assert.equal(seen.bubble, true);
+  test("recorded transcript tool calls do not become live bubbles without correlation", () => {
+    assert.equal(seen.bubble, false);
   });
   test("pandas change state as the events dictate", () => {
     assert.ok(seen.states.size >= 2, [...seen.states].join(","));

@@ -24,7 +24,7 @@ test('concurrent work gets separate visitors and preserves the exact ticket sele
   assert.deepEqual(deskActivity(snapshot), { working: 1, waiting: 1, blocked: 0, resting: 31, visitors: 1 });
 });
 
-test('profiles preserve live task and tool activity for the primary resident and exact visitor', () => {
+test('profiles preserve live task identity without treating placement tool data as correlated activity', () => {
   const snapshot = { tickets: [
     { ref: 'feature/01', title: 'Build the garden', holder: { role: 'developer' } },
     { ref: 'feature/02', title: 'Repair the bridge', holder: { role: 'developer' } },
@@ -34,7 +34,7 @@ test('profiles preserve live task and tool activity for the primary resident and
   ] };
   const rows = deskResidents(snapshot, { now: Date.parse('2026-10-16T12:00:01Z') });
   assert.equal(rows.find(row => row.id === 'developer').task, 'feature/01 · Build the garden');
-  assert.equal(rows.find(row => row.id === 'developer').bubble, 'Read: garden model');
+  assert.equal(rows.find(row => row.id === 'developer').bubble, '');
   assert.equal(rows.find(row => row.id === 'developer#feature/02').task, 'feature/02 · Repair the bridge');
   const quiet = deskResidents(null).find(row => row.role === 'developer');
   assert.equal(quiet.task, undefined);
