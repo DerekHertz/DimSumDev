@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { cloneElement, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { sourceKey, sameSource } from "../../../shared/transcript-source.mjs";
 import { initialTranscriptState, transcriptKey, transcriptToggle, closeTranscript, DESK_THREAD } from "./transcript-panel.mjs";
 import { AgentMarkdown } from "./agent-markdown.mjs";
 import { threadEntries, threadView, footModel, stopModel, emptyPicks, pickOption, setOther, questionAnswers } from "./thread-model.mjs";
@@ -76,11 +77,11 @@ export function useTranscript({ card, exploring, onOpen, blocked, returnFocus })
     close: useCallback(() => commit(closeTranscript(latest.current.panel)), [commit]),
     // den-mvp outcome 2: open the thread of one run from a panel (no card nearby), and move an open thread to the
     // follow-up run that continues it. Both keep the panel open outside walk mode.
-    openFor: useCallback((agentId, who) => {
+    openFor: useCallback((agentId, who, options) => {
       if (!agentId || latest.current.blocked?.current) return;
       latest.current.card = who ?? null;
-      setIdentity({ name: who?.name || who?.role || agentId, role: who?.role ?? "", state: who?.state ?? "" });
-      commit({ agentId, notice: null, pinned: true });
+      setIdentity({ name: who?.name || who?.role || agentId, role: who?.role ?? "", state: who?.state ?? "", runtime: who?.runtime, project: who?.project });
+      commit({ agentId, notice: null, pinned: true, request: options ? { source: options.source, expandTool: options.expandTool === true } : null });
     }, [commit]),
     follow: useCallback((agentId) => {
       const current = latest.current.panel;
@@ -95,18 +96,18 @@ export function useTranscript({ card, exploring, onOpen, blocked, returnFocus })
 function ToolRow({ row, onToggle }) {
   const id = `transcript-tool-${row.n}`;
   return <li className={`transcript-row transcript-tool transcript-status-${row.status}`}>
-    <button type="button" className="transcript-tool-head" aria-expanded={row.expanded} aria-controls={id} onClick={() => onToggle(row.n)} title={row.toggleLabel}>
+    <button type="button" className="transcript-tool-head" aria-expanded={row.expanded} aria-controls={id} onClick={() => onToggle(row.source ?? row.n)} title={row.toggleLabel}>
       <span className="transcript-chevron" aria-hidden="true" />
       <code className="transcript-tool-name">{row.name}</code>
       <span className="transcript-tool-summary">{row.summary}</span>
-      <span className="transcript-tool-status">{row.status}</span>
+      <span className="transcript-tool-status">{row.statusLabel}</span>
     </button>
     {row.expanded ? <div id={id} className="transcript-tool-body">
       {row.inputText ? <pre className="transcript-well" aria-label="Input">{row.inputText}</pre> : null}
       {row.result ? <>
         <pre className="transcript-well" aria-label="Result">{row.result.text}</pre>
         {row.result.truncatedBytes ? <p className="transcript-truncated">Truncated, {row.result.truncatedBytes} more bytes</p> : null}
-      </> : null}
+      </> : <p className="transcript-truncated">{row.resultLabel}</p>}
     </div> : null}
   </li>;
 }
@@ -164,6 +165,12 @@ function QuestionRow({ row, who, client, disabled }) {
 }
 
 function Row({ row, onToggle, onAnswer, who, client, demo }) {
+  // Apply the locator to the existing list item without adding nested list markup.
+  const content = RowContent({ row, onToggle, onAnswer, who, client, demo });
+  return cloneElement(content, { "data-source": sourceKey(row.source) ?? undefined, "aria-current": row.focused ? "location" : undefined, tabIndex: row.source ? -1 : undefined });
+}
+
+function RowContent({ row, onToggle, onAnswer, who, client, demo }) {
   switch (row.kind) {
     case "question":
       return <QuestionRow row={row} who={who} client={client} disabled={demo} />;
@@ -186,7 +193,7 @@ function Row({ row, onToggle, onAnswer, who, client, demo }) {
         <Chips chips={row.chips} />
       </li>;
     case "tool":
-      return <ToolRow row={row} onToggle={onToggle} />;
+      return ToolRow({ row, onToggle });
     case "ask":
       // Both buttons open the permission review, which shows the full input and sends the answer.
       return <li className="transcript-row transcript-permission transcript-asking" role="group" aria-label={`${who} is asking to ${row.verb}`}>
@@ -290,11 +297,15 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
   const buffer = agentId ? transcripts?.[agentId] : undefined;
   const agent = agentId ? agents?.find((a) => a.id === agentId) ?? null : null;
   const role = agent?.role ?? identity?.role ?? "";
+  const runtime = agent?.runtime ?? identity?.runtime;
+  const project = agent?.project ?? identity?.project;
   const [expanded, setExpanded] = useState([]);
   const [atBottom, setAtBottom] = useState(true);
   const [seenThrough, setSeenThrough] = useState(0);
   const [history, setHistory] = useState(NO_HISTORY);
   const [announcement, setAnnouncement] = useState("");
+  const [sourceState, setSourceState] = useState(null);
+  const focusedRequest = useRef(null);
   const log = useRef(null);
   const bottomRef = useRef(true);
   const lastN = useRef(0);
@@ -310,7 +321,7 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
   const view = threadView(list, { expanded, atBottom, seenThrough, connection, approvals, agents, now });
   lastN.current = view.rows.at(-1)?.n ?? 0;
 
-  useEffect(() => { setExpanded([]); setAtBottom(true); setSeenThrough(0); bottomRef.current = true; }, [agentId]);
+  useEffect(() => { setExpanded([]); setSourceState(null); focusedRequest.current = null; setAtBottom(true); setSeenThrough(0); bottomRef.current = true; }, [agentId]);
   useEffect(() => { if (agentId) document.querySelector("#sheet-side-title")?.focus({ preventScroll: true }); }, [agentId]);
 
   // The role's earlier runs (den-mvp outcome 2): asked from the bridge when the thread opens or moves to a new run, a
@@ -319,17 +330,60 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
   useEffect(() => {
     if (!canRead) { setHistory(NO_HISTORY); return undefined; }
     let stale = false;
+    const request = panel.request;
+    const target = request?.source;
+    const valid = !request || sourceKey(target) && target.role === role && target.runtime === runtime && target.project === project;
+    setSourceState(request ? valid ? "loading" : "unavailable" : null);
+    if (!valid) return undefined;
     setHistory((h) => ({ ...h, loading: true, error: null }));
-    client.getConversation(role, { limit: HISTORY_PAGE }).then(
-      (page) => { if (!stale) setHistory({ entries: page.entries, more: page.more === true, before: page.before, error: null, loading: false }); },
-      (err) => { if (!stale) setHistory({ ...NO_HISTORY, error: err?.reason ?? "Could not load earlier messages." }); },
-    );
+    (async () => {
+      let entries = [], before, more = true;
+      const cursors = new Set();
+      try {
+        for (let reads = 0; reads < (request ? 3 : 1); reads += 1) {
+          const page = await client.getConversation(role, { limit: HISTORY_PAGE, ...(before === undefined ? {} : { before }), ...(runtime ? { runtime } : {}), ...(project ? { project } : {}) });
+          if (stale) return;
+          entries = [...page.entries, ...entries];
+          more = page.more === true;
+          const repeated = cursors.has(page.before);
+          before = page.before;
+          cursors.add(before);
+          const found = [...entries, ...(buffer?.entries ?? [])].filter(e => sameSource(e.source, target));
+          if (!request || found.length || !more || repeated) break;
+        }
+        if (!stale) {
+          setHistory({ entries, more, before, error: null, loading: false });
+          if (request) setSourceState("ready");
+        }
+      } catch (err) {
+        if (!stale) {
+          setHistory(h => ({ ...h, loading: false, error: err?.reason ?? "Could not load earlier messages." }));
+          if (request) setSourceState("unavailable");
+        }
+      }
+    })();
     return () => { stale = true; };
-  }, [canRead, agentId, role, client]);
+  }, [canRead, agentId, role, runtime, project, client, panel.request]);
+  useLayoutEffect(() => {
+    const request = panel.request;
+    if (!request || sourceState !== "ready" || focusedRequest.current === request) return;
+    const matches = list.entries.filter(e => sameSource(e.source, request.source));
+    if (matches.length !== 1) { setSourceState("unavailable"); return; }
+    const el = [...(log.current?.querySelectorAll("li[data-source]") ?? [])].find(el => el.dataset.source === sourceKey(request.source));
+    if (!el) { setSourceState("unavailable"); return; }
+    focusedRequest.current = request;
+    bottomRef.current = false;
+    setAtBottom(false);
+    setSeenThrough(lastN.current);
+    if (request.expandTool && matches[0].kind === "tool") setExpanded(open => [...open.filter(v => !sameSource(v, request.source)), request.source]);
+    el.focus({ preventScroll: true });
+    const scroller = log.current;
+    scroller.scrollTop += el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
+  }, [sourceState, panel.request, list.entries]);
   const loadEarlier = () => {
     if (!canRead || history.loading || !history.more) return;
     setHistory((h) => ({ ...h, loading: true }));
-    client.getConversation(role, { before: history.before, limit: HISTORY_PAGE }).then(
+    client.getConversation(role, { before: history.before, limit: HISTORY_PAGE, ...(runtime ? { runtime } : {}), ...(project ? { project } : {}) }).then(
       (page) => setHistory((h) => ({ entries: [...page.entries, ...h.entries], more: page.more === true, before: page.before, error: null, loading: false })),
       (err) => setHistory((h) => ({ ...h, loading: false, error: err?.reason ?? "Could not load earlier messages." })),
     );
@@ -367,7 +421,10 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
     setAtBottom(true);
     el?.focus({ preventScroll: true });
   };
-  const toggleRow = (n) => setExpanded((open) => open.includes(n) ? open.filter((x) => x !== n) : [...open, n]);
+  const toggleRow = (key) => setExpanded(open => {
+    const same = v => typeof key === "object" ? sameSource(v, key) : v === key;
+    return open.some(same) ? open.filter(v => !same(v)) : [...open, key];
+  });
 
   const notice = panel.notice ? <p className="transcript-notice visually-hidden" role="status" aria-live="polite">{panel.notice}</p> : null;
   if (!agentId) return notice;
@@ -380,7 +437,7 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
         <div>
           <p className="transcript-overline">Conversation</p>
           <h2 id="sheet-side-title" tabIndex={-1}>{[name, ref].filter(Boolean).join(" · ")}</h2>
-          <p className="transcript-meta"><code>{agentId}</code>{role && role !== name ? ` · ${role}` : ""}</p>
+          <p className="transcript-meta"><code>{agentId}</code>{role && role !== name ? ` · ${role}` : ""}{runtime ? ` · ${runtime}` : ""}{project ? ` · ${project}` : ""}</p>
           <p className="transcript-state"><span className={`transcript-glyph transcript-glyph-${state}`} aria-hidden="true" />{STATES[state] ?? state}</p>
         </div>
         <button type="button" className="transcript-close" aria-label="Close conversation" onClick={tx.close}>
@@ -388,13 +445,14 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
         </button>
       </header>
       {view.banner ? <p className="transcript-banner" role="status">{view.banner}</p> : null}
+      {sourceState === "unavailable" ? <p className="transcript-banner" role="status">Source unavailable</p> : sourceState === "loading" ? <p className="transcript-banner" role="status">Loading source…</p> : null}
       <div className="thread-body">
       <div className="transcript-log" role="log" aria-live="off" aria-label={`Conversation with ${name}`} tabIndex={0} ref={log} onScroll={onScroll}>
         {history.more ? <p className="thread-earlier"><button type="button" className="transcript-jump-button" disabled={history.loading} onClick={loadEarlier}>{history.loading ? "Loading…" : "Show earlier"}</button></p> : null}
         {history.error ? <p className="transcript-dropped">Earlier messages could not be loaded: {history.error}</p> : null}
         {view.empty ? <p className="transcript-empty">{agentId === DESK_THREAD ? DESK_HINT : view.emptyText}</p> : <>
           {view.droppedNotice ? <p className="transcript-dropped">{view.droppedText}</p> : null}
-          <ul className="transcript-list">{view.rows.map((row) => <Row key={row.n} row={row} who={name} onToggle={toggleRow} onAnswer={() => onAnswer?.(agentId)} client={signedIn ? client : null} demo={demo} />)}</ul>
+          <ul className="transcript-list">{view.rows.map((row) => <Row key={sourceKey(row.source) ?? row.n} row={{ ...row, focused: sourceState === "ready" && sameSource(row.source, panel.request?.source) }} who={name} onToggle={toggleRow} onAnswer={() => onAnswer?.(agentId)} client={signedIn ? client : null} demo={demo} />)}</ul>
         </>}
       </div>
       <div className="transcript-jump" aria-live="polite">

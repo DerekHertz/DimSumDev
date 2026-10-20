@@ -11,6 +11,7 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { StringDecoder } from "node:string_decoder";
+import { cleanText, safeToolInput } from "../../shared/safe-text.mjs";
 import { COST_MAX_USD, MODEL_RE, REQUEST_ID_MAX, REQUEST_IDS_PER_AGENT, ROLES, UUID_RE, WORKTREES_DIR } from "./policy.mjs";
 
 export const MAX_LINE_BYTES = 1_000_000; // ADR 0016 6.8: a stdout line over about 1 MB is dropped
@@ -509,6 +510,7 @@ function summarise(input) {
 
 // Transcript text is kept as written (the host masks and escapes it); only its length is bounded here.
 function body(type, text, extra = {}) {
+  text = cleanText(text);
   if (text.length <= BODY_MAX) return { type, ...extra, text };
   return { type, ...extra, text: text.slice(0, BODY_MAX), more: text.length - BODY_MAX };
 }
@@ -579,7 +581,8 @@ export function parseClaudeLine(line) {
         if (block.type !== "tool_use") continue;
         if (typeof block.name !== "string" || block.name === "") continue;
         const id = typeof block.id === "string" ? clip(block.id, SUMMARY_MAX) : "";
-        events.push({ type: "tool-start", id, name: block.name, summary: summarise(block.input) });
+        const input = safeToolInput(block.input);
+        events.push({ type: "tool-start", id, name: cleanText(block.name), summary: summarise(input), ...(input === undefined ? {} : { input }) });
       }
       const usage = usageEvent(obj.message);
       if (usage) events.push(usage);

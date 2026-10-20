@@ -17,6 +17,9 @@ export function appendTranscript(buffers, agentId, entry, cap = TRANSCRIPT_CAP) 
     const at = previous.entries.findIndex((e) => e.id === entry.id);
     if (at >= 0) {
       const entries = previous.entries.slice();
+      const old = entries[at];
+      // Terminal output is authoritative over a replayed active/end frame.
+      if (old.kind === "tool" && entry.kind === "tool" && (old.status !== "running" && entry.status === "running" || typeof old.result === "string" && entry.result === undefined)) return buffers;
       entries[at] = { ...entry, n: previous.entries[at].n };
       return { ...buffers, [agentId]: { ...previous, entries } };
     }

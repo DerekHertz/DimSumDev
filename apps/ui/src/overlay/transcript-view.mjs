@@ -2,13 +2,15 @@
 // transcriptView(buffer, { expanded, atBottom, seenThrough, connection, pending }) -> { empty, emptyText, droppedNotice,
 // droppedText, rows, atBottom, unread, jumpLabel, banner }. Rows keep arrival order: the newest is last.
 export const RESULT_BYTES = 4096;
+import { cleanText, safeToolInput } from "../../../shared/safe-text.mjs";
+import { sourceKey } from "../../../shared/transcript-source.mjs";
 
 const unreadable = (n, type) => ({ kind: "unreadable", n, type, label: "Unreadable event" });
-const text = (value) => (typeof value === "string" ? value : value == null ? "" : String(value));
+const text = (value) => (typeof value === "string" ? cleanText(value) : "");
 
 function clipResult(result) {
-  if (result == null) return null;
-  const full = typeof result === "string" ? result : JSON.stringify(result) ?? String(result);
+  if (typeof result !== "string") return null;
+  const full = cleanText(result);
   const bytes = new TextEncoder().encode(full);
   if (bytes.length <= RESULT_BYTES) return { text: full, truncatedBytes: 0 };
   const head = new TextDecoder().decode(bytes.slice(0, RESULT_BYTES)).replace(/�+$/, "");
@@ -16,12 +18,8 @@ function clipResult(result) {
 }
 
 function inputText(input) {
-  if (input === undefined) return "";
-  try {
-    return JSON.stringify(input, null, 2) ?? "";
-  } catch {
-    return String(input);
-  }
+  const safe = safeToolInput(input);
+  return safe === undefined ? "" : typeof safe === "string" ? safe : JSON.stringify(safe, null, 2);
 }
 
 // den-v1 loop S2: the bridge resends a permission entry with its answer. Anything else still reads as waiting.
@@ -36,11 +34,15 @@ function rowFor(entry, n, expanded) {
     case "message":
       return { kind: "message", n, speaker: entry.role === "user" ? "You" : "Agent", text: text(entry.text), at: entry.at, note: entry.role === "user" ? MESSAGE_NOTES[entry.status] ?? null : null };
     case "tool": {
-      const open = expanded.has(n);
-      const row = { kind: "tool", n, name: text(entry.name), summary: text(entry.summary), status: entry.status, expanded: open, toggleLabel: open ? "Hide details" : "Show details" };
+      const key = sourceKey(entry.source);
+      const source = key ? { project: entry.source.project, runtime: entry.source.runtime, role: entry.source.role, runId: entry.source.runId, entryId: entry.source.entryId } : null;
+      const open = expanded.has(n) || (key !== null && expanded.has(key));
+      const statusLabels = { running: "Active", done: "Done", failed: "Failed", refused: "Refused", stopped: "Stopped", ended: "Ended" };
+      const row = { kind: "tool", n, source, sourceUnavailable: !source, invocationId: text(entry.invocationId), name: text(entry.name), summary: text(entry.summary).slice(0, 200), status: Object.hasOwn(statusLabels, entry.status) ? entry.status : "unknown", statusLabel: statusLabels[entry.status] ?? "Unknown", expanded: open, toggleLabel: open ? "Hide details" : "Show details" };
       if (open) {
         row.inputText = inputText(entry.input);
         row.result = clipResult(entry.result);
+        row.resultLabel = row.result ? "Result" : "Not available yet";
       }
       return row;
     }
@@ -66,7 +68,7 @@ function bannerFor(phase) {
 export function transcriptView(buffer, ui = {}) {
   const entries = Array.isArray(buffer?.entries) ? buffer.entries : [];
   const dropped = buffer?.dropped > 0 ? buffer.dropped : 0;
-  const expanded = new Set(ui.expanded ?? []);
+  const expanded = new Set((ui.expanded ?? []).map(v => typeof v === "object" ? sourceKey(v) : v));
   const numbers = entries.map((entry, i) => (Number.isFinite(entry?.n) ? entry.n : dropped + i + 1));
   const rows = entries.map((entry, i) => rowFor(entry, numbers[i], expanded));
   // Live den run, 2026-10-10: the newest waiting row of the tool the agent's pending request names says what is

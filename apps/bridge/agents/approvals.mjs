@@ -38,45 +38,8 @@ const clipNote = (text) => (text.length > APPROVAL_NOTE_MAX ? `${text.slice(0, A
 const refuse = (status, error) => ({ ok: false, status, error });
 const isPlainObject = (v) => v !== null && typeof v === "object" && [Object.prototype, null].includes(Object.getPrototypeOf(v));
 
-// Visible \uXXXX instead of the character, so it cannot reorder or hide text.
-export const escapeText = (text) => text.replace(UNSAFE, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
-
-// Only the span a secret pattern matches is masked, so the rest of a command stays readable and a fake secret-shaped
-// token cannot hide it. A private key block is masked through its END line (or to the end of the text), because the
-// pattern matches only its header.
-const PEM_END_RE = /-----END (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/;
-const GLOBAL_PATTERNS = SECRET_PATTERNS.map((p) => ({ name: p.name, re: new RegExp(p.re.source, p.re.flags.includes("g") ? p.re.flags : `${p.re.flags}g`) }));
-function maskSecrets(text) {
-  const spans = [];
-  for (const { name, re } of GLOBAL_PATTERNS) {
-    re.lastIndex = 0;
-    for (let m = re.exec(text); m; m = re.exec(text)) {
-      let end = m.index + m[0].length;
-      if (name === "private key block") {
-        const tail = PEM_END_RE.exec(text.slice(end));
-        end = tail ? end + tail.index + tail[0].length : text.length;
-      }
-      spans.push([m.index, end]);
-      if (m[0].length === 0) re.lastIndex += 1;
-    }
-  }
-  if (!spans.length) return text;
-  spans.sort((a, b) => a[0] - b[0]);
-  const merged = [];
-  for (const [start, end] of spans) {
-    const last = merged[merged.length - 1];
-    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
-    else merged.push([start, end]);
-  }
-  let out = "";
-  let at = 0;
-  for (const [start, end] of merged) {
-    out += text.slice(at, start) + MASK;
-    at = end;
-  }
-  return out + text.slice(at);
-}
-export const cleanText = (text) => escapeText(maskSecrets(text));
+export { cleanText, escapeText } from "../../shared/safe-text.mjs";
+import { cleanText } from "../../shared/safe-text.mjs";
 
 // A copy of a tool input with every string (and key) cleaned. Throws on anything JSON could not have produced.
 function sanitize(value, depth = 0) {
