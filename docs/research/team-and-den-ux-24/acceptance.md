@@ -22,6 +22,8 @@ Current approved shell text is At home/Working/Needs you/Blocked/Idle/Throttled 
 
 Pre-existing limits, **not passed or waived**: same-role/runtime/project/ref runs share a ticket-label anchor (`3` run-keyed figures expected in the diagnostic, `2` actual including Jiao), in both appearances. Also, the existing concurrent-Bao visitor placement has actual body triangle intersections with both original and selected Bao (`pair-clearance.mjs/json`). These require an orchestrator-owned scope/follow-up decision. Exact identities and actions remain independent.
 
+At those identical observed visitor positions, selected posed bounds are contained within the original posed bounds on all three axes. Their conservative overlap-box extent shrinks from `[2.9234,4.5600,1.5829]` to `[2.1175,4.0200,.9259]` (box volume21.1008→7.8817). This does not estimate actual interpenetration volume or certify body clearance; it shows no expansion of that conservative occupied region. Original witness `[-2.82736,2.73794,-.78281]`; selected witness `[-3.28497,1.74917,-.75160]`. Root classified the unchanged placement problem as an orchestrator follow-up outside24.
+
 Old shipped geometry and portrait remain packaged. Native forced model+portrait failure selects legacy species/scale1.35 and original portrait. Baseline and selected states preserve identical resident anchors, camera target/position/zoom and current shell layout. Prior near/far/first-person/light/dark/native captures remain in the approved fitting receipt; new actual-stool captures accompany this continuation.
 
 ## Disposal and heap
