@@ -6,6 +6,10 @@ import {createBalancedPandaRig, WADDLE} from './panda-rig.mjs';
 import {RESIDENTS as definitions,boundAgentKey} from '../../shell/resident-inventory.mjs';
 import {RED_PANDA} from './character-profiles.mjs';
 import {walk} from '../procedural/walk.mjs';
+import {actorBindings} from './layout.mjs';
+import {agentFor,pickedCard} from '../../overlay/proximity-card.mjs';
+import {observeTools} from '../../state/tool-activity.mjs';
+import {liveActorsFromSnapshot} from '../../review/live-actors.mjs';
 function fixture(){
  const body=new T.Mesh(new T.BoxGeometry(2,3,1),new T.MeshStandardMaterial());body.position.y=1.5;
  const den={residents:new T.Group(),pandaRigs:new Map(),propManifest:definitions,roleWorkspaces:{workspaces:new Map()},walkWorld:{floorRadius:70,obstacles:[],navigation:{groundAt:()=>.26}}};
@@ -177,6 +181,37 @@ test('42 a meeting visitor never inherits the busy resident tool invocation',()=
   assert.equal(f.actors.actors.get('meeting:developer').live,null);
   assert.equal(f.actors.actors.get('developer').live.toolActivity.sources[0].runId,'run42');
   assert.equal(f.actors.actors.get('developer#work/2').live.toolActivity.sources[0].runId,'other42');
+ }finally{f.dispose();}
+});
+test('42 F3 busy-role meeting guest bubble and card resolve its own exact inspection source',()=>{
+ const f=fixture();try{
+  const busy={id:'busy-run42',role:'developer',runtime:'claude',project:'den',ref:'work/1',state:'working'};
+  const own={...busy,id:'meeting-run42',ref:'work/meeting'};
+  const source=run=>({project:'den',runtime:'claude',role:'developer',runId:run.id,entryId:1});
+  let ledger={};for(const run of [busy,own])ledger=observeTools(ledger,run.id,{kind:'tool',id:1,invocationId:`call-${run.id}`,name:'Read',summary:run.ref,status:'running',source:source(run)});
+  const rows=liveActorsFromSnapshot({agents:[busy,own]},{toolActivity:ledger,connection:{phase:'live'}});
+  const meeting={id:'meeting42',ref:own.ref,state:'running',seats:[{role:'developer'}]};
+  f.actors.applyLive(rows.filter(r=>r.agentId===busy.id));
+  f.actors.applyMeeting(meeting);
+  // Additive public contract: meeting context lets the binding map join the
+  // scene's actual actor IDs; existing two-argument callers remain supported.
+  const bindings=actorBindings(rows,new Map(),{meeting});
+  f.actors.applyLive(rows,bindings);
+  const guest=f.actors.actors.get('meeting:developer'),resident=f.actors.actors.get('developer');
+  assert.equal(guest.live.agentId,own.id,'the production actor routes the meeting run to its guest');
+  assert.equal(resident.live.agentId,busy.id,'the resident remains on its independent work');
+  // MeshyDen publishes tool anchors under actual scene actor IDs. ToolBubbleLayer
+  // joins those IDs to bindings; App joins the picked card ID to the same map.
+  const anchors=new Set(f.actors.actors.keys());
+  const bubbleIds=[...bindings].filter(([id,row])=>anchors.has(id)&&row.toolActivity).map(([id])=>id);
+  const pandas=[...f.actors.actors].map(([id,a])=>{
+   const identity={role:a.role,runtime:a.runtime,agentId:a.live?.agentId,ref:a.live?.ref};
+   return {id,...identity,state:a.live?.state,agent:agentFor(identity,[busy,own])};
+  });
+  const card=pickedCard(pandas,[],guest.panda.model.userData.actorKey);
+  assert.equal(card.agentId,own.id,'the actual guest card identifies its own run');
+  assert.deepEqual({guestBubble:bubbleIds.includes(card.id),guestInspection:bindings.get(card.id)?.toolActivity?.sources,residentInspection:bindings.get(resident.panda.model.userData.actorKey)?.toolActivity?.sources},
+   {guestBubble:true,guestInspection:[source(own)],residentInspection:[source(busy)]},'both public actor/card joins expose the guest exact source without borrowing the busy resident invocation');
  }finally{f.dispose();}
 });
 test('team-and-den-ux/23: a first-person walker beside a species resident can still walk away from it',()=>{
