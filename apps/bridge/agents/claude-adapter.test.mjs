@@ -428,7 +428,8 @@ describe("parseClaudeLine over the committed fixtures", () => {
         assert.equal(typeof e.summary, "string");
         assert.ok(e.summary.includes(summaries[i]), `summary ${JSON.stringify(e.summary)} should show ${summaries[i]}`);
         assert.ok(e.summary.length <= 200);
-        assert.deepEqual(Object.keys(e).sort(), ["id", "name", "summary", "type"], "a tool-start carries no full tool input");
+        assert.deepEqual(Object.keys(e).sort(), ["id", "input", "name", "summary", "type"]);
+        assert.ok(e.input && typeof e.input === "object", "a tool-start carries its recorded input");
         assert.match(e.id, /^toolu_/, "the tool_use id pairs a start with its result");
       });
       assert.equal(ofType(events, "tool-end").length, results);
@@ -576,11 +577,17 @@ describe("parseClaudeLine: transcript events (den-v1 loop S2)", () => {
       { type: "text", text: "   " },
       { type: "text", text: "Done looking." },
     ]));
-    assert.deepEqual(events, [
+    const withoutInput = events.map((event) => {
+      if (event.type !== "tool-start") return event;
+      const { input, ...rest } = event;
+      return rest;
+    });
+    assert.deepEqual(withoutInput, [
       { type: "text", text: "First I will look.\nThen write." },
       { type: "tool-start", id: "toolu_1", name: "Read", summary: "a.md" },
       { type: "text", text: "Done looking." },
     ]);
+    assert.deepEqual(JSON.parse(JSON.stringify(events.find((event) => event.type === "tool-start").input)), { file_path: "a.md" });
     assert.equal(JSON.stringify(events).includes("private reasoning"), false);
   });
 
@@ -619,7 +626,8 @@ describe("parseClaudeLine: transcript events (den-v1 loop S2)", () => {
 
   test("a tool_use with no usable id still starts, with an empty id; a text block that is not a string gives nothing", () => {
     const events = parse(assistant([{ type: "tool_use", id: 7, name: "Bash", input: { command: "ls" } }, { type: "text", text: { a: 1 } }]));
-    assert.deepEqual(events, [{ type: "tool-start", id: "", name: "Bash", summary: "ls" }]);
+    assert.deepEqual(events.map(({ input, ...event }) => event), [{ type: "tool-start", id: "", name: "Bash", summary: "ls" }]);
+    assert.deepEqual(JSON.parse(JSON.stringify(events[0].input)), { command: "ls" });
   });
 });
 

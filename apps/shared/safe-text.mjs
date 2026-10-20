@@ -1,4 +1,4 @@
-import { SECRET_PATTERNS, hasSecret } from "./secret-patterns.mjs";
+import { SECRET_PATTERNS } from "./secret-patterns.mjs";
 const MASK = "[masked: possible secret]";
 const UNSAFE = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/g;
 
@@ -59,7 +59,9 @@ export function safeToolInput(input, max = 16000) {
     for (const [key, v] of Object.entries(value)) {
       const name = cleanText(key);
       if (Object.hasOwn(out, name)) throw new Error("ambiguous input keys");
-      out[name] = typeof v === "string" && hasSecret(`${key}=${JSON.stringify(v)}`) ? MASK : walk(v, depth + 1);
+      // Mask a credential assignment as a whole, but preserve safe text around inline
+      // secrets in fields such as command. The string walker masks those spans.
+      out[name] = typeof v === "string" && cleanText(`${key}=${JSON.stringify(v)}`) === MASK ? MASK : walk(v, depth + 1);
     }
     return out;
   };

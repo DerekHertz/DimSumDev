@@ -103,7 +103,8 @@ function ToolRow({ row, onToggle }) {
       <span className="transcript-tool-status">{row.statusLabel}</span>
     </button>
     {row.expanded ? <div id={id} className="transcript-tool-body">
-      {row.inputText ? <pre className="transcript-well" aria-label="Input">{row.inputText}</pre> : null}
+      {row.inputText ? <><p className="transcript-detail-label">Input</p><pre className="transcript-well" aria-label="Input">{row.inputText}</pre></> : null}
+      <p className="transcript-detail-label">Result</p>
       {row.result ? <>
         <pre className="transcript-well" aria-label="Result">{row.result.text}</pre>
         {row.result.truncatedBytes ? <p className="transcript-truncated">Truncated, {row.result.truncatedBytes} more bytes</p> : null}
@@ -121,7 +122,7 @@ function Chips({ chips }) {
 
 // Every string a row shows (the agent's words, a reason, a note, a command) is untrusted and rendered as a text node.
 // den-mvp/37: an agent's question, answered here. Each option is a button; "Other" takes the user's own words.
-function QuestionRow({ row, who, client, disabled }) {
+function QuestionRow({ row, who, client, disabled, ...locator }) {
   const [picks, setPicks] = useState(() => emptyPicks(row.questions));
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(null);
@@ -137,7 +138,7 @@ function QuestionRow({ row, who, client, disabled }) {
     }
   };
   const off = disabled || busy || !row.answerable || !client;
-  return <li className="transcript-row transcript-permission transcript-asking transcript-question" role="group" aria-label={`${who} is asking you`}>
+  return <li {...locator} className="transcript-row transcript-permission transcript-asking transcript-question" role="group" aria-label={`${who} is asking you`}>
     <p className="transcript-waiting"><span className="transcript-glyph transcript-glyph-needs-you" aria-hidden="true" />{row.head}</p>
     {row.questions.map((q, qi) => <fieldset key={qi} className="question-set" disabled={off}>
       <legend>{q.header ? <span className="question-header">{q.header}</span> : null}{q.question}{q.multiSelect ? <span className="question-hint"> Pick any.</span> : null}</legend>
@@ -303,6 +304,11 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
   const [atBottom, setAtBottom] = useState(true);
   const [seenThrough, setSeenThrough] = useState(0);
   const [history, setHistory] = useState(NO_HISTORY);
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  const historyScope = useRef(null);
+  const historyGeneration = useRef(0);
+  const earlierPending = useRef(false);
   const [announcement, setAnnouncement] = useState("");
   const [sourceState, setSourceState] = useState(null);
   const focusedRequest = useRef(null);
@@ -327,29 +333,37 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
   // The role's earlier runs (den-mvp outcome 2): asked from the bridge when the thread opens or moves to a new run, a
   // page at a time. Demo mode and a page with no client read nothing.
   const canRead = !!agentId && !!role && !demo && typeof client?.getConversation === "function";
-  useEffect(() => {
-    if (!canRead) { setHistory(NO_HISTORY); return undefined; }
+  useLayoutEffect(() => {
+    const generation = ++historyGeneration.current;
+    earlierPending.current = false;
+    const scope = JSON.stringify([agentId, role, runtime, project]);
+    const previous = historyScope.current === scope ? historyRef.current : NO_HISTORY;
+    historyScope.current = scope;
+    if (!canRead) { setHistory(NO_HISTORY); setSourceState(panel.request ? "unavailable" : null); return undefined; }
     let stale = false;
     const request = panel.request;
     const target = request?.source;
     const valid = !request || sourceKey(target) && target.role === role && target.runtime === runtime && target.project === project;
     setSourceState(request ? valid ? "loading" : "unavailable" : null);
-    if (!valid) return undefined;
-    setHistory((h) => ({ ...h, loading: true, error: null }));
+    if (!valid) { setHistory(previous); return undefined; }
+    setHistory({ ...previous, loading: true, error: null });
     (async () => {
-      let entries = [], before, more = true;
+      let entries = previous.entries, before = previous.before ?? undefined, more = previous.more;
       const cursors = new Set();
+      if (before !== undefined) cursors.add(before);
       try {
         for (let reads = 0; reads < (request ? 3 : 1); reads += 1) {
+          if (request && [...entries, ...(buffer?.entries ?? [])].some(e => sameSource(e.source, target))) break;
+          if (previous !== NO_HISTORY && !previous.loading && !more) break;
           const page = await client.getConversation(role, { limit: HISTORY_PAGE, ...(before === undefined ? {} : { before }), ...(runtime ? { runtime } : {}), ...(project ? { project } : {}) });
-          if (stale) return;
+          if (stale || generation !== historyGeneration.current) return;
           entries = [...page.entries, ...entries];
           more = page.more === true;
           const repeated = cursors.has(page.before);
           before = page.before;
           cursors.add(before);
           const found = [...entries, ...(buffer?.entries ?? [])].filter(e => sameSource(e.source, target));
-          if (!request || found.length || !more || repeated) break;
+          if (!request || found.length || !more || repeated) { if (repeated) more = false; break; }
         }
         if (!stale) {
           setHistory({ entries, more, before, error: null, loading: false });
@@ -362,7 +376,7 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
         }
       }
     })();
-    return () => { stale = true; };
+    return () => { stale = true; historyGeneration.current += 1; };
   }, [canRead, agentId, role, runtime, project, client, panel.request]);
   useLayoutEffect(() => {
     const request = panel.request;
@@ -381,11 +395,13 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
     scroller.scrollTop += el.getBoundingClientRect().top - scroller.getBoundingClientRect().top;
   }, [sourceState, panel.request, list.entries]);
   const loadEarlier = () => {
-    if (!canRead || history.loading || !history.more) return;
+    if (!canRead || history.loading || !history.more || earlierPending.current) return;
+    const generation = historyGeneration.current;
+    earlierPending.current = true;
     setHistory((h) => ({ ...h, loading: true }));
     client.getConversation(role, { before: history.before, limit: HISTORY_PAGE, ...(runtime ? { runtime } : {}), ...(project ? { project } : {}) }).then(
-      (page) => setHistory((h) => ({ entries: [...page.entries, ...h.entries], more: page.more === true, before: page.before, error: null, loading: false })),
-      (err) => setHistory((h) => ({ ...h, loading: false, error: err?.reason ?? "Could not load earlier messages." })),
+      (page) => { if (generation === historyGeneration.current) { earlierPending.current = false; setHistory((h) => ({ entries: [...page.entries, ...h.entries], more: page.more === true && page.before !== h.before, before: page.before, error: null, loading: false })); } },
+      (err) => { if (generation === historyGeneration.current) { earlierPending.current = false; setHistory((h) => ({ ...h, loading: false, error: err?.reason ?? "Could not load earlier messages." })); } },
     );
   };
 

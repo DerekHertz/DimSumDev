@@ -14,7 +14,7 @@ function clipResult(result) {
   const bytes = new TextEncoder().encode(full);
   if (bytes.length <= RESULT_BYTES) return { text: full, truncatedBytes: 0 };
   const head = new TextDecoder().decode(bytes.slice(0, RESULT_BYTES)).replace(/�+$/, "");
-  return { text: head, truncatedBytes: bytes.length - RESULT_BYTES };
+  return { text: head, truncatedBytes: bytes.length - new TextEncoder().encode(head).length };
 }
 
 function inputText(input) {

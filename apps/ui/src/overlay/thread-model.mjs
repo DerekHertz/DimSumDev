@@ -6,7 +6,7 @@
 // A receipt says what was sent and what the agent did next. It never says the agent read or saw anything: the bridge
 // knows that a message was taken and an answer delivered, not what the agent made of it.
 import { transcriptView } from "./transcript-view.mjs";
-import { sourceKey } from "../../../shared/transcript-source.mjs";
+import { sourceKey, sameSource } from "../../../shared/transcript-source.mjs";
 
 const SAYS_MAX = 500;
 const INTENT_MAX = 200;
@@ -61,7 +61,21 @@ function expiresIn(expiresAt, nowMs) {
  */
 export function threadEntries({ history, buffer, agentId } = {}) {
   const live = Array.isArray(buffer?.entries) ? buffer.entries : null;
-  const past = (Array.isArray(history) ? history : []).filter((e) => e && typeof e === "object" && !(live && e.runId === agentId && live.some(row => row.id === e.id)));
+  const past = [];
+  const sources = new Map();
+  for (const e of Array.isArray(history) ? history : []) {
+    if (!e || typeof e !== "object") continue;
+    const key = sourceKey(e.source);
+    if (live?.some(row => key ? sameSource(e.source, row.source) : e.runId === agentId && row.id === e.id)) continue;
+    const at = key ? sources.get(key) : undefined;
+    if (at !== undefined && past[at].kind === e.kind) {
+      const previous = past[at];
+      if (e.kind !== "tool" || previous.status === "running" || e.status !== "running") past[at] = { ...previous, ...e };
+    } else {
+      if (key) sources.set(key, past.length);
+      past.push(e);
+    }
+  }
   const entries = [
     ...past.map((e, i) => ({ ...e, n: i - past.length })),
     ...(live ?? []).map((e, i) => ({ ...e, runId: agentId, n: Number.isFinite(e?.n) ? e.n : Number.isInteger(e?.id) ? e.id : i + 1 })),
