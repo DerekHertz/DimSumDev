@@ -1,6 +1,6 @@
 # Bao Meshy source choice — 2026-10-20
 
-The user rejected the local vertex-color candidate at `208f996` (“why does it look worse,use meshy please”). These two new sources are a visual choice checkpoint, with no selected replacement yet. The original shipped Bao remains the fallback. No scene asset, portrait, rig, manifest or runtime behavior changed in this revision.
+The user rejected the local vertex-color candidate at `208f996` (“why does it look worse,use meshy please”). These two new sources form the visual choice checkpoint. The user chose **A** (“Use A”) on 2026-10-20; A is selected for the next production stage, with final replacement acceptance pending. The original shipped Bao remains the fallback. No scene asset, portrait, rig, manifest or runtime behavior changed in this revision.
 
 The approved design is Bao in the header of ticket 15's `15-cast-r3.png`, not the rejected local portrait. No standalone approved Bao reference existed in the existing Meshy refs or design-worktree image inventory. Built-in imagegen isolated Bao from that sheet as `bao-reference.png`: broad giant-panda head/body, warm friendly face, jade crossed wrap, cream belly, brown belt/pouch, raised greeting paw; no other characters or text. This preparation preserves the chosen design, and is not a Meshy 2D task or paid Meshy stage. See `ledger.json` for input hashes and exact 3D texture guidance.
 
@@ -18,7 +18,7 @@ Both use standard Meshy 7, explicit `ai_model: meshy-7`, texture on, 2K, PBR off
 
 ## Review evidence
 
-Provider thumbnails are committed alongside this note and were inspected, as were local front, side and distant renders. Native Chrome loaded the actual GLBs in the same neutral Three scene at 1024×768. Both front faces remain friendly and the jade clothing reads at a distance. A exposes both paws and has a more upright, separated-limb silhouette; B keeps the reference's broad belly and greeting. The side views reveal incised fur-like marks and small surface artifacts that are less obvious in the provider thumbnail. B's lowered arm lies close to its side, so pose normalization/rig suitability remains to be established after selection. Neither source is accepted or topology-validated by its thumbnail.
+Provider thumbnails are committed alongside this note and were inspected, as were local front, side and distant renders. Native Chrome loaded the actual GLBs in the same neutral Three scene at 1024×768. Both front faces remain friendly and the jade clothing reads at a distance. A exposes both paws and has a more upright, separated-limb silhouette; B keeps the reference's broad belly and greeting. The side views reveal incised fur-like marks and small surface artifacts that are less obvious in the provider thumbnail. B's lowered arm lies close to its side, so pose normalization/rig suitability remains to be established after selection. A is selected as the source; neither delivered actor is accepted or topology-validated by its thumbnail.
 
 Rendered review files are under:
 `/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy`
@@ -35,7 +35,7 @@ Raw files and full CLI project/task snapshots are retained untracked in this wor
 `/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/`
 The GLBs are `candidate-a.glb` and `candidate-b.glb`; each project under `projects/` retains its owning task and resource. Full local task snapshots contain provider download URLs; only selected metadata and hashes are committed here. Recover expired downloads through the existing image-to-3d IDs, never by regeneration.
 
-**Next: user chooses A, B, or neither from the previews.** Stop before remesh, cleanup, rigging, fitting or adoption. After selection, the complete actor still needs ≤12k triangles, ≤6 draws, ≤32 bones, one 512px atlas plus aggregate performance, memory, fitting, states, matching 48/72 portraits and final user verdict. The 2K raw source is not a proposed runtime texture allowance; a later texture-memory tradeoff must be measured and agreed.
+**Next: a fresh developer stage uses selected A for the approved remesh and local rigging/integration path.** This revision stops before those operations; B remains a retained alternative. The selected source the complete actor still needs ≤12k triangles, ≤6 draws, ≤32 bones, one 512px atlas plus aggregate performance, memory, fitting, states, matching 48/72 portraits and final user verdict. The 2K raw source is not a proposed runtime texture allowance; a later texture-memory tradeoff must be measured and agreed.
 
 ## Validation and incidents
 

@@ -1,6 +1,6 @@
 {
   "ticket": "team-and-den-ux/24-bao",
-  "stage": "user source choice; not adopted",
+  "stage": "Candidate A chosen by user; production adoption pending",
   "date": "2026-10-20",
   "cli_version": "0.4.0",
   "api_origin": "https://api.meshy.ai",
@@ -218,5 +218,11 @@
         }
       ]
     }
-  ]
+  ],
+  "selected_candidate": "a",
+  "selection": {
+    "date": "2026-10-20",
+    "user_words": "Use A",
+    "relayed_by": "orchestrator root"
+  }
 }
