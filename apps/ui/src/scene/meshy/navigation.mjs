@@ -45,7 +45,7 @@ export function createSurfaceNavigation(objects,{placement=.18,floorRadius=29,fl
   column.spans=merged;
  }
  const columnAt=(x,z)=>columns.get(key(Math.floor(x/placement),Math.floor(z/placement)));
- function groundAt(x,z,previous=0,radius=.26){
+ function groundAt(x,z,previous=0,radius=.26,bodyHeight=BODY_HEIGHT){
   const center=columnAt(x,z),surfaces=[baseY,...(center?.surfaces||[])];
   const candidates=surfaces.filter(y=>y<=previous+STEP_UP+.015&&y>=previous-STEP_DOWN-.015).sort((a,b)=>b-a);
   for(const ground of candidates){
@@ -55,7 +55,7 @@ export function createSurfaceNavigation(objects,{placement=.18,floorRadius=29,fl
     // A body's leading edge can cover the next stair before its centre reaches
     // that tread. Include that short look-ahead; the centre still obeys STEP_UP.
     const neighborGround=dx||dz ? Math.max(ground,...(c?.surfaces||[]).filter(y=>y<=ground+STEP_UP+radius+.015)) : ground;
-    if(c?.spans.some(([lo,hi])=>hi>neighborGround+.12&&lo<ground+BODY_HEIGHT)){blocked=true;break;}
+    if(c?.spans.some(([lo,hi])=>hi>neighborGround+.12&&lo<ground+bodyHeight)){blocked=true;break;}
    }
    if(!blocked)return ground;
   }

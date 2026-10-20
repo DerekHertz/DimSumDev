@@ -45,9 +45,9 @@ export function createGardenNavigation(garden){
  root.traverse(n=>{n.geometry?.dispose();n.material?.dispose();});
  const inside=(x,z)=> (Math.abs(x)/46.4)**(2/.58)+(Math.abs(z+4)/41.4)**(2/.58)<1;
  const groundAt=nav.groundAt;
- return{obstacles,floorRadius:70,floorCenter:{x:0,z:-4},eyeHeight:1.82,navigation:{...nav,groundAt(x,z,previous=GROUND,radius=.26){
+ return{obstacles,floorRadius:70,floorCenter:{x:0,z:-4},eyeHeight:1.82,navigation:{...nav,groundAt(x,z,previous=GROUND,radius=.26,height=2.04){
   if(![[0,0],[radius,0],[-radius,0],[0,radius],[0,-radius]].every(([dx,dz])=>inside(x+dx,z+dz)))return null;
-  const y=groundAt(x,z,previous,radius);if(y===null)return null;
+  const y=groundAt(x,z,previous,radius,height);if(y===null)return null;
   const tea=garden.assets.tea.root.worldToLocal(new T.Vector3(x,0,z));if((tea.x-2.18)**2/1.72**2+(tea.z-.75)**2/1.43**2<1&&y<GROUND+.36)return null;
   const field=garden.landscape.root.worldToLocal(new T.Vector3(x,0,z));if(((field.x-5)/7.9)**2+((field.z-.6)/5.8)**2<1)return null;
   // The grove's stream is kept out of the walking surface, except on its footbridge.
