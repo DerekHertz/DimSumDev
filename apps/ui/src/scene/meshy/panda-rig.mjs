@@ -119,7 +119,7 @@ export function createRig(source, profile) {
   model.updateMatrixWorld(true);
   const skeleton = new T.Skeleton(boneList); skeleton.calculateInverses();
   const meshes = [], outfits = new T.Group(); outfits.name = 'Shared-rig outfit'; travelRoot.add(outfits);
-  const originalMaterials = new Map();
+  const originalMaterials = new Map(), authoredColors = new Map(), weightColors = new Map();
   const weightMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: .85 });
   let weightsVisible = false;
   function skinObject(object, parent, transform = new T.Matrix4(), headOnly = false) {
@@ -139,7 +139,9 @@ export function createRig(source, profile) {
         color.setHSL((indices[weights[0][0]] * .173) % 1, .62, .57); color.toArray(colors, i * 3);
       }
       geometry.setAttribute('skinIndex', new T.Uint16BufferAttribute(skinIndices, 4));
-      geometry.setAttribute('skinWeight', new T.Float32BufferAttribute(skinWeights, 4)); geometry.setAttribute('color', new T.Float32BufferAttribute(colors, 3));
+      geometry.setAttribute('skinWeight', new T.Float32BufferAttribute(skinWeights, 4));
+      const painted = geometry.getAttribute('color'), debug = new T.Float32BufferAttribute(colors, 3);
+      if (!painted) geometry.setAttribute('color', debug);
       const clone = material => {
         const result = material.clone();
         // Three's material clone omits these callbacks; the approved role colors use them.
@@ -153,6 +155,7 @@ export function createRig(source, profile) {
       parent.add(mesh); mesh.bind(skeleton, new T.Matrix4()); originalMaterials.set(mesh, materials);
       if (weightsVisible) mesh.material = weightMaterial;
       meshes.push(mesh);
+      authoredColors.set(mesh, painted); weightColors.set(mesh, debug);
     });
   }
   skinObject(source, travelRoot, normalize);
@@ -257,7 +260,10 @@ export function createRig(source, profile) {
   }
   function setWeightColors(visible) {
     weightsVisible = visible;
-    for (const mesh of meshes) mesh.material = visible ? weightMaterial : originalMaterials.get(mesh);
+    for (const mesh of meshes) {
+      mesh.material = visible ? weightMaterial : originalMaterials.get(mesh);
+      mesh.geometry.setAttribute('color', visible ? weightColors.get(mesh) : authoredColors.get(mesh) || weightColors.get(mesh));
+    }
   }
   function dispose() {
     const materials = new Set([weightMaterial]);

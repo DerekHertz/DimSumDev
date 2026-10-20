@@ -1,6 +1,6 @@
 // Literal local URLs let the asset graph verify every runtime portrait.
 export const ROLE_PORTRAITS = Object.freeze({
-  orchestrator:'/den/portraits/orchestrator.webp',
+  orchestrator:'/den/portraits/bao-jade.webp',
   product:'/den/portraits/product.webp',
   architect:'/den/portraits/architect.webp',
   // team-and-den-ux/23: species portraits; both runtimes share the body (labels tell them apart). The old
@@ -35,3 +35,7 @@ export const ROLE_PORTRAITS = Object.freeze({
   'codex:sre':'/den/portraits/codex-sre.webp',
   'codex:technical-writer':'/den/portraits/technical-writer-cloud-dragon.webp',
 });
+
+// Retained until the user accepts Bao. The cached portrait can fail independently
+// of the model; the old art keeps its fixed-size space and accessible role label.
+export const ROLE_PORTRAIT_FALLBACKS = Object.freeze({orchestrator:'/den/portraits/orchestrator.webp'});

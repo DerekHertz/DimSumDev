@@ -584,7 +584,21 @@
         }
       ],
       "roleId": "technical-writer"
+    },
+    "characters.bao": {
+      "url": "/den/models/characters/bao.glb.gz",
+      "kind": "character",
+      "characterId": "bao",
+      "roleId": "orchestrator",
+      "runtime": "claude",
+      "sourceFilename": "bao.glb.gz (local simplified reuse)",
+      "triangles": 7890,
+      "bytes": 211492,
+      "decodedBytes": 350804,
+      "sha256": "ad4b885a8e9f5b774bc5ea93e8516bedf64387d1f089646f0e4ebdc6e34424a0",
+      "compression": "gzip",
+      "textures": []
     }
   },
-  "bytes": 27052078
+  "bytes": 27263570
 }

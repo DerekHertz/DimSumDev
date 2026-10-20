@@ -1,0 +1,25 @@
+{
+  "ticket": "team-and-den-ux/24-bao",
+  "method": "Offline face-preserving simplification of shipped Balanced Bao; UV colour sampled to vertices; source-fitted flat jade sash and pouch; existing code rig",
+  "source": "apps/ui/public/den/models/bao.glb.gz",
+  "sourceSha256": "793118be3b0c3fa311a9baf21081e7482c713abf60a564333726527b06cc616c",
+  "builder": "apps/ui/assets-src/den/build-bao.mjs",
+  "preservedFaceTriangles": 2549,
+  "meshyTasks": [],
+  "meshyCredits": 0,
+  "purchases": 0,
+  "output": {
+    "url": "/den/models/characters/bao.glb.gz",
+    "kind": "character",
+    "characterId": "bao",
+    "roleId": "orchestrator",
+    "runtime": "claude",
+    "sourceFilename": "bao.glb.gz (local simplified reuse)",
+    "triangles": 7890,
+    "bytes": 211492,
+    "decodedBytes": 350804,
+    "sha256": "ad4b885a8e9f5b774bc5ea93e8516bedf64387d1f089646f0e4ebdc6e34424a0",
+    "compression": "gzip",
+    "textures": []
+  }
+}
