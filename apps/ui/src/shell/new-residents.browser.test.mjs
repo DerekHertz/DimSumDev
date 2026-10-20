@@ -38,7 +38,8 @@ test('four seated charter roles open real scene cards and bind only their exact 
    const pandas={};world.traverse(node=>{if(node.userData.actorKey)pandas[node.userData.actorKey]=node;});window.charterProbe={state,world,pandas,mountedFrame:state.gl.info.render.frame};return Object.keys(pandas).length===32;
   });
   // World readiness precedes walk-controller and proximity initialization.
-  // Observe the mounted frame before picking, as the paired-resident smoke does.
+  // Demand rendering needs an explicit frame request before this readiness gate.
+  await page.evaluate(()=>window.charterProbe.state.invalidate());
   await page.waitForFunction(()=>{const probe=window.charterProbe;return probe.state.gl.info.render.frame>probe.mountedFrame;});
   const pick=async id=>{
    await page.evaluate(id=>{const {world,pandas}=window.charterProbe;world.__r3f.handlers.onClick({object:pandas[id],stopPropagation(){}});},id);
