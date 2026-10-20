@@ -248,21 +248,26 @@ describe("createChecks().run", () => {
 
   test("runs go one at a time, and a run past its deadline is red with the reason", async () => {
     const { repo, sha, recordDir } = repoFixture();
-    let inside = 0, most = 0;
+    // Counted by commit: one run's audit box runs beside its test box, but two commits' boxes never overlap.
+    git(repo, "commit", "-q", "--allow-empty", "-m", "second");
+    const other = git(repo, "rev-parse", "HEAD");
+    const inside = new Map();
+    let most = 0;
     const slow = fakeLauncherWithCwd({ allPass: () => true });
     const launch = slow.launch;
     slow.launch = async (input) => {
-      inside += 1;
-      most = Math.max(most, inside);
+      const argv = input.args.join(" ");
+      const commit = [sha, other].find((s) => argv.includes(s) || argv.includes(`check-${s.slice(0, 12)}`));
+      inside.set(commit, (inside.get(commit) ?? 0) + 1);
+      most = Math.max(most, [...inside.values()].filter((n) => n > 0).length);
       const res = await launch(input);
-      res.child.once("exit", () => (inside -= 1));
+      res.child.once("exit", () => inside.set(commit, inside.get(commit) - 1));
       return res;
     };
     const checks = createChecks({ repo, launcher: slow, recordDir, bwrap: process.execPath });
-    git(repo, "commit", "-q", "--allow-empty", "-m", "second");
-    const other = git(repo, "rev-parse", "HEAD");
     const [a, b] = await Promise.all([checks.run({ sha }), checks.run({ sha: other })]);
     assert.deepEqual([a.state, b.state], ["green", "green"]);
+    assert.ok(!inside.has(undefined) && inside.size === 2, "every box was matched to its commit");
     assert.equal(most, 1, "the two commits' jobs never ran at the same time");
 
     const hung = { enforced: true, launch: async () => {
@@ -272,6 +277,24 @@ describe("createChecks().run", () => {
     const late = await createChecks({ repo, launcher: hung, recordDir: path.join(recordDir, "late"), bwrap: process.execPath, deadlineMs: 300 }).run({ sha });
     assert.equal(late.state, "red");
     assert.match(late.reason, /past their 0-minute limit|past their/);
+  });
+
+  test("the audit runs alongside the test jobs, not after them, and the record keeps ci.yml's job order", async () => {
+    const { repo, sha, recordDir } = repoFixture();
+    const inner = fakeLauncherWithCwd({ allPass: () => true });
+    let auditStarted;
+    const auditLaunched = new Promise((resolve) => (auditStarted = resolve));
+    const isAudit = (args) => args.includes("audit");
+    const launcher = { enforced: true, launch: async (opts) => {
+      if (isAudit(opts.args.slice(opts.args.indexOf("--") + 1))) auditStarted(true);
+      // The rest job waits (up to five seconds) for the audit to start: run one after the other, the audit never would.
+      else if (opts.args.some((a) => String(a).includes("split().rest"))) launcher.overlapped = await Promise.race([auditLaunched, new Promise((r) => setTimeout(() => r(false), 5000))]);
+      return inner.launch(opts);
+    } };
+    const rec = await createChecks({ repo, launcher, recordDir, bwrap: process.execPath }).run({ sha });
+    assert.equal(launcher.overlapped, true, "the audit started while the test job was still waiting to run");
+    assert.equal(rec.state, "green");
+    assert.deepEqual(rec.jobs.map((j) => j.name), ["test", "test-browser", "audit"]);
   });
 
   test("a full commit id is required", async () => {
