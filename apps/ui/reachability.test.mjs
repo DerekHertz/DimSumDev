@@ -4,7 +4,8 @@
 // The import graph is built from the sources, never from file names.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, readdirSync, readFileSync, statSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, extname, join, relative, resolve } from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -67,6 +68,49 @@ function mountsLiveApp(file) {
   const text = readFileSync(file, "utf8");
   return /apps\/ui\/vite\.config\.mjs/.test(text) && /createServer\s*\(/.test(text) && /\.goto\s*\(/.test(text);
 }
+
+test("live-App recognition accepts UI dev and production browser sources and rejects incomplete lookalikes", async (t) => {
+  const dir = mkdtempSync(join(tmpdir(), "live-app-recognition-"));
+  t.after(() => rmSync(dir, { recursive: true, force: true }));
+  const browserSetup = `
+    import { chromium } from 'playwright';
+    const browser = await chromium.launch();
+    const context = await browser.newContext();
+    const page = await context.newPage();
+  `;
+  const production = `
+    import { build, preview } from 'vite';
+    const config = { configFile: 'apps/ui/vite.config.mjs', configLoader: 'native' };
+    await build(config);
+    const server = await preview({ ...config, preview: { port: 0 } });
+    ${browserSetup}
+    await page.goto(server.resolvedUrls.local[0]);
+  `;
+  const development = `
+    import { createServer } from 'vite';
+    const server = await createServer({ configFile: 'apps/ui/vite.config.mjs' });
+    await server.listen();
+    ${browserSetup}
+    await page.goto(server.resolvedUrls.local[0]);
+  `;
+  const cases = [
+    ["existing createServer browser route", development, true],
+    ["production build plus preview browser route", production, true],
+    ["build only without preview", production.replace("const server = await preview({ ...config, preview: { port: 0 } });", ""), false],
+    ["preview server without navigation", production.replace("await page.goto(server.resolvedUrls.local[0]);", ""), false],
+    ["development server without navigation", development.replace("await page.goto(server.resolvedUrls.local[0]);", ""), false],
+    ["preview with a different Vite config", production.replace("apps/ui/vite.config.mjs", "apps/other/vite.config.mjs"), false],
+    ["generic preview without the UI config", production.replace("configFile: 'apps/ui/vite.config.mjs', ", ""), false],
+    ["preview and navigation without browser page setup", production.replace(browserSetup, ""), false],
+  ];
+  for (const [name, source, expected] of cases) {
+    await t.test(name, () => {
+      const file = join(dir, `${name.replaceAll(/[^a-z]+/gi, "-")}.test.mjs`);
+      writeFileSync(file, source);
+      assert.equal(mountsLiveApp(file), expected, name);
+    });
+  }
+});
 
 function reachableFromEntry() {
   const seen = new Set();
