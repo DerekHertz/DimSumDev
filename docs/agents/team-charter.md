@@ -38,13 +38,14 @@ No ceremony: a task calls only the roles it needs. The planner's rules name the 
 - **Plain docs:** the writer and the owner's review.
 - **Research or design:** the owner's review, and the user's verdict where the ticket asks for one.
 
-A code ticket today (after team-and-den-ux/02): (qa `specify` on a risk-path ticket, until 19) → engineer → code reviewer, then qa, at the same commit (in parallel from 18) → one fix round with both findings → `risk-check`, security on a hit → the release manager's steps: push, PR, merge on green. The user merges a user-merge-list change.
+A code ticket today (after team-and-den-ux/02): (qa `specify` on a risk-path ticket, until 19) → engineer → code reviewer, then qa, at the same commit (in parallel from 18) → one fix round with both findings → `risk-check`, security on a hit → the release manager's steps: push, PR, merge on green. The user merges a user-merge-list change. Every PR body, whoever opens it, follows the `pr-writing` skill: What changes, System map, Risk, Evidence.
 
 ## Independent review
 
 - Nobody reviews their own work or their own subtree. The code reviewer and qa never review a commit they wrote.
 - Both reviews are tied to one candidate commit. A new commit runs both again.
 - One fix round carries both reviews' findings. A second fix round from either reviewer pauses the ticket as failed twice.
+- Review converges. The code reviewer tags each finding Important, Nit or Pre-existing, and only Important bounces. A fix-round review reads only the fix, never repeats a finding, and names a bug class so one round fixes every instance. The engineer answers each finding fixed, wrong, intentional or didn't matter, and `pipeline-retro` counts those answers as the reviewer's noise.
 
 ## The user's approval points
 
