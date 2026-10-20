@@ -46,12 +46,12 @@ export function createMeshyActors(den){
   actors.set(key,actor);return actor;
  }
  function applyLive(rows=[],sharedBindings=null){
-  bindings=sharedBindings ? new Map(sharedBindings) : actorBindings(rows,bindings);
+  bindings=sharedBindings ? new Map(sharedBindings) : actorBindings(rows,bindings,{meeting});
   for(const [key,a]of actors)if(a.visitor&&!bindings.has(key)){den.destroyPanda(a.panda.model);actors.delete(key);}
-  const guestFor=row=>{const a=actors.get(holders.get(row.role));return runtimeOf(row)==='claude'&&a?.guest&&row.ref===meeting?.ref?a:null;};
-  for(const [key,row]of bindings){if(!actors.has(key)&&guestFor(row))continue;const a=actors.get(key)||addVisitor(key,row);if(a)a.live=row;}
+  // Meeting bodies are created/seated by applyMeeting, never as generic visitors.
+  for(const [key,row]of bindings){if(!actors.has(key)&&key.startsWith('meeting:'))continue;const a=actors.get(key)||addVisitor(key,row);if(a)a.live=row;}
   for(const [key,a]of actors){
-   a.live=a.guest?[...bindings.values()].find(row=>guestFor(row)===a)||null:bindings.get(key)||null;a.state=a.live?.state||'idle';a.activity=a.live?.activity||(a.role==='orchestrator'?'Hosting the Den':'At the workspace');
+   a.live=bindings.get(key)||null;a.state=a.live?.state||'idle';a.activity=a.live?.activity||(a.role==='orchestrator'?'Hosting the Den':'At the workspace');
    if(a.live)routines.interrupt(a);
    a.panda.model.userData.ticketRef=a.live?.ref;delete a.panda.model.userData.selected;
   }
@@ -81,6 +81,9 @@ export function createMeshyActors(den){
    const a=actors.get(key);
    if(a.seat?.x!==spot.x||a.seat?.z!==spot.z){routines.cancel(a);a.seat=spot;a.seatRole=role;a.leaving=false;travel(a,spot);}
   }
+  // Join the newly created guest immediately, and move returning meeting runs
+  // back to their ordinary visitor/resident identity when the table clears.
+  applyLive([...bindings.values()]);
  }
  // The models the label layer hangs a seat's label over, by role; Bao is 'orchestrator'.
  function seatModels(){const out=new Map();for(const [role,key]of holders){const a=actors.get(key);if(a)out.set(role,a.panda.model);}const bao=actors.get('orchestrator');if(bao)out.set('orchestrator',bao.panda.model);return out;}

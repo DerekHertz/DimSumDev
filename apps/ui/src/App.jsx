@@ -107,7 +107,7 @@ export function App() {
   const engaged = exploring || picked != null;
   const now = useNow();
   const previousBindings = useRef(new Map());
-  const bindings = useMemo(() => actorBindings(liveActorsFromSnapshot(snapshot, { toolActivity: inDemo ? {} : live.toolActivity, connection }), previousBindings.current), [snapshot, live.toolActivity, inDemo, connection]);
+  const bindings = useMemo(() => actorBindings(liveActorsFromSnapshot(snapshot, { toolActivity: inDemo ? {} : live.toolActivity, connection }), previousBindings.current, {meeting: tableMeeting(snapshot?.meetings, now)}), [snapshot, live.toolActivity, inDemo, connection, now]);
   useEffect(() => { previousBindings.current = bindings; }, [bindings]);
   const requests = useMemo(() => needsYouModel(snapshot, now).requests, [snapshot, now]);
   const onNearby = useCallback(card => setNearby(previous => JSON.stringify(previous) === JSON.stringify(card) ? previous : card), []);

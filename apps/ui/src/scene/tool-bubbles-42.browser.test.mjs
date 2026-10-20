@@ -79,6 +79,25 @@ test('42 production App: real observations, exact/count keyboard inspection, lif
   await page.evaluate(()=>window.tool42offline());await page.waitForFunction(()=>document.querySelectorAll('.tool-bubble').length===0);
   await page.evaluate(s=>window.tool42emit('snapshot',s),{...snapshot,seq:3,transcripts:{[run]:{entries:[tool(2,{status:'ended'}),tool(3,{status:'failed'})]}}});
   assert.equal(await page.locator('.tool-bubble').count(),0);
+  // The real scene seats a busy role's meeting run on meeting:developer. The
+  // production bubble must join that guest's actual anchor and inspect its run.
+  await page.setViewportSize({width:1440,height:900});
+  await page.getByRole('button',{name:'Close conversation',exact:true}).click();
+  await page.locator('[data-rail=team]').click();
+  const guestRun='c-0011223344556643',guestSource={project:'den',runtime:'claude',role:'developer',runId:guestRun,entryId:7};
+  const busy=snapshot.agents.find(a=>a.id==='developer42'),guest={...busy,id:guestRun,ref:'fx/46'};
+  const guestSnapshot={...snapshot,seq:4,agents:[busy,guest],meetings:[{id:'meeting42',ref:guest.ref,state:'running',startedAt:'2026-10-20T01:00:00Z',seats:[{role:'developer',status:'waiting'}],live:{role:'developer'}}],transcripts:{
+   [busy.id]:snapshot.transcripts[busy.id],
+   [guestRun]:{entries:[tool(7,{source:guestSource,invocationId:'guest-own-call42',summary:'Guest42 own source'})],dropped:0},
+  }};
+  await page.evaluate(s=>window.tool42emit('snapshot',s),guestSnapshot);
+  const guestBubble=page.getByRole('button',{name:'Inspect 1 active tool call for developer: Read · Guest42 own source',exact:true});
+  await guestBubble.waitFor({state:'visible'});
+  await guestBubble.focus();await page.keyboard.press('Enter');
+  await page.locator('[data-sheet=side] [aria-current=location]').waitFor();
+  assert.equal(await page.locator('[data-sheet=side] [aria-current=location]').getAttribute('data-source'),JSON.stringify(['den','claude','developer',guestRun,7]));
+  assert.equal(await page.locator('[data-sheet=side] .transcript-tool-head[aria-expanded=true]').count(),1);
+  if(process.env.TOOL42_EVIDENCE_DIR)for(const colorScheme of ['light','dark']){await page.emulateMedia({colorScheme});await page.screenshot({path:`${process.env.TOOL42_EVIDENCE_DIR}/guest-inspection-${colorScheme}.png`});}
   assert.deepEqual(errors,[]);assert.deepEqual(posts,[]);assert.equal(await page.evaluate(()=>window.tool42streams.size),1);
   t.diagnostic(process.env.TOOL42_EVIDENCE_DIR?'Production WebGL captures with synthetic correlated observations; actual assets rendered.':'Production App interactions, rasterization omitted; no pixel evidence claimed.');
   await context.close();
