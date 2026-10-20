@@ -1,0 +1,8 @@
+// <=15s read-only capability check of the exact logger, without Chrome or GPU.
+const fs=require('node:fs'),path=require('node:path'),assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
+const out=path.join(__dirname,'cpu-counters-preflight.json');assert.ok(!fs.existsSync(out),'Refuse preflight overwrite');
+const raw=execFileSync('C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe',['-NoProfile','-NonInteractive','-File',path.join(__dirname,'cpu-counters.ps1'),'-DurationSeconds','10'],{encoding:'utf8',timeout:15000,maxBuffer:1048576,windowsHide:true});
+const rows=raw.trim().split(/\r?\n/).map(line=>JSON.parse(line.replace(/^\uFEFF/,'')));
+assert.ok(rows.length>=1&&rows.length<=3,'bounded preflight sample count');
+for(const row of rows){assert.equal(row.source,'Win32_PerfFormattedData_Counters_ProcessorInformation');assert.ok(Number.isFinite(Date.parse(row.utcBegin))&&Number.isFinite(Date.parse(row.utcEnd)));assert.ok(row.monotonicEndMs>=row.monotonicBeginMs);assert.ok(row.queryWallMs>=0);assert.equal(row.cadenceMs,5000);assert.equal(row.available,true,'Aggregate counter unavailable; limitation, stop');for(const field of ['ProcessorFrequency','PercentProcessorUtility','PercentProcessorPerformance','PercentIdleTime'])assert.ok(typeof row.values[field]==='string'&&Number.isFinite(Number(row.values[field])),'Missing counter '+field);}
+fs.writeFileSync(out,JSON.stringify({kind:'Read-only exact CPU logger functional preflight; no browser/GPU timing',rows},null,2)+'\n',{flag:'wx'});console.log(JSON.stringify({rows:rows.length,available:true,output:'cpu-counters-preflight.json'}));

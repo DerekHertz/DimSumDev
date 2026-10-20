@@ -1,0 +1,41 @@
+const fs=require('node:fs'),path=require('node:path'),crypto=require('node:crypto'),assert=require('node:assert/strict');
+const {once}=require('./cpu-diagnostic-core.cjs');
+const sha=bytes=>crypto.createHash('sha256').update(bytes).digest('hex');
+function nativeSource(){
+ let s=fs.readFileSync(__dirname+'/same-context-calibration.cjs','utf8');
+ s=once(s,"const {validateRow,combinedCpu}=require('./performance-resume.cjs');","const {validateRow,combinedCpu}=require('./performance-resume.cjs');\nconst {correlate,DeadlineScope,closeOwnedServer}=require('./cpu-diagnostic-core.cjs');\nconst {Diagnostic}=require('./cpu-diagnostic-runtime.cjs');");
+ s=once(s,"const instrumentation=new Function('reference',original.slice(start,end)+'return instrumentation;')(reference);","const collector=original.slice(start,end).replace('const instrumentation=new Function','source=correlate(source);const instrumentation=new Function');\n const instrumentation=new Function('reference','correlate',collector+'return instrumentation;')(reference,correlate);");
+ s=once(s,'ops.persist(row);ops.validate(row);','ops.persist(row);ops.validate(row);await ops.finalize(row);');
+ s=once(s,"'/calibration-raw.json'","'/cpu-diagnostic-raw.json'");
+ s=once(s,'assert.equal(plan.overallBoundMs,420000);','assert.equal(plan.overallBoundMs,420000);assert.equal(plan.operationDeadlineMs,410000);assert.equal(plan.totalOutputCapBytes,67108864);assert.equal(plan.cpuCadenceMs,5000);assert.deepEqual(plan.categories,[\'toplevel\',\'devtools.timeline\',\'v8\',\'blink.user_timing\']);');
+ s=once(s,"const save=()=>fs.writeFileSync(rawFile,JSON.stringify(result)),{instrumentation,fixture}=loadCollectors();let browser,poll;","const scope=new DeadlineScope(410000),diagnostic=new Diagnostic(output,scope);\n result.nodeClockAnchor={utc:new Date().toISOString(),monotonicMs:performance.now()};\n const save=()=>diagnostic.save(result),{instrumentation,fixture}=loadCollectors();let browser,page;");
+ s=once(s,'result.nodeClockAnchor={','assert.ok(!fs.existsSync(output+\'/capture-attempt.json\'),\'Single capture already attempted; no retry\');\n diagnostic.sink.write(\'capture-attempt.json\',JSON.stringify({startedAt:result.startedAt}));\n result.nodeClockAnchor={');
+ const begin=s.indexOf(' let rejectDeadline;'),end=s.indexOf('  const {chromium}=',begin);assert.ok(begin>0&&end>begin);
+ s=s.slice(0,begin)+' try{await scope.run(async()=>{\n'+s.slice(end);
+ s=once(s,"browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,args:['--enable-precise-memory-info']});", "const owned=await scope.own(chromium.launchServer({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,args:['--enable-precise-memory-info']}).then(server=>({server,close:()=>closeOwnedServer(server)})));browser=await chromium.connect(owned.server.wsEndpoint());scope.check();result.counterBrackets=diagnostic.brackets;await diagnostic.collectCounters('pre');");
+ s=once(s,'warm:ms=>page.waitForTimeout(ms),','warm:ms=>{diagnostic.assertNoCounters();return page.waitForTimeout(ms);},');
+ s=once(s,'  result.finishedAt=new Date().toISOString();','  await diagnostic.collectCounters(\'post\');result.finishedAt=new Date().toISOString();');
+ s=once(s,'const page=await context.newPage(),snapshot=fixture(true,true);','page=await context.newPage();const snapshot=fixture(true,true);');
+ s=once(s,"result.gpu=(await(await browser.newBrowserCDPSession()).send('SystemInfo.getInfo')).gpu;",'');
+ s=once(s,'const cdp=await context.newCDPSession(page);let before,clocks=[];','const cdp=await context.newCDPSession(page),traceCDP=await browser.newBrowserCDPSession();let before,clocks=[];');
+ const clockBegin=s.indexOf('  const clock=()=>'),clockEnd=s.indexOf('\n  await runBlocks',clockBegin);assert.ok(clockBegin>0&&clockEnd>clockBegin);
+ s=s.slice(0,clockBegin)+"  traceCDP.on('Tracing.bufferUsage',event=>{if(event.percentFull>=.95)scope.cancel(Error('Trace buffer near full; partial retained'));});\n"+s.slice(clockEnd);
+ const sampleBegin=s.indexOf('   sample:async ms=>'),sampleEnd=s.indexOf('\n   drain:',sampleBegin);assert.ok(sampleBegin>0&&sampleEnd>sampleBegin);
+ s=s.slice(0,sampleBegin)+"   sample:async ms=>{scope.check();await diagnostic.start(traceCDP);try{await page.evaluate(()=>{const p=__cast22;p.records=[];p.gpu=[];p.anim=[];p.disjoint=0;p.querySamples=[];p.traceAnchorAt=performance.mark('bao24-cpu-start').startTime;p.den.__bao24Observer.setCollecting(true);p.collect=true;});await page.waitForTimeout(ms);}finally{await page.evaluate(()=>{__cast22.collect=false;__cast22.den.__bao24Observer.setCollecting(false);__cast22.traceEndAt=performance.mark('bao24-cpu-end').startTime;});}},"+s.slice(sampleEnd);
+ s=once(s,'return {ownership:o.snapshot(),','return {pageClock:{timeOrigin:performance.timeOrigin,now:performance.now(),utcMs:Date.now()},querySamples:p.querySamples,traceAnchorAt:p.traceAnchorAt,traceEndAt:p.traceEndAt,ownership:o.snapshot(),');
+ s=once(s,'persist:row=>{result.scenarios.push(row);save();},','persist:row=>{result.scenarios.push(row);save();},\n   finalize:async row=>{await diagnostic.finish(row);save();},');
+ s=once(s,'validate:row=>{validateRow(row);','validate:row=>{validateRow(row);assert.equal(row.querySamples.length,row.gpuMs.length);row.querySamples.forEach((q,i)=>{assert.equal(q.elapsedMs,row.gpuMs[i]);assert.ok(q.endAt>=q.beginAt&&q.resolvedAt>=q.endAt);});');
+ s=once(s," })()]);\n }catch(error){result.failure=error.stack;save();throw error;}finally{if(poll)clearInterval(poll);clearTimeout(deadline);await browser?.close();save();}"," },async()=>{await diagnostic.close();if(diagnostic.active&&page){let partialTimer;try{result.partialSample=await Promise.race([page.evaluate(()=>{const p=__cast22;p.collect=false;return {records:p.records,gpuMs:p.gpu,querySamples:p.querySamples,animationCpu:p.anim,pendingQueries:p.pending.length,traceAnchorAt:p.traceAnchorAt,partial:true};}),new Promise((_,reject)=>{partialTimer=setTimeout(()=>reject(Error('Partial row read bound')),1000);})]);save();}catch{}finally{clearTimeout(partialTimer);}}});\n }catch(error){result.failure=error.message;try{save();}catch{}throw error;}finally{try{save();}catch{}diagnostic.status({finishedAt:new Date().toISOString(),failure:result.failure??null,rows:result.scenarios.length,outputBytesBeforeStatus:diagnostic.sink.bytes,cleanupReached:true,browserConnected:browser?.isConnected()??false});}");
+ s=once(s,"kind:'Same-context original/original calibration ONLY'","kind:'CPU scheduling diagnostic original/original ONLY; instrumentation overhead; no acceptance'");
+ new Function(s);return s;
+}
+async function prepare(output){
+ assert.ok(output&&!fs.existsSync(output),'Explicit new directory; no retries');const {calibrationPlan}=await import('./same-context-observer.mjs');
+ const plan={...calibrationPlan(),kind:'One CPU scheduling diagnostic; fresh Ready required; no asset acceptance',overallBoundMs:420000,operationDeadlineMs:410000,totalOutputCapBytes:67108864,cpuCadenceMs:5000,counterPlacement:'Exactly two pre and two post samples at5s cadence outside all warmup/sample windows; await helper exit. No continuous CIM logger; first preflight query1202.4ms, second289.3ms wall overhead. Coarse bracket observations cannot attribute per-frame frequency/load.',categories:['toplevel','devtools.timeline','v8','blink.user_timing'],recordedAt:new Date().toISOString(),files:{}};
+ fs.mkdirSync(output,{recursive:true});const files=['cpu-diagnostic-core.cjs','cpu-diagnostic-runtime.cjs','cpu-counters.ps1','cpu-counters-preflight.cjs','native-performance.cjs','capture-review.cjs','performance-resume.cjs'];
+ for(const name of files){const bytes=fs.readFileSync(path.join(__dirname,name));plan.files[name]=sha(bytes);fs.writeFileSync(path.join(output,name),bytes,{flag:'wx'});}
+ const source=nativeSource();plan.files['native-cpu-diagnostic.cjs']=sha(source);fs.writeFileSync(path.join(output,'native-cpu-diagnostic.cjs'),source,{flag:'wx'});
+ fs.writeFileSync(path.join(output,'calibration-plan.json'),JSON.stringify(plan,null,2)+'\n',{flag:'wx'});return plan;
+}
+module.exports={nativeSource,prepare};
+if(require.main===module)prepare(process.argv[2]).then(p=>console.log(JSON.stringify(p,null,2))).catch(e=>{console.error(e.message);process.exitCode=1;});
