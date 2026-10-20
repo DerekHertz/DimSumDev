@@ -1,0 +1,27 @@
+{
+  "about": "The system map a PR body draws (informative-prs/01, scripts/pr-map.mjs). Areas are listed in map order; every git-tracked file belongs to exactly one area (scripts/pr-map.test.mjs). Inside an area a module is a file (its tests fold into it) unless the path sits under one of the area's folders, where each child folder is one module. Links are the dependencies imports can't show: from depends on to.",
+  "areas": [
+    { "id": "ui", "paths": ["apps/ui/**", "packages/character-director/**"], "folders": ["apps/ui/public/den", "apps/ui/assets-src"] },
+    { "id": "bridge", "paths": ["apps/bridge/**"] },
+    { "id": "router", "paths": ["apps/router/**"] },
+    { "id": "board", "paths": ["apps/board/**", "packages/board-refs/**"] },
+    { "id": "shared", "paths": ["apps/shared/**"] },
+    { "id": "scripts", "paths": ["scripts/*", "scripts/jev-evals/**"] },
+    { "id": "guardrails", "paths": ["scripts/hooks/**", ".claude/settings.json", ".codex/hooks.json", ".codex/config.toml", ".gitleaks.toml"] },
+    { "id": "ci-cd", "paths": ["apps/ci-cd/**", ".github/**", ".claude/launch.json"] },
+    { "id": "roles", "paths": [".claude/agents/**", ".codex/agents/**", ".claude/commands/**", "CLAUDE.md", "AGENTS.md"] },
+    { "id": "skills", "paths": [".claude/skills/**", ".agents/skills/**", ".claude/.claude-plugin/**", ".claude-plugin/**", "skills-lock.json"], "folders": [".claude/skills", ".agents/skills"] },
+    { "id": "mods", "paths": ["mods/**"], "folders": ["mods"] },
+    { "id": "docs", "paths": ["docs/**", "CONTEXT.md", "README.md", "design-brief.md", "LICENSE", "NOTICE"], "folders": ["docs/images", "docs/videos"] },
+    { "id": "design", "paths": ["design/**"], "folders": ["design/3d"] },
+    { "id": "repo", "paths": ["package.json", "package-lock.json", ".gitignore", ".gitattributes"] }
+  ],
+  "links": [
+    { "from": "ui", "to": "bridge", "label": "HTTP" },
+    { "from": "router", "to": "bridge", "label": "HTTP" },
+    { "from": "bridge", "to": "board", "label": "board CLI + files" },
+    { "from": "bridge", "to": "roles", "label": "starts agents" },
+    { "from": "roles", "to": "skills", "label": "preloads" },
+    { "from": "ci-cd", "to": "ui", "label": "smoke + build" }
+  ]
+}

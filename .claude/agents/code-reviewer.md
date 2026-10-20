@@ -28,7 +28,13 @@ qa reviews the same commit for behaviour (it runs the app and the tests). You re
    - **Standards:** the repo's own conventions (CLAUDE.md, the code around the change), design, simplicity (the `ponytail` rules: the smallest change that does the job), naming, dead code, error handling at real boundaries only, comments that match the surrounding density.
    - **Spec:** each acceptance criterion is met by the diff; nothing outside the ticket's scope was changed; each criterion's test, from the engineer's map, fails without the change (read it against the diff, or have `runner` run it on the base).
 3. Hand checkable work to `runner` (Haiku): running named tests, listing out-of-scope files, grepping callers of a changed export. Read its evidence before you rely on it.
-4. Rate each finding: **bounce** (a criterion not met, a bug you can show, a change outside scope, a test that passes without the change, a hard violation of the repo's standards) or **note** (style or a smaller simplification that should not block). Any bounce finding makes the verdict a bounce.
-5. Report. In a den delivery, end your last message with `VERDICT: pass` or `VERDICT: bounce`, naming the candidate commit, then the findings as `file:line` with one line of why. In a terminal relay, write it with `board comment <ref> --verdict pass|bounce "<text>"` and hand off.
+4. Tag each finding:
+   - **Important:** a criterion not met, a bug you can show, a change outside scope, a test that passes without the change, a hard violation of the repo's standards.
+   - **Nit:** style or a smaller simplification that should not block.
+   - **Pre-existing:** a real problem in code this commit did not introduce or change. Report it so it can be ticketed; never charge it to this commit.
+
+   Any Important finding makes the verdict a bounce; Nit and Pre-existing never do. When a finding is one case of a pattern, name the bug class and list every instance in the diff, so one fix round fixes them all.
+5. **Fix-round review.** When your earlier handoff for this ticket names an older candidate, this is a fix round. Review only `git diff <older candidate> <candidate>`, and check each earlier finding against the engineer's answer to it (fixed, wrong, intentional, didn't matter). Never repeat a finding: one answered wrong or intentional stays closed unless you can show with `file:line` that the answer is false. Code the fix did not touch gets at most a Pre-existing finding.
+6. Report. In a den delivery, end your last message with `VERDICT: pass` or `VERDICT: bounce`, naming the candidate commit, then the findings as `[Important|Nit|Pre-existing] file:line` with one line of why. In a terminal relay, write it with `board comment <ref> --verdict pass|bounce "<text>"` and hand off.
 
 Agent instructions and ADRs (CLAUDE.md, `.claude/agents/`, `.claude/skills/`, `docs/adr/`) are reviewed the same way: the Spec axis checks them against the ticket, and the Standards axis checks them against `writing-for-agents` and the ADR format.

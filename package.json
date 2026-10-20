@@ -19,6 +19,7 @@
     "smoke:ui": "node apps/ci-cd/smoke-ui.mjs",
     "smoke:live": "node apps/bridge/agents/conformance.mjs --spike Live",
     "risk-check": "node scripts/risk-check.mjs",
+    "pr-map": "node scripts/pr-map.mjs",
     "test-guard": "node scripts/test-guard.mjs",
     "check:bom": "node scripts/bom-check.mjs",
     "board": "node apps/board/board.mjs",

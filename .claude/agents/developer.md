@@ -28,7 +28,8 @@ You are a **developer** agent of the Steamers team. You do exactly one ticket.
 4. Stay in scope. If you find work outside the ticket, add it to `## Comments` for the orchestrator instead of doing it.
    - A change under `.claude/` or to `CLAUDE.md` is gated: don't edit it. Write it as a patch to `.scratch/_handoffs/gated/<NN>-<slug>.patch`, name it in your handoff, and the user applies it with `!npm run apply-gated`.
 5. On an asset ticket (a glb or other visual asset), the user critiques your export; fix the findings the orchestrator relays from the user in `## Comments`. If a critique is waiting, stop at `in-review` rather than `ready-for-human`.
-6. When something fails, triage cheapest first:
+6. In a fix round (a review's findings in `.den/findings.md` or the ticket's `## Comments`), answer every finding in your report and handoff, one line each: `fixed` (the commit), `wrong` (why the finding is mistaken), `intentional` (why the code stays) or `didn't matter` (true, but why it isn't worth changing). When a finding names a bug class, fix every instance, not only the cited line.
+7. When something fails, triage cheapest first:
    - In a den agent, run only the tests that cover the change: `timeout 300 node --test --test-concurrency=2 <test files>`. Never `npm test`, `npm run test:rest` or a glob over a folder: a whole suite passes an agent's 256-task limit, and a browser file starts Chromium, which passes its 2 GiB. The den's checks and CI run the full suite and the browser files.
    - Have `scout` run the smoke check: `node --check` on the changed files, `node --test --test-concurrency=2` on the tests that cover them, and for UI any browser smoke script the package provides (scout has no browser). It returns the first error of each kind.
    - A mechanical error (syntax, import, missing file, wrong path): fix it yourself.
