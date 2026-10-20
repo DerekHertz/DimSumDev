@@ -1,0 +1,18 @@
+const fs=require('node:fs'),assert=require('node:assert/strict');
+const {chromium}=require('C:/Users/Derek/AppData/Local/Temp/den-cast-23/22-runtime/node_modules/playwright');
+const reference=fs.readFileSync(__dirname+'/capture-review.cjs','utf8'),instrumentation=new Function('return ('+reference.slice(reference.indexOf('function instrumentation()'),reference.indexOf('\nfunction fixture('))+')')();
+const out=process.argv[2]||__dirname,results={kind:'Authoring Bao on the actual Product stool; no runtime Bao chair added',errors:[],poses:[]};
+(async()=>{const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});try{
+ for(const theme of ['light','dark']){
+  const context=await browser.newContext({viewport:{width:1440,height:900},reducedMotion:'reduce',colorScheme:theme});await context.addInitScript(instrumentation);const page=await context.newPage();page.on('pageerror',e=>results.errors.push(e.message));
+  const snapshot={schema:1,seq:1,tickets:[],frontier:[],agents:[],placements:[],meetings:[],approvals:[]};
+  await page.route('**/*',r=>{const u=new URL(r.request().url());if(u.pathname==='/events')return r.continue({url:r.request().url()+'?fixture='+encodeURIComponent(JSON.stringify(snapshot))});if(u.pathname==='/state')return r.fulfill({json:snapshot});if(u.pathname==='/metrics')return r.fulfill({json:{throughput:{windows:[]},tokensByRole:{},incidentsByTool:{}}});if(u.pathname==='/session'||u.pathname.startsWith('/api/'))return r.fulfill({status:404,json:{}});assert.equal(r.request().method(),'GET');return r.continue();});
+  await page.goto('http://127.0.0.1:4425/');await page.waitForFunction(()=>globalThis.__cast22?.stage.camera,null,{timeout:60000});
+  const fit=await page.evaluate(()=>{const p=__cast22,bay=p.den.garden.assets.pass.bays[0],stool=bay.getObjectByName('Padded personal stool'),center=stool.getWorldPosition(stool.position.clone()),home=p.den.propManifest.find(h=>h.id==='product'),panda=p.den.createPanda('orchestrator');
+   p.den.garden.setRoofs(false);p.den.residents.traverse(n=>{if(n.userData.actorKey)n.visible=false;});panda.model.position.set(center.x,home.position[1],center.z);panda.model.rotation.y=home.yaw;p.den.residents.add(panda.model);panda.rig.poseSit(0,{reducedMotion:true});p.den.world.updateMatrixWorld(true);
+   const c=p.stage.camera.clone();c.left=-4.2;c.right=4.2;c.top=2.625;c.bottom=-2.625;c.zoom=1;c.near=.1;c.far=200;c.position.set(center.x+6,center.y+3.7,center.z+6);c.lookAt(center.x,center.y+1.8,center.z);c.updateProjectionMatrix();p.chairCamera=c;const render=p.renderer.render;p.renderer.render=function(scene,camera){return render.call(this,scene,p.chairCamera||camera);};
+   const banner=document.createElement('p');banner.textContent='AUTHORING FIT · existing Product stool · Bao runtime host has no chair';banner.style.cssText='position:fixed;top:48px;left:80px;background:#fff7e5;color:#264e3b;padding:12px;z-index:9999';document.body.append(banner);
+   return{anchor:panda.model.position.toArray(),stoolCenter:center.toArray(),drop:panda.rig.profile.sit.drop,homeYaw:home.yaw,frameCalls:p.renderer.info.render.calls};});assert.equal(fit.drop,.0531);await page.waitForTimeout(1200);await page.screenshot({path:out+'/chair-'+theme+'-three-quarter.png'});results.poses.push({theme,...fit});await context.close();
+ }
+ assert.deepEqual(results.errors,[]);
+}finally{await browser.close();fs.writeFileSync(out+'/chair-results.json',JSON.stringify(results,null,2));}})().catch(e=>{console.error(e.stack);process.exitCode=1;});

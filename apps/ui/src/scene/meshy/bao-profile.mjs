@@ -49,7 +49,9 @@ export const BAO_PRODUCTION = Object.freeze({
   arms: { drop: .65, restInReducedMotion: true },
   greetingDirection: 1,
   greetingLift: 1.3,greetingElbowLift: 0,
-  sit: { drop: .12, hip: 1.3, knee: -.3, splay: .7 },
+  // The source's robe underside contacts the existing .475-high padded stool
+  // at this pelvis drop. A .12 drop put 59 surface triangles inside its cushion.
+  sit: { drop: .0531, hip: 1.3, knee: -.3, splay: .7 },
   envelope: {
     standing: { radius: 1.9, height: 3.2 }, moving: { radius: 1.95, height: 3.2 },
     seated: { radius: 1.9, height: 3.1 }, head: { top: 3.2, labelTop: 3, radius: 1.6 },

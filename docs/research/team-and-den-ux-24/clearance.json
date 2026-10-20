@@ -1,0 +1,6956 @@
+{
+  "method": "Deformed indexed triangles versus current conservative furniture solids (Box3.intersectsTriangle); no vertex-only test. Negative clearance is an overlap candidate, never claimed clear.",
+  "home": {
+    "id": "orchestrator",
+    "role": "orchestrator",
+    "name": "Bao",
+    "team": "The Pass",
+    "runtime": "claude",
+    "dispatchable": true,
+    "teamId": null,
+    "position": [
+      -1.75,
+      0.29000000000000004,
+      -0.6
+    ],
+    "yaw": 0
+  },
+  "scale": 1.35,
+  "envelopes": {
+    "standing": {
+      "radius": 1.9,
+      "height": 3.2
+    },
+    "moving": {
+      "radius": 1.95,
+      "height": 3.2
+    },
+    "seated": {
+      "radius": 1.9,
+      "height": 3.1
+    },
+    "head": {
+      "top": 3.2,
+      "labelTop": 3,
+      "radius": 1.6
+    }
+  },
+  "host": [
+    {
+      "kind": "idle",
+      "t": 0,
+      "bounds": {
+        "min": [
+          -3.4823926755677084,
+          0.28999999999999976,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.017790323432605115,
+          4.340000000000001,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 0.2,
+      "bounds": {
+        "min": [
+          -3.4829837696832158,
+          0.28999999999999976,
+          -1.6600312864420617
+        ],
+        "max": [
+          -0.017193253745286796,
+          4.340338248806031,
+          0.46008464266851
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 0.4,
+      "bounds": {
+        "min": [
+          -3.4847174443854523,
+          0.28999999999999976,
+          -1.6604946866372066
+        ],
+        "max": [
+          -0.01544204063829957,
+          4.341330014442645,
+          0.4607044754043427
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 0.6000000000000001,
+      "bounds": {
+        "min": [
+          -3.4874773952768074,
+          0.28999999999999976,
+          -1.6612318498931544
+        ],
+        "max": [
+          -0.012654132018207642,
+          4.342907901664107,
+          0.46169048689608594
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 0.8,
+      "bounds": {
+        "min": [
+          -3.491078053550316,
+          0.28999999999999976,
+          -1.6621925397522324
+        ],
+        "max": [
+          -0.009016931256331517,
+          4.344964641811426,
+          0.46297548209003947
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 1,
+      "bounds": {
+        "min": [
+          -3.495276557819132,
+          0.28999999999999976,
+          -1.6633112867881583
+        ],
+        "max": [
+          -0.004775719214435981,
+          4.34736033246638,
+          0.46447189068728945
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 1.2000000000000002,
+      "bounds": {
+        "min": [
+          -3.4997886301934313,
+          0.28999999999999976,
+          -1.6645118502392515
+        ],
+        "max": [
+          -0.00021763223668136433,
+          4.349931901465943,
+          0.46607773491486537
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 1.4000000000000001,
+      "bounds": {
+        "min": [
+          -3.5043074553921194,
+          0.28999999999999976,
+          -1.6657124136903447
+        ],
+        "max": [
+          0.004347397796359953,
+          4.35250416920015,
+          0.4676835791424415
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 1.6,
+      "bounds": {
+        "min": [
+          -3.5085244087064096,
+          0.28999999999999976,
+          -1.6668311607262702
+        ],
+        "max": [
+          0.008607578603861743,
+          4.354901768833136,
+          0.4691799877396915
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 1.8,
+      "bounds": {
+        "min": [
+          -3.5121502688119426,
+          0.28999999999999976,
+          -1.6677918505853482
+        ],
+        "max": [
+          0.012270691147849622,
+          4.3569611166917355,
+          0.4704649829336448
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 2,
+      "bounds": {
+        "min": [
+          -3.514935421497486,
+          0.28999999999999976,
+          -1.6685290138412956
+        ],
+        "max": [
+          0.015084511511268328,
+          4.35854161162308,
+          0.4714509944253883
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 2.2,
+      "bounds": {
+        "min": [
+          -3.5166875451695194,
+          0.28999999999999976,
+          -1.6689924140364414
+        ],
+        "max": [
+          0.01685469330629652,
+          4.359535286234939,
+          0.47207082716122073
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 2.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.5172853920715785,
+          0.28999999999999976,
+          -1.6691504712132899
+        ],
+        "max": [
+          0.01745870601011834,
+          4.359874233774217,
+          0.4722822405645176
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 2.6,
+      "bounds": {
+        "min": [
+          -3.5166875451695194,
+          0.28999999999999976,
+          -1.6689924140364414
+        ],
+        "max": [
+          0.01685469330629652,
+          4.359535286234939,
+          0.47207082716122073
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 2.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.514935421497486,
+          0.28999999999999976,
+          -1.6685290138412956
+        ],
+        "max": [
+          0.015084511511268328,
+          4.35854161162308,
+          0.4714509944253883
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 3,
+      "bounds": {
+        "min": [
+          -3.5121502688119426,
+          0.28999999999999976,
+          -1.6677918505853482
+        ],
+        "max": [
+          0.012270691147849622,
+          4.3569611166917355,
+          0.4704649829336448
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 3.2,
+      "bounds": {
+        "min": [
+          -3.5085244087064096,
+          0.28999999999999976,
+          -1.6668311607262702
+        ],
+        "max": [
+          0.008607578603861743,
+          4.354901768833136,
+          0.4691799877396915
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 3.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.5043074553921194,
+          0.28999999999999976,
+          -1.6657124136903447
+        ],
+        "max": [
+          0.004347397796359953,
+          4.35250416920015,
+          0.4676835791424415
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 3.6,
+      "bounds": {
+        "min": [
+          -3.4997886301934313,
+          0.28999999999999976,
+          -1.6645118502392515
+        ],
+        "max": [
+          -0.00021763223668136433,
+          4.349931901465943,
+          0.46607773491486537
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 3.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.495276557819132,
+          0.28999999999999976,
+          -1.6633112867881583
+        ],
+        "max": [
+          -0.004775719214435981,
+          4.34736033246638,
+          0.46447189068728945
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 4,
+      "bounds": {
+        "min": [
+          -3.491078053550316,
+          0.28999999999999976,
+          -1.6621925397522324
+        ],
+        "max": [
+          -0.009016931256331517,
+          4.344964641811426,
+          0.46297548209003947
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 4.2,
+      "bounds": {
+        "min": [
+          -3.4874773952768074,
+          0.28999999999999976,
+          -1.6612318498931544
+        ],
+        "max": [
+          -0.012654132018207642,
+          4.342907901664107,
+          0.46169048689608594
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 4.4,
+      "bounds": {
+        "min": [
+          -3.4847174443854523,
+          0.28999999999999976,
+          -1.6604946866372066
+        ],
+        "max": [
+          -0.01544204063829957,
+          4.341330014442645,
+          0.4607044754043427
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 4.6000000000000005,
+      "bounds": {
+        "min": [
+          -3.4829837696832158,
+          0.28999999999999976,
+          -1.6600312864420617
+        ],
+        "max": [
+          -0.017193253745286796,
+          4.340338248806031,
+          0.46008464266851
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "idle",
+      "t": 4.800000000000001,
+      "bounds": {
+        "min": [
+          -3.4823926755677084,
+          0.28999999999999976,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.017790323432605115,
+          4.340000000000001,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 0,
+      "bounds": {
+        "min": [
+          -3.4823926755677084,
+          0.28999999999999976,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.017790323432605115,
+          4.340000000000001,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 0.2,
+      "bounds": {
+        "min": [
+          -3.4829837696832158,
+          0.28999999999999976,
+          -1.6600312864420617
+        ],
+        "max": [
+          -0.017193253745286796,
+          4.340338248806031,
+          0.46008464266851
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 0.4,
+      "bounds": {
+        "min": [
+          -3.4847174443854523,
+          0.28999999999999976,
+          -1.6604946866372066
+        ],
+        "max": [
+          -0.01544204063829957,
+          4.341330014442645,
+          0.4607044754043427
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 0.6000000000000001,
+      "bounds": {
+        "min": [
+          -3.4874773952768074,
+          0.28999999999999976,
+          -1.6612318498931544
+        ],
+        "max": [
+          -0.012654132018207642,
+          4.342907901664107,
+          0.46169048689608594
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 0.8,
+      "bounds": {
+        "min": [
+          -3.491078053550316,
+          0.28999999999999976,
+          -1.6621925397522324
+        ],
+        "max": [
+          -0.009016931256331517,
+          4.344964641811426,
+          0.46297548209003947
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 1,
+      "bounds": {
+        "min": [
+          -3.495276557819132,
+          0.28999999999999976,
+          -1.6633112867881583
+        ],
+        "max": [
+          -0.004775719214435981,
+          4.34736033246638,
+          0.46447189068728945
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 1.2000000000000002,
+      "bounds": {
+        "min": [
+          -3.4997886301934313,
+          0.28999999999999976,
+          -1.6645118502392515
+        ],
+        "max": [
+          -0.00021763223668136433,
+          4.349931901465943,
+          0.46607773491486537
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 1.4000000000000001,
+      "bounds": {
+        "min": [
+          -3.5043074553921194,
+          0.28999999999999976,
+          -1.6657124136903447
+        ],
+        "max": [
+          0.004347397796359953,
+          4.35250416920015,
+          0.4676835791424415
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 1.6,
+      "bounds": {
+        "min": [
+          -3.5085244087064096,
+          0.28999999999999976,
+          -1.6668311607262702
+        ],
+        "max": [
+          0.008607578603861743,
+          4.354901768833136,
+          0.4691799877396915
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 1.8,
+      "bounds": {
+        "min": [
+          -3.5121502688119426,
+          0.28999999999999976,
+          -1.6677918505853482
+        ],
+        "max": [
+          0.012270691147849622,
+          4.3569611166917355,
+          0.4704649829336448
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 2,
+      "bounds": {
+        "min": [
+          -3.514935421497486,
+          0.28999999999999976,
+          -1.6685290138412956
+        ],
+        "max": [
+          0.015084511511268328,
+          4.35854161162308,
+          0.4714509944253883
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 2.2,
+      "bounds": {
+        "min": [
+          -3.5166875451695194,
+          0.28999999999999976,
+          -1.6689924140364414
+        ],
+        "max": [
+          0.01685469330629652,
+          4.359535286234939,
+          0.47207082716122073
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 2.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.5172853920715785,
+          0.28999999999999976,
+          -1.6691504712132899
+        ],
+        "max": [
+          0.01745870601011834,
+          4.359874233774217,
+          0.4722822405645176
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 2.6,
+      "bounds": {
+        "min": [
+          -3.5166875451695194,
+          0.28999999999999976,
+          -1.6689924140364414
+        ],
+        "max": [
+          0.01685469330629652,
+          4.359535286234939,
+          0.47207082716122073
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 2.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.514935421497486,
+          0.28999999999999976,
+          -1.6685290138412956
+        ],
+        "max": [
+          0.015084511511268328,
+          4.35854161162308,
+          0.4714509944253883
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 3,
+      "bounds": {
+        "min": [
+          -3.5121502688119426,
+          0.28999999999999976,
+          -1.6677918505853482
+        ],
+        "max": [
+          0.012270691147849622,
+          4.3569611166917355,
+          0.4704649829336448
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 3.2,
+      "bounds": {
+        "min": [
+          -3.5085244087064096,
+          0.28999999999999976,
+          -1.6668311607262702
+        ],
+        "max": [
+          0.008607578603861743,
+          4.354901768833136,
+          0.4691799877396915
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 3.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.5043074553921194,
+          0.28999999999999976,
+          -1.6657124136903447
+        ],
+        "max": [
+          0.004347397796359953,
+          4.35250416920015,
+          0.4676835791424415
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 3.6,
+      "bounds": {
+        "min": [
+          -3.4997886301934313,
+          0.28999999999999976,
+          -1.6645118502392515
+        ],
+        "max": [
+          -0.00021763223668136433,
+          4.349931901465943,
+          0.46607773491486537
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 3.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.495276557819132,
+          0.28999999999999976,
+          -1.6633112867881583
+        ],
+        "max": [
+          -0.004775719214435981,
+          4.34736033246638,
+          0.46447189068728945
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 4,
+      "bounds": {
+        "min": [
+          -3.491078053550316,
+          0.28999999999999976,
+          -1.6621925397522324
+        ],
+        "max": [
+          -0.009016931256331517,
+          4.344964641811426,
+          0.46297548209003947
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 4.2,
+      "bounds": {
+        "min": [
+          -3.4874773952768074,
+          0.28999999999999976,
+          -1.6612318498931544
+        ],
+        "max": [
+          -0.012654132018207642,
+          4.342907901664107,
+          0.46169048689608594
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 4.4,
+      "bounds": {
+        "min": [
+          -3.4847174443854523,
+          0.28999999999999976,
+          -1.6604946866372066
+        ],
+        "max": [
+          -0.01544204063829957,
+          4.341330014442645,
+          0.4607044754043427
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 4.6000000000000005,
+      "bounds": {
+        "min": [
+          -3.4829837696832158,
+          0.28999999999999976,
+          -1.6600312864420617
+        ],
+        "max": [
+          -0.017193253745286796,
+          4.340338248806031,
+          0.46008464266851
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "work",
+      "t": 4.800000000000001,
+      "bounds": {
+        "min": [
+          -3.4823926755677084,
+          0.28999999999999976,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.017790323432605115,
+          4.340000000000001,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 0,
+      "bounds": {
+        "min": [
+          -3.5301659059047497,
+          0.29,
+          -1.666608723858018
+        ],
+        "max": [
+          -0.049277426507780664,
+          4.319013096711295,
+          0.47399384187771576
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 0.2,
+      "bounds": {
+        "min": [
+          -3.431074986117467,
+          0.2900958024520514,
+          -1.6637115896950903
+        ],
+        "max": [
+          0.03601774789681422,
+          4.297469420227797,
+          0.46028748644056383
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 0.4,
+      "bounds": {
+        "min": [
+          -3.397457189732836,
+          0.2900958024520515,
+          -1.6637493318381886
+        ],
+        "max": [
+          0.08086548809877314,
+          4.293491954496934,
+          0.46081818527106855
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 0.6000000000000001,
+      "bounds": {
+        "min": [
+          -3.45102511674559,
+          0.29,
+          -1.666786315378543
+        ],
+        "max": [
+          0.032124975646697695,
+          4.318175267227312,
+          0.47409760133002854
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 0.8,
+      "bounds": {
+        "min": [
+          -3.5362662797351336,
+          0.29,
+          -1.6632550592071542
+        ],
+        "max": [
+          -0.06780539134256802,
+          4.296001732085819,
+          0.45957677185044743
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 1,
+      "bounds": {
+        "min": [
+          -3.5809582714918102,
+          0.2900000000000001,
+          -1.6631067105540853
+        ],
+        "max": [
+          -0.10246468656832897,
+          4.2922239228601615,
+          0.4599941991182265
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 1.2000000000000002,
+      "bounds": {
+        "min": [
+          -3.5301659059047497,
+          0.28999999999999987,
+          -1.666608723858018
+        ],
+        "max": [
+          -0.049277426507780664,
+          4.319013096711295,
+          0.47399384187771576
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 1.4000000000000001,
+      "bounds": {
+        "min": [
+          -3.4310749861174665,
+          0.2900958024520515,
+          -1.6637115896950903
+        ],
+        "max": [
+          0.03601774789681422,
+          4.297469420227797,
+          0.46028748644056383
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 1.6,
+      "bounds": {
+        "min": [
+          -3.397457189732836,
+          0.2900958024520515,
+          -1.6637493318381886
+        ],
+        "max": [
+          0.08086548809877314,
+          4.293491954496934,
+          0.46081818527106855
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 1.8,
+      "bounds": {
+        "min": [
+          -3.45102511674559,
+          0.29,
+          -1.666786315378543
+        ],
+        "max": [
+          0.032124975646697695,
+          4.318175267227312,
+          0.47409760133002854
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 2,
+      "bounds": {
+        "min": [
+          -3.5362662797351336,
+          0.2900000000000003,
+          -1.6632550592071542
+        ],
+        "max": [
+          -0.06780539134256802,
+          4.296001732085819,
+          0.45957677185044743
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 2.2,
+      "bounds": {
+        "min": [
+          -3.5809582714918102,
+          0.2900000000000001,
+          -1.6631067105540853
+        ],
+        "max": [
+          -0.10246468656832897,
+          4.2922239228601615,
+          0.4599941991182265
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 2.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.530165905904749,
+          0.29,
+          -1.666608723858018
+        ],
+        "max": [
+          -0.04927742650778,
+          4.319013096711295,
+          0.47399384187771576
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 2.6,
+      "bounds": {
+        "min": [
+          -3.4310749861174656,
+          0.29009580245205174,
+          -1.6637115896950903
+        ],
+        "max": [
+          0.03601774789681511,
+          4.297469420227797,
+          0.46028748644056383
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 2.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.397457189732836,
+          0.2900958024520515,
+          -1.6637493318381886
+        ],
+        "max": [
+          0.08086548809877314,
+          4.293491954496934,
+          0.46081818527106855
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 3,
+      "bounds": {
+        "min": [
+          -3.4510251167455905,
+          0.29,
+          -1.666786315378543
+        ],
+        "max": [
+          0.032124975646697695,
+          4.318175267227312,
+          0.47409760133002854
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 3.2,
+      "bounds": {
+        "min": [
+          -3.5362662797351336,
+          0.2900000000000003,
+          -1.6632550592071542
+        ],
+        "max": [
+          -0.06780539134256802,
+          4.296001732085819,
+          0.45957677185044765
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 3.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.5809582714918102,
+          0.29,
+          -1.6631067105540853
+        ],
+        "max": [
+          -0.10246468656832897,
+          4.2922239228601615,
+          0.45999419911822625
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 3.6,
+      "bounds": {
+        "min": [
+          -3.5301659059047505,
+          0.29,
+          -1.666608723858018
+        ],
+        "max": [
+          -0.049277426507780664,
+          4.319013096711295,
+          0.47399384187771576
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 3.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.4310749861174665,
+          0.2900958024520514,
+          -1.6637115896950903
+        ],
+        "max": [
+          0.03601774789681511,
+          4.297469420227797,
+          0.46028748644056383
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 4,
+      "bounds": {
+        "min": [
+          -3.397457189732836,
+          0.2900958024520515,
+          -1.6637493318381886
+        ],
+        "max": [
+          0.08086548809877314,
+          4.293491954496934,
+          0.46081818527106855
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 4.2,
+      "bounds": {
+        "min": [
+          -3.45102511674559,
+          0.2900000000000001,
+          -1.666786315378543
+        ],
+        "max": [
+          0.032124975646697695,
+          4.318175267227312,
+          0.47409760133002854
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 4.4,
+      "bounds": {
+        "min": [
+          -3.5362662797351336,
+          0.2900000000000003,
+          -1.6632550592071542
+        ],
+        "max": [
+          -0.06780539134256802,
+          4.296001732085819,
+          0.45957677185044765
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 4.6000000000000005,
+      "bounds": {
+        "min": [
+          -3.5809582714918102,
+          0.29,
+          -1.6631067105540853
+        ],
+        "max": [
+          -0.10246468656832897,
+          4.2922239228601615,
+          0.45999419911822625
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "walk",
+      "t": 4.800000000000001,
+      "bounds": {
+        "min": [
+          -3.5301659059047497,
+          0.2900000000000001,
+          -1.666608723858018
+        ],
+        "max": [
+          -0.04927742650778,
+          4.319013096711295,
+          0.47399384187771576
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 0,
+      "bounds": {
+        "min": [
+          -3.4823926755677084,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.017790323432605115,
+          4.268315,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 0.2,
+      "bounds": {
+        "min": [
+          -3.4827476019120773,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.017429397392005885,
+          4.2684180403013015,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 0.4,
+      "bounds": {
+        "min": [
+          -3.4837883100304134,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.016371089571348474,
+          4.2687201391789555,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 0.6000000000000001,
+      "bounds": {
+        "min": [
+          -3.485444195930338,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.014687177451186306,
+          4.269200709093692,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 0.8,
+      "bounds": {
+        "min": [
+          -3.487602847854607,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.012491947361607858,
+          4.269827,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 1,
+      "bounds": {
+        "min": [
+          -3.4901175897519066,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.009934532752829739,
+          4.27055633120761,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 1.2000000000000002,
+      "bounds": {
+        "min": [
+          -3.4928173607504296,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.007188876729763205,
+          4.271338999999999,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 1.4000000000000001,
+      "bounds": {
+        "min": [
+          -3.495518288730406,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.004441968978765143,
+          4.272121668792391,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 1.6,
+      "bounds": {
+        "min": [
+          -3.498036191557067,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.0018811345886065034,
+          4.272851000000001,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 1.8,
+      "bounds": {
+        "min": [
+          -3.5001991613846357,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.0003187670022990474,
+          4.273477290906309,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 2,
+      "bounds": {
+        "min": [
+          -3.5018593651803487,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.0020073506158033716,
+          4.273957860821044,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 2.2,
+      "bounds": {
+        "min": [
+          -3.50290323421302,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.0030690782018734097,
+          4.274259959698698,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 2.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.503259317531328,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.003431255962419444,
+          4.274362999999999,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 2.6,
+      "bounds": {
+        "min": [
+          -3.50290323421302,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.0030690782018734097,
+          4.274259959698698,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 2.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.5018593651803487,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.0020073506158033716,
+          4.273957860821044,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 3,
+      "bounds": {
+        "min": [
+          -3.5001991613846357,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.0003187670022990474,
+          4.273477290906309,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 3.2,
+      "bounds": {
+        "min": [
+          -3.498036191557067,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.0018811345886065034,
+          4.272851000000001,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 3.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.495518288730406,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.004441968978765143,
+          4.272121668792391,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 3.6,
+      "bounds": {
+        "min": [
+          -3.4928173607504296,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.007188876729763205,
+          4.271338999999999,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 3.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.4901175897519066,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.009934532752829739,
+          4.27055633120761,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 4,
+      "bounds": {
+        "min": [
+          -3.487602847854607,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.012491947361607858,
+          4.269827,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 4.2,
+      "bounds": {
+        "min": [
+          -3.485444195930338,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.014687177451186306,
+          4.269200709093692,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 4.4,
+      "bounds": {
+        "min": [
+          -3.4837883100304134,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.016371089571348474,
+          4.2687201391789555,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 4.6000000000000005,
+      "bounds": {
+        "min": [
+          -3.4827476019120773,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.017429397392005885,
+          4.2684180403013015,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "sit",
+      "t": 4.800000000000001,
+      "bounds": {
+        "min": [
+          -3.4823926755677084,
+          0.5868817282320908,
+          -1.6598732292652132
+        ],
+        "max": [
+          -0.017790323432605115,
+          4.268315,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 0,
+      "bounds": {
+        "min": [
+          -3.4823926755677084,
+          0.28999999999999976,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.3466219933509689,
+          4.340000000000001,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 0.2,
+      "bounds": {
+        "min": [
+          -3.4829837696832158,
+          0.28999999999999976,
+          -1.6600312864420617
+        ],
+        "max": [
+          0.24633738239744352,
+          4.340338248806031,
+          0.46008464266851
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 0.4,
+      "bounds": {
+        "min": [
+          -3.4847174443854523,
+          0.28999999999999976,
+          -1.6604946866372066
+        ],
+        "max": [
+          0.2393250154106592,
+          4.341330014442645,
+          0.4607044754043427
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 0.6000000000000001,
+      "bounds": {
+        "min": [
+          -3.4874773952768074,
+          0.28999999999999976,
+          -1.6612318498931544
+        ],
+        "max": [
+          0.3356162161304468,
+          4.342907901664107,
+          0.46169048689608594
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 0.8,
+      "bounds": {
+        "min": [
+          -3.491078053550316,
+          0.28999999999999976,
+          -1.6621925397522324
+        ],
+        "max": [
+          0.4303073473139829,
+          4.344964641811426,
+          0.46297548209003947
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 1,
+      "bounds": {
+        "min": [
+          -3.495276557819132,
+          0.28999999999999976,
+          -1.6633112867881583
+        ],
+        "max": [
+          0.45162805691328245,
+          4.34736033246638,
+          0.46447189068728945
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 1.2000000000000002,
+      "bounds": {
+        "min": [
+          -3.4997886301934313,
+          0.28999999999999976,
+          -1.6645118502392515
+        ],
+        "max": [
+          0.39338244483146934,
+          4.349931901465943,
+          0.46607773491486537
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 1.4000000000000001,
+      "bounds": {
+        "min": [
+          -3.5043074553921194,
+          0.28999999999999976,
+          -1.6657124136903447
+        ],
+        "max": [
+          0.2889413898640467,
+          4.35250416920015,
+          0.4676835791424415
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 1.6,
+      "bounds": {
+        "min": [
+          -3.5085244087064096,
+          0.28999999999999976,
+          -1.6668311607262702
+        ],
+        "max": [
+          0.2506835534589311,
+          4.354901768833136,
+          0.4691799877396915
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 1.8,
+      "bounds": {
+        "min": [
+          -3.5121502688119426,
+          0.28999999999999976,
+          -1.6677918505853482
+        ],
+        "max": [
+          0.32670153853749406,
+          4.3569611166917355,
+          0.4704649829336448
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 2,
+      "bounds": {
+        "min": [
+          -3.514935421497486,
+          0.28999999999999976,
+          -1.6685290138412956
+        ],
+        "max": [
+          0.4345533159089867,
+          4.35854161162308,
+          0.4714509944253883
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 2.2,
+      "bounds": {
+        "min": [
+          -3.5166875451695194,
+          0.28999999999999976,
+          -1.6689924140364414
+        ],
+        "max": [
+          0.4765388871162326,
+          4.359535286234939,
+          0.47207082716122073
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 2.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.5172853920715785,
+          0.28999999999999976,
+          -1.6691504712132899
+        ],
+        "max": [
+          0.43616526429156943,
+          4.359874233774217,
+          0.4722822405645176
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 2.6,
+      "bounds": {
+        "min": [
+          -3.5166875451695194,
+          0.28999999999999976,
+          -1.6689924140364414
+        ],
+        "max": [
+          0.32997350836365325,
+          4.359535286234939,
+          0.47207082716122073
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 2.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.514935421497486,
+          0.28999999999999976,
+          -1.6685290138412956
+        ],
+        "max": [
+          0.25634673162191435,
+          4.35854161162308,
+          0.4714509944253883
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 3,
+      "bounds": {
+        "min": [
+          -3.5121502688119426,
+          0.28999999999999976,
+          -1.6677918505853482
+        ],
+        "max": [
+          0.2970441168588942,
+          4.3569611166917355,
+          0.4704649829336448
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 3.2,
+      "bounds": {
+        "min": [
+          -3.5085244087064096,
+          0.28999999999999976,
+          -1.6668311607262702
+        ],
+        "max": [
+          0.4028068077588487,
+          4.354901768833136,
+          0.4691799877396915
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 3.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.5043074553921194,
+          0.28999999999999976,
+          -1.6657124136903447
+        ],
+        "max": [
+          0.4609298694392212,
+          4.35250416920015,
+          0.4676835791424415
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 3.6,
+      "bounds": {
+        "min": [
+          -3.4997886301934313,
+          0.28999999999999976,
+          -1.6645118502392515
+        ],
+        "max": [
+          0.4385069442713063,
+          4.349931901465943,
+          0.46607773491486537
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 3.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.495276557819132,
+          0.28999999999999976,
+          -1.6633112867881583
+        ],
+        "max": [
+          0.3420830738346585,
+          4.34736033246638,
+          0.46447189068728945
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 4,
+      "bounds": {
+        "min": [
+          -3.491078053550316,
+          0.28999999999999976,
+          -1.6621925397522324
+        ],
+        "max": [
+          0.24468355493880245,
+          4.344964641811426,
+          0.46297548209003947
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 4.2,
+      "bounds": {
+        "min": [
+          -3.4874773952768074,
+          0.28999999999999976,
+          -1.6612318498931544
+        ],
+        "max": [
+          0.2510797519527386,
+          4.342907901664107,
+          0.46169048689608594
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 4.4,
+      "bounds": {
+        "min": [
+          -3.4847174443854523,
+          0.28999999999999976,
+          -1.6604946866372066
+        ],
+        "max": [
+          0.3498476700098059,
+          4.341330014442645,
+          0.4607044754043427
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 4.6000000000000005,
+      "bounds": {
+        "min": [
+          -3.4829837696832158,
+          0.28999999999999976,
+          -1.6600312864420617
+        ],
+        "max": [
+          0.42989573506139767,
+          4.340338248806031,
+          0.46008464266851
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "greeting",
+      "t": 4.800000000000001,
+      "bounds": {
+        "min": [
+          -3.4823926755677084,
+          0.28999999999999976,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.4342659001064306,
+          4.340000000000001,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 0,
+      "bounds": {
+        "min": [
+          -3.4823926755677084,
+          0.28999999999999976,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.1389040236914682,
+          4.340000000000001,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 0.2,
+      "bounds": {
+        "min": [
+          -3.4829837696832158,
+          0.28999999999999976,
+          -1.6600312864420617
+        ],
+        "max": [
+          0.14111333753139682,
+          4.340558954499444,
+          0.46008464266851
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 0.4,
+      "bounds": {
+        "min": [
+          -3.4847174443854523,
+          0.28999999999999976,
+          -1.6604946866372066
+        ],
+        "max": [
+          0.14758533193852175,
+          4.342191830779211,
+          0.4607044754043427
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 0.6000000000000001,
+      "bounds": {
+        "min": [
+          -3.4874773952768074,
+          0.28999999999999976,
+          -1.6612318498931544
+        ],
+        "max": [
+          0.15785644760548617,
+          4.344771239505464,
+          0.46169048689608594
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 0.8,
+      "bounds": {
+        "min": [
+          -3.491078053550316,
+          0.28999999999999976,
+          -1.6621925397522324
+        ],
+        "max": [
+          0.1711746267051299,
+          4.3480994191851865,
+          0.46297548209003947
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 1,
+      "bounds": {
+        "min": [
+          -3.495276557819132,
+          0.28999999999999976,
+          -1.6633112867881583
+        ],
+        "max": [
+          0.18654726585737397,
+          4.351927789161801,
+          0.48437999358042316
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 1.2000000000000002,
+      "bounds": {
+        "min": [
+          -3.4997886301934313,
+          0.28999999999999976,
+          -1.6645118502392515
+        ],
+        "max": [
+          0.20282809062587495,
+          4.356085072130492,
+          0.5030452114673517
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 1.4000000000000001,
+      "bounds": {
+        "min": [
+          -3.5043074553921194,
+          0.28999999999999976,
+          -1.6657124136903447
+        ],
+        "max": [
+          0.21883765437695826,
+          4.360408676420365,
+          0.5156991319437232
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 1.6,
+      "bounds": {
+        "min": [
+          -3.5085244087064096,
+          0.28999999999999976,
+          -1.6668311607262702
+        ],
+        "max": [
+          0.2334934887269616,
+          4.364399114253197,
+          0.5226183508037765
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 1.8,
+      "bounds": {
+        "min": [
+          -3.5121502688119426,
+          0.28999999999999976,
+          -1.6677918505853482
+        ],
+        "max": [
+          0.24591575333365812,
+          4.36780859485973,
+          0.5244599576930117
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 2,
+      "bounds": {
+        "min": [
+          -3.514935421497486,
+          0.28999999999999976,
+          -1.6685290138412956
+        ],
+        "max": [
+          0.25548025658098605,
+          4.370437045270184,
+          0.5255289542978975
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 2.2,
+      "bounds": {
+        "min": [
+          -3.5166875451695194,
+          0.28999999999999976,
+          -1.6689924140364414
+        ],
+        "max": [
+          0.2618109517639162,
+          4.372139114316386,
+          0.5284292528066966
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 2.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.5172853920715785,
+          0.28999999999999976,
+          -1.6691504712132899
+        ],
+        "max": [
+          0.26472798623751725,
+          4.372826757801134,
+          0.5299043197224452
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 2.6,
+      "bounds": {
+        "min": [
+          -3.5166875451695194,
+          0.28999999999999976,
+          -1.6689924140364414
+        ],
+        "max": [
+          0.26418318028421284,
+          4.372469012346244,
+          0.5293926197456899
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 2.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.514935421497486,
+          0.28999999999999976,
+          -1.6685290138412956
+        ],
+        "max": [
+          0.26021596688167675,
+          4.371090515144807,
+          0.5269309003889283
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 3,
+      "bounds": {
+        "min": [
+          -3.5121502688119426,
+          0.28999999999999976,
+          -1.6677918505853482
+        ],
+        "max": [
+          0.2529502796801278,
+          4.368769764958215,
+          0.523150248490127
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 3.2,
+      "bounds": {
+        "min": [
+          -3.5085244087064096,
+          0.28999999999999976,
+          -1.6668311607262702
+        ],
+        "max": [
+          0.24263259115977256,
+          4.365637254198761,
+          0.5213601069520313
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 3.4000000000000004,
+      "bounds": {
+        "min": [
+          -3.5043074553921194,
+          0.28999999999999976,
+          -1.6657124136903447
+        ],
+        "max": [
+          0.22969109129395476,
+          4.361872727115184,
+          0.5190097690349893
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 3.6,
+      "bounds": {
+        "min": [
+          -3.4997886301934313,
+          0.28999999999999976,
+          -1.6645118502392515
+        ],
+        "max": [
+          0.21478358589971694,
+          4.357700228582827,
+          0.5118438860275563
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 3.8000000000000003,
+      "bounds": {
+        "min": [
+          -3.495276557819132,
+          0.28999999999999976,
+          -1.6633112867881583
+        ],
+        "max": [
+          0.19880284349712402,
+          4.353379508995892,
+          0.49922575393553126
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 4,
+      "bounds": {
+        "min": [
+          -3.491078053550316,
+          0.28999999999999976,
+          -1.6621925397522324
+        ],
+        "max": [
+          0.18282363584323094,
+          4.349409110882121,
+          0.4808728293194514
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 4.2,
+      "bounds": {
+        "min": [
+          -3.4874773952768074,
+          0.28999999999999976,
+          -1.6612318498931544
+        ],
+        "max": [
+          0.16799918709418848,
+          4.345938515788885,
+          0.46169048689608594
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 4.4,
+      "bounds": {
+        "min": [
+          -3.4847174443854523,
+          0.28999999999999976,
+          -1.6604946866372066
+        ],
+        "max": [
+          0.15543450376746304,
+          4.343114386566729,
+          0.4607044754043427
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 4.6000000000000005,
+      "bounds": {
+        "min": [
+          -3.4829837696832158,
+          0.28999999999999976,
+          -1.6600312864420617
+        ],
+        "max": [
+          0.14606989029705325,
+          4.341150886441174,
+          0.46008464266851
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "kind": "tea",
+      "t": 4.800000000000001,
+      "bounds": {
+        "min": [
+          -3.4823926755677084,
+          0.28999999999999976,
+          -1.6598732292652132
+        ],
+        "max": [
+          0.1405979379097267,
+          4.340204026808939,
+          0.45987322926521335
+        ]
+      },
+      "intersections": [
+        {
+          "id": "west-seat",
+          "triangles": 0
+        },
+        {
+          "id": "east-seat",
+          "triangles": 0
+        },
+        {
+          "id": "tea-shelf",
+          "triangles": 0
+        },
+        {
+          "id": "meeting-table",
+          "triangles": 0
+        }
+      ]
+    }
+  ],
+  "authoringSeats": [
+    {
+      "count": 1,
+      "seat": 0,
+      "spot": {
+        "x": 0,
+        "z": 5.65,
+        "yaw": -3.141592653589793
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -1.7322096765673942,
+          0.55688172743581,
+          4.590126770734788
+        ],
+        "max": [
+          1.7323926755677088,
+          4.238315,
+          6.709873229265213
+        ]
+      }
+    },
+    {
+      "count": 2,
+      "seat": 0,
+      "spot": {
+        "x": -3.5,
+        "z": 3.15,
+        "yaw": 1.5707963267948968
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -4.559873229265213,
+          0.55688172743581,
+          1.417790323432606
+        ],
+        "max": [
+          -2.4401267707347865,
+          4.238315,
+          4.88239267556771
+        ]
+      }
+    },
+    {
+      "count": 2,
+      "seat": 1,
+      "spot": {
+        "x": 3.5,
+        "z": 3.15,
+        "yaw": -1.5707963267948968
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          2.4401267707347865,
+          0.55688172743581,
+          1.4176073244322915
+        ],
+        "max": [
+          4.559873229265213,
+          4.238315,
+          4.882209676567395
+        ]
+      }
+    },
+    {
+      "count": 3,
+      "seat": 0,
+      "spot": {
+        "x": -3.5,
+        "z": 3.15,
+        "yaw": 1.5707963267948968
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -4.559873229265213,
+          0.55688172743581,
+          1.417790323432606
+        ],
+        "max": [
+          -2.4401267707347865,
+          4.238315,
+          4.88239267556771
+        ]
+      }
+    },
+    {
+      "count": 3,
+      "seat": 1,
+      "spot": {
+        "x": 0,
+        "z": 5.65,
+        "yaw": -3.141592653589793
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -1.7322096765673942,
+          0.55688172743581,
+          4.590126770734788
+        ],
+        "max": [
+          1.7323926755677088,
+          4.238315,
+          6.709873229265213
+        ]
+      }
+    },
+    {
+      "count": 3,
+      "seat": 2,
+      "spot": {
+        "x": 3.5,
+        "z": 3.15,
+        "yaw": -1.5707963267948968
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          2.4401267707347865,
+          0.55688172743581,
+          1.4176073244322915
+        ],
+        "max": [
+          4.559873229265213,
+          4.238315,
+          4.882209676567395
+        ]
+      }
+    },
+    {
+      "count": 4,
+      "seat": 0,
+      "spot": {
+        "x": -3.5,
+        "z": 3.15,
+        "yaw": 1.5707963267948968
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -4.559873229265213,
+          0.55688172743581,
+          1.417790323432606
+        ],
+        "max": [
+          -2.4401267707347865,
+          4.238315,
+          4.88239267556771
+        ]
+      }
+    },
+    {
+      "count": 4,
+      "seat": 1,
+      "spot": {
+        "x": -2.007517527228661,
+        "z": 5.19788011072248,
+        "yaw": 2.3661469669717383
+      },
+      "proxyOverlapTriangles": 19,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -3.27798698433588,
+          0.55688172743581,
+          3.774074326029208
+        ],
+        "max": [
+          -0.5653844958001792,
+          4.238315,
+          6.453351315272933
+        ]
+      }
+    },
+    {
+      "count": 4,
+      "seat": 2,
+      "spot": {
+        "x": 2.007517527228661,
+        "z": 5.19788011072248,
+        "yaw": -2.3661469669717383
+      },
+      "proxyOverlapTriangles": 66,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          0.5649786269226451,
+          0.55688172743581,
+          3.7742827339224942
+        ],
+        "max": [
+          3.2754469302182474,
+          4.238315,
+          6.455855647331348
+        ]
+      }
+    },
+    {
+      "count": 4,
+      "seat": 3,
+      "spot": {
+        "x": 3.5,
+        "z": 3.15,
+        "yaw": -1.5707963267948968
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          2.4401267707347865,
+          0.55688172743581,
+          1.4176073244322915
+        ],
+        "max": [
+          4.559873229265213,
+          4.238315,
+          4.882209676567395
+        ]
+      }
+    },
+    {
+      "count": 5,
+      "seat": 0,
+      "spot": {
+        "x": -3.5,
+        "z": 3.15,
+        "yaw": 1.5707963267948968
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -4.559873229265213,
+          0.55688172743581,
+          1.417790323432606
+        ],
+        "max": [
+          -2.4401267707347865,
+          4.238315,
+          4.88239267556771
+        ]
+      }
+    },
+    {
+      "count": 5,
+      "seat": 1,
+      "spot": {
+        "x": -2.474873734152916,
+        "z": 4.917766952966369,
+        "yaw": 2.191045812777718
+      },
+      "proxyOverlapTriangles": 26,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -3.6187647842322503,
+          0.55688172743581,
+          3.3493013483352385
+        ],
+        "max": [
+          -1.1471166302914924,
+          4.238315,
+          6.281348412018439
+        ]
+      }
+    },
+    {
+      "count": 5,
+      "seat": 2,
+      "spot": {
+        "x": 0,
+        "z": 5.65,
+        "yaw": -3.141592653589793
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -1.7322096765673942,
+          0.55688172743581,
+          4.590126770734788
+        ],
+        "max": [
+          1.7323926755677088,
+          4.238315,
+          6.709873229265213
+        ]
+      }
+    },
+    {
+      "count": 5,
+      "seat": 3,
+      "spot": {
+        "x": 2.474873734152916,
+        "z": 4.917766952966369,
+        "yaw": -2.191045812777718
+      },
+      "proxyOverlapTriangles": 24,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          1.1483213301257438,
+          0.55688172743581,
+          3.3440965908116413
+        ],
+        "max": [
+          3.6165730517525594,
+          4.238315,
+          6.282489816401923
+        ]
+      }
+    },
+    {
+      "count": 5,
+      "seat": 4,
+      "spot": {
+        "x": 3.5,
+        "z": 3.15,
+        "yaw": -1.5707963267948968
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          2.4401267707347865,
+          0.55688172743581,
+          1.4176073244322915
+        ],
+        "max": [
+          4.559873229265213,
+          4.238315,
+          4.882209676567395
+        ]
+      }
+    },
+    {
+      "count": 6,
+      "seat": 0,
+      "spot": {
+        "x": -3.5,
+        "z": 3.15,
+        "yaw": 1.5707963267948968
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -4.559873229265213,
+          0.55688172743581,
+          1.417790323432606
+        ],
+        "max": [
+          -2.4401267707347865,
+          4.238315,
+          4.88239267556771
+        ]
+      }
+    },
+    {
+      "count": 6,
+      "seat": 1,
+      "spot": {
+        "x": -2.474873734152916,
+        "z": 4.917766952966369,
+        "yaw": 2.191045812777718
+      },
+      "proxyOverlapTriangles": 26,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -3.6187647842322503,
+          0.55688172743581,
+          3.3493013483352385
+        ],
+        "max": [
+          -1.1471166302914924,
+          4.238315,
+          6.281348412018439
+        ]
+      }
+    },
+    {
+      "count": 6,
+      "seat": 2,
+      "spot": {
+        "x": 0,
+        "z": 5.65,
+        "yaw": -3.141592653589793
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -1.7322096765673942,
+          0.55688172743581,
+          4.590126770734788
+        ],
+        "max": [
+          1.7323926755677088,
+          4.238315,
+          6.709873229265213
+        ]
+      }
+    },
+    {
+      "count": 6,
+      "seat": 3,
+      "spot": {
+        "x": 2.474873734152916,
+        "z": 4.917766952966369,
+        "yaw": -2.191045812777718
+      },
+      "proxyOverlapTriangles": 24,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          1.1483213301257438,
+          0.55688172743581,
+          3.3440965908116413
+        ],
+        "max": [
+          3.6165730517525594,
+          4.238315,
+          6.282489816401923
+        ]
+      }
+    },
+    {
+      "count": 6,
+      "seat": 4,
+      "spot": {
+        "x": 3.5,
+        "z": 3.15,
+        "yaw": -1.5707963267948968
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          2.4401267707347865,
+          0.55688172743581,
+          1.4176073244322915
+        ],
+        "max": [
+          4.559873229265213,
+          4.238315,
+          4.882209676567395
+        ]
+      }
+    },
+    {
+      "count": 6,
+      "seat": 5,
+      "spot": {
+        "x": 4.286263797015736e-16,
+        "z": 0.6499999999999999,
+        "yaw": -1.7145055188062944e-16
+      },
+      "proxyOverlapTriangles": 0,
+      "tableOverlapTriangles": 0,
+      "bounds": {
+        "min": [
+          -1.7323926755677082,
+          0.55688172743581,
+          -0.4098732292652134
+        ],
+        "max": [
+          1.732209676567395,
+          4.238315,
+          1.709873229265213
+        ]
+      }
+    }
+  ],
+  "navigation": {
+    "hostGround": 0.26,
+    "routeToHost": [
+      {
+        "x": -0.4,
+        "y": 0.26,
+        "z": 5.6
+      },
+      {
+        "x": -0.8,
+        "y": 0.26,
+        "z": 5.2
+      },
+      {
+        "x": -1.2000000000000002,
+        "y": 0.26,
+        "z": 4.8
+      },
+      {
+        "x": -1.6,
+        "y": 0.26,
+        "z": 4.8
+      },
+      {
+        "x": -2,
+        "y": 0.26,
+        "z": 4.8
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 4.8
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 4.4
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 4
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 3.5999999999999996
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 3.1999999999999997
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 2.8
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 2.4
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 2
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 1.5999999999999996
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 1.1999999999999993
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 0.7999999999999998
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 0.39999999999999947
+      },
+      {
+        "x": -2,
+        "y": 0.26,
+        "z": 0
+      },
+      {
+        "x": -2,
+        "y": 0.26,
+        "z": -0.40000000000000036
+      },
+      {
+        "x": -1.75,
+        "z": -0.6,
+        "y": 0.26
+      }
+    ],
+    "seats": [
+      {
+        "x": -3.5,
+        "z": 3.15,
+        "yaw": 1.5707963267948968,
+        "ground": 0.26,
+        "route": [
+          {
+            "x": -0.4,
+            "y": 0.26,
+            "z": 5.6
+          },
+          {
+            "x": -0.8,
+            "y": 0.26,
+            "z": 5.2
+          },
+          {
+            "x": -1.2000000000000002,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": -1.6,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": -2,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": -2.8000000000000003,
+            "y": 0.26,
+            "z": 4.4
+          },
+          {
+            "x": -3.2,
+            "y": 0.26,
+            "z": 4
+          },
+          {
+            "x": -3.2,
+            "y": 0.26,
+            "z": 3.5999999999999996
+          },
+          {
+            "x": -3.6,
+            "y": 0.26,
+            "z": 3.1999999999999997
+          },
+          {
+            "x": -3.5,
+            "z": 3.15,
+            "y": 0.26
+          }
+        ]
+      },
+      {
+        "x": -2.474873734152916,
+        "z": 4.917766952966369,
+        "yaw": 2.191045812777718,
+        "ground": 0.26,
+        "route": [
+          {
+            "x": -0.4,
+            "y": 0.26,
+            "z": 6
+          },
+          {
+            "x": -0.8,
+            "y": 0.26,
+            "z": 5.6
+          },
+          {
+            "x": -1.2000000000000002,
+            "y": 0.26,
+            "z": 5.6
+          },
+          {
+            "x": -1.6,
+            "y": 0.26,
+            "z": 5.2
+          },
+          {
+            "x": -2,
+            "y": 0.26,
+            "z": 5.2
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 5.2
+          },
+          {
+            "x": -2.474873734152916,
+            "z": 4.917766952966369,
+            "y": 0.26
+          }
+        ]
+      },
+      {
+        "x": 0,
+        "z": 5.65,
+        "yaw": -3.141592653589793,
+        "ground": 0.26,
+        "route": [
+          {
+            "x": 0,
+            "z": 5.65,
+            "y": 0.26
+          }
+        ]
+      },
+      {
+        "x": 2.474873734152916,
+        "z": 4.917766952966369,
+        "yaw": -2.191045812777718,
+        "ground": 0.26,
+        "route": [
+          {
+            "x": 0.4,
+            "y": 0.26,
+            "z": 6
+          },
+          {
+            "x": 0.8,
+            "y": 0.26,
+            "z": 5.6
+          },
+          {
+            "x": 1.2000000000000002,
+            "y": 0.26,
+            "z": 5.6
+          },
+          {
+            "x": 1.6,
+            "y": 0.26,
+            "z": 5.2
+          },
+          {
+            "x": 2,
+            "y": 0.26,
+            "z": 5.2
+          },
+          {
+            "x": 2.4000000000000004,
+            "y": 0.26,
+            "z": 5.2
+          },
+          {
+            "x": 2.474873734152916,
+            "z": 4.917766952966369,
+            "y": 0.26
+          }
+        ]
+      },
+      {
+        "x": 3.5,
+        "z": 3.15,
+        "yaw": -1.5707963267948968,
+        "ground": 0.26,
+        "route": [
+          {
+            "x": 0.4,
+            "y": 0.26,
+            "z": 5.6
+          },
+          {
+            "x": 0.8,
+            "y": 0.26,
+            "z": 5.2
+          },
+          {
+            "x": 1.2000000000000002,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": 1.6,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": 2,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": 2.4000000000000004,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": 2.8000000000000003,
+            "y": 0.26,
+            "z": 4.4
+          },
+          {
+            "x": 3.2,
+            "y": 0.26,
+            "z": 4
+          },
+          {
+            "x": 3.2,
+            "y": 0.26,
+            "z": 3.5999999999999996
+          },
+          {
+            "x": 3.6,
+            "y": 0.26,
+            "z": 3.1999999999999997
+          },
+          {
+            "x": 3.5,
+            "z": 3.15,
+            "y": 0.26
+          }
+        ]
+      },
+      {
+        "x": 4.286263797015736e-16,
+        "z": 0.6499999999999999,
+        "yaw": -1.7145055188062944e-16,
+        "ground": 0.26,
+        "route": [
+          {
+            "x": -0.4,
+            "y": 0.26,
+            "z": 5.6
+          },
+          {
+            "x": -0.8,
+            "y": 0.26,
+            "z": 5.2
+          },
+          {
+            "x": -1.2000000000000002,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": -1.6,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": -2,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 4.8
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 4.4
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 4
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 3.5999999999999996
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 3.1999999999999997
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 2.8
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 2.4
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 2
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 1.5999999999999996
+          },
+          {
+            "x": -2.4000000000000004,
+            "y": 0.26,
+            "z": 1.1999999999999993
+          },
+          {
+            "x": -2,
+            "y": 0.26,
+            "z": 1.1999999999999993
+          },
+          {
+            "x": -1.6,
+            "y": 0.26,
+            "z": 1.1999999999999993
+          },
+          {
+            "x": -1.2000000000000002,
+            "y": 0.26,
+            "z": 1.1999999999999993
+          },
+          {
+            "x": -0.8,
+            "y": 0.26,
+            "z": 1.1999999999999993
+          },
+          {
+            "x": -0.4,
+            "y": 0.26,
+            "z": 0.7999999999999998
+          },
+          {
+            "x": 0,
+            "y": 0.26,
+            "z": 0.7999999999999998
+          },
+          {
+            "x": 4.286263797015736e-16,
+            "z": 0.6499999999999999,
+            "y": 0.26
+          }
+        ]
+      }
+    ]
+  },
+  "limitations": [
+    "Bao has no runtime desk or host chair; authoring seat probes do not create or validate a runtime host chair.",
+    "Navigation radius remains the current walker radius; wider actor path envelopes are checked separately."
+  ],
+  "authoringDesk": [
+    {
+      "pose": "work",
+      "at": [
+        -3.8699999999999997,
+        0.575,
+        -14.599999999999998
+      ],
+      "yaw": 3.2615926535897932,
+      "bounds": {
+        "min": [
+          -5.620857009373076,
+          0.5749999999999998,
+          -15.661462894000614
+        ],
+        "max": [
+          -2.1768343012317883,
+          4.625,
+          -13.536446046812692
+        ]
+      },
+      "overlapCandidates": [
+        {
+          "id": "top",
+          "triangles": 0
+        },
+        {
+          "id": "drawers",
+          "triangles": 0
+        },
+        {
+          "id": "stool-cushion",
+          "triangles": 0
+        },
+        {
+          "id": "stool-base",
+          "triangles": 0
+        }
+      ]
+    },
+    {
+      "pose": "sit",
+      "at": [
+        -3.8699999999999997,
+        0.575,
+        -14.599999999999998
+      ],
+      "yaw": 3.2615926535897932,
+      "bounds": {
+        "min": [
+          -5.620857009373076,
+          0.8718817357967584,
+          -15.660347275154344
+        ],
+        "max": [
+          -2.1768343012317883,
+          4.5533150000000004,
+          -13.536446046812692
+        ]
+      },
+      "overlapCandidates": [
+        {
+          "id": "top",
+          "triangles": 0
+        },
+        {
+          "id": "drawers",
+          "triangles": 0
+        },
+        {
+          "id": "stool-cushion",
+          "triangles": 36
+        },
+        {
+          "id": "stool-base",
+          "triangles": 8
+        }
+      ]
+    }
+  ],
+  "authoringChair": [
+    {
+      "anchor": [
+        -2.4499999999999997,
+        0.575,
+        -15.759999999999998
+      ],
+      "stoolTop": 1.0499999999999998,
+      "seatCenterUpwardSurfaceGap": 0.09224861370776694,
+      "actualSolidCrossingTriangles": 0,
+      "lowestVertex": 0.8718817357967584,
+      "tableProxyCrossingTriangles": 0
+    },
+    {
+      "anchor": [
+        -2.4499999999999997,
+        0.6749999999999999,
+        -15.759999999999998
+      ],
+      "stoolTop": 1.0499999999999998,
+      "seatCenterUpwardSurfaceGap": 0.1922486128189318,
+      "actualSolidCrossingTriangles": 0,
+      "lowestVertex": 0.9718817384510275,
+      "tableProxyCrossingTriangles": 0
+    },
+    {
+      "anchor": [
+        -2.4499999999999997,
+        0.7749999999999999,
+        -15.759999999999998
+      ],
+      "stoolTop": 1.0499999999999998,
+      "seatCenterUpwardSurfaceGap": 0.2922486119300971,
+      "actualSolidCrossingTriangles": 0,
+      "lowestVertex": 1.071881741105297,
+      "tableProxyCrossingTriangles": 0
+    }
+  ],
+  "seatedContactCycle": [
+    {
+      "time": 0,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.5533150000000004
+    },
+    {
+      "time": 0.2,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.553418040301302
+    },
+    {
+      "time": 0.4,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.553720139178956
+    },
+    {
+      "time": 0.6000000000000001,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.554200709093692
+    },
+    {
+      "time": 0.8,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.554827
+    },
+    {
+      "time": 1,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.55555633120761
+    },
+    {
+      "time": 1.2000000000000002,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.5563389999999995
+    },
+    {
+      "time": 1.4000000000000001,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.55712166879239
+    },
+    {
+      "time": 1.6,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.557850999999999
+    },
+    {
+      "time": 1.8,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.558477290906307
+    },
+    {
+      "time": 2,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.558957860821044
+    },
+    {
+      "time": 2.2,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.559259959698698
+    },
+    {
+      "time": 2.4000000000000004,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.5593629999999985
+    },
+    {
+      "time": 2.6,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.559259959698698
+    },
+    {
+      "time": 2.8000000000000003,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.558957860821044
+    },
+    {
+      "time": 3,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.558477290906307
+    },
+    {
+      "time": 3.2,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.557850999999999
+    },
+    {
+      "time": 3.4000000000000004,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.55712166879239
+    },
+    {
+      "time": 3.6,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.5563389999999995
+    },
+    {
+      "time": 3.8000000000000003,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.55555633120761
+    },
+    {
+      "time": 4,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.554827
+    },
+    {
+      "time": 4.2,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.554200709093692
+    },
+    {
+      "time": 4.4,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.553720139178956
+    },
+    {
+      "time": 4.6000000000000005,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.553418040301302
+    },
+    {
+      "time": 4.800000000000001,
+      "crossings": 0,
+      "contactNudgeWorld": 0.000135,
+      "nudgedCrossings": 2,
+      "floor": 0.8718817357967584,
+      "top": 4.5533150000000004
+    }
+  ],
+  "chairPlacementSearch": [
+    {
+      "dx": -0.2,
+      "dz": -0.3,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.10085589634564185
+    },
+    {
+      "dx": -0.2,
+      "dz": -0.2,
+      "crossing": 4,
+      "seatCenterUpwardSurfaceGap": 0.05589245744608817
+    },
+    {
+      "dx": -0.2,
+      "dz": -0.1,
+      "crossing": 6,
+      "seatCenterUpwardSurfaceGap": 0.03694267913215077
+    },
+    {
+      "dx": -0.2,
+      "dz": 0,
+      "crossing": 6,
+      "seatCenterUpwardSurfaceGap": 0.04060426989715227
+    },
+    {
+      "dx": -0.2,
+      "dz": 0.1,
+      "crossing": 6,
+      "seatCenterUpwardSurfaceGap": 0.0970892297156023
+    },
+    {
+      "dx": -0.2,
+      "dz": 0.2,
+      "crossing": 6,
+      "seatCenterUpwardSurfaceGap": 0.09031832832222464
+    },
+    {
+      "dx": -0.2,
+      "dz": 0.3,
+      "crossing": 6,
+      "seatCenterUpwardSurfaceGap": 0.11083819911896353
+    },
+    {
+      "dx": -0.1,
+      "dz": -0.3,
+      "crossing": 0,
+      "seatCenterUpwardSurfaceGap": 0.12281793177258904
+    },
+    {
+      "dx": -0.1,
+      "dz": -0.2,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.10646285436281655
+    },
+    {
+      "dx": -0.1,
+      "dz": -0.1,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.09736581000311206
+    },
+    {
+      "dx": -0.1,
+      "dz": 0,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.09271818810699761
+    },
+    {
+      "dx": -0.1,
+      "dz": 0.1,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.0915599777401408
+    },
+    {
+      "dx": -0.1,
+      "dz": 0.2,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.0931188573945867
+    },
+    {
+      "dx": -0.1,
+      "dz": 0.3,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.10696073973794662
+    },
+    {
+      "dx": 0,
+      "dz": -0.3,
+      "crossing": 0,
+      "seatCenterUpwardSurfaceGap": 0.12123678283759798
+    },
+    {
+      "dx": 0,
+      "dz": -0.2,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.10533844951174332
+    },
+    {
+      "dx": 0,
+      "dz": -0.1,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.09619670964910454
+    },
+    {
+      "dx": 0,
+      "dz": 0,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.09211361370896665
+    },
+    {
+      "dx": 0,
+      "dz": 0.1,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.08980627449436662
+    },
+    {
+      "dx": 0,
+      "dz": 0.2,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.0893321149209001
+    },
+    {
+      "dx": 0,
+      "dz": 0.3,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.09553916675644492
+    },
+    {
+      "dx": 0.1,
+      "dz": -0.3,
+      "crossing": 0,
+      "seatCenterUpwardSurfaceGap": 0.12121027569132803
+    },
+    {
+      "dx": 0.1,
+      "dz": -0.2,
+      "crossing": 0,
+      "seatCenterUpwardSurfaceGap": 0.09649545104947821
+    },
+    {
+      "dx": 0.1,
+      "dz": -0.1,
+      "crossing": 0,
+      "seatCenterUpwardSurfaceGap": 0.09465831159996729
+    },
+    {
+      "dx": 0.1,
+      "dz": 0,
+      "crossing": 0,
+      "seatCenterUpwardSurfaceGap": 0.09183703503551954
+    },
+    {
+      "dx": 0.1,
+      "dz": 0.1,
+      "crossing": 0,
+      "seatCenterUpwardSurfaceGap": 0.09287525579604994
+    },
+    {
+      "dx": 0.1,
+      "dz": 0.2,
+      "crossing": 0,
+      "seatCenterUpwardSurfaceGap": 0.0960501263161937
+    },
+    {
+      "dx": 0.1,
+      "dz": 0.3,
+      "crossing": 0,
+      "seatCenterUpwardSurfaceGap": 0.09922499687649688
+    },
+    {
+      "dx": 0.2,
+      "dz": -0.3,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.06830256962177694
+    },
+    {
+      "dx": 0.2,
+      "dz": -0.2,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.05897644760228693
+    },
+    {
+      "dx": 0.2,
+      "dz": -0.1,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.03371819045477009
+    },
+    {
+      "dx": 0.2,
+      "dz": 0,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.0398985558351268
+    },
+    {
+      "dx": 0.2,
+      "dz": 0.1,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.0740526149510965
+    },
+    {
+      "dx": 0.2,
+      "dz": 0.2,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.10821895423000782
+    },
+    {
+      "dx": 0.2,
+      "dz": 0.3,
+      "crossing": 2,
+      "seatCenterUpwardSurfaceGap": 0.11028467844105982
+    }
+  ],
+  "conversation": {
+    "visitorPosition": [
+      -4.6,
+      0.26,
+      -0.6
+    ],
+    "bodyOverlapTriangles": 0,
+    "ground": 0.26,
+    "route": [
+      {
+        "x": -0.4,
+        "y": 0.26,
+        "z": 5.6
+      },
+      {
+        "x": -0.8,
+        "y": 0.26,
+        "z": 5.2
+      },
+      {
+        "x": -1.2000000000000002,
+        "y": 0.26,
+        "z": 4.8
+      },
+      {
+        "x": -1.6,
+        "y": 0.26,
+        "z": 4.8
+      },
+      {
+        "x": -2,
+        "y": 0.26,
+        "z": 4.8
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 4.8
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 4.4
+      },
+      {
+        "x": -2.4000000000000004,
+        "y": 0.26,
+        "z": 4
+      },
+      {
+        "x": -2.8000000000000003,
+        "y": 0.26,
+        "z": 3.5999999999999996
+      },
+      {
+        "x": -3.2,
+        "y": 0.26,
+        "z": 3.1999999999999997
+      },
+      {
+        "x": -3.6,
+        "y": 0.26,
+        "z": 2.8
+      },
+      {
+        "x": -4,
+        "y": 0.26,
+        "z": 2.4
+      },
+      {
+        "x": -4.4,
+        "y": 0.26,
+        "z": 2
+      },
+      {
+        "x": -4.800000000000001,
+        "y": 0.26,
+        "z": 1.5999999999999996
+      },
+      {
+        "x": -4.800000000000001,
+        "y": 0.26,
+        "z": 1.1999999999999993
+      },
+      {
+        "x": -4.800000000000001,
+        "y": 0.26,
+        "z": 0.7999999999999998
+      },
+      {
+        "x": -4.800000000000001,
+        "y": 0.26,
+        "z": 0.39999999999999947
+      },
+      {
+        "x": -4.800000000000001,
+        "y": 0.26,
+        "z": 0
+      },
+      {
+        "x": -4.800000000000001,
+        "y": 0.26,
+        "z": -0.40000000000000036
+      },
+      {
+        "x": -4.6,
+        "z": -0.6,
+        "y": 0.26
+      }
+    ]
+  },
+  "summary": {
+    "hostCollisionSamples": [],
+    "authoringSeatCollisionProbes": [],
+    "authoringDesk": [
+      {
+        "pose": "work",
+        "at": [
+          -3.8699999999999997,
+          0.575,
+          -14.599999999999998
+        ],
+        "yaw": 3.2615926535897932,
+        "bounds": {
+          "min": [
+            -5.620857009373076,
+            0.5749999999999998,
+            -15.661462894000614
+          ],
+          "max": [
+            -2.1768343012317883,
+            4.625,
+            -13.536446046812692
+          ]
+        },
+        "overlapCandidates": [
+          {
+            "id": "top",
+            "triangles": 0
+          },
+          {
+            "id": "drawers",
+            "triangles": 0
+          },
+          {
+            "id": "stool-cushion",
+            "triangles": 0
+          },
+          {
+            "id": "stool-base",
+            "triangles": 0
+          }
+        ]
+      },
+      {
+        "pose": "sit",
+        "at": [
+          -3.8699999999999997,
+          0.575,
+          -14.599999999999998
+        ],
+        "yaw": 3.2615926535897932,
+        "bounds": {
+          "min": [
+            -5.620857009373076,
+            0.8718817357967584,
+            -15.660347275154344
+          ],
+          "max": [
+            -2.1768343012317883,
+            4.5533150000000004,
+            -13.536446046812692
+          ]
+        },
+        "overlapCandidates": [
+          {
+            "id": "top",
+            "triangles": 0
+          },
+          {
+            "id": "drawers",
+            "triangles": 0
+          },
+          {
+            "id": "stool-cushion",
+            "triangles": 36
+          },
+          {
+            "id": "stool-base",
+            "triangles": 8
+          }
+        ]
+      }
+    ],
+    "authoringChair": [
+      {
+        "anchor": [
+          -2.4499999999999997,
+          0.575,
+          -15.759999999999998
+        ],
+        "stoolTop": 1.0499999999999998,
+        "seatCenterUpwardSurfaceGap": 0.09224861370776694,
+        "actualSolidCrossingTriangles": 0,
+        "lowestVertex": 0.8718817357967584,
+        "tableProxyCrossingTriangles": 0
+      },
+      {
+        "anchor": [
+          -2.4499999999999997,
+          0.6749999999999999,
+          -15.759999999999998
+        ],
+        "stoolTop": 1.0499999999999998,
+        "seatCenterUpwardSurfaceGap": 0.1922486128189318,
+        "actualSolidCrossingTriangles": 0,
+        "lowestVertex": 0.9718817384510275,
+        "tableProxyCrossingTriangles": 0
+      },
+      {
+        "anchor": [
+          -2.4499999999999997,
+          0.7749999999999999,
+          -15.759999999999998
+        ],
+        "stoolTop": 1.0499999999999998,
+        "seatCenterUpwardSurfaceGap": 0.2922486119300971,
+        "actualSolidCrossingTriangles": 0,
+        "lowestVertex": 1.071881741105297,
+        "tableProxyCrossingTriangles": 0
+      }
+    ],
+    "conversation": {
+      "visitorPosition": [
+        -4.6,
+        0.26,
+        -0.6
+      ],
+      "bodyOverlapTriangles": 0,
+      "ground": 0.26,
+      "route": [
+        {
+          "x": -0.4,
+          "y": 0.26,
+          "z": 5.6
+        },
+        {
+          "x": -0.8,
+          "y": 0.26,
+          "z": 5.2
+        },
+        {
+          "x": -1.2000000000000002,
+          "y": 0.26,
+          "z": 4.8
+        },
+        {
+          "x": -1.6,
+          "y": 0.26,
+          "z": 4.8
+        },
+        {
+          "x": -2,
+          "y": 0.26,
+          "z": 4.8
+        },
+        {
+          "x": -2.4000000000000004,
+          "y": 0.26,
+          "z": 4.8
+        },
+        {
+          "x": -2.4000000000000004,
+          "y": 0.26,
+          "z": 4.4
+        },
+        {
+          "x": -2.4000000000000004,
+          "y": 0.26,
+          "z": 4
+        },
+        {
+          "x": -2.8000000000000003,
+          "y": 0.26,
+          "z": 3.5999999999999996
+        },
+        {
+          "x": -3.2,
+          "y": 0.26,
+          "z": 3.1999999999999997
+        },
+        {
+          "x": -3.6,
+          "y": 0.26,
+          "z": 2.8
+        },
+        {
+          "x": -4,
+          "y": 0.26,
+          "z": 2.4
+        },
+        {
+          "x": -4.4,
+          "y": 0.26,
+          "z": 2
+        },
+        {
+          "x": -4.800000000000001,
+          "y": 0.26,
+          "z": 1.5999999999999996
+        },
+        {
+          "x": -4.800000000000001,
+          "y": 0.26,
+          "z": 1.1999999999999993
+        },
+        {
+          "x": -4.800000000000001,
+          "y": 0.26,
+          "z": 0.7999999999999998
+        },
+        {
+          "x": -4.800000000000001,
+          "y": 0.26,
+          "z": 0.39999999999999947
+        },
+        {
+          "x": -4.800000000000001,
+          "y": 0.26,
+          "z": 0
+        },
+        {
+          "x": -4.800000000000001,
+          "y": 0.26,
+          "z": -0.40000000000000036
+        },
+        {
+          "x": -4.6,
+          "z": -0.6,
+          "y": 0.26
+        }
+      ]
+    },
+    "hostNavigationReachable": true
+  }
+}

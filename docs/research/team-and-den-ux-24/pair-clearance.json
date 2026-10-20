@@ -1,0 +1,113 @@
+{
+  "method": "Non-coplanar posed triangle edge/face intersection at observed native concurrent-run positions; same original and replacement factory paths",
+  "results": [
+    {
+      "selected": false,
+      "positions": {
+        "host": [
+          -1.75,
+          0.29,
+          -0.6
+        ],
+        "visitor": [
+          -3.0971435248300834,
+          0.26,
+          -1.7938192172638114
+        ]
+      },
+      "conservativeBounds": {
+        "host": {
+          "min": [
+            -4.097021033465862,
+            0.2899999999999998,
+            -1.9486805653667307
+          ],
+          "max": [
+            0.17349646687507647,
+            4.880000128746033,
+            0.8280252670661553
+          ]
+        },
+        "visitor": {
+          "min": [
+            -5.444164558295945,
+            0.25999999999999973,
+            -3.142499814039761
+          ],
+          "max": [
+            -1.1736470579550067,
+            4.850000128746033,
+            -0.3657939671046928
+          ]
+        },
+        "overlapExtent": [
+          2.923373975510855,
+          4.560000128746033,
+          1.582886598262038
+        ],
+        "overlapBoxVolume": 21.100805458956778,
+        "note": "AABB overlap is conservative; not actual interpenetration volume."
+      },
+      "intersects": true,
+      "point": [
+        -2.8273641989940486,
+        2.737944592513336,
+        -0.7828142467118948
+      ]
+    },
+    {
+      "selected": true,
+      "positions": {
+        "host": [
+          -1.75,
+          0.29,
+          -0.6
+        ],
+        "visitor": [
+          -3.0971435248300834,
+          0.26,
+          -1.7938192172638114
+        ]
+      },
+      "conservativeBounds": {
+        "host": {
+          "min": [
+            -3.4823926755677084,
+            0.2899999999999998,
+            -1.6598732292652132
+          ],
+          "max": [
+            -0.017790323432605115,
+            4.340000000000001,
+            0.45987322926521335
+          ]
+        },
+        "visitor": {
+          "min": [
+            -4.829536200397792,
+            0.25999999999999973,
+            -2.8536924465290245
+          ],
+          "max": [
+            -1.3649338482626885,
+            4.3100000000000005,
+            -0.7339459879985981
+          ]
+        },
+        "overlapExtent": [
+          2.11745882730502,
+          4.0200000000000005,
+          0.9259272412666151
+        ],
+        "overlapBoxVolume": 7.881663498057962,
+        "note": "AABB overlap is conservative; not actual interpenetration volume."
+      },
+      "intersects": true,
+      "point": [
+        -3.284967159904883,
+        1.74917237343694,
+        -0.7516005410411452
+      ]
+    }
+  ]
+}
