@@ -9,7 +9,7 @@
 // `folders`, each child folder. A module is edited when a changed path is in it, and rippled when a non-test
 // file in it imports an edited module, or its area declares a link to an edited area. Ripple is one hop.
 import { execFileSync } from "node:child_process";
-import { readFileSync, realpathSync } from "node:fs";
+import { readdirSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -140,8 +140,15 @@ export function prMap({ map, files, imports, changed }) {
   return { mermaid: lines.join("\n"), blastRadius, unmapped, collapsed, legend: LEGEND };
 }
 
+// Text from the branch as one markdown code span: the fence is longer than any backtick run inside, so nothing in it can end the span.
+export function codeSpan(text) {
+  const fence = "`".repeat(Math.max(0, ...(text.match(/`+/g) ?? []).map((r) => r.length)) + 1);
+  return fence.length === 1 ? `${fence}${text}${fence}` : `${fence} ${text} ${fence}`;
+}
+
 // The block a PR body's System map section pastes in, with the blast radius for its Risk section.
-export function renderBlock({ mermaid, blastRadius, unmapped, collapsed, legend }) {
+// `radius: false` leaves the blast radius line out, for a body that puts it in its Risk section.
+export function renderBlock({ mermaid, blastRadius, unmapped, collapsed, legend }, { radius = true } = {}) {
   return [
     "```mermaid",
     mermaid,
@@ -149,17 +156,17 @@ export function renderBlock({ mermaid, blastRadius, unmapped, collapsed, legend 
     "",
     legend,
     ...(collapsed ? [`Collapsed to areas: the change edits or ripples more than ${MAX_NODES} modules, so each area shows its count of edited modules.`] : []),
-    ...(unmapped.length ? [`Unmapped: ${unmapped.map((p) => `\`${p}\``).join(", ")} (no area in docs/system-map.json claims these).`] : []),
+    ...(unmapped.length ? [`Unmapped: ${unmapped.map(codeSpan).join(", ")} (no area in docs/system-map.json claims these).`] : []),
     "",
-    `**Blast radius:** ${blastRadius.length ? blastRadius.join(", ") : "none"}`,
-    "",
+    ...(radius ? [`**Blast radius:** ${blastRadius.length ? blastRadius.join(", ") : "none"}`, ""] : []),
   ].join("\n");
 }
 
 // --- CLI: read the inputs from git ---
 
 const CODE = /\.(mjs|cjs|js|jsx|ts|tsx)$/;
-const IMPORT_RE = /(?:^|[^\w.$])(?:import|export)\s+(?:[^'"`;]*?\s+from\s+)?["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)/g;
+// shortcut: the clause between import and from is capped at 1000 characters, because an unbounded lazy scan was quadratic on a file of repeated "import"; a longer clause is missed, so raise the cap if a real import list outgrows it.
+const IMPORT_RE = /(?:^|[^\w.$])(?:import|export)\s+(?:[^'"`;]{0,1000}?\s+from\s+)?["']([^"']+)["']|\bimport\(\s*["']([^"']+)["']\s*\)/g;
 
 // The specifiers a file imports.
 export function specifiers(text) {
@@ -178,6 +185,38 @@ export function resolveImport(from, spec, fileSet, packages = {}) {
   const exts = ["", ".mjs", ".js", ".jsx", ".ts", ".tsx", ".cjs", ".json"];
   for (const c of [...exts.map((e) => base + e), ...exts.slice(1).map((e) => `${base}/index${e}`)]) if (fileSet.has(c)) return c;
   return null;
+}
+
+const PACKAGE_JSON = /^packages\/[^/]+\/package\.json$/;
+
+// The [from, to] import pairs among the tracked files; `text(file)` gives a file's text, or undefined.
+export function importsOf(files, text) {
+  const fileSet = new Set(files);
+  const packages = {};
+  for (const pj of files.filter((f) => PACKAGE_JSON.test(f))) {
+    const name = JSON.parse(text(pj) ?? "{}").name;
+    if (name) packages[name] = path.posix.dirname(pj);
+  }
+  const imports = [];
+  for (const from of files.filter((f) => CODE.test(f))) {
+    for (const spec of specifiers(text(from) ?? "")) {
+      const to = resolveImport(from, spec, fileSet, packages);
+      if (to) imports.push([from, to]);
+    }
+  }
+  return imports;
+}
+
+// The map of a tree on disk: the bridge's own checkout, or a release folder (a git archive, so no .git: its files are walked).
+// It is main, plus whatever the changed paths add; the candidate's own tree is not read.
+export function checkoutMap(cwd, changed) {
+  const walk = (dir) => readdirSync(path.join(cwd, dir), { withFileTypes: true }).flatMap((e) =>
+    e.name === "node_modules" || e.name === ".git" ? [] : e.isDirectory() ? walk(path.posix.join(dir, e.name)) : [path.posix.join(dir, e.name)]);
+  let files;
+  try { files = execFileSync("git", ["ls-files"], { cwd, encoding: "utf8", maxBuffer: 1 << 28, stdio: ["ignore", "pipe", "ignore"] }).split("\n").filter(Boolean); } catch { files = walk("."); }
+  const map = JSON.parse(readFileSync(path.join(cwd, "docs/system-map.json"), "utf8"));
+  const read = (f) => { try { return readFileSync(path.join(cwd, f), "utf8"); } catch { return undefined; } };
+  return prMap({ map, files, imports: importsOf(files, read), changed });
 }
 
 function readAt(cwd, ref, paths) {
@@ -215,21 +254,8 @@ function main(argv) {
   const map = JSON.parse(readFileSync(path.join(cwd, "docs/system-map.json"), "utf8"));
   const files = git("ls-tree", "-r", "--name-only", head).split("\n").filter(Boolean);
   const changed = git("diff", "--name-only", base, head).split("\n").filter(Boolean);
-  const fileSet = new Set(files);
-  const packages = {};
-  for (const pj of files.filter((f) => /^packages\/[^/]+\/package\.json$/.test(f))) {
-    const { name } = JSON.parse(readAt(cwd, head, [pj]).get(pj));
-    if (name) packages[name] = path.posix.dirname(pj);
-  }
-  const code = files.filter((f) => CODE.test(f));
-  const texts = readAt(cwd, head, code);
-  const imports = [];
-  for (const [from, text] of texts) {
-    for (const spec of specifiers(text)) {
-      const to = resolveImport(from, spec, fileSet, packages);
-      if (to) imports.push([from, to]);
-    }
-  }
+  const texts = readAt(cwd, head, files.filter((f) => CODE.test(f) || PACKAGE_JSON.test(f)));
+  const imports = importsOf(files, (f) => texts.get(f));
   process.stdout.write(renderBlock(prMap({ map, files, imports, changed })));
 }
 

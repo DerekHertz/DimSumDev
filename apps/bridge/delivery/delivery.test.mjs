@@ -1113,4 +1113,16 @@ describe("the pull request body carries the four sections", () => {
     assert.match(details, /- Security review: pass \(run c-[0-9a-f]+\)/);
     assert.match(details, /- Risk check: [^\n]*touches a guardrail, bridge or check path: the user reviews and merges/);
   });
+
+  // developer's scope addition: the section is the developer's own text in a public body, so it is inert and cannot swallow the next heading.
+  test("a mention, an HTML tag and a fence left open in What changes do nothing to the rest of the body", async () => {
+    const say = ["## What changes", "", "Pings @octocat and <!-- hidden --> <b>bold</b>.", "", "```diff", "- before", "+ after", "", "**Door:** two-way. Ping @octocat <i>too</i>."].join("\n");
+    const { body } = await deliver({ say });
+    const changes = section(body, "What changes");
+    assert.doesNotMatch(changes, /@octocat|<!--|<b>/, "mention and tags are neutralised outside the fence");
+    assert.ok(changes.includes("- before\n+ after"), "the diff lines stay as written");
+    assert.match(changes, /```\s*$/, "the open fence is closed");
+    assert.doesNotMatch(section(body, "Risk"), /@octocat|<i>/);
+    assert.match(section(body, "Risk"), /two-way/);
+  });
 });

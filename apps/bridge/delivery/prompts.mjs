@@ -4,6 +4,8 @@
 // run's last message, releases, pushes and opens the pull request. A reviewer's verdict is one line of that message.
 export const VERDICT_RE = /^[ \t>*_`-]*VERDICT:[ \t]*(pass|bounce)\b[ \t*_`.]*$/gim;
 
+const DOOR_RE = /^[ \t]*\*\*Door:\*\*[ \t]*(one-way|two-way)\b[ \t.:,-]*(.*)$/i;
+
 // den-mvp: what the user should look at on a preview. A developer report ends with a `Look at:` line and a list under it.
 const LOOK_AT_RE = /^[ \t>*_`#-]*look at[ \t*_`]*:[ \t*_`]*(.*)$/im;
 const LOOK_AT_MAX = 6; // items
@@ -25,6 +27,25 @@ export function readLookAt(report) {
     else if (l.trim() !== "" || items.length > (first ? 1 : 0)) break; // a blank line between the label and the list is fine
   }
   return items.slice(0, LOOK_AT_MAX).map((s) => s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, " ").slice(0, LOOK_AT_ITEM_MAX)).filter((s) => s.trim());
+}
+
+/**
+ * The last `## What changes` section of a developer's report (the handoff skill's format): { text, door }. `text` is the
+ * behavior paragraph and the diff block, up to the next `## ` heading and without the door line; `door` is
+ * { way: "one-way" | "two-way", reason } from a `**Door:** one-way|two-way. <reason>` line, or null. null when there is no section.
+ */
+export function readWhatChanges(report) {
+  if (typeof report !== "string") return null;
+  const lines = report.split(/\r?\n/);
+  const at = lines.findLastIndex((l) => /^##[ \t]+What changes[ \t]*$/i.test(l));
+  if (at < 0) return null;
+  const rest = lines.slice(at + 1);
+  const end = rest.findIndex((l) => /^##[ \t]/.test(l));
+  const body = end < 0 ? rest : rest.slice(0, end);
+  const doorAt = body.findLastIndex((l) => DOOR_RE.test(l));
+  const m = doorAt < 0 ? null : DOOR_RE.exec(body[doorAt]);
+  if (doorAt >= 0) body.splice(doorAt, 1);
+  return { text: body.join("\n").trim(), door: m ? { way: m[1].toLowerCase(), reason: m[2].trim() } : null };
 }
 
 /** The last verdict line of a report, or null. */
