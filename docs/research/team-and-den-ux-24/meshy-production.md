@@ -86,14 +86,33 @@ are read-only and do not claim live backend action verification.
 
 No full timed before/after GPU/frame/heap run has started. The new atlas likely
 adds1.33MiB while legacy textures remain for Jiao and others. The bounded capture
-harness now observes GL texture storage calls for a matched loaded/fallback pair;
-results will accompany the new checkpoint. The aggregate
+harness observes GL texture storage calls for a matched loaded/fallback pair.
+At commit00f61f36a0948e1b9a2ef5a13c58d4b4f811f137, both contexts have36actors,
+the same far camera, native RTX3060Ti,1440×900,DPR1 and reduced motion. Renderer
+texture count is119fallback →120selected. The selected512×512atlas requests
+10levels of `SRGB8_ALPHA8` storage through `texStorage2D`: exactly1,398,100bytes
+(1.333MiB). Legacy atlases remain shared with other actors. This records observed
+GL-requested storage, **not driver VRAM**. The after-only scene material estimate
+remains72,138,752bytes/68textures. The aggregate
 no-increase target remains unwaived; compare matched live allocations before
 proposing a measured exception. Ticket23's separate allowance does not apply.
 Full fitting/state/action checks, five disposal cycles, hardware comparison,
 final user verdict, independent review, QA and delivery remain pending.
 
+`meshy-fit-capture.json` records the new clean capture commit,31artifact hashes,
+camera/actor counts, portrait sizes, CPU pose sweep and observed texture storage.
+Native capture:12actualden views,10authoring poses plus side/fallback/48–72sheet,
+zero page errors and zero writes. The rerendered22,024byte portrait exactly
+matches the shipped portrait hash; its mode remains0644. Forced failed model and
+portrait loads retain the original appearance,scale1.35,cameratarget[0,2,0] and
+zoom1. Shared/focused smoke ran66tests across11files,allpassing;6JSsyntaxchecks
+passed. These checks do not claim acceptance of actual desk/chair clearance.
+The browsers closed normally and both owned preview servers were stopped.
+
 ## Incidents in this continuation
+
+Current fitting continuation failures and fixes are logged in
+`meshy-fit-incidents.md`; the following entries describe the earlier production round.
 
 - Startup refused `worktree is dirty (uncommitted or untracked files)`. Stopped;
   root moved only owned raw sources intact to the sibling cache; retry succeeded.

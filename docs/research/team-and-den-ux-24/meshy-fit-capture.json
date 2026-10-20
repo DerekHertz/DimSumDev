@@ -1,0 +1,635 @@
+{
+  "kind": "Rig fitting and native appearance checkpoint; user verdict, furniture clearance, full matched performance and aggregate allowance pending",
+  "commit": "00f61f36a0948e1b9a2ef5a13c58d4b4f811f137",
+  "outputDirectory": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy-fit/",
+  "errors": [],
+  "writes": [],
+  "authoring": {
+    "kind": "selected-A textured authoring poses; no runtime chair or performance claim",
+    "commit": "00f61f36a0948e1b9a2ef5a13c58d4b4f811f137",
+    "errors": [],
+    "captures": [
+      "light-idle.png",
+      "light-work.png",
+      "light-sit.png",
+      "light-walk.png",
+      "light-greeting.png",
+      "dark-idle.png",
+      "dark-work.png",
+      "dark-sit.png",
+      "dark-walk.png",
+      "dark-greeting.png"
+    ],
+    "resources": {
+      "triangles": 7847,
+      "shadowTriangles": 7767,
+      "geometryBytes": 671494,
+      "bones": 26,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mips": true
+        }
+      ],
+      "calls": 1
+    }
+  },
+  "captures": [
+    {
+      "theme": "light",
+      "name": "far-working",
+      "file": "den-light-far-working.png",
+      "actorCount": 36,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "theme": "light",
+      "name": "near-working",
+      "file": "den-light-near-working.png",
+      "actorCount": 36,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      }
+    },
+    {
+      "theme": "light",
+      "name": "portraits",
+      "file": "den-light-portraits.png",
+      "actorCount": 36,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      }
+    },
+    {
+      "theme": "light",
+      "name": "first-person",
+      "file": "den-light-first-person.png",
+      "actorCount": 36,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          -1.75,
+          2.08,
+          6.2
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      }
+    },
+    {
+      "theme": "light",
+      "name": "far-meeting",
+      "file": "den-light-far-meeting.png",
+      "actorCount": 42,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "theme": "light",
+      "name": "near-meeting",
+      "file": "den-light-near-meeting.png",
+      "actorCount": 42,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "far-working",
+      "file": "den-dark-far-working.png",
+      "actorCount": 36,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "near-working",
+      "file": "den-dark-near-working.png",
+      "actorCount": 36,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "portraits",
+      "file": "den-dark-portraits.png",
+      "actorCount": 36,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "first-person",
+      "file": "den-dark-first-person.png",
+      "actorCount": 36,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          -1.75,
+          2.08,
+          6.2
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "far-meeting",
+      "file": "den-dark-far-meeting.png",
+      "actorCount": 42,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "near-meeting",
+      "file": "den-dark-near-meeting.png",
+      "actorCount": 42,
+      "baoCount": 1,
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      }
+    }
+  ],
+  "portraitSizes": [
+    {
+      "width": 62,
+      "height": 62,
+      "source": "/den/portraits/bao-jade.webp"
+    },
+    {
+      "width": 40,
+      "height": 40,
+      "source": "/den/portraits/bao-jade.webp"
+    },
+    {
+      "width": 40,
+      "height": 40,
+      "source": "/den/portraits/codex-orchestrator.webp"
+    },
+    {
+      "width": 40,
+      "height": 40,
+      "source": "/den/portraits/product.webp"
+    }
+  ],
+  "fallback": {
+    "species": null,
+    "scale": 1.35,
+    "load": {
+      "loaded": [
+        "developer",
+        "technical-writer"
+      ],
+      "failed": [
+        {
+          "role": "orchestrator",
+          "message": "Failed to fetch"
+        }
+      ]
+    },
+    "camera": [
+      0,
+      2,
+      0
+    ],
+    "zoom": 1,
+    "portrait": "/den/portraits/orchestrator.webp",
+    "afterPanel": {
+      "camera": [
+        0,
+        2,
+        0
+      ],
+      "zoom": 1
+    }
+  },
+  "matchedTextureStorage": {
+    "method": "Same native GPU/browser/viewport/DPR/reduced motion, 36 actors, working state and far camera; GL texStorage2D requested storage, not driver VRAM.",
+    "before": {
+      "rendererTextures": 119,
+      "actorCount": 36,
+      "atlas": [
+        {
+          "levels": 11,
+          "internalFormat": 35907,
+          "width": 1024,
+          "height": 1024,
+          "format": "RGBA8/sRGB8-alpha8",
+          "requestedBytes": 5592404,
+          "observed": true
+        },
+        {
+          "levels": 11,
+          "internalFormat": 35907,
+          "width": 1024,
+          "height": 1024,
+          "format": "RGBA8/sRGB8-alpha8",
+          "requestedBytes": 5592404,
+          "observed": true
+        }
+      ]
+    },
+    "after": {
+      "rendererTextures": 120,
+      "actorCount": 36,
+      "atlas": [
+        {
+          "levels": 10,
+          "internalFormat": 35907,
+          "width": 512,
+          "height": 512,
+          "format": "RGBA8/sRGB8-alpha8",
+          "requestedBytes": 1398100,
+          "observed": true
+        }
+      ]
+    },
+    "textureCountDelta": 1
+  },
+  "gpu": [
+    "NVIDIA GeForce RTX 3060 Ti",
+    "Microsoft Basic Render Driver"
+  ],
+  "sceneMaterialEstimate": {
+    "uniqueTextures": 68,
+    "rgbaPlusEstimatedMipsBytes": 72138752
+  },
+  "fitting": {
+    "rig": {
+      "bones": 26,
+      "weights": 4,
+      "geometryBytes": 667238,
+      "baseDraws": 1,
+      "maxDrawsWithCup": 3,
+      "baseTriangles": 7767,
+      "maxTrianglesWithCup": 7847,
+      "shadowTriangles": 7767
+    },
+    "measuredPoses": {
+      "idle": {
+        "radius": 1.3244967653610134,
+        "top": 3.0147216546475684,
+        "bottom": 0,
+        "headRadius": 0.8278266970570055,
+        "maxEdgeStretch": 1.4859514535091751
+      },
+      "work": {
+        "radius": 1.3244967653610134,
+        "top": 3.0147216546475684,
+        "bottom": 0,
+        "headRadius": 0.8278266970570055,
+        "maxEdgeStretch": 1.4859514535091751
+      },
+      "sit": {
+        "radius": 1.3137238749694484,
+        "top": 2.88448,
+        "bottom": 0.15301238380556031,
+        "headRadius": 0.8211849797217735,
+        "maxEdgeStretch": 2.686911494585523
+      },
+      "walk": {
+        "radius": 1.3819958188059436,
+        "top": 2.98445414571207,
+        "bottom": -1.6069946556930092e-16,
+        "headRadius": 0.9150885321928602,
+        "maxEdgeStretch": 1.7333401120321668
+      },
+      "tea": {
+        "radius": 1.6376436319305816,
+        "top": 3.024316116889727,
+        "bottom": 0,
+        "headRadius": 0.83203809732087,
+        "maxEdgeStretch": 2.9616125936484656
+      },
+      "greeting": {
+        "radius": 1.6499537240162299,
+        "top": 3.0147216546475684,
+        "bottom": 0,
+        "headRadius": 0.8278266970570055,
+        "maxEdgeStretch": 2.1554222463715624
+      },
+      "pond": {
+        "radius": 1.5861067572480998,
+        "top": 3.0324432861997446,
+        "bottom": 0,
+        "headRadius": 0.8383180633169623,
+        "maxEdgeStretch": 2.424960497085822
+      },
+      "mahjong": {
+        "radius": 1.562126936714447,
+        "top": 3.0147216546475684,
+        "bottom": 0,
+        "headRadius": 0.8278266970570055,
+        "maxEdgeStretch": 1.797814983878119
+      }
+    },
+    "rigUnitEnvelopes": {
+      "standing": {
+        "radius": 1.9,
+        "height": 3.2
+      },
+      "moving": {
+        "radius": 1.95,
+        "height": 3.2
+      },
+      "seated": {
+        "radius": 1.9,
+        "height": 3.1
+      },
+      "head": {
+        "top": 3.2,
+        "labelTop": 3,
+        "radius": 1.6
+      }
+    },
+    "sceneScale": 1.35
+  },
+  "portrait": {
+    "bytes": 22024,
+    "sha256": "2d4afe6f7d8155585860ae5ff5fdd6b4b336bf1ae1d6fc6b32f01b19ebd32cf8"
+  },
+  "files": [
+    {
+      "file": "authoring-results.json",
+      "bytes": 645,
+      "sha256": "2524247312573a8b4894b1c05b538c5acd64b20ce074f640dcbf6b0dbcbab200"
+    },
+    {
+      "file": "bao-jade.webp",
+      "bytes": 22024,
+      "sha256": "2d4afe6f7d8155585860ae5ff5fdd6b4b336bf1ae1d6fc6b32f01b19ebd32cf8"
+    },
+    {
+      "file": "capture-authoring.cjs",
+      "bytes": 2697,
+      "sha256": "1b5127233b288f8d37cab112adcae7ac6bda6c0be8d7c8eae784821e3073aa96"
+    },
+    {
+      "file": "capture-review.cjs",
+      "bytes": 14184,
+      "sha256": "c515ba0c9f420460c0adc76159ccff6a2a1b5d56751e222702ebcb02d3bfd315"
+    },
+    {
+      "file": "dark-greeting.png",
+      "bytes": 138039,
+      "sha256": "58c700e17b17f3054d1c2dba5df454bb1c59114b4db9d4f9c9376b39394f8f40"
+    },
+    {
+      "file": "dark-idle.png",
+      "bytes": 131221,
+      "sha256": "d9d2acd5c00aba9ebf014336ae1860ee7d63e3f9c8b5c0296591709fa306b4b0"
+    },
+    {
+      "file": "dark-sit.png",
+      "bytes": 127265,
+      "sha256": "b7134f306814e1f3092cd4afb251f6aec7172253d633b02f35c556beded05f88"
+    },
+    {
+      "file": "dark-walk.png",
+      "bytes": 130011,
+      "sha256": "441b4d23ee9ec001e572e37ef03eac67a5fd57040806d69437c0e3ba0e2a9168"
+    },
+    {
+      "file": "dark-work.png",
+      "bytes": 131330,
+      "sha256": "fc1c3762b736c576e7b5248c939bcb5665d11035d56341c12fefc38390af6471"
+    },
+    {
+      "file": "den-dark-far-meeting.png",
+      "bytes": 521952,
+      "sha256": "57284bb8c13a81e1a35929f312e8d96ab635861fed906174fd432563a22340d5"
+    },
+    {
+      "file": "den-dark-far-working.png",
+      "bytes": 512624,
+      "sha256": "a31f2484ac2e8ec0dd27b71b7cd92e2c113e2fec4de533ab3791d57ee171855a"
+    },
+    {
+      "file": "den-dark-first-person.png",
+      "bytes": 456137,
+      "sha256": "2a11b73233a531c2c2b1bed12204561cb9419c19508f23e873e18d8dd9ee8fc4"
+    },
+    {
+      "file": "den-dark-near-meeting.png",
+      "bytes": 524529,
+      "sha256": "b9def36d025590d855b8a9f75f963c51d85bc1775f250e2751147e407a864bc3"
+    },
+    {
+      "file": "den-dark-near-working.png",
+      "bytes": 440134,
+      "sha256": "c8a5c9e027b39c0c9d68bb4c3809872ae690aa7b7f453c7c00cfa4ab97ed3eb7"
+    },
+    {
+      "file": "den-dark-portraits.png",
+      "bytes": 455581,
+      "sha256": "e3f215cc08cb7aaa28cd16bf666ef99eaed0223d9ce4180fd22ea83b7df49ab2"
+    },
+    {
+      "file": "den-light-fallback.png",
+      "bytes": 489372,
+      "sha256": "7d912b8d27ae74f1eb57f540759846a9e8b565fa6571157f4f0a2fb4a9fd36c9"
+    },
+    {
+      "file": "den-light-far-meeting.png",
+      "bytes": 517338,
+      "sha256": "d48e9bbce88fd76cf6ee4848c2935cdea993284953f88a8051a631120dd1955e"
+    },
+    {
+      "file": "den-light-far-working.png",
+      "bytes": 510282,
+      "sha256": "51f0bbdeeb944df82577471a02daf871f0c8b6fc22501a60c983952918b67570"
+    },
+    {
+      "file": "den-light-first-person.png",
+      "bytes": 452682,
+      "sha256": "ae15cc64013cb770dbf7fbeb9722e4df245898b7eb61d392c06d169de987a980"
+    },
+    {
+      "file": "den-light-near-meeting.png",
+      "bytes": 519005,
+      "sha256": "e61691272a6538dde322010131c4948c306026b88fdf9d4405896d9e934b5b51"
+    },
+    {
+      "file": "den-light-near-working.png",
+      "bytes": 436387,
+      "sha256": "a1b4d62f8920955ca94d23385432bdb2eb65e8affc26d35edc63e93cead7f9e0"
+    },
+    {
+      "file": "den-light-portraits.png",
+      "bytes": 451642,
+      "sha256": "1669afcbc97ace713f5dad5fc85285f60c3293135a6ae191937357a347cd5ca1"
+    },
+    {
+      "file": "fitting.json",
+      "bytes": 70528,
+      "sha256": "4e65971509a7b399288e9881231b979a3ee3fae2d184b49a7433942476dddcba"
+    },
+    {
+      "file": "light-greeting.png",
+      "bytes": 139450,
+      "sha256": "ab527800996eee8486f580b7ef82a836b1d5c22023b021172b95015058e06572"
+    },
+    {
+      "file": "light-idle.png",
+      "bytes": 131794,
+      "sha256": "5499ece262936bacbf03ebf4aaffc982eed8a70149f015d97e0fcd31f083616b"
+    },
+    {
+      "file": "light-sit.png",
+      "bytes": 127485,
+      "sha256": "c8f23d69f91d062fa685d877b90a12c36091f0f386dfb85641627801225d579e"
+    },
+    {
+      "file": "light-walk.png",
+      "bytes": 130483,
+      "sha256": "41d53195f016fbddab6cfad73e2fec5cfd20a61ddedd6f7e9849badf119f411b"
+    },
+    {
+      "file": "light-work.png",
+      "bytes": 131918,
+      "sha256": "76f08e8174b25d0a1064fa2b15e0472838582a1ff154032d5236705333f4865b"
+    },
+    {
+      "file": "portrait-48-72-authoring.png",
+      "bytes": 21194,
+      "sha256": "9f6dc0dc4ed86330e5c369b8d883d8f5360b25ea1d959c6d68074a287ba2b7b5"
+    },
+    {
+      "file": "review-results.json",
+      "bytes": 143808,
+      "sha256": "d29e30ba7190dafc9acb7ae93132e38d96a2b712c04afec856ac34aec4179a7c"
+    },
+    {
+      "file": "side-idle.png",
+      "bytes": 127827,
+      "sha256": "6ea41a7d79e5dea318edfa4b00e1fa934cf95e70bae6fd41ee536923188dd101"
+    }
+  ]
+}

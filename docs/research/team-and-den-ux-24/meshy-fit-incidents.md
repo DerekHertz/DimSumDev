@@ -1,0 +1,11 @@
+# Rig-fitting continuation: failed calls
+
+- `cat` initially read the production research path from the main checkout: `No such file or directory`, exit1. Read the branch's research from the assigned worktree instead. Path discovery friction.
+- Exact-path `rg` probes named absent `characters/bao*`, `scripts/*bao*`, `*pose*`, `DenScene.jsx`, `den.mjs` and `agents.mjs`: `No such file or directory`, exit2. Continued with `rg --files` and the actual `meshy/` files. Path discovery friction; no files changed by these calls.
+- Retained production test reproduced `wave paw height 1.9164631692628982`,6pass/1fail. Source-aligned shoulder and sleeve weights fixed it; original assertions remain.
+- Initial static-rest test used deep array comparison on all skinned vertices. Formatting the expected red diff consumed the120s bound, exit124, with only the TAP header returned. Replaced only its failure-reporting comparison with a maximum numeric displacement; the same red condition then reported `maximum vertex displacement 0.17182769636047368`,6pass/2fail with the retained wave. No production execution timeout is claimed. Later clean run9pass.
+- Attempted cleanup `kill -KILL 1466970 1466964 1466723` after the formatter timeout: each returned `No such process`, exit1. The bounded run had already ended. No other process was signaled; cleanup race.
+- New cycle regression went red: `sit at 0.0 stretches a surface edge 4.419033848991262 times`. Broad thigh-to-pelvis weights fixed it; unchanged3× limit now passes25frames per state.
+- First expanded CPU sweep asserted `greeting 2: head envelope`. Its old metric selected vertices by their deformed height, thus counted the raised hand as head. Select source upper-head vertices before skinning; the full body/prop envelope still includes the hand. Rerun passed all200samples. Measurement classification bug, no envelope enlarged.
+
+Native commands emitted the normal UNC-working-directory notice and returned0. Vite emitted its existing large-chunk warning; build succeeded. Runner omitted two requested nonexistent test filenames after checking them, without invoking them; all11 existing scoped test files passed66tests. No permissions were rejected, no paid stages ran, and no environment change was needed.
