@@ -1,21 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readdirSync} from 'node:fs';
+import {readdirSync, existsSync} from 'node:fs';
+import {ROLE_PORTRAITS} from './role-portraits.mjs';
 import {RESIDENTS, residentKey, boundAgentKey} from './resident-inventory.mjs';
 import {deskResidents, deskActivity} from './desk-model.mjs';
 import {liveActorsFromSnapshot} from '../review/live-actors.mjs';
 import {actorBindings} from '../scene/meshy/layout.mjs';
 import {agentFor,pickedCard} from '../overlay/proximity-card.mjs';
 
-test('one inventory covers trusted recipes in both runtimes and only five scenery residents',()=>{
- // team-and-den-ux/02 added these role definitions (ADR 0029); team-and-den-ux/03 seats them as residents and drops this list.
- const AWAITING_SEATS=['code-reviewer','release-manager','sre','technical-writer'];
- const recipes=readdirSync(new URL('../../../../.codex/agents/',import.meta.url)).filter(f=>f.endsWith('.toml')).map(f=>f.slice(0,-5)).filter(r=>!['default','explorer','worker',...AWAITING_SEATS].includes(r));
+test('one inventory covers every trusted recipe in both runtimes and four scenery residents',()=>{
+ const recipes=readdirSync(new URL('../../../../.codex/agents/',import.meta.url)).filter(f=>f.endsWith('.toml')).map(f=>f.slice(0,-5)).filter(r=>!['default','explorer','worker'].includes(r));
  for(const runtime of ['claude','codex'])assert.deepEqual(RESIDENTS.filter(r=>r.runtime===runtime&&r.dispatchable).map(r=>r.role).sort(),recipes.sort());
- assert.equal(RESIDENTS.length,25);assert.equal(new Set(RESIDENTS.map(r=>r.id)).size,25);
- assert.equal(RESIDENTS.filter(r=>!r.dispatchable).length,5);
+ assert.equal(RESIDENTS.length,32);assert.equal(new Set(RESIDENTS.map(r=>r.id)).size,32);
+ assert.equal(RESIDENTS.filter(r=>!r.dispatchable).length,4);
  assert.equal(RESIDENTS.find(r=>r.id==='codex:orchestrator').name,'Jiao');
- assert.equal(deskResidents(null).length,25);assert.equal(deskActivity(null).resting,25);
+ assert.equal(deskResidents(null).length,32);assert.equal(deskActivity(null).resting,32);
 });
 
 test('live takeover, visitors and tasks isolate runtime, role and project; unknown and ended runs stay idle',()=>{
@@ -34,12 +33,34 @@ test('live takeover, visitors and tasks isolate runtime, role and project; unkno
  assert.equal(bindings.get('codex:developer#same/02').agentId,'c');
  assert.equal(live.length,3);
  const rows=deskResidents(snapshot);assert.equal(rows.find(r=>r.id==='codex:runner').ref,null);
- assert.deepEqual(deskActivity(snapshot),{working:2,waiting:1,blocked:0,resting:23,visitors:1});
+ assert.deepEqual(deskActivity(snapshot),{working:2,waiting:1,blocked:0,resting:30,visitors:1});
  const selected=liveActorsFromSnapshot(snapshot,{projectId:'other'});
  assert.deepEqual(selected.map(a=>a.agentId),['elsewhere']);
  const old=new Map([['codex:developer',bindings.get('codex:developer#same/02')]]);
  assert.equal(actorBindings(live,old).get('codex:developer').agentId,'c');
  assert.equal(residentKey('developer','codex'),'codex:developer');
+});
+
+test('new charter residents expose their own cached portraits and exact live cards in both runtimes',()=>{
+ const roles=['code-reviewer','release-manager','sre','technical-writer'];
+ const agents=roles.flatMap(role=>['claude','codex'].map(runtime=>({id:runtime+'-'+role,role,runtime,ref:'cast/01',state:'working',capabilities:{send:true}})));
+ const snapshot={agents:[...agents,{id:'other-project',role:'release-manager',runtime:'claude',projectId:'elsewhere',ref:'cast/01',state:'working'}]};
+ const bindings=actorBindings(liveActorsFromSnapshot(snapshot));
+ assert.equal(bindings.size,8);
+ for(const agent of agents){
+  const id=residentKey(agent.role,agent.runtime),resident=deskResidents(snapshot).find(row=>row.id===id);
+  assert.equal(resident.agentId,agent.id);assert.equal(resident.state,'working');
+  const card=pickedCard([{...resident,agent:agentFor(resident,snapshot.agents)}],[],id);
+  assert.equal(card.role,agent.role);assert.equal(card.runtime,agent.runtime);
+  if(agent.runtime==='claude'){assert.equal(card.agentId,agent.id);assert.equal(card.threadId,agent.id);assert.equal(card.actions.T.enabled,true);}
+  else{assert.equal(card.agentId,null);assert.ok(Object.values(card.actions).every(action=>!action.enabled));}
+  const portrait=ROLE_PORTRAITS[id];
+  assert.ok(portrait,id+' has its own portrait URL');
+  assert.ok(existsSync(new URL('../../public'+portrait,import.meta.url)),id+' portrait is packaged');
+ }
+ assert.equal(RESIDENTS.filter(row=>row.name==='The Drummer').length,0,'the old festival identity is not a second release manager');
+ const ended=deskResidents({agents:agents.map(row=>({...row,state:'done'}))});
+ for(const row of ended.filter(row=>roles.includes(row.role)))assert.equal(row.state,'resident');
 });
 
 test('Jiao cannot inherit Bao desk, transcript, permissions, or task actions even with reported capabilities',()=>{

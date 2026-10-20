@@ -20,7 +20,7 @@ test('visitors retain live identities and own skeletons, and release them when t
   const resident=actors.actors.get('developer'),visitor=actors.actors.get('developer#work/2');
   assert.notEqual(visitor.panda.rig.skeleton,resident.panda.rig.skeleton);assert.equal(visitor.live.ref,'work/2');
   const before=visitor.panda.model.position.clone();actors.update(.1);assert.ok(visitor.panda.model.position.distanceTo(before)>0);assert.notEqual(visitor.panda.rig.bones.Hip_L.quaternion.w,1,'walking deforms the legs');
-  actors.applyLive([]);assert.equal(den.pandaRigs.size,25);assert.equal(visitor.panda.model.parent,null);
+  actors.applyLive([]);assert.equal(den.pandaRigs.size,32);assert.equal(visitor.panda.model.parent,null);
  }finally{f.dispose();}
 });
 test('split visitors inherit matching runtime and meetings keep Claude participants',()=>{
@@ -163,7 +163,7 @@ test('busy residents keep working while independent meeting guests walk, sit and
   const still=guest.panda.rig.bones.Chest.scale.clone();actors.update(1,true);assert.deepEqual(guest.panda.rig.bones.Chest.scale,still);
   actors.applyMeeting(null);actors.update(.1);assert.equal(guest.leaving,true);
   actors.applyMeeting({id:'meeting/2',ref:'work/next',state:'running',seats:[{role:'developer'}]});
-  assert.equal(actors.actors.get('meeting:developer'),guest,'a returning guest joins the next meeting without leaking a copy');assert.equal(den.pandaRigs.size,26);
-  actors.applyMeeting(null);actors.update(.1,true);assert.equal(actors.actors.has('meeting:developer'),false);assert.equal(den.pandaRigs.size,25);
+  assert.equal(actors.actors.get('meeting:developer'),guest,'a returning guest joins the next meeting without leaking a copy');assert.equal(den.pandaRigs.size,33);
+  actors.applyMeeting(null);actors.update(.1,true);assert.equal(actors.actors.has('meeting:developer'),false);assert.equal(den.pandaRigs.size,32);
  }finally{f.dispose();}
 });

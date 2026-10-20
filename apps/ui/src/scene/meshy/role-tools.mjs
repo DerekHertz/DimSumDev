@@ -1,10 +1,15 @@
 import * as T from 'three';
 import {GROVE_TOOLS,createGroveTool} from './grove-tools.mjs';
 
-export const ROLE_TOOLS=Object.freeze({...GROVE_TOOLS,debugger:'Inspection lantern','release-manager':'Festival mallet','knowledge-keeper':'Archive book','docs-writer':'Writing brush','stem-cub':'Bamboo sprout'});
+const PLACEHOLDER_TOOLS=Object.freeze({'code-reviewer':['developer','Review tablet'],'release-manager':['security','Release seal and checklist'],sre:['scout','Health inspection kit'],'technical-writer':['herald','Documentation scroll and writing brush']});
+export const ROLE_TOOLS=Object.freeze({...GROVE_TOOLS,...Object.fromEntries(Object.entries(PLACEHOLDER_TOOLS).map(([role,[,name]])=>[role,name])),debugger:'Inspection lantern','knowledge-keeper':'Archive book','docs-writer':'Writing brush','stem-cub':'Bamboo sprout'});
 
 /** Small authored tools follow a paw socket; wardrobe still supplies each role's attire. */
 export function createRoleTool(role,options={}){
+ if(PLACEHOLDER_TOOLS[role]){
+  const [kit,name]=PLACEHOLDER_TOOLS[role],tool=createGroveTool(kit,options);
+  tool.name=name;tool.userData={...tool.userData,roleId:role,tool:name,placeholderFrom:kit};return tool;
+ }
  if(GROVE_TOOLS[role])return createGroveTool(role,options);
  if(!ROLE_TOOLS[role])throw Error('Unknown role tool: '+role);
  const root=new T.Group();root.name=ROLE_TOOLS[role];root.userData={roleId:role,tool:ROLE_TOOLS[role]};
@@ -21,8 +26,6 @@ export function createRoleTool(role,options={}){
   box([.24,.28,.19],'cream',[0,-.13,.04]);for(const y of[-.29,.03])box([.29,.045,.23],'wood',[0,y,.04]);ring(.10,'gold',[0,.13,.04]);
  }else if(role==='docs-writer'){
   rod(.62,.024,'wood',[0,-.12,.04]);const nib=orb(.055,'ink',[0,-.46,.04]);nib.scale.set(.5,1.7,.5);
- }else if(role==='release-manager'){
-  rod(.53,.028,'wood',[0,-.11,.04]);orb(.11,'coral',[0,.18,.04]);
  }else if(role==='stem-cub'){
   rod(.42,.025,'jade',[0,-.15,.04]);for(const side of[-1,1]){const leaf=orb(.12,'jade',[side*.09,.05,.04]);leaf.scale.set(.36,1,.25);leaf.rotation.z=-side*.65;}
  }

@@ -2,12 +2,12 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deskActivity, deskResidents } from './desk-model.mjs';
 
-test('a quiet garden keeps all twenty-five permanent residents without invented activity', () => {
+test('a quiet garden keeps all thirty-two permanent residents without invented activity', () => {
   const residents = deskResidents(null);
-  assert.equal(residents.length, 25);
-  assert.equal(new Set(residents.map(row => row.id)).size, 25);
+  assert.equal(residents.length, 32);
+  assert.equal(new Set(residents.map(row => row.id)).size, 32);
   assert.ok(residents.every(row => row.state === 'resident' && row.ref === null));
-  assert.deepEqual(deskActivity(null), { working: 0, waiting: 0, blocked: 0, resting: 25, visitors: 0 });
+  assert.deepEqual(deskActivity(null), { working: 0, waiting: 0, blocked: 0, resting: 32, visitors: 0 });
 });
 
 test('concurrent work gets separate visitors and preserves the exact ticket selection', () => {
@@ -21,7 +21,7 @@ test('concurrent work gets separate visitors and preserves the exact ticket sele
     { id: 'developer', ref: 'feature/01', state: 'working', visitor: false },
     { id: 'developer#feature/02', ref: 'feature/02', state: 'needs-you', visitor: true },
   ]);
-  assert.deepEqual(deskActivity(snapshot), { working: 1, waiting: 1, blocked: 0, resting: 24, visitors: 1 });
+  assert.deepEqual(deskActivity(snapshot), { working: 1, waiting: 1, blocked: 0, resting: 31, visitors: 1 });
 });
 
 test('profiles preserve live task and tool activity for the primary resident and exact visitor', () => {

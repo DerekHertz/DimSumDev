@@ -57,7 +57,7 @@ test('cached portrait authoring renders the shared wardrobe and runner without l
   const report=await renderRolePortraits((role,data)=>{images.push({role,webp:data.startsWith('data:image/webp;base64,'),length:data.length});});
   return {report,images};
  });
- assert.equal(result.report.count,15);assert.equal(result.report.runtime,'claude');
+ assert.equal(result.report.count,18);assert.equal(result.report.runtime,'claude');
  assert.ok(result.images.some(image=>image.role==='runner'));
  assert.ok(result.images.every(image=>image.webp&&image.length>10000));
  assert.deepEqual(errors,[]);

@@ -6,7 +6,7 @@ import { sameResident, runtimeOf, boundAgentKey, RUNTIME_UNAVAILABLE, LIVE_AGENT
 // The scene supplies {id, name, role, team, position:{x,z}, ref?, state?, tool?, agent?} per panda.
 // den-v1 loop S1: the roles the bridge starts from the den (apps/bridge/agents/policy.mjs ROLES; a test keeps the two
 // equal). T on a resident with one of these roles opens the task box. A scenery panda (dispatchable: false) never does,
-// even when it shares a role's name: the Drummer stays scenery until team-and-den-ux/03 seats the release manager.
+// even if stale presentation metadata shares a dispatchable role's name.
 export const START_ROLES = ['product', 'architect', 'orchestrator', 'developer', 'scout', 'qa', 'security', 'designer', 'herald', 'code-reviewer', 'release-manager', 'sre', 'technical-writer'];
 
 // The card's line for each state: the bridge's live states (policy.mjs LIVE_STATES) and the board-driven ones.

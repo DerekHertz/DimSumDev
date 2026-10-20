@@ -1,7 +1,7 @@
 import * as T from 'three';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 
-export const GROVE_ROLES=Object.freeze({orchestrator:'#674698',product:'#674698',architect:'#674698',developer:'#2759a2',scout:'#2759a2',runner:'#2759a2',qa:'#006e54',security:'#326a2d',designer:'#00658b',herald:'#00658b'});
+export const GROVE_ROLES=Object.freeze({orchestrator:'#674698',product:'#674698',architect:'#674698','release-manager':'#674698',developer:'#2759a2',scout:'#2759a2',runner:'#2759a2','code-reviewer':'#006e54',qa:'#006e54',security:'#326a2d',sre:'#326a2d',designer:'#00658b',herald:'#00658b','technical-writer':'#00658b'});
 export function rolePalette(role,runtime='claude'){
  if(!['claude','codex'].includes(runtime))throw Error('Unknown panda runtime: '+runtime);
  const hue=GROVE_ROLES[role];if(!hue)throw Error('Unknown Grove role: '+role);

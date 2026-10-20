@@ -10,7 +10,10 @@ export const ROLE_OUTFITS = Object.freeze([
   ['scout','vest','#2759a2','goggles'], ['runner','vest','#2759a2','tied-headband'], ['debugger','scarf','#637c8d',null],
   ['qa','vest','#006e54','woven-douli'], ['security','vest','#326a2d','brim-cap'],
   ['designer','vest','#00658b','beret'], ['herald','vest','#00658b','folded-headband'],
-  ['release-manager','vest','#b97a53','festival-band'], ['knowledge-keeper','vest','#487a80','archive-hat'],
+  // Temporary existing-kit looks; team-and-den-ux/15 supplies the final cast.
+  ['release-manager','vest','#674698','festival-band'], ['code-reviewer','vest','#006e54','spectacles'],
+  ['sre','vest','#326a2d','headphones'], ['technical-writer','vest','#00658b','folded-headband'],
+  ['knowledge-keeper','vest','#487a80','archive-hat'],
   ['docs-writer','scarf','#59678b',null], ['stem-cub','vest','#9aafc6','nightcap'],
 ].map(([id,clothing,color,headwear])=>Object.freeze({id,clothing,color,headwear})));
 

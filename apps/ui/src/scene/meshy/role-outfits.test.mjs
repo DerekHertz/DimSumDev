@@ -4,8 +4,8 @@ import {Box3, BoxGeometry, Group, Mesh, MeshStandardMaterial, Vector3} from 'thr
 import {ROLE_OUTFITS, createRoleOutfit, completeRoleOutfits} from './role-outfits.mjs';
 import {createRoleHeadwear} from './role-headwear.mjs';
 
-const ROLES = ['orchestrator','product','architect','developer','scout','runner','debugger','qa','security','designer','herald','release-manager','knowledge-keeper','docs-writer','stem-cub'];
-const HEADWEAR = ['orchestrator','product','architect','developer','scout','runner','qa','security','designer','herald','knowledge-keeper','release-manager','stem-cub'];
+const ROLES = ['orchestrator','product','architect','developer','scout','runner','debugger','qa','security','designer','herald','release-manager','knowledge-keeper','docs-writer','stem-cub','code-reviewer','sre','technical-writer'];
+const HEADWEAR = ['orchestrator','product','architect','developer','scout','runner','qa','security','designer','herald','knowledge-keeper','release-manager','stem-cub','code-reviewer','sre','technical-writer'];
 function templates() {
   const make = name => {
     const group = new Group(); group.name = name;
@@ -17,9 +17,9 @@ function templates() {
 function meshes(group) { const result=[]; group.traverse(node=>{if(node.isMesh)result.push(node);});return result; }
 
 test('the approved wardrobe assigns exactly one vest or scarf to each canonical permanent role', () => {
-  assert.equal(ROLE_OUTFITS.length,15);
+  assert.equal(ROLE_OUTFITS.length,18);
   assert.deepEqual(ROLE_OUTFITS.map(row=>row.id).sort(),[...ROLES].sort());
-  assert.equal(new Set(ROLE_OUTFITS.map(row=>row.id)).size,15);
+  assert.equal(new Set(ROLE_OUTFITS.map(row=>row.id)).size,18);
   for(const row of ROLE_OUTFITS){
     assert.ok(['vest','scarf'].includes(row.clothing),row.id);
     assert.match(row.color,/^#[0-9a-f]{6}$/i,row.id+' has an explicit fabric color');
