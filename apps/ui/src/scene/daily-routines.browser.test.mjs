@@ -32,7 +32,7 @@ test('the actual garden moves residents and koi, holds the selected identity, an
    });
    return {pandas:Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,p.position.toArray()])),fish:window.routineProbe.fish.map(f=>f.position.toArray()),outfits};
   });
-  assert.equal(initial.fish.length,3);assert.equal(Object.keys(initial.pandas).length,25);
+  assert.equal(initial.fish.length,3);assert.equal(Object.keys(initial.pandas).length,32);
   assert.ok(initial.outfits.every(o=>o.count>0&&o.shared&&o.textured),'all actual residents retain textured outfits on their shared skeleton');
   await page.waitForFunction(before=>{
    const p=window.routineProbe;

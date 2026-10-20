@@ -28,7 +28,7 @@ test('actual live garden and keyboard roster expose both crews while Codex actio
    world.traverse(p=>{if(p.userData.actorKey)pandas[p.userData.actorKey]=p;});window.pairedProbe={state,world,pandas,mountedFrame:state.gl.info.render.frame};
    return Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,{runtime:p.userData.runtime,role:p.userData.roleId,scale:p.scale.x,position:p.position.toArray()}]));
   });
-  assert.equal(Object.keys(world).length,25);assert.equal(world['codex:orchestrator'].scale,world.orchestrator.scale);
+  assert.equal(Object.keys(world).length,32);assert.equal(world['codex:orchestrator'].scale,world.orchestrator.scale);
   assert.equal(world['codex:orchestrator'].position[1],world.orchestrator.position[1]);
   assert.equal(world['codex:runner'].runtime,'codex');assert.equal(world.runner.runtime,'claude');
   if(process.env.RESIDENT_EVIDENCE_DIR)await mkdir(process.env.RESIDENT_EVIDENCE_DIR,{recursive:true});
@@ -52,7 +52,7 @@ test('actual live garden and keyboard roster expose both crews while Codex actio
   assert.equal(await page.locator('.message-composer,.transcript-panel').count(),0);
   await page.getByRole('button',{name:'Close panda card'}).click();
   await page.locator('[data-rail=team]').click();
-  const choices=page.getByRole('list',{name:'Residents and visitors'}).getByRole('button');assert.ok(await choices.count()>=25,'the roster includes the charter roles and their current agents');
+  const choices=page.getByRole('list',{name:'Residents and visitors'}).getByRole('button');assert.ok(await choices.count()>=32,'the roster includes the charter roles and their current agents');
   const jiao=page.getByRole('button',{name:/^Jiao, orchestrator, Codex/});await jiao.focus();await page.keyboard.press('Enter');
   const profile=page.locator('.forest-profile');assert.match(await profile.innerText(),/Jiao/);assert.match(await profile.innerText(),/orchestrator · Codex/);assert.match(await profile.innerText(),/Project identity unavailable/);
   assert.equal(await profile.getByRole('button',{name:'Talk to Jiao'}).isDisabled(),true);assert.match(await profile.innerText(),/Codex conversations and tasks are unavailable/);
@@ -94,7 +94,7 @@ test('mounted scene and roster keep concurrent runtime tasks and visitors separa
   await page.goto(server.resolvedUrls.local[0]);await page.waitForFunction(()=>{const b=document.querySelector('.den-entry button');return b&&b.getAttribute('aria-disabled')!=='true';},null,{timeout:60000});
   await page.waitForFunction(async()=>{const f=performance.getEntriesByType('resource').find(r=>r.name.includes('/@react-three_fiber.js'));const {_roots}=await import(f.name);const scene=_roots.get(document.querySelector('canvas')).store.getState().scene,pandas={};scene.traverse(p=>{if(p.userData.actorKey)pandas[p.userData.actorKey]=p;});window.bindingProbe=pandas;return pandas['codex:developer#paired/03']?.userData.ticketRef==='paired/03';});
   const refs=await page.evaluate(()=>Object.fromEntries(Object.entries(window.bindingProbe).map(([id,p])=>[id,p.userData.ticketRef])));
-  assert.equal(Object.keys(refs).length,26);assert.equal(refs.developer,'paired/01');assert.equal(refs['codex:developer'],'paired/01');assert.equal(refs['codex:developer#paired/03'],'paired/03');assert.ok(!Object.values(refs).includes('paired/04'));
+  assert.equal(Object.keys(refs).length,33);assert.equal(refs.developer,'paired/01');assert.equal(refs['codex:developer'],'paired/01');assert.equal(refs['codex:developer#paired/03'],'paired/03');assert.ok(!Object.values(refs).includes('paired/04'));
   await page.locator('[data-rail=team]').click();
   await page.getByRole('button',{name:/^The Maker, developer, Codex, current project identity unavailable, Working/}).click();assert.match(await page.locator('.forest-profile').innerText(),/paired\/01/);
   assert.equal(await page.getByRole('button',{name:'Talk to Maker'}).isDisabled(),true);

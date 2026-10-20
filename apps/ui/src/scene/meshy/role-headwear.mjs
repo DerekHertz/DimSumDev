@@ -8,7 +8,14 @@ const SELECTED = new Set(['knowledge-keeper','release-manager','stem-cub']);
 // Bao-local coordinates: feet=0, crown approximately3, front=+Z.
 // Scenery headwear keeps its established geometry; dispatchable roles use Grove.
 export function createRoleHeadwear(roleId,options={}) {
-  if(GROVE_ROLES[roleId])return createGroveHeadwear(roleId,options);
+  const placeholder={'code-reviewer':'product',sre:'developer','technical-writer':'herald'}[roleId];
+  if(placeholder){
+    const headwear=createGroveHeadwear(placeholder,options);
+    headwear.name='Role headwear · '+roleId;
+    headwear.userData={...headwear.userData,headwearRole:roleId,placeholderFrom:placeholder};
+    return headwear;
+  }
+  if(GROVE_ROLES[roleId]&&roleId!=='release-manager')return createGroveHeadwear(roleId,options);
   if (!SELECTED.has(roleId)) return null;
   const source = new T.Group();
   const material = color => new T.MeshStandardMaterial({color,roughness:.88});

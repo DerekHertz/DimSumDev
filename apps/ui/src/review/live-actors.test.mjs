@@ -130,7 +130,7 @@ test("a ticket with no lock is not a live agent: in-review and ready-for-human w
 
 test("the 4 scenery pandas never come from live state, even if a holder names one", () => {
   const s = snap([
-    ticket("fx/01-a", "claimed", "release-manager"),
+    ticket("fx/01-a", "claimed", "debugger"),
     ticket("fx/02-b", "claimed", "knowledge-keeper"),
     ticket("fx/03-c", "claimed", "docs-writer"),
     ticket("fx/04-d", "claimed", "stem-cub"),
@@ -212,7 +212,7 @@ test("the bridge agent's latest tool is the bubble, under the same TTL", () => {
 test("an ended bridge agent binds nothing, and neither does one with no id, no ref or an unknown role", () => {
   const rows = [
     ...["done", "failed", "terminated"].map((state, i) => agentRow(`den/0${i + 1}-scout`, "scout", { state })),
-    agentRow("den/05-x", "release-manager"),
+    agentRow("den/05-x", "debugger"),
     { ...agentRow("den/06-qa", "qa"), id: undefined },
     { ...agentRow("den/07-qa", "qa"), ref: undefined },
     null,

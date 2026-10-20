@@ -12,6 +12,9 @@ export const ROLE_PORTRAITS = Object.freeze({
   designer:'/den/portraits/designer.webp',
   herald:'/den/portraits/herald.webp',
   'release-manager':'/den/portraits/release-manager.webp',
+  'code-reviewer':'/den/portraits/code-reviewer.webp',
+  sre:'/den/portraits/sre.webp',
+  'technical-writer':'/den/portraits/technical-writer.webp',
   'knowledge-keeper':'/den/portraits/knowledge-keeper.webp',
   'docs-writer':'/den/portraits/docs-writer.webp',
   'stem-cub':'/den/portraits/stem-cub.webp',
@@ -25,4 +28,8 @@ export const ROLE_PORTRAITS = Object.freeze({
   "codex:security":"/den/portraits/codex-security.webp",
   "codex:designer":"/den/portraits/codex-designer.webp",
   "codex:herald":"/den/portraits/codex-herald.webp",
+  'codex:code-reviewer':'/den/portraits/codex-code-reviewer.webp',
+  'codex:release-manager':'/den/portraits/codex-release-manager.webp',
+  'codex:sre':'/den/portraits/codex-sre.webp',
+  'codex:technical-writer':'/den/portraits/codex-technical-writer.webp',
 });

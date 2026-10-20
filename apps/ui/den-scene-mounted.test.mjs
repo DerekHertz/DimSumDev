@@ -175,13 +175,13 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
       const table=world.getObjectByName('Round table and legs');let bounds;table.traverse(n=>{if(!n.isMesh)return;n.geometry.computeBoundingBox();const b=n.geometry.boundingBox.clone().applyMatrix4(n.matrixWorld);if(bounds)bounds.union(b);else bounds=b;});const tableSize=bounds.getSize(table.position.clone()).toArray();
       return {roles:roles.map(n=>n.userData.roleId),actorKeys,tools,claudeTools,coordinatorTools,skeletons:skeletons.size,routes,tableSize,susan:!!world.getObjectByName('Lazy susan'),places:world.userData.presentationLayout.structurePositions};
     });
-    assert.equal(new Set(scene.roles).size,15);
-    assert.equal(new Set(scene.actorKeys).size,25,'each permanent runtime resident has a distinct actor key');
-    assert.equal(new Set(scene.claudeTools).size,15,'each Claude permanent role has a distinct paw tool');
-    assert.equal(new Set(scene.tools).size,16,'Jiao adds her distinct approved coordinator tool');
+    assert.equal(new Set(scene.roles).size,18);
+    assert.equal(new Set(scene.actorKeys).size,32,'each permanent runtime resident has a distinct actor key');
+    assert.equal(new Set(scene.claudeTools).size,18,'each Claude permanent role has a distinct paw tool');
+    assert.equal(new Set(scene.tools).size,19,'Jiao adds her distinct approved coordinator tool');
     assert.ok(scene.tools.includes('Order notebook'));
     assert.deepEqual(scene.coordinatorTools,{orchestrator:['Bamboo fan'],'codex:orchestrator':['Order notebook']},'Bao and Jiao keep their distinct approved tools');
-    assert.equal(scene.skeletons,40,'25 residents and 15 scenery pandas have independent skeletons');
+    assert.equal(scene.skeletons,47,'32 residents and 15 scenery pandas have independent skeletons');
     assert.equal(scene.places.length,10);
     assert.deepEqual(scene.routes.filter(r=>!r.out||!r.home),[],'every workstation connects to the meeting and back over actual walking surfaces');
     assert.ok(scene.tableSize[0]>=4&&scene.tableSize[1]>=1&&scene.tableSize[2]>=2.3,'the batched meeting table and legs remain visible');
@@ -197,16 +197,16 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
   } finally { await context.close(); }
 });
 
-test("phone shell keeps the scene and Team sheet within the viewport and lists all twenty-nine charter roles", { timeout: 90000 }, async () => {
+test("phone shell keeps the scene and Team sheet within the viewport and lists all thirty-two charter roles", { timeout: 90000 }, async () => {
   const { context, page, errors } = await openGarden({ viewport: { width: 390, height: 844 } });
   try {
     await ready(page);
     await page.locator('[data-rail="team"]').click();
     const residents = page.getByRole('list', { name: 'Residents and visitors' });
     await residents.waitFor({ state: 'visible' });
-    assert.equal(await residents.getByRole('button').count(), 29, '25 seated residents and four unseated charter roles');
-    for (const role of ['Code reviewer, code-reviewer', 'Release manager, release-manager', 'SRE, sre', 'Technical writer, technical-writer']) {
-      assert.equal(await residents.getByRole('button', { name: new RegExp(`^${role}`) }).count(), 1, `${role} is listed`);
+    assert.equal(await residents.getByRole('button').count(), 32, 'all seated charter roles');
+    for (const role of ['The Code Reviewer', 'The Release Manager', 'The SRE', 'The Technical Writer']) {
+      assert.equal(await residents.getByRole('button', { name: new RegExp(`^${role}`) }).count(), 2, `${role} is listed for both runtimes`);
     }
     const layout = await page.evaluate(() => {
       const scene = document.querySelector('main[aria-label="Den scene"]').getBoundingClientRect();
@@ -231,7 +231,7 @@ test("a failed model load explains the garden failure and leaves the Team rail e
     assert.match(await alert.innerText(), /Your board controls are still available on the rail/);
     assert.equal(await page.locator('.den-entry button').getAttribute('aria-disabled'), 'true');
     await page.locator('[data-rail="team"]').click();
-    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 29);
+    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 32);
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
@@ -297,7 +297,7 @@ test("a failed required wardrobe cannot report the garden ready with incomplete 
     assert.equal(await page.locator('.den-entry button').getAttribute('aria-disabled'), 'true', 'an incomplete required model set cannot enable walking');
     assert.match(await alert.innerText(), /board controls are still available/);
     await page.locator('[data-rail="team"]').click();
-    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 29);
+    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 32);
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
@@ -328,16 +328,16 @@ test("portrait profiles keep real work and visitor identities, and route explici
   try {
     let profiles = await openProfiles(page);
     const portraits = profiles.getByRole('list', { name: 'Residents and visitors' });
-    assert.equal(await portraits.getByRole('button').count(), 29, '25 seated residents plus four unseated charter roles');
-    assert.equal(await portraits.locator('img').count(), 25, 'each resident has a portrait image');
-    for (const name of ['Code reviewer', 'Release manager', 'SRE', 'Technical writer']) {
-      assert.equal(await portraits.getByRole('button', { name: new RegExp(`^${name},`) }).count(), 1, `${name} appears in the charter roster`);
+    assert.equal(await portraits.getByRole('button').count(), 32, 'all seated charter roles');
+    assert.equal(await portraits.locator('img').count(), 32, 'each resident has a portrait image');
+    for (const name of ['Code Reviewer', 'Release Manager', 'SRE', 'Technical Writer']) {
+      assert.equal(await portraits.getByRole('button', { name: new RegExp(`^The ${name},`) }).count(), 2, `${name} appears for both runtimes in the charter roster`);
     }
     await page.waitForFunction(() => [...document.querySelectorAll('.forest-portrait-choice img')].every(image => image.complete && image.naturalWidth > 0));
-    const roleIds = ['orchestrator', 'product', 'architect', 'developer', 'scout', 'debugger', 'qa', 'security', 'designer', 'herald', 'release-manager', 'knowledge-keeper', 'docs-writer', 'stem-cub'];
-    const codexPortraitPaths = ['/den/portraits/codex-orchestrator.webp', '/den/portraits/codex-product.webp', '/den/portraits/codex-architect.webp', '/den/portraits/codex-developer.webp', '/den/portraits/codex-scout.webp', '/den/portraits/codex-runner.webp', '/den/portraits/codex-qa.webp', '/den/portraits/codex-security.webp', '/den/portraits/codex-designer.webp', '/den/portraits/codex-herald.webp'];
+    const roleIds = ['orchestrator', 'product', 'architect', 'developer', 'scout', 'debugger', 'qa', 'security', 'designer', 'herald', 'release-manager', 'code-reviewer', 'sre', 'technical-writer', 'knowledge-keeper', 'docs-writer', 'stem-cub'];
+    const codexPortraitPaths = ['/den/portraits/codex-orchestrator.webp', '/den/portraits/codex-product.webp', '/den/portraits/codex-architect.webp', '/den/portraits/codex-developer.webp', '/den/portraits/codex-scout.webp', '/den/portraits/codex-runner.webp', '/den/portraits/codex-qa.webp', '/den/portraits/codex-security.webp', '/den/portraits/codex-designer.webp', '/den/portraits/codex-herald.webp', '/den/portraits/codex-code-reviewer.webp', '/den/portraits/codex-release-manager.webp', '/den/portraits/codex-sre.webp', '/den/portraits/codex-technical-writer.webp'];
     const portraitPaths = await portraits.locator('img').evaluateAll(images => images.map(image => new URL(image.currentSrc).pathname));
-    assert.equal(new Set(portraitPaths).size, 25, 'each runtime resident uses its own cached portrait');
+    assert.equal(new Set(portraitPaths).size, 32, 'each runtime resident uses its own cached portrait');
     assert.deepEqual(portraitPaths.toSorted(), [...roleIds.map(role => `/den/portraits/${role}.webp`), '/den/portraits/runner.webp', ...codexPortraitPaths].toSorted());
     assert.ok(portraitPaths.includes('/den/portraits/release-manager.webp'), 'the corrected Release Manager wrap has its own portrait');
     await portraits.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
@@ -366,7 +366,7 @@ test("portrait profiles keep real work and visitor identities, and route explici
     await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^The Maker, developer, Claude, current project identity unavailable, Working$/ }).click();
     await profiles.getByText(/Read: work\/02-maker tool details/).waitFor({ state: 'visible' });
     assert.match(await profiles.locator('.forest-profile-task').innerText(), /work\/02-maker[\s\S]*Maker-specific task/);
-    assert.equal(await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 30, 'a second live role gets a distinct visitor portrait');
+    assert.equal(await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 33, 'a second live role gets a distinct visitor portrait');
     await profiles.getByRole('button', { name: 'Talk to Maker', exact: true }).click();
     await page.locator('.transcript-meta code').filter({ hasText: /^c-maker-current$/ }).waitFor({ state: 'visible' });
     assert.match(await page.locator('.transcript-log').innerText(), /Conversation for c-maker-current/);
@@ -385,7 +385,7 @@ test("portrait profiles keep real work and visitor identities, and route explici
     const endedResidents = profiles.getByRole('list', { name: 'Residents and visitors' });
     await endedResidents.getByRole('button', { name: /^The Maker, developer, Claude, .*visitor on work\/03-visitor, Working$/ }).waitFor({ state: 'hidden' });
     await endedResidents.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
-    assert.equal(await endedResidents.getByRole('button').count(), 29, 'the ended visitor is removed before opening the resident’s past conversation');
+    assert.equal(await endedResidents.getByRole('button').count(), 32, 'the ended visitor is removed before opening the resident’s past conversation');
     await profiles.getByRole('button', { name: 'Talk to Maker', exact: true }).click();
     await page.locator('.transcript-meta code').filter({ hasText: /^c-maker-past$/ }).waitFor({ state: 'visible' });
     assert.match(await page.locator('.transcript-log').innerText(), /Conversation for c-maker-past/);

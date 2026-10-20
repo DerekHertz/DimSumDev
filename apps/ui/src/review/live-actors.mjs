@@ -5,8 +5,8 @@ import { DISPATCHABLE_ROLES, runtimeOf, projectOf, residentKey, sameResident, bo
 // PR #162's role pandas take at createReviewAgents(...).applyLive. No three, React or DOM.
 //
 // A live agent is a ticket with a holder lock whose placements[] entry (when the bridge reports one) is not
-// ended, or an agent the bridge itself runs (agents[]), claimed or not. Only the 9 roles bind; the scenery roles (release-manager, knowledge-keeper, docs-writer,
-// stem-cub) stay simulated.
+// ended, or an agent the bridge itself runs (agents[]), claimed or not. Dispatchable roles bind;
+// the scenery roles (debugger, knowledge-keeper, docs-writer, stem-cub) stay simulated.
 
 export const TOOL_BUBBLE_TTL_MS = 8000;
 
