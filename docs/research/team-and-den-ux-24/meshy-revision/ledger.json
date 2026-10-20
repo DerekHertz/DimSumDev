@@ -1,0 +1,222 @@
+{
+  "ticket": "team-and-den-ux/24-bao",
+  "stage": "user source choice; not adopted",
+  "date": "2026-10-20",
+  "cli_version": "0.4.0",
+  "api_origin": "https://api.meshy.ai",
+  "approved_credit_cap": 100,
+  "balance_before": 433,
+  "balance_after": 373,
+  "actual_total_credits": 60,
+  "remaining_ticket_credits": 40,
+  "purchases_usd": 0,
+  "estimate_source": "meshy make <reference> --dry-run, 30 credits per textured image source, requests_made0",
+  "reference": {
+    "approved_sheet": {
+      "path": "/home/dhertzell/dimsumden/.worktrees/team-den-design-sessions/docs/design/team-and-den-ux/15-cast-r3.png",
+      "bytes": 1837774,
+      "sha256": "4c06b46512dae64611a479bdb86ae0dca9bbcd214fe112c0b6ae8634cdd99a56"
+    },
+    "prepared": {
+      "path": "docs/research/team-and-den-ux-24/meshy-revision/bao-reference.png",
+      "bytes": 1714220,
+      "sha256": "2df93f2968ac49dd9b3ae57c9af3d905bd29b6bc16237b4bf06ad1576950c058"
+    },
+    "method": "Built-in imagegen identity-preserving standalone isolation of Bao from approved cast header; no Meshy2D task",
+    "generated_original": "/mnt/c/Users/Derek/.codex/generated_images/01a15a73-ffd3-7160-bee7-6c5637a6d357/exec-c1029684-33a9-456a-a19f-27d582dde2d2.png"
+  },
+  "candidates": [
+    {
+      "id": "a",
+      "request": {
+        "resource": "image-to-3d",
+        "model_type": "standard",
+        "ai_model": "meshy-7",
+        "ultra_mode": false,
+        "should_texture": true,
+        "enable_pbr": false,
+        "texture_resolution": "2k",
+        "image_enhancement": false,
+        "remove_lighting": true,
+        "target_formats": [
+          "glb"
+        ],
+        "texture_prompt": "Faithful Bao giant panda: warm friendly face, broad round head and belly, black ears and paws, ivory face, matte sage jade crossed sash and simple short wrap, brown belt and small pouch. Smooth broad colors, no realistic fur, no armor, no embroidery, no added ornaments.",
+        "pose_mode": "a-pose",
+        "image": "bao-reference.png",
+        "operation_id": "bao24-candidate-a-20261020"
+      },
+      "task_id": "01a15a76-e214-75bf-a510-25c77230a8a2",
+      "status": "SUCCEEDED",
+      "consumed_credits": 30,
+      "running_total": 30,
+      "created_at": 1792519107969,
+      "finished_at": 1792519189283,
+      "project_dir": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/projects/20261020_105834_bao24-candidate-a_01a15a76",
+      "model": {
+        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/candidate-a.glb",
+        "bytes": 17358972,
+        "sha256": "5e4a0d2ad9295d2b616fb6e01ceaa746d0da69fc2ac98edfedda124b2580a4d5"
+      },
+      "provider_preview": {
+        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/candidate-a-preview.png",
+        "bytes": 120594,
+        "sha256": "7c62592d7f407d1cf09072be425037e6de4362b6d67c140d535eb9ebc66bfd46"
+      },
+      "local_inspection": {
+        "kind": "Raw source inspection only, not final runtime or performance acceptance",
+        "results": [
+          {
+            "id": "a",
+            "rawBounds": {
+              "min": [
+                -0.9519870281219482,
+                -0.8894519805908203,
+                -0.4650300145149231
+              ],
+              "max": [
+                0.9510599970817566,
+                0.8882240056991577,
+                0.4680440127849579
+              ]
+            },
+            "triangles": 505330,
+            "primitives": 1,
+            "materials": [
+              {
+                "name": "",
+                "roughness": 0.8,
+                "metalness": 0
+              }
+            ],
+            "textures": [
+              {
+                "width": 2048,
+                "height": 2048
+              }
+            ]
+          }
+        ],
+        "errors": []
+      },
+      "review_files": [
+        {
+          "path": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy/candidate-a-front.png",
+          "bytes": 219249,
+          "sha256": "1293f50d1bb320d406273a3de4c4fe5171dd2ed9380cf2284460cda12004d62a"
+        },
+        {
+          "path": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy/candidate-a-side.png",
+          "bytes": 143557,
+          "sha256": "3e8c93b6cdfd4beb0f00d671db38f780a6e1ffd07ad2fb7a4bec9a2c7960d233"
+        },
+        {
+          "path": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy/candidate-a-quarter.png",
+          "bytes": 211709,
+          "sha256": "7e1ae012293cabdca4b0cd1c3c10b5dcdcf78e0740450349cc9fea7150b9cb4d"
+        },
+        {
+          "path": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy/candidate-a-distant.png",
+          "bytes": 39687,
+          "sha256": "85440fcb3ee1434975f57398a74db9911eea7937450485f2ef258341f0e2f860"
+        }
+      ]
+    },
+    {
+      "id": "b",
+      "request": {
+        "resource": "image-to-3d",
+        "model_type": "standard",
+        "ai_model": "meshy-7",
+        "ultra_mode": false,
+        "should_texture": true,
+        "enable_pbr": false,
+        "texture_resolution": "2k",
+        "image_enhancement": false,
+        "remove_lighting": true,
+        "target_formats": [
+          "glb"
+        ],
+        "texture_prompt": "Faithful Bao giant panda: warm friendly face, broad round head and belly, black ears and paws, ivory face, matte sage jade crossed sash and simple short wrap, brown belt and small pouch. Smooth broad colors, no realistic fur, no armor, no embroidery, no added ornaments.",
+        "pose_mode": "auto",
+        "image": "bao-reference.png",
+        "operation_id": "bao24-candidate-b-20261020"
+      },
+      "task_id": "01a15a78-f44b-73e4-a5cd-5a73b59c1eb2",
+      "status": "SUCCEEDED",
+      "consumed_credits": 30,
+      "running_total": 60,
+      "created_at": 1792519242181,
+      "finished_at": 1792519302194,
+      "project_dir": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/projects/20261020_110048_bao24-candidate-b_01a15a78",
+      "model": {
+        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/candidate-b.glb",
+        "bytes": 20518712,
+        "sha256": "c96ad77d040da26a826da8d13a8bde80df3cacb4ef9af8781dec8783c180177f"
+      },
+      "provider_preview": {
+        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/candidate-b-preview.png",
+        "bytes": 153482,
+        "sha256": "b5cdee12e96bd7b848b09fcc3b2d504f1c89f8768c1281fbfef8a6761690bfe8"
+      },
+      "local_inspection": {
+        "kind": "Raw source inspection only, not final runtime or performance acceptance",
+        "results": [
+          {
+            "id": "b",
+            "rawBounds": {
+              "min": [
+                -0.9518569707870483,
+                -0.9489889740943909,
+                -0.6027849912643433
+              ],
+              "max": [
+                0.9474409818649292,
+                0.9480140209197998,
+                0.6011000275611877
+              ]
+            },
+            "triangles": 622914,
+            "primitives": 1,
+            "materials": [
+              {
+                "name": "",
+                "roughness": 0.8,
+                "metalness": 0
+              }
+            ],
+            "textures": [
+              {
+                "width": 2048,
+                "height": 2048
+              }
+            ]
+          }
+        ],
+        "errors": []
+      },
+      "review_files": [
+        {
+          "path": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy/candidate-b-front.png",
+          "bytes": 239018,
+          "sha256": "9d906a5dd2106f121bc386b9718773c36db3ed1708adfca75d9ef76269ad8216"
+        },
+        {
+          "path": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy/candidate-b-side.png",
+          "bytes": 161887,
+          "sha256": "e2685af11b71d69e5ac7237836440ecd92de8c411a0c1177c69a6592eb41972a"
+        },
+        {
+          "path": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy/candidate-b-quarter.png",
+          "bytes": 232736,
+          "sha256": "0b2244d9a30fb0cb786221569443f273558baa1c00ac652b23d977e04cd1b8c7"
+        },
+        {
+          "path": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy/candidate-b-distant.png",
+          "bytes": 43790,
+          "sha256": "95e471b9903b476a0b8052b46c53a1836a327cbd8d61b161901ef23a21a16fe3"
+        }
+      ]
+    }
+  ]
+}

@@ -1,5 +1,7 @@
 # Bao appearance candidate — ticket 24
 
+**Rejected by the user on 2026-10-20.** The local optimized candidate documented below is historical evidence, not an accepted appearance. New Meshy sources and actual 60-credit spend are recorded in [meshy-revision/README.md](meshy-revision/README.md); selection and final acceptance remain pending. The zero-credit figures below describe only the rejected local experiment.
+
 Candidate only: user appearance verdict, independent review and matched reference-box
 performance acceptance remain open. No installed den, service or router change.
 
