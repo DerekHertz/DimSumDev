@@ -93,7 +93,7 @@
 .forest-shell .den-sheet .build-status { border-radius: 6px; padding: 12px; background: var(--surface-100); font-size: 12px; }
 .forest-shell .den-sheet .tally-card-body { overflow: visible; }
 .meeting-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
-.forest-shell .transcript-panel { height: auto; min-height: 0; }
+.forest-shell .transcript-panel { height: auto; min-height: 0; max-height: none; }
 .forest-shell .transcript-text { font-size: 15px; line-height: 1.6; }
 .forest-shell .transcript-tool-head { flex-wrap: wrap; font-size: 13px; }
 .forest-shell .transcript-tool-name { min-width: 0; max-width: 100%; overflow-wrap: anywhere; flex-shrink: 1; }
@@ -102,6 +102,19 @@
 .forest-shell .transcript-detail-label { margin: var(--space-2) 0 0; color: var(--ink-muted); font-size: 11px; }
 .forest-shell .transcript-row[aria-current="location"] { outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-m); }
 .forest-shell .transcript-log, .forest-shell .thread-foot { padding: 14px 18px; }
+.transcript-summary { flex: none; padding: 10px 18px; border-bottom: 1px solid var(--line); background: var(--surface-100); }
+.transcript-summary-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.transcript-summary-head h3 { margin: 0; font-size: 12px; line-height: 18px; }
+.transcript-summary-head p { margin: 0; color: var(--ink-muted); font-size: 11px; line-height: 16px; }
+.transcript-summary-toggle, .transcript-summary-source { padding: 2px 4px; border: 0; border-radius: var(--radius-s); background: transparent; color: var(--qi); font: inherit; font-size: 11px; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.transcript-summary-fields { display: grid; gap: 6px; margin-top: 6px; }
+.transcript-summary-field { min-width: 0; }
+.transcript-summary-label { font-size: 11px; font-weight: 600; }
+.transcript-summary-source { margin-left: 6px; }
+.transcript-summary-excerpt { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; margin: 0; font-size: 12px; line-height: 17px; }
+.transcript-summary-missing { color: var(--ink-muted); }
+.transcript-summary-sources { display: flex; flex-wrap: wrap; gap: 8px; }
+.transcript-summary-sources .transcript-summary-source { margin-left: 0; }
 
 /* The selected panda's card, the ticket card and the permission review float over the scene, bottom right. */
 .den-float { position: absolute; right: var(--space-3); bottom: 90px; z-index: 15; width: min(360px, calc(100% - 2 * var(--space-3))); max-height: calc(100% - 120px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }

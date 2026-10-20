@@ -106,7 +106,7 @@ test('40 navigation: an obsolete Show earlier response cannot enter a different 
   await resolve(page, 2, { entries: [message(NEXT, 1, 'Fresh conversation history')], more: false, before: 0 });
   await resolve(page, 1, { entries: [message(OLD, 2, 'Obsolete history must stay absent')], more: true, before: 30 });
   assert.equal(await page.getByText('Obsolete history must stay absent', { exact: true }).count(), 0);
-  assert.equal(await page.getByText('Fresh conversation history', { exact: true }).count(), 1);
+  assert.equal(await page.getByRole('log').getByText('Fresh conversation history', { exact: true }).count(), 1);
   assert.equal(await page.getByRole('button', { name: 'Show earlier' }).count(), 0);
 });
 

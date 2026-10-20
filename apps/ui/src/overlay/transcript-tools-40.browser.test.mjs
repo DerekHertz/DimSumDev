@@ -98,7 +98,7 @@ test('40 baseline: tools collapse on reopen, deliberate expansion survives incre
   await thread.locator('.transcript-log').evaluate(el => { el.scrollTop = 0; el.dispatchEvent(new Event('scroll', { bubbles: true })); });
   const before = await thread.locator('.transcript-log').evaluate(el => el.scrollTop);
   await page.evaluate(entry => window.tools40.append(entry), message(100, 'Incremental message'));
-  await thread.getByText('Incremental message', { exact: true }).waitFor();
+  await thread.getByRole('log').getByText('Incremental message', { exact: true }).waitFor();
   assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
   assert.equal(await box.evaluate(el => el === document.activeElement), true);
   assert.equal(await thread.locator('.transcript-log').evaluate(el => el.scrollTop), before);

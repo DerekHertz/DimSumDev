@@ -3,6 +3,7 @@ import { sourceKey, sameSource } from "../../../shared/transcript-source.mjs";
 import { initialTranscriptState, transcriptKey, transcriptToggle, closeTranscript, DESK_THREAD } from "./transcript-panel.mjs";
 import { AgentMarkdown } from "./agent-markdown.mjs";
 import { threadEntries, threadView, footModel, stopModel, emptyPicks, pickOption, setOther, questionAnswers } from "./thread-model.mjs";
+import { TranscriptSummary } from "./TranscriptSummary.jsx";
 
 const DESK_HINT = "Ask Bao about the repo, the board or CI. Bao proposes work; you start it from the den.";
 
@@ -461,6 +462,7 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" /></svg>
         </button>
       </header>
+      <TranscriptSummary key={JSON.stringify([project, runtime, role, agentId])} entries={list.entries} scope={{ project, runtime, role, runId: agentId, resumeOf: agent?.resumeOf, ref: agent?.ref }} onSource={source => tx.openFor(agentId, { ...identity, role, runtime, project }, { source })} />
       {view.banner ? <p className="transcript-banner" role="status">{view.banner}</p> : null}
       {sourceState === "unavailable" ? <p className="transcript-banner" role="status">Source unavailable</p> : sourceState === "loading" ? <p className="transcript-banner" role="status">Loading source…</p> : null}
       <div className="thread-body">
