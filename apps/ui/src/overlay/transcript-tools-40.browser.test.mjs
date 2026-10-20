@@ -27,7 +27,7 @@ before(async () => {
 after(async () => { await browser?.close(); await server?.close(); });
 
 async function open(t, { data = fixture(), width = 1280, theme = 'light', historyError = false } = {}) {
-  const context = await browser.newContext({ viewport: { width, height: 800 }, reducedMotion: 'reduce' });
+  const context = await browser.newContext({ viewport: { width, height: 800 }, colorScheme: theme, reducedMotion: 'reduce' });
   t.after(() => context.close());
   await context.addInitScript(({ data, theme, historyError }) => {
     window.tools40Fixture = data;
@@ -44,6 +44,7 @@ async function open(t, { data = fixture(), width = 1280, theme = 'light', histor
     Object.defineProperty(navigator, 'clipboard', { value: { writeText: async text => window.tools40Copy.push(text) }, configurable: true });
   }, { data, theme, historyError });
   const page = await context.newPage();
+  assert.equal(await page.evaluate(theme => matchMedia(`(prefers-color-scheme: ${theme})`).matches, theme), true, 'native color-scheme media matches the selected theme');
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   // This fixture page imports the existing panel through Vite, and has no App/network client.

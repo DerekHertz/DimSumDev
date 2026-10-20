@@ -15,17 +15,17 @@ before(async () => {
 }, { timeout: 30000 });
 after(async () => { await browser?.close(); await server?.close(); });
 
-async function open(t, { closed = false } = {}) {
+async function open(t, { closed = false, transcripts = {} } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
   t.after(() => context.close());
-  await context.addInitScript(({ RUN, NEXT }) => {
+  await context.addInitScript(({ RUN, NEXT, transcripts }) => {
     window.navigation40Reads = [];
     window.navigation40Fixture = {
       who: { role: 'architect', name: 'Architect', project: 'den', runtime: 'claude' },
       agents: [RUN, NEXT].map(id => ({ id, role: 'architect', project: 'den', runtime: 'claude', state: 'working', capabilities: { send: true, stop: true } })),
-      transcripts: {},
+      transcripts,
     };
-  }, { RUN, NEXT });
+  }, { RUN, NEXT, transcripts });
   const page = await context.newPage();
   await page.route('**/__navigation40', r => r.fulfill({ contentType: 'text/html', body: '<div id="root"></div><script type="module" src="/src/overlay/fixtures/transcript-navigation-40.jsx"></script>' }));
   await page.goto(new URL('/__navigation40', server.resolvedUrls.local[0]).href);
@@ -36,6 +36,24 @@ async function open(t, { closed = false } = {}) {
   }
   return page;
 }
+
+test('40 navigation: a closed panel immediately focuses, highlights and expands an exact tool already in the live buffer', { timeout: 15000 }, async t => {
+  const target = { id: 7, runId: RUN, at: '2026-10-19T12:00:00Z', kind: 'tool', name: 'Read', status: 'done', result: 'Already live recorded output', source: source(RUN, 7) };
+  const page = await open(t, { closed: true, transcripts: { [RUN]: { entries: [target], dropped: 0 } } });
+  await page.evaluate(({ run, source }) => window.navigation40.open(run, source), { run: RUN, source: target.source });
+  await page.locator('#sheet-side-title').waitFor();
+  await page.evaluate(async () => { for (let frame = 0; frame < 4; frame++) await new Promise(requestAnimationFrame); });
+  assert.equal(await page.evaluate(() => window.navigation40Reads.length), 0, 'an exact live source needs no history request');
+  const row = page.locator('li[data-source]').filter({ hasText: 'Read' });
+  assert.equal(await row.count(), 1, 'the exact live tool is mounted');
+  assert.equal(await row.getAttribute('aria-current'), 'location', 'effects must preserve the exact source highlight');
+  assert.equal(await page.locator('li[aria-current="location"]').count(), 1);
+  assert.equal(await row.evaluate(el => el === document.activeElement), true, 'the actual exact row receives focus');
+  assert.equal(await row.getByRole('button').getAttribute('aria-expanded'), 'true');
+  assert.equal(await row.getByText('Already live recorded output', { exact: true }).isVisible(), true);
+  assert.equal(await page.getByText('Source unavailable', { exact: true }).count(), 0);
+  assert.equal(await page.getByText('Loading source…', { exact: true }).count(), 0);
+});
 
 test('40 navigation: a closed panel locates and expands a historical tool absent from live agents', { timeout: 15000 }, async t => {
   const page = await open(t, { closed: true });
