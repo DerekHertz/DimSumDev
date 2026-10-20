@@ -1,11 +1,11 @@
 // Test-only mount of the actual conversation panel; no scene, bridge connection or agent process.
 import React, { useEffect, useMemo, useState } from 'react';
 import { createRoot } from 'react-dom/client';
-import { TranscriptPanel, useTranscript } from '../TranscriptPanel.jsx';
-import { appendTranscript } from '../../state/transcript-buffer.mjs';
-import '../../styles.css';
-import '../../scene/procedural/den.css';
-import '../../shell/forest.css';
+import { TranscriptPanel, useTranscript } from '../src/overlay/TranscriptPanel.jsx';
+import { appendTranscript } from '../src/state/transcript-buffer.mjs';
+import '../src/styles.css';
+import '../src/scene/procedural/den.css';
+import '../src/shell/forest.css';
 
 function Harness() {
   const fixture = window.tools40Fixture;

@@ -1,9 +1,9 @@
 // Supplemental history-race fixture: actual panel/hook, controlled promises, no scene or bridge.
 import React, { useEffect, useMemo } from 'react';
 import { createRoot } from 'react-dom/client';
-import { TranscriptPanel, useTranscript } from '../TranscriptPanel.jsx';
-import '../../styles.css';
-import '../../shell/forest.css';
+import { TranscriptPanel, useTranscript } from '../src/overlay/TranscriptPanel.jsx';
+import '../src/styles.css';
+import '../src/shell/forest.css';
 
 function Harness() {
   const fixture = window.navigation40Fixture;

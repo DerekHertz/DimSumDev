@@ -70,7 +70,7 @@ describe("a message to a running agent", () => {
     assert.deepEqual(rec.sent, [{ id: messageId, text: "use port 5173" }], "the trimmed text reaches the agent once");
 
     const queued = await t.waitFor(agent.id, (e) => e.role === "user", "the queued message");
-    assert.deepEqual(strip(queued), { id: queued.id, kind: "message", role: "user", text: "use port 5173", messageId, status: "queued" });
+    assert.deepEqual(strip(queued), { id: queued.id, kind: "message", role: "user", text: "use port 5173", messageId, status: "queued", source: { project: "den", runtime: "claude", role: "architect", runId: agent.id, entryId: queued.id } });
 
     rec.emit({ type: "message-applied", id: messageId });
     const applied = await t.waitFor(agent.id, (e) => e.role === "user" && e.status === "applied", "the applied message");

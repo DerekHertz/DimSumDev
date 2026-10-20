@@ -27,7 +27,7 @@ async function open(t, { closed = false, transcripts = {} } = {}) {
     };
   }, { RUN, NEXT, transcripts });
   const page = await context.newPage();
-  await page.route('**/__navigation40', r => r.fulfill({ contentType: 'text/html', body: '<div id="root"></div><script type="module" src="/src/overlay/fixtures/transcript-navigation-40.jsx"></script>' }));
+  await page.route('**/__navigation40', r => r.fulfill({ contentType: 'text/html', body: '<div id="root"></div><script type="module" src="/test-fixtures/transcript-navigation-40.jsx"></script>' }));
   await page.goto(new URL('/__navigation40', server.resolvedUrls.local[0]).href);
   await page.waitForFunction(() => !!window.navigation40);
   if (!closed) {

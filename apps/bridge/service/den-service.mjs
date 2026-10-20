@@ -29,7 +29,7 @@ const REPO_ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 // den-mvp/88: the router's files, copied with their layout to <state>/router, so its imports resolve there as here.
 // The usage reading the router runs (scripts/usage.mjs --live, a child process) and what it imports, run from the copy, never the checkout (security M1).
 const USAGE_FILES = ["usage", "usage-claude", "usage-codex", "usage-estimate", "usage-token", "usage-local-time"].map((n) => `scripts/${n}.mjs`);
-export const ROUTER_FILES = ["den-router", "router", "decide", "order", "client", "service-token"].map((n) => `apps/router/${n}.mjs`).concat("apps/bridge/requests-log.mjs", "scripts/batch-groups.mjs", "scripts/exposure.mjs", "packages/board-refs/src/compare-refs.mjs", ...USAGE_FILES);
+export const ROUTER_FILES = ["den-router", "router", "decide", "order", "client", "service-token"].map((n) => `apps/router/${n}.mjs`).concat("apps/bridge/requests-log.mjs", "scripts/batch-groups.mjs", "scripts/exposure.mjs", "apps/shared/secret-patterns.mjs", "packages/board-refs/src/compare-refs.mjs", ...USAGE_FILES);
 const NTFY_URL = /^https:\/\/[A-Za-z0-9.-]+(?::\d+)?\/[A-Za-z0-9._~/-]+$/;
 
 // Asks once, on a terminal; elsewhere (a test, a pipe) it asks nothing and push stays off.

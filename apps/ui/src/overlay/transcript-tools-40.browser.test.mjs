@@ -48,7 +48,7 @@ async function open(t, { data = fixture(), width = 1280, theme = 'light', histor
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
   // This fixture page imports the existing panel through Vite, and has no App/network client.
-  await page.route('**/__tools40', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body><div id="root"></div><script type="module" src="/src/overlay/fixtures/transcript-tools-40.jsx"></script></body></html>' }));
+  await page.route('**/__tools40', route => route.fulfill({ contentType: 'text/html', body: '<!doctype html><html><body><div id="root"></div><script type="module" src="/test-fixtures/transcript-tools-40.jsx"></script></body></html>' }));
   await page.goto(new URL('/__tools40', server.resolvedUrls.local[0]).href);
   await page.waitForFunction(() => !!window.tools40);
   await page.getByRole('button', { name: 'Open conversation' }).click();
