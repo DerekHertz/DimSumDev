@@ -3,17 +3,17 @@
 //
 // Contract these tests pin (the developer may add fields, not drop these):
 //   liveActorsFromSnapshot(snapshot, { now? }) -> LiveActor[]
-//   LiveActor = { role, ref, split, state, activity, bubble, task }
+//   LiveActor = { role, ref, split, state, activity, bubble, toolActivity, task }
 //     role   one of the 9 roles; scenery roles never appear (they stay simulated)
 //     split  false for the first live agent of a role, true for each further one
 //     state  PR #162 actor state: 'working' | 'needs-you' | 'blocked'
-//     bubble the latest tool (name and summary) while it is younger than TOOL_BUBBLE_TTL_MS, else ''
+//     bubble is empty unless correlated live tool activity is supplied in adapter options
 //     task   contains the ticket ref
 //   A role with no live process has no entry. Holder locks need a matching active
 //   snapshot.placements[] entry or snapshot.agents[] run; locks alone are not activity.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { liveActorsFromSnapshot, TOOL_BUBBLE_TTL_MS } from "./live-actors.mjs";
+import { liveActorsFromSnapshot } from "./live-actors.mjs";
 
 const T0 = Date.parse("2026-10-06T10:00:00.000Z");
 const iso = (ms) => new Date(ms).toISOString();
@@ -54,20 +54,19 @@ test("a bound agent maps to an actor of its role, working, with its ticket as th
   assert.ok(a.task.includes("fx/01-a"), "task shows the ticket");
 });
 
-test("the bubble shows the agent's latest tool name and summary", () => {
+test("snapshot placement tool data alone does not assert a live bubble", () => {
   const s = snap([ticket("fx/01-a", "claimed", "qa")], [placementRow("fx/01-a", "qa", { name: "Bash", summary: "npm test" })]);
   const [a] = liveActorsFromSnapshot(s, { now: T0 + 1000 });
-  assert.ok(a.bubble.includes("Bash"));
-  assert.ok(a.bubble.includes("npm test"));
+  assert.equal(a.bubble, "");
 });
 
-test("a tool call older than the TTL no longer shows; one just inside it still does", () => {
+test("uncorrelated placement tool data stays suppressed regardless of age", () => {
   const s = snap([ticket("fx/01-a", "claimed", "developer")], [placementRow("fx/01-a", "developer", { name: "Edit", summary: "src/x.mjs" })]);
-  const inside = liveActorsFromSnapshot(s, { now: T0 + TOOL_BUBBLE_TTL_MS - 1 })[0];
-  const outside = liveActorsFromSnapshot(s, { now: T0 + TOOL_BUBBLE_TTL_MS + 1 })[0];
-  assert.ok(inside.bubble.includes("Edit"), "still shown just inside the TTL");
-  assert.equal(outside.bubble, "", "gone after the TTL with no newer call");
-  assert.equal(outside.state, "working", "the agent is still bound after its bubble fades");
+  const recent = liveActorsFromSnapshot(s, { now: T0 + 1 })[0];
+  const old = liveActorsFromSnapshot(s, { now: T0 + 86_400_000 })[0];
+  assert.equal(recent.bubble, "");
+  assert.equal(old.bubble, "");
+  assert.equal(old.state, "working", "the agent remains bound without a live assertion");
 });
 
 test("a newer tool call replaces the bubble immediately", () => {
@@ -78,9 +77,8 @@ test("a newer tool call replaces the bubble immediately", () => {
   );
   const a = liveActorsFromSnapshot(before, { now: T0 + 1000 })[0];
   const b = liveActorsFromSnapshot(after, { now: T0 + 2500 })[0];
-  assert.ok(a.bubble.includes("Read"));
-  assert.ok(b.bubble.includes("Grep"));
-  assert.ok(!b.bubble.includes("Read"), "the old call is gone");
+  assert.equal(a.bubble, "");
+  assert.equal(b.bubble, "", "snapshot tool changes do not imply correlated activity");
 });
 
 test("a bound agent with no tool call yet has an empty bubble, not a stale or invented one", () => {
@@ -111,8 +109,10 @@ test("a second live agent of the same role is a split-off actor; the first stays
   assert.equal(devs.length, 2);
   assert.deepEqual(devs.map((d) => d.split), [false, true]);
   assert.deepEqual(devs.map((d) => d.ref), ["fx/01-a", "fx/02-b"]);
-  assert.ok(devs[0].bubble.includes("Read") && devs[0].task.includes("fx/01-a"));
-  assert.ok(devs[1].bubble.includes("Write") && devs[1].task.includes("fx/02-b"), "each panda carries its own agent's tool and ticket");
+  assert.equal(devs[0].bubble, "");
+  assert.equal(devs[1].bubble, "");
+  assert.ok(devs[0].task.includes("fx/01-a"));
+  assert.ok(devs[1].task.includes("fx/02-b"), "each panda keeps its own ticket");
 });
 
 test("roles with no live agent have no actor, so they keep idle wandering", () => {
@@ -201,12 +201,12 @@ test("a claimed ticket whose bridge agent waits on the user needs you too, as on
   assert.deepEqual(working.map((a) => a.state), ["working"]);
 });
 
-test("the bridge agent's latest tool is the bubble, under the same TTL", () => {
+test("agent.tool alone does not assert a live bubble", () => {
   const s = live([ticket("den/01-scout", "ready-for-agent", null)], [agentRow("den/01-scout", "scout", { tool: { name: "Bash", summary: "node --version" } })]);
-  assert.equal(liveActorsFromSnapshot(s, { now: T0 + 1000 })[0].bubble, "Bash: node --version");
-  assert.equal(liveActorsFromSnapshot(s, { now: T0 + TOOL_BUBBLE_TTL_MS + 1 })[0].bubble, "");
+  assert.equal(liveActorsFromSnapshot(s, { now: T0 + 1000 })[0].bubble, "");
+  assert.equal(liveActorsFromSnapshot(s, { now: T0 + 86_400_000 })[0].bubble, "");
   const claimed = live([ticket("den/01-scout", "claimed", "scout")], [agentRow("den/01-scout", "scout", { tool: { name: "Grep", summary: "TODO" } })]);
-  assert.equal(liveActorsFromSnapshot(claimed, { now: T0 + 1000 })[0].bubble, "Grep: TODO", "a claimed ticket with no session row reads the bridge agent's tool");
+  assert.equal(liveActorsFromSnapshot(claimed, { now: T0 + 1000 })[0].bubble, "", "a snapshot tool without correlated activity is suppressed");
 });
 
 test("an ended bridge agent binds nothing, and neither does one with no id, no ref or an unknown role", () => {

@@ -169,6 +169,16 @@ test('busy residents keep working while independent meeting guests walk, sit and
   actors.applyMeeting(null);actors.update(.1,true);assert.equal(actors.actors.has('meeting:developer'),false);assert.equal(den.pandaRigs.size,32);
  }finally{f.dispose();}
 });
+test('42 a meeting visitor never inherits the busy resident tool invocation',()=>{
+ const f=fixture();try{
+  const first={role:'developer',runtime:'claude',ref:'work/1',agentId:'run42',toolActivity:{text:'Read · own source',sources:[{runId:'run42'}]}};
+  f.actors.applyLive([first,{...first,ref:'work/2',agentId:'other42',toolActivity:{text:'Read · visitor source',sources:[{runId:'other42'}]}}]);
+  f.actors.applyMeeting({id:'meeting42',ref:'work/meeting',state:'running',seats:[{role:'developer'}]});
+  assert.equal(f.actors.actors.get('meeting:developer').live,null);
+  assert.equal(f.actors.actors.get('developer').live.toolActivity.sources[0].runId,'run42');
+  assert.equal(f.actors.actors.get('developer#work/2').live.toolActivity.sources[0].runId,'other42');
+ }finally{f.dispose();}
+});
 test('team-and-den-ux/23: a first-person walker beside a species resident can still walk away from it',()=>{
  const f=fixture();try{
   const {actors,den}=f,engineer=actors.actors.get('developer');engineer.panda.rig.profile=RED_PANDA;

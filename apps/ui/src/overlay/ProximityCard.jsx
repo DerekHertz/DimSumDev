@@ -10,7 +10,7 @@ const NEXT = { Q: 'Opens the permission request', E: 'Opens the permission reque
 const START = { label: 'Start task', next: 'Opens the task box' };
 const DEMO_REASON = 'Demo mode: actions are off';
 // Overview (live den run, 2026-10-10): the same card for a panda the user clicked; `onClose` adds its Close button.
-export function ProximityCard({ card, onTranscript, onAnswer, onMessage, onClose = null, status = null, transcriptOpen = false, demo = false }) {
+export function ProximityCard({ card, onTranscript, onAnswer, onMessage, onInspectTools, toolActivity, onClose = null, status = null, transcriptOpen = false, demo = false }) {
   if (!card) return null;
   return <section className="proximity-card" role="region" aria-label={onClose ? 'Selected panda' : 'Nearby panda'}>
     {onClose ? <button type="button" className="proximity-close" aria-label="Close panda card" onClick={onClose}>
@@ -30,6 +30,7 @@ export function ProximityCard({ card, onTranscript, onAnswer, onMessage, onClose
       {card.last.reply ? <p className="proximity-reply">{card.last.reply}</p> : null}
     </div> : null}
     <div className="proximity-actions">
+      {toolActivity ? <button type="button" onClick={onInspectTools}>Inspect {toolActivity.count} active tool {toolActivity.count===1?'call':'calls'}</button> : null}
       {Object.entries(LABELS).map(([key, base]) => {
         const starts = key === 'T' && card.start;
         const label = starts ? START.label : base;

@@ -9,10 +9,10 @@ export function actorBindings(live=[],previous=new Map()) {
   const next=new Map();
   for(const runtime of ['claude','codex'])for(const role of LIVE_ROLES){
     const key=residentKey(role,runtime),rows=live.filter(a=>sameResident(a,{role,runtime,projectId:a.projectId})),old=previous.get(key);
-    const primary=rows.find(a=>a.ref===old?.ref&&sameResident(a,old))||rows[0];
+    const primary=rows.find(a=>a.ref===old?.ref&&a.agentId===old?.agentId&&sameResident(a,old))||rows[0];
     if(!primary)continue;
     next.set(key,primary);
-    for(const row of rows)if(row!==primary)next.set(`${key}#${row.ref}`,row);
+    for(const row of rows)if(row!==primary){let visitor=`${key}#${row.ref}`;if(row.ref===primary.ref||next.has(visitor))visitor+=`@${row.agentId}`;next.set(visitor,row);}
   }
   return next;
 }
