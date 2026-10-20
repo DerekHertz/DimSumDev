@@ -1,0 +1,6019 @@
+{
+  "sourceCommit": "1044667c78cdb29500e31bc1088da41c2e47df2a",
+  "build": {
+    "commit": "1044667c78cdb29500e31bc1088da41c2e47df2a",
+    "instrumentedProductionBuild": true,
+    "port": 4425
+  },
+  "kind": "native appearance capture; not a performance acceptance run",
+  "browser": "155.0.8059.85",
+  "gpuDevices": [
+    {
+      "vendorId": 4318,
+      "deviceId": 9417,
+      "subSysId": 2292977731,
+      "revision": 161,
+      "vendorString": "",
+      "deviceString": "NVIDIA GeForce RTX 3060 Ti",
+      "driverVendor": "NVIDIA",
+      "driverVersion": "32.0.16.1742"
+    },
+    {
+      "vendorId": 5140,
+      "deviceId": 140,
+      "subSysId": 0,
+      "revision": 0,
+      "vendorString": "",
+      "deviceString": "Microsoft Basic Render Driver",
+      "driverVendor": "",
+      "driverVersion": "10.0.26100.9711"
+    }
+  ],
+  "viewport": {
+    "width": 1440,
+    "height": 900
+  },
+  "dpr": 1,
+  "portraitSourceSha256": "811d50bdbdf5d5f838dd318882a268142e5b89c9ae5a75a0823c726961a39e63",
+  "modelSourceSha256": "ad4b885a8e9f5b774bc5ea93e8516bedf64387d1f089646f0e4ebdc6e34424a0",
+  "portraitSizes": [
+    {
+      "width": 62,
+      "height": 62,
+      "source": "/den/portraits/bao-jade.webp"
+    },
+    {
+      "width": 40,
+      "height": 40,
+      "source": "/den/portraits/bao-jade.webp"
+    },
+    {
+      "width": 40,
+      "height": 40,
+      "source": "/den/portraits/codex-orchestrator.webp"
+    },
+    {
+      "width": 40,
+      "height": 40,
+      "source": "/den/portraits/product.webp"
+    }
+  ],
+  "fallback": {
+    "species": null,
+    "scale": 1.35,
+    "load": {
+      "loaded": [
+        "developer",
+        "technical-writer"
+      ],
+      "failed": [
+        {
+          "role": "orchestrator",
+          "message": "Failed to fetch"
+        }
+      ]
+    },
+    "camera": [
+      0,
+      2,
+      0
+    ],
+    "zoom": 1,
+    "portrait": "/den/portraits/orchestrator.webp",
+    "afterPanel": {
+      "camera": [
+        0,
+        2,
+        0
+      ],
+      "zoom": 1
+    }
+  },
+  "captures": [
+    {
+      "theme": "light",
+      "name": "far-working",
+      "file": "den-light-far-working.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      },
+      "residents": {
+        "triangles": 996322,
+        "shadowTriangles": 993762,
+        "meshes": 605,
+        "skinnedMeshes": 439,
+        "uniqueGeometries": 605,
+        "uniqueMaterials": 600,
+        "geometryBufferBytes": 85959684,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209531,
+        "shadowTriangles": 1908618,
+        "meshes": 1507,
+        "skinnedMeshes": 483,
+        "uniqueGeometries": 1492,
+        "uniqueMaterials": 979,
+        "geometryBufferBytes": 284514308,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "light",
+      "name": "near-working",
+      "file": "den-light-near-working.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996322,
+        "shadowTriangles": 993762,
+        "meshes": 605,
+        "skinnedMeshes": 439,
+        "uniqueGeometries": 605,
+        "uniqueMaterials": 600,
+        "geometryBufferBytes": 85959684,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209531,
+        "shadowTriangles": 1908618,
+        "meshes": 1507,
+        "skinnedMeshes": 483,
+        "uniqueGeometries": 1492,
+        "uniqueMaterials": 979,
+        "geometryBufferBytes": 284514308,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "light",
+      "name": "portraits",
+      "file": "den-light-portraits.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996322,
+        "shadowTriangles": 993762,
+        "meshes": 605,
+        "skinnedMeshes": 439,
+        "uniqueGeometries": 605,
+        "uniqueMaterials": 600,
+        "geometryBufferBytes": 85959684,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209531,
+        "shadowTriangles": 1908618,
+        "meshes": 1507,
+        "skinnedMeshes": 483,
+        "uniqueGeometries": 1492,
+        "uniqueMaterials": 979,
+        "geometryBufferBytes": 284514308,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "light",
+      "name": "first-person",
+      "file": "den-light-first-person.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          2.08,
+          6.2
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996322,
+        "shadowTriangles": 993762,
+        "meshes": 605,
+        "skinnedMeshes": 439,
+        "uniqueGeometries": 605,
+        "uniqueMaterials": 600,
+        "geometryBufferBytes": 85959684,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209531,
+        "shadowTriangles": 1908618,
+        "meshes": 1507,
+        "skinnedMeshes": 483,
+        "uniqueGeometries": 1492,
+        "uniqueMaterials": 979,
+        "geometryBufferBytes": 284514308,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "light",
+      "name": "far-meeting",
+      "file": "den-light-far-meeting.png",
+      "meta": null,
+      "actorCount": 42,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      },
+      "residents": {
+        "triangles": 1171457,
+        "shadowTriangles": 1168897,
+        "meshes": 696,
+        "skinnedMeshes": 515,
+        "uniqueGeometries": 696,
+        "uniqueMaterials": 691,
+        "geometryBufferBytes": 101667214,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3384666,
+        "shadowTriangles": 2083753,
+        "meshes": 1598,
+        "skinnedMeshes": 559,
+        "uniqueGeometries": 1583,
+        "uniqueMaterials": 1070,
+        "geometryBufferBytes": 300221838,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "light",
+      "name": "near-meeting",
+      "file": "den-light-near-meeting.png",
+      "meta": null,
+      "actorCount": 42,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 1171457,
+        "shadowTriangles": 1168897,
+        "meshes": 696,
+        "skinnedMeshes": 515,
+        "uniqueGeometries": 696,
+        "uniqueMaterials": 691,
+        "geometryBufferBytes": 101667214,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3384666,
+        "shadowTriangles": 2083753,
+        "meshes": 1598,
+        "skinnedMeshes": 559,
+        "uniqueGeometries": 1583,
+        "uniqueMaterials": 1070,
+        "geometryBufferBytes": 300221838,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "far-working",
+      "file": "den-dark-far-working.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      },
+      "residents": {
+        "triangles": 996322,
+        "shadowTriangles": 993762,
+        "meshes": 605,
+        "skinnedMeshes": 439,
+        "uniqueGeometries": 605,
+        "uniqueMaterials": 600,
+        "geometryBufferBytes": 85959684,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209531,
+        "shadowTriangles": 1908618,
+        "meshes": 1507,
+        "skinnedMeshes": 483,
+        "uniqueGeometries": 1492,
+        "uniqueMaterials": 979,
+        "geometryBufferBytes": 284514308,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "near-working",
+      "file": "den-dark-near-working.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996322,
+        "shadowTriangles": 993762,
+        "meshes": 605,
+        "skinnedMeshes": 439,
+        "uniqueGeometries": 605,
+        "uniqueMaterials": 600,
+        "geometryBufferBytes": 85959684,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209531,
+        "shadowTriangles": 1908618,
+        "meshes": 1507,
+        "skinnedMeshes": 483,
+        "uniqueGeometries": 1492,
+        "uniqueMaterials": 979,
+        "geometryBufferBytes": 284514308,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "portraits",
+      "file": "den-dark-portraits.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996322,
+        "shadowTriangles": 993762,
+        "meshes": 605,
+        "skinnedMeshes": 439,
+        "uniqueGeometries": 605,
+        "uniqueMaterials": 600,
+        "geometryBufferBytes": 85959684,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209531,
+        "shadowTriangles": 1908618,
+        "meshes": 1507,
+        "skinnedMeshes": 483,
+        "uniqueGeometries": 1492,
+        "uniqueMaterials": 979,
+        "geometryBufferBytes": 284514308,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "first-person",
+      "file": "den-dark-first-person.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          2.08,
+          6.2
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996322,
+        "shadowTriangles": 993762,
+        "meshes": 605,
+        "skinnedMeshes": 439,
+        "uniqueGeometries": 605,
+        "uniqueMaterials": 600,
+        "geometryBufferBytes": 85959684,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209531,
+        "shadowTriangles": 1908618,
+        "meshes": 1507,
+        "skinnedMeshes": 483,
+        "uniqueGeometries": 1492,
+        "uniqueMaterials": 979,
+        "geometryBufferBytes": 284514308,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "far-meeting",
+      "file": "den-dark-far-meeting.png",
+      "meta": null,
+      "actorCount": 42,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      },
+      "residents": {
+        "triangles": 1171457,
+        "shadowTriangles": 1168897,
+        "meshes": 696,
+        "skinnedMeshes": 515,
+        "uniqueGeometries": 696,
+        "uniqueMaterials": 691,
+        "geometryBufferBytes": 101667214,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3384666,
+        "shadowTriangles": 2083753,
+        "meshes": 1598,
+        "skinnedMeshes": 559,
+        "uniqueGeometries": 1583,
+        "uniqueMaterials": 1070,
+        "geometryBufferBytes": 300221838,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "near-meeting",
+      "file": "den-dark-near-meeting.png",
+      "meta": null,
+      "actorCount": 42,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 1171457,
+        "shadowTriangles": 1168897,
+        "meshes": 696,
+        "skinnedMeshes": 515,
+        "uniqueGeometries": 696,
+        "uniqueMaterials": 691,
+        "geometryBufferBytes": 101667214,
+        "uniqueMaterialTextures": 5,
+        "estimatedRgbaTextureBytes": 19573418.666666664,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3384666,
+        "shadowTriangles": 2083753,
+        "meshes": 1598,
+        "skinnedMeshes": 559,
+        "uniqueGeometries": 1583,
+        "uniqueMaterials": 1070,
+        "geometryBufferBytes": 300221838,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "writes": [],
+  "imageDirectory": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24/",
+  "images": [
+    {
+      "file": "bao-first.webp",
+      "sha256": "811d50bdbdf5d5f838dd318882a268142e5b89c9ae5a75a0823c726961a39e63"
+    },
+    {
+      "file": "den-dark-far-meeting.png",
+      "sha256": "0514203536484739fa02e191dbb78b4d435fd97e678c1436501d98a379ee82e5"
+    },
+    {
+      "file": "den-dark-far-working.png",
+      "sha256": "ab774629aa50664ec523b037dc340bad0a60ac2a1b4d50dba3454e7111270bb8"
+    },
+    {
+      "file": "den-dark-first-person.png",
+      "sha256": "c7d361f8e7b21b4b1559f1ddb7fd84e63634fc14f356ef241ac68406a49d9009"
+    },
+    {
+      "file": "den-dark-near-meeting.png",
+      "sha256": "90445956eeefa3db9211439fab41b551d6390181a05bafa7182860369a73c43b"
+    },
+    {
+      "file": "den-dark-near-working.png",
+      "sha256": "0bd55d84f395372459d1c1f63170743b94fa0626dc26f687112cbc4de7b49dcb"
+    },
+    {
+      "file": "den-dark-portraits.png",
+      "sha256": "e61200859824abb549e39eaf7720466563b130eef444f3f04df322e59cad0ce6"
+    },
+    {
+      "file": "den-light-fallback.png",
+      "sha256": "136d27958fb561196bda61cb766b557438eef7ff12ad48dd5eb6a8e03b21d60a"
+    },
+    {
+      "file": "den-light-far-meeting.png",
+      "sha256": "15852324c608eebc97cf9257e6c6c96afd15a6cc815db594cc18833728867580"
+    },
+    {
+      "file": "den-light-far-working.png",
+      "sha256": "1e61dfc2f10685c3fb67d0fe861ef39012ebbb10be9f8b2a78ffb62d1538eec4"
+    },
+    {
+      "file": "den-light-first-person.png",
+      "sha256": "e6d0c840fe303e66112f585efdc69d43f5c69c9ec6766b984400d64e8ae56e27"
+    },
+    {
+      "file": "den-light-near-meeting.png",
+      "sha256": "bb34f63a8f969538a74458d3def152673746c2e6a5dc6c242785a62a7a4cad04"
+    },
+    {
+      "file": "den-light-near-working.png",
+      "sha256": "907cb1cbf93cd5cf93b6cea69dde2a489c13abeb13005654cc6f363e0f9b4c0c"
+    },
+    {
+      "file": "den-light-portraits.png",
+      "sha256": "08cd2055d577e7adc7624ad8a034eecc0c276718c1e75fb9b69d1cc5e5009212"
+    },
+    {
+      "file": "greeting-first.png",
+      "sha256": "078cbf7af05d6dc3909d6b2764366f5f5d620a9a0f4bc64fba3f9dbd6142af15"
+    },
+    {
+      "file": "idle-first.png",
+      "sha256": "38ed66f350a80b9e3f6131cb782b8e778d537566df84d4ca446e2d68235bf157"
+    },
+    {
+      "file": "portrait-48-72-authoring.png",
+      "sha256": "141a92a677035b761bcdbe05ff77f2d7cdc0ab930f21f29d6669087f7b058ae5"
+    },
+    {
+      "file": "sit-first.png",
+      "sha256": "48f244b0e11d1b1875069595f060d51384ec11bd07c7c70b412eb23c917c8785"
+    },
+    {
+      "file": "walk-first.png",
+      "sha256": "6feaa48ef878e9548c6ba3c577f3945928765760bdc26304b967f78daf9d2448"
+    }
+  ]
+}

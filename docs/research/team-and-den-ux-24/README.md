@@ -49,10 +49,10 @@ their existing ownership and bindings.
 | Criterion | Evidence / status |
 |---|---|
 | Approved source/method/cost | Signed 15 source, approved 24 budget; local reuse, zero paid tasks; provenance JSON |
-| Desk/conversation/meeting fit | CPU pose/prop envelopes measured; current navigation/seat fixtures in scoped test log; native captures pending |
+| Desk/conversation/meeting fit | CPU pose/prop envelopes measured; current navigation/seat fixtures in scoped test log; native host anchor/meeting shown. Detailed existing desk/chair geometry fixture work remains |
 | Motion and reduced motion | `bao-production.test.mjs` tests walk, sit, idle, shared gestures, static reduced poses and normalized weights |
-| Matching 48/72 portrait and identity | Source-rendered `bao-jade.webp`; runtime-specific factory tests; native scale capture pending |
-| States, fallback and rollback | Old body/costume retained; missing-model factory falls back at same 1.35 scale; old portrait retained with one-attempt image fallback; native checks pending |
+| Matching 48/72 portrait and identity | Source-rendered `bao-jade.webp`; runtime-specific factory tests; explicit 48/72 authoring scale sheet plus native Team captures |
+| States, fallback and rollback | Old body/costume retained; missing-model factory falls back at same 1.35 scale; old portrait retained with one-attempt image fallback; native failed-model/portrait check confirms same camera and scale. Broader live state/action verification remains |
 | Character/aggregate budgets, themes/views | Per-character CPU costs above; garden guards retained. Full-scene matched GPU, frame, heap and aggregate comparisons pending |
 | User visual/performance verdict | **Pending — candidate is not accepted** |
 
@@ -68,3 +68,38 @@ Rollback: omit `characters.bao` from the loaded character map (or remove that ma
 entry), and point the Claude orchestrator portrait to `ROLE_PORTRAIT_FALLBACKS`.
 The retained body, costume and portrait require no camera/layout change. Source model
 or portrait load errors preserve fixed portrait dimensions, role text and controls.
+
+## Appearance review captures
+
+`capture-provenance.json` pins all final image hashes, model/portrait hashes and the
+instrumented production build at **1044667c78cdb29500e31bc1088da41c2e47df2a**.
+The subsequent evidence commit changes documentation, capture-fixture code and the
+portrait's executable mode only; the shipped model and portrait bytes are identical.
+Native Chrome reported the RTX3060Ti reference device; these screenshots do not
+stand in for the pending timed before/after benchmark.
+
+There are 12 real-den theme/view captures: 36 actors for the Working fixture and
+42 for the six-seat meeting fixture; each contains one actual Bao. Working has no
+meeting; meeting uses valid ref `baseline/24-bao` and title `Bao appearance fitting`.
+The close first-person fixture uses the existing explorer start contract at
+(-1.75, 6.2), with the measured camera eye at y=2.08. No product camera code changed.
+The fixture bridge is read-only and shows the existing Reconnecting state. Captures
+reported zero page errors and zero write requests.
+
+The native Team portrait image boxes are currently **40/62px** (the shell was not
+resized). `portrait-48-72-authoring.png` is an explicit separate 48/72px scale sheet.
+`den-light-fallback.png` forces both new assets to fail and shows the retained old
+portrait/body, with scale1.35 and camera target/zoom unchanged when Team opens.
+
+`sit-first.png` is an **authoring seated-pose preview**, not a claim that Bao sits
+in a host chair at runtime. Bao remains stationary/standing at its existing anchor;
+the current scene does not provide a Bao host chair. Future completion must validate
+the conservative envelopes against relevant existing desk/conversation/chair geometry
+fixtures without adding a host chair or changing the layout.
+
+Final image directory:
+`/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24/`.
+Use near-working, near-meeting, far-working, first-person and portraits PNGs with
+the appropriate `den-light-` / `den-dark-` prefix; the hashes are in the provenance.
+Focused source checks: **72/72 pass**, concurrency1; `/tmp/24-developer-tests.txt`.
+All corrected failed calls and fixture limitations are recorded in `incidents.md`.
