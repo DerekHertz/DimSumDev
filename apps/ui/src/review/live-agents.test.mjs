@@ -128,9 +128,9 @@ test("an unbound panda keeps PR #162's idle wandering while others are live", ()
 
 test("the 4 scenery pandas stay simulated even when live state names them", () => {
   withAgents((agents) => {
-    agents.applyLive([live("stem-cub", "fx/01-a"), live("release-manager", "fx/02-b"), live("docs-writer", "fx/03-c"), live("knowledge-keeper", "fx/04-d")]);
+    agents.applyLive([live("stem-cub", "fx/01-a"), live("debugger", "fx/02-b"), live("docs-writer", "fx/03-c"), live("knowledge-keeper", "fx/04-d")]);
     settle(agents, 20);
-    for (const role of ["stem-cub", "release-manager", "docs-writer", "knowledge-keeper"]) {
+    for (const role of ["stem-cub", "debugger", "docs-writer", "knowledge-keeper"]) {
       const [row] = rows(agents, role);
       assert.equal(rows(agents, role).length, 1, `${role} has no split-off`);
       assert.notEqual(row.task, "fx/01-a");
