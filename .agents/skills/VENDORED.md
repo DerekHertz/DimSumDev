@@ -8,10 +8,11 @@ Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with 
 
 | Skill | Status | Local changes |
 |---|---|---|
-| grilling (two older stub skills were folded into it, den-mvp/90) | as-is | none |
+| grilling (two older stub skills were folded into it, den-mvp/90) | **adapted** | Counts open questions per round; when the frontier grows for two rounds or a second area of fog opens, stops and offers a hand-off note to wayfinder (den-mvp/60). |
 | domain-modeling, codebase-design | as-is | none |
 | tdd, diagnosing-bugs, prototype, research | as-is | none |
-| wayfinder, resolving-merge-conflicts, writing-for-agents | as-is | none |
+| wayfinder | **adapted** | Chart step 1 starts from a grilling hand-off note when given one, and records it as a closed `grilling` ticket (den-mvp/60). |
+| resolving-merge-conflicts, writing-for-agents | as-is | none |
 | handoff | **adapted** | Model-invocable. Writes to the board (`.scratch/<feature>/handoffs/`) instead of the OS temp dir. Fixed sections, 60-line cap. |
 | implement | **adapted** | Model-invocable. Claims the ticket via team-protocol, delegates verbose output to `scout`, never merges, ends with /handoff. |
 | to-tickets | **adapted** | Model-invocable (orchestrator). Step 4 is a pass gate. |
