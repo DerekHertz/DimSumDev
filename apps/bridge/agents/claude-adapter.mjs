@@ -11,12 +11,14 @@
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { StringDecoder } from "node:string_decoder";
+import { cleanText, safeToolInput } from "../../shared/safe-text.mjs";
 import { COST_MAX_USD, MODEL_RE, REQUEST_ID_MAX, REQUEST_IDS_PER_AGENT, ROLES, UUID_RE, WORKTREES_DIR } from "./policy.mjs";
 
 export const MAX_LINE_BYTES = 1_000_000; // ADR 0016 6.8: a stdout line over about 1 MB is dropped
 export const CLAUDE_MODELS = Object.freeze(["opus", "sonnet", "haiku"]); // the CLI's own aliases; nothing else reaches --model
 
 const SUMMARY_MAX = 200;
+const INVOCATION_ID_MAX = 200;
 export const BODY_MAX = 16_000; // characters of one text block, tool result or reply handed on; the host clips for display
 const DENY_REASON_DEFAULT = "Denied by the owner.";
 const DENY_REASON_MAX = 500; // APPROVAL_NOTE_MAX; the message is a short note, not a channel
@@ -493,7 +495,7 @@ function clip(text, max) {
   return flat.length > max ? flat.slice(0, max) : flat;
 }
 
-// What the UI shows for a tool call: the command or the target path, shortened. Never the full input.
+// The collapsed preview is extracted from sanitized recorded input, then shortened.
 function summarise(input) {
   if (!isPlainObject(input)) return "";
   // den-mvp/55: a den tool's row names what it acts on (Bao's board_file batch, a ticket ref, a title).
@@ -507,8 +509,9 @@ function summarise(input) {
   return "";
 }
 
-// Transcript text is kept as written (the host masks and escapes it); only its length is bounded here.
+// Clean the complete text before clipping; the host also cleans before exposure and persistence.
 function body(type, text, extra = {}) {
+  text = cleanText(text);
   if (text.length <= BODY_MAX) return { type, ...extra, text };
   return { type, ...extra, text: text.slice(0, BODY_MAX), more: text.length - BODY_MAX };
 }
@@ -560,6 +563,10 @@ function contentBlocks(message) {
   return isPlainObject(message) && Array.isArray(message.content) ? message.content.filter(isPlainObject) : [];
 }
 
+// Correlation is an exact identity, never a shortened or sanitized display string.
+// Reject the original before any transformation can leak a fragment or create a collision.
+const invocationId = id => typeof id === "string" && id.length > 0 && id.length <= INVOCATION_ID_MAX && cleanText(id) === id ? id : "";
+
 /** One stdout line to zero or more CellEvents. Never throws. control_request lines belong to decodeControlRequest. */
 export function parseClaudeLine(line) {
   try {
@@ -578,8 +585,9 @@ export function parseClaudeLine(line) {
         }
         if (block.type !== "tool_use") continue;
         if (typeof block.name !== "string" || block.name === "") continue;
-        const id = typeof block.id === "string" ? clip(block.id, SUMMARY_MAX) : "";
-        events.push({ type: "tool-start", id, name: block.name, summary: summarise(block.input) });
+        const id = invocationId(block.id);
+        const input = safeToolInput(block.input);
+        events.push({ type: "tool-start", id, name: cleanText(block.name), summary: summarise(input), ...(input === undefined ? {} : { input }) });
       }
       const usage = usageEvent(obj.message);
       if (usage) events.push(usage);
@@ -591,7 +599,7 @@ export function parseClaudeLine(line) {
       return contentBlocks(obj.message)
         .filter((block) => block.type === "tool_result" && typeof block.tool_use_id === "string")
         .flatMap((block) => {
-          const id = clip(block.tool_use_id, SUMMARY_MAX);
+          const id = invocationId(block.tool_use_id);
           return [body("tool-result", resultText(block.content), { id, ok: block.is_error !== true }), { type: "tool-end", id }];
         });
     }

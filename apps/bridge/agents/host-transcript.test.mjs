@@ -30,6 +30,11 @@ const AWS_KEY = ["AKIA", "IOSFODNN7", "EXAMPLE"].join(""); // built here so the 
 const BIDI = String.fromCharCode(0x202e);
 const BEL = String.fromCharCode(7);
 const LIVE_FIXTURE = new URL("./fixtures/live.jsonl", import.meta.url);
+const LIVE_TOOL_INPUTS = readFileSync(LIVE_FIXTURE, "utf8").split("\n").filter(Boolean)
+  .map((line) => JSON.parse(line))
+  .flatMap((line) => line.type === "assistant" ? line.message?.content ?? [] : [])
+  .filter((block) => block.type === "tool_use" && block.name === "Write")
+  .map((block) => block.input);
 
 const cleanups = [];
 afterEach(async () => {
@@ -49,7 +54,17 @@ async function setup(options) {
   const buffer = async (id) => (await t.state()).transcripts?.[id];
   return { ...t, sse, entriesOf, waitFor, buffer };
 }
-const strip = ({ at, ...rest }) => rest;
+const strip = ({ at, source, invocationId, ...rest }) => {
+  if (source) {
+    assert.deepEqual({ project: source.project, runtime: source.runtime, role: source.role }, {
+      project: "den", runtime: "claude", role: "architect",
+    });
+    assert.match(source.runId, /^c-/);
+    assert.equal(source.entryId, rest.id);
+  }
+  if (invocationId) assert.match(invocationId, /^tu-[1-2]$/);
+  return rest;
+};
 
 describe("the host publishes an agent's transcript", () => {
   test("text, a tool call with its result, the reply and the end arrive as frames, and the snapshot keeps them", async () => {
@@ -66,6 +81,7 @@ describe("the host publishes an agent's transcript", () => {
     await t.waitFor(agent.id, (e) => e.kind === "ended", "the ended entry");
 
     const frames = t.entriesOf(agent.id);
+    assert.deepEqual(frames.filter((e) => e.kind === "tool").map((e) => e.invocationId), ["tu-1", "tu-1"]);
     assert.deepEqual(frames.map(strip), [
       { id: 1, kind: "message", role: "agent", text: "I will read the ADR.\nThen answer." },
       { id: 2, kind: "tool", name: "Read", summary: "docs/adr/0011.md", status: "running" },
@@ -93,7 +109,7 @@ describe("the host publishes an agent's transcript", () => {
     assert.deepEqual(t.entriesOf(agent.id).map((e) => e.kind), ["message", "ended"]);
   });
 
-  test("a failed result marks the tool failed; a tool-end with no result closes the latest running tool", async () => {
+  test("a failed result marks its identified tool failed; an unidentified end closes no concurrent tool", async () => {
     const t = await setup();
     const { agent } = (await t.dispatch("architect")).body;
     const rec = t.fake.spawns[0];
@@ -101,13 +117,17 @@ describe("the host publishes an agent's transcript", () => {
     rec.emit({ type: "tool-start", id: "tu-2", name: "Grep", summary: "TODO" });
     rec.emit({ type: "tool-result", id: "tu-1", ok: false, text: "exit 1" });
     rec.emit({ type: "tool-end", id: "tu-1" });
+    await t.waitFor(agent.id, (e) => e.id === 1 && e.status === "failed", "the identified first tool failed");
     rec.emit({ type: "tool-end" }); // a runtime that reports no result
+    assert.equal((await t.buffer(agent.id)).entries.find((e) => e.id === 2).status, "running", "an unidentified end cannot claim the concurrent tool");
     rec.emit({ type: "tool-result", id: "tu-9", ok: true, text: "for no known call" });
-    await t.waitFor(agent.id, (e) => e.id === 2 && e.status === "done", "the second tool closed");
+    assert.equal((await t.buffer(agent.id)).entries.some((e) => e.id === 3), false, "an orphan result creates no row");
+    rec.emit({ type: "tool-end", id: "tu-2" });
+    await t.waitFor(agent.id, (e) => e.id === 2 && e.status === "ended", "the explicitly identified second tool ended without success");
     const kept = (await t.buffer(agent.id)).entries.map(strip);
     assert.deepEqual(kept, [
       { id: 1, kind: "tool", name: "Bash", summary: "npm test", status: "failed", result: "exit 1" },
-      { id: 2, kind: "tool", name: "Grep", summary: "TODO", status: "done" },
+      { id: 2, kind: "tool", name: "Grep", summary: "TODO", status: "ended" },
     ]);
   });
 
@@ -118,6 +138,7 @@ describe("the host publishes an agent's transcript", () => {
     await t.waitFor(agent.id, (e) => e.kind === "tool", "the tool");
     await t.post(`/agents/${agent.id}/stop`);
     await t.waitFor(agent.id, (e) => e.kind === "ended", "the ended entry");
+    assert.equal((await t.buffer(agent.id)).entries.find((e) => e.kind === "tool").invocationId, "tu-1");
     assert.deepEqual((await t.buffer(agent.id)).entries.map(strip), [
       { id: 1, kind: "tool", name: "Bash", summary: "sleep 999", status: "stopped" },
       { id: 2, kind: "stop", status: "requested" }, // organism-infra/230: the stop's own trail, closed by the ended entry
@@ -294,7 +315,7 @@ describe("replaying the recorded live run through the stub fills the transcript 
     for (const w of [w1, w2]) {
       assert.deepEqual({ name: w.name, status: w.status }, { name: "Write", status: "done" });
       assert.match(w.result.text, /^File created successfully at: /);
-      assert.equal(w.inputText, "", "a tool row carries no tool input");
+      assert.deepEqual(JSON.parse(w.inputText), LIVE_TOOL_INPUTS[w === w1 ? 0 : 1]);
     }
     assert.match(w1.summary, /inside\.txt$/);
     assert.match(w2.summary, /live-check\.txt$/);

@@ -118,7 +118,7 @@ test('the thread: opened from Needs you, it reads as a conversation, takes a mes
     await shot(page, 'thread-live.png');
     await thread.getByRole('button', { name: 'Show earlier' }).click();
     await thread.getByRole('button', { name: 'Show earlier' }).waitFor({ state: 'hidden' });
-    assert.deepEqual(t.reads, ['?limit=100', '?before=40&limit=100']);
+    assert.deepEqual(t.reads, ['?limit=100&runtime=claude', '?before=40&limit=100&runtime=claude']);
 
     // A message goes to this run, by name.
     await thread.getByRole('textbox', { name: 'Message Scout' }).fill('Skip the slow suite.');

@@ -24,6 +24,7 @@ import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
 import { hasSecret } from "../../../scripts/exposure.mjs";
+import { safeToolInput } from "../../shared/safe-text.mjs";
 import {
   AGENT_ID_RE, KILL_GRACE_MS, LIVE_STATES, MAX_CONCURRENT_AGENTS, MODES, REF_RE, ROLES, SESSION_CAP, SLOTS, slotClassOf, UUID_RE,
   USAGE_REFUSE_AT, APPROVAL_TTL_MS, SHUTDOWN_SPAWN_WAIT_MS, DIRECT_MODE, DESK_REF,
@@ -68,8 +69,7 @@ const nonNegative = (n) => typeof n === "number" && Number.isFinite(n) && n >= 0
 // the length is capped, and anything that matches a secret pattern is masked whole.
 function clean(value, max) {
   if (typeof value !== "string") return null;
-  const text = value.replace(/[\u0000-\u001f\u007f-\u009f‎‏‪-‮⁦-⁩]/g, " ").slice(0, max);
-  return hasSecret(text) ? "[masked: possible secret]" : text;
+  return cleanText(value).replace(/\s+/g, " ").slice(0, max);
 }
 
 // Transcript text (den-v1 loop S2): the same rule, for text that is read as written. Secrets are masked span by span
@@ -246,7 +246,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   // ---- transcript (den-v1 loop S2, amendment 10) --------------------------------------------
   // Each entry goes out once as a change frame and is kept in a small per-agent buffer that rides the snapshot, so
   // a reloaded page can refill its panel. An entry's `id` is its number in that agent's transcript; revise() sends
-  // the same id again with new fields. Entries hold cleaned text only, and never a tool's input.
+  // the same id again with new fields. Entries hold cleaned text and sanitized recorded tool input.
   // den-mvp outcome 2: each entry, and each change to one, is also appended to the role's durable conversation, tagged
   // with this run and its ticket. A failed write is logged; the conversation is a record to read, not an authority.
   const keep = (agent, fields) =>
@@ -261,7 +261,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         if (id !== agent.id && !(other?.proc && !other.exited)) transcripts.delete(id);
       }
     }
-    const full = { id: buffer.next, at: new Date().toISOString(), ...entry };
+    const full = { id: buffer.next, at: new Date().toISOString(), ...entry,
+      source: sourceOf(agent, buffer.next) };
     buffer.next += 1;
     buffer.entries.push(full);
     if (buffer.entries.length > TRANSCRIPT_ENTRIES) {
@@ -273,7 +274,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     return full.id;
   }
   function revise(agent, id, patch) {
-    keep(agent, { id, ...patch });
+    keep(agent, { id, ...patch, source: sourceOf(agent, id) });
     const buffer = transcripts.get(agent.id);
     const at = buffer ? buffer.entries.findIndex((e) => e.id === id) : -1;
     if (at < 0) return; // already dropped from the buffer: no page shows it either
@@ -281,14 +282,17 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     buffer.entries[at] = full;
     onChange({ type: "transcript", agentId: agent.id, entry: full });
   }
-  // A running tool's entry is closed by its result (matched by the runtime's tool id), by a bare tool-end (the
-  // latest one still running), or when the agent ends.
+  const sourceOf = (agent, entryId) => ({ project: agent.project, runtime: agent.runtimeId, role: agent.role, runId: agent.id, entryId });
+  // Correlation is run-local and explicit. Keep terminal identities until eviction so replays
+  // cannot create a second row, and late results can revise an ended invocation.
   function closeTool(agent, toolId, patch) {
     const open = agent.openTools;
-    const key = typeof toolId === "string" && toolId !== "" ? (open.has(toolId) ? toolId : null) : [...open.keys()].at(-1) ?? null;
-    if (key === null) return;
-    revise(agent, open.get(key), patch);
-    open.delete(key);
+    const known = typeof toolId === "string" ? agent.toolEntries.get(toolId) : undefined;
+    if (!known || (known.terminal && patch.result === undefined)) return;
+    if (known.result !== undefined) return;
+    Object.assign(known, patch, { terminal: true });
+    revise(agent, known.id, patch);
+    open.delete(toolId);
   }
   function notePermission(agent, approval) {
     if (!agent) return;
@@ -484,6 +488,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     };
     agent.lastEventAt = agent.startedAt;
     agent.openTools = new Map(); // the runtime's tool id (or a local key) -> transcript entry id, while running
+    agent.toolEntries = new Map(); // bounded replay/correlation ledger, including ended calls
     agent.permissionEntries = new Map(); // approval id -> transcript entry id
     agent.autoAllowed = { calls: 0, bytes: 0 }; // connection reads the bridge allowed by itself for this run (den-mvp outcome 4)
     agent.usageByMessage = new Map(); // message id -> the tiers last counted for it
@@ -838,21 +843,25 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       const name = clean(event.name, 100);
       if (!name) return;
       agent.tool = { name, summary: clean(event.summary, 200) ?? "" };
-      const entry = record(agent, { kind: "tool", name, summary: agent.tool.summary, status: "running" });
-      const usable = typeof event.id === "string" && event.id !== "" && event.id.length <= 200 && !agent.openTools.has(event.id);
+      const usable = typeof event.id === "string" && event.id !== "" && event.id.length <= 200 && cleanText(event.id) === event.id;
+      if (usable && agent.toolEntries.has(event.id)) return;
+      const input = safeToolInput(event.input);
+      const entry = record(agent, { kind: "tool", name, summary: agent.tool.summary, status: "running", ...(usable ? { invocationId: event.id } : {}), ...(input === undefined ? {} : { input }) });
+      if (usable) agent.toolEntries.set(event.id, { id: entry, terminal: false });
       agent.openTools.set(usable ? event.id : `#${entry}`, entry);
       // A tool call that never ends is forgotten once its entry has left the buffer anyway.
       if (agent.openTools.size > TRANSCRIPT_ENTRIES) agent.openTools.delete(agent.openTools.keys().next().value);
+      if (agent.toolEntries.size > TRANSCRIPT_ENTRIES) agent.toolEntries.delete(agent.toolEntries.keys().next().value);
     } else if (event.type === "tool-end") {
       agent.tool = null;
-      closeTool(agent, event.id, { status: "done" });
+      closeTool(agent, event.id, { status: "ended" });
     } else if (event.type === "tool-result") {
       // The result closes its own tool call; the tool-end that follows it then finds nothing left to close.
       const result = cleanBody(event.text, TRANSCRIPT_RESULT_MAX, event.more);
       const mark = wallMark(event);
       const toolEntry = typeof event.id === "string" ? agent.openTools.get(event.id) : undefined;
       // A refused host is "refused"; a refused write stays "failed" (the match is by text).
-      const status = mark?.kind === "host" ? "refused" : event.ok === false ? "failed" : "done";
+      const status = mark?.kind === "host" ? "refused" : event.ok === false ? "failed" : event.ok === true && result !== null ? "done" : "ended";
       if (typeof event.id === "string" && event.id !== "") closeTool(agent, event.id, { status, ...(result === null ? {} : { result }) });
       if (mark) noteWall(agent, mark, toolEntry);
       agent.said = null; // a new step: words from before this result do not explain a later request

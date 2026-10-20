@@ -22,7 +22,7 @@ import { transcriptView } from "./transcript-view.mjs";
 import { appendTranscript } from "../state/transcript-buffer.mjs";
 
 const msg = (text, role = "agent") => ({ kind: "message", role, text, at: "2026-10-08T14:02:00Z" });
-const tool = (extra = {}) => ({ kind: "tool", id: "t1", name: "Edit", summary: "live-store.mjs", status: "ok", input: { path: "live-store.mjs" }, result: "done", at: "2026-10-08T14:02:30Z", ...extra });
+const tool = (extra = {}) => ({ kind: "tool", id: "t1", name: "Edit", summary: "live-store.mjs", status: "done", input: { path: "live-store.mjs" }, result: "done", at: "2026-10-08T14:02:30Z", ...extra });
 const fill = (...entries) => entries.reduce((b, e) => appendTranscript(b, "c-1", e), {})["c-1"];
 const ui = (extra = {}) => ({ expanded: [], atBottom: true, seenThrough: 0, connection: { phase: "live" }, ...extra });
 
@@ -64,7 +64,7 @@ describe("rows", () => {
     assert.equal(row.kind, "tool");
     assert.equal(row.name, "Edit");
     assert.equal(row.summary, "live-store.mjs");
-    assert.equal(row.status, "ok");
+    assert.equal(row.status, "done");
     assert.equal(row.expanded, false);
     assert.equal(row.toggleLabel, "Show details");
   });

@@ -15,6 +15,7 @@ import { mkdir, chmod, appendFile, open } from "node:fs/promises";
 import path from "node:path";
 import { runtimeId, validProject } from "./identity.mjs";
 import { cleanText } from "./approvals.mjs";
+import { safeToolInput } from "../../shared/safe-text.mjs";
 import {
   AGENT_ID_RE, APPROVAL_ID_RE, APPROVAL_NOTE_MAX, CONVERSATION_PAGE, CONVERSATION_PAGE_MAX, CONVERSATION_READ_BYTES, DIRECT_MODE, MODES,
   REF_RE, ROLES, TRANSCRIPT_RESULT_MAX, TRANSCRIPT_TEXT_MAX, UUID_RE,
@@ -39,10 +40,12 @@ const KINDS = {
   },
   tool: (e) => {
     const name = text(e.name, 100);
-    const status = oneOf(e.status, ["running", "done", "failed", "stopped"]);
+    const status = oneOf(e.status, ["running", "done", "failed", "stopped", "ended", "refused"]);
     if (!name || !status) return null;
     const result = text(e.result, TRANSCRIPT_RESULT_MAX + CLIP_NOTE);
-    return { name, summary: text(e.summary, 200) ?? "", status, ...(result === null ? {} : { result }) };
+    const input = safeToolInput(e.input);
+    const invocationId = typeof e.invocationId === "string" && e.invocationId.length <= 200 && cleanText(e.invocationId) === e.invocationId ? e.invocationId : null;
+    return { name, summary: text(e.summary, 200) ?? "", status, ...(result === null ? {} : { result }), ...(input === undefined ? {} : { input }), ...(invocationId ? { invocationId } : {}) };
   },
   permission: (e) => {
     const name = text(e.name, 100);
@@ -66,7 +69,9 @@ export function validateEntry(raw) {
   const identified = Object.hasOwn(raw, "runtime") || Object.hasOwn(raw, "project");
   if (identified && (!runtimeId(raw.runtime) || !validProject(raw.project))) return null;
   const fields = KINDS[raw.kind](raw);
-  return fields === null ? null : { runId: raw.runId, ref: raw.ref, id: raw.id, at: raw.at, kind: raw.kind, ...(identified ? { runtime: raw.runtime, project: raw.project } : {}), ...fields };
+  const s = raw.source;
+  const source = isObject(s) && s.runId === raw.runId && s.entryId === raw.id && s.runtime === raw.runtime && s.project === raw.project && ROLES.includes(s.role) ? { project: s.project, runtime: s.runtime, role: s.role, runId: s.runId, entryId: s.entryId } : null;
+  return fields === null ? null : { runId: raw.runId, ref: raw.ref, id: raw.id, at: raw.at, kind: raw.kind, ...(identified ? { runtime: raw.runtime, project: raw.project } : {}), ...(source ? { source } : {}), ...fields };
 }
 
 export function createConversations(root, { projectForRun = () => "den" } = {}) {

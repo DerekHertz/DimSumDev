@@ -37,7 +37,7 @@ const governance = JSON.parse(readFileSync(fileURLToPath(new URL("../agents/gove
 export const CI_PATHS = [...governance.ciPaths, ".github/**"];
 export const USER_MERGE_PATHS = [
   ...governance.guardrailPaths, ...CI_PATHS,
-  "apps/bridge/**", "apps/board/**", "apps/ci-cd/**", "scripts/**", "mods/**",
+  "apps/bridge/**", "apps/board/**", "apps/ci-cd/**", "apps/shared/**", "scripts/**", "mods/**",
   "CLAUDE.md", "AGENTS.md", "package.json", "package-lock.json", "skills-lock.json",
 ];
 const matcher = (pattern) => (pattern.endsWith("/**") ? (p) => p.startsWith(pattern.slice(0, -2)) : (p) => p === pattern || p.startsWith(`${pattern}/`));

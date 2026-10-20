@@ -17,7 +17,7 @@
 //   settleAgent(agentId, code)   every pending approval of the agent becomes "expired" (and the child is answered deny)
 //   pending(agentId), list(), release(agentId)
 import { randomBytes } from "node:crypto";
-import { hasSecret, SECRET_PATTERNS } from "../../../scripts/exposure.mjs";
+import { hasSecret } from "../../../scripts/exposure.mjs";
 import {
   APPROVAL_CAP_PER_AGENT, APPROVAL_HISTORY_CAP, APPROVAL_ID_RE, APPROVAL_INPUT_MAX, APPROVAL_NOTE_MAX, APPROVAL_TTL_MS,
   QUESTION_TTL_MS, REQUEST_ID_MAX, REQUEST_IDS_PER_AGENT,
@@ -30,53 +30,12 @@ const INTENT_MAX = 200;
 const TOOL_MAX = 100;
 const MAX_DEPTH = 32;
 const SUMMARY_KEYS = ["command", "file_path", "path", "pattern", "url", "query", "description"];
-// Control characters other than \n and \t, the bidirectional marks and overrides, and zero-width and line-separator
-// characters. Written as escapes so the source itself holds none of them.
-const UNSAFE = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/g;
-
 const clipNote = (text) => (text.length > APPROVAL_NOTE_MAX ? `${text.slice(0, APPROVAL_NOTE_MAX - 1)}…` : text);
 const refuse = (status, error) => ({ ok: false, status, error });
 const isPlainObject = (v) => v !== null && typeof v === "object" && [Object.prototype, null].includes(Object.getPrototypeOf(v));
 
-// Visible \uXXXX instead of the character, so it cannot reorder or hide text.
-export const escapeText = (text) => text.replace(UNSAFE, (c) => `\\u${c.charCodeAt(0).toString(16).padStart(4, "0")}`);
-
-// Only the span a secret pattern matches is masked, so the rest of a command stays readable and a fake secret-shaped
-// token cannot hide it. A private key block is masked through its END line (or to the end of the text), because the
-// pattern matches only its header.
-const PEM_END_RE = /-----END (?:RSA |EC |OPENSSH |DSA )?PRIVATE KEY-----/;
-const GLOBAL_PATTERNS = SECRET_PATTERNS.map((p) => ({ name: p.name, re: new RegExp(p.re.source, p.re.flags.includes("g") ? p.re.flags : `${p.re.flags}g`) }));
-function maskSecrets(text) {
-  const spans = [];
-  for (const { name, re } of GLOBAL_PATTERNS) {
-    re.lastIndex = 0;
-    for (let m = re.exec(text); m; m = re.exec(text)) {
-      let end = m.index + m[0].length;
-      if (name === "private key block") {
-        const tail = PEM_END_RE.exec(text.slice(end));
-        end = tail ? end + tail.index + tail[0].length : text.length;
-      }
-      spans.push([m.index, end]);
-      if (m[0].length === 0) re.lastIndex += 1;
-    }
-  }
-  if (!spans.length) return text;
-  spans.sort((a, b) => a[0] - b[0]);
-  const merged = [];
-  for (const [start, end] of spans) {
-    const last = merged[merged.length - 1];
-    if (last && start <= last[1]) last[1] = Math.max(last[1], end);
-    else merged.push([start, end]);
-  }
-  let out = "";
-  let at = 0;
-  for (const [start, end] of merged) {
-    out += text.slice(at, start) + MASK;
-    at = end;
-  }
-  return out + text.slice(at);
-}
-export const cleanText = (text) => escapeText(maskSecrets(text));
+export { cleanText, escapeText } from "../../shared/safe-text.mjs";
+import { cleanText } from "../../shared/safe-text.mjs";
 
 // A copy of a tool input with every string (and key) cleaned. Throws on anything JSON could not have produced.
 function sanitize(value, depth = 0) {

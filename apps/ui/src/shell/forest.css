@@ -94,6 +94,13 @@
 .forest-shell .den-sheet .tally-card-body { overflow: visible; }
 .meeting-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .forest-shell .transcript-panel { height: auto; min-height: 0; }
+.forest-shell .transcript-text { font-size: 15px; line-height: 1.6; }
+.forest-shell .transcript-tool-head { flex-wrap: wrap; font-size: 13px; }
+.forest-shell .transcript-tool-name { min-width: 0; max-width: 100%; overflow-wrap: anywhere; flex-shrink: 1; }
+.forest-shell .transcript-tool-summary { flex-basis: 100px; white-space: normal; overflow-wrap: anywhere; }
+.forest-shell .transcript-tool-status { font-size: 11px; }
+.forest-shell .transcript-detail-label { margin: var(--space-2) 0 0; color: var(--ink-muted); font-size: 11px; }
+.forest-shell .transcript-row[aria-current="location"] { outline: 2px solid var(--focus-ring); outline-offset: 3px; border-radius: var(--radius-m); }
 .forest-shell .transcript-log, .forest-shell .thread-foot { padding: 14px 18px; }
 
 /* The selected panda's card, the ticket card and the permission review float over the scene, bottom right. */

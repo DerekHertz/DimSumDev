@@ -6,6 +6,7 @@
 // A receipt says what was sent and what the agent did next. It never says the agent read or saw anything: the bridge
 // knows that a message was taken and an answer delivered, not what the agent made of it.
 import { transcriptView } from "./transcript-view.mjs";
+import { sourceKey } from "../../../shared/transcript-source.mjs";
 
 const SAYS_MAX = 500;
 const INTENT_MAX = 200;
@@ -53,19 +54,50 @@ function expiresIn(expiresAt, nowMs) {
 }
 
 /**
- * One list for the thread: the role's earlier runs from the history pages (other runs only, or this run too when the
- * page holds no live buffer for it, as after a bridge restart), then this run's live entries. Each entry gets a
+ * One list for the thread: the role's earlier runs from the history pages, then this run's live entries. Exact-source
+ * revisions reconcile without regressing a recorded terminal state or losing its output. Each entry gets a
  * stable number `n`: a live entry its own id, a history entry its distance from the end as a negative number, so
  * loading an earlier page renumbers nothing.
  */
 export function threadEntries({ history, buffer, agentId } = {}) {
   const live = Array.isArray(buffer?.entries) ? buffer.entries : null;
-  const past = (Array.isArray(history) ? history : []).filter((e) => e && typeof e === "object" && !(live && e.runId === agentId));
+  const past = [];
+  const sources = new Map();
+  for (const e of Array.isArray(history) ? history : []) {
+    if (!e || typeof e !== "object") continue;
+    const key = sourceKey(e.source);
+    if (!key && e.runId === agentId && live?.some(row => row.id === e.id)) continue;
+    const at = key ? sources.get(key) : undefined;
+    if (at !== undefined && past[at].kind === e.kind) {
+      past[at] = reconcileEntry(past[at], e);
+    } else {
+      if (key) sources.set(key, past.length);
+      past.push(e);
+    }
+  }
+  const replaced = new Set();
+  const current = (live ?? []).map((e, i) => {
+    const at = sources.get(sourceKey(e?.source));
+    const previous = at === undefined ? null : past[at];
+    const matched = previous && previous.kind === e.kind;
+    if (matched) replaced.add(at);
+    return { ...(matched ? reconcileEntry(previous, e) : e), runId: agentId, n: Number.isFinite(e?.n) ? e.n : Number.isInteger(e?.id) ? e.id : i + 1 };
+  });
+  const earlier = past.filter((_, i) => !replaced.has(i));
   const entries = [
-    ...past.map((e, i) => ({ ...e, n: i - past.length })),
-    ...(live ?? []).map((e, i) => ({ ...e, runId: agentId, n: Number.isFinite(e?.n) ? e.n : Number.isInteger(e?.id) ? e.id : i + 1 })),
+    ...earlier.map((e, i) => ({ ...e, n: i - earlier.length })),
+    ...current,
   ];
-  return { entries, dropped: live && past.length === 0 && buffer.dropped > 0 ? buffer.dropped : 0 };
+  return { entries, dropped: live && earlier.length === 0 && buffer.dropped > 0 ? buffer.dropped : 0 };
+}
+
+// History arrives oldest first; the live copy wins ties, but may have missed a terminal revision.
+function reconcileEntry(previous, next) {
+  const stale = previous.kind === "tool" && next.kind === "tool" && (
+    previous.status !== "running" && next.status === "running" ||
+    typeof previous.result === "string" && typeof next.result !== "string"
+  );
+  return stale ? { ...next, ...previous } : { ...previous, ...next };
 }
 
 const chip = (state, text) => ({ state, text }); // state: done | pending | muted | failed
@@ -202,7 +234,10 @@ export function threadView(list, ui = {}) {
     }
     return row;
   });
-  return { ...base, rows, empty: rows.length === 0 };
+  return { ...base, rows: rows.map((row, i) => {
+    const source = entries[i]?.source;
+    return { ...row, ...(sourceKey(source) ? { source: { project: source.project, runtime: source.runtime, role: source.role, runId: source.runId, entryId: source.entryId } } : {}) };
+  }), empty: rows.length === 0 };
 }
 
 /**

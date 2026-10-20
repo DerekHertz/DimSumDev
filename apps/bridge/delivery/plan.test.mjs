@@ -180,6 +180,7 @@ describe("the delivery plan", () => {
   });
 
   test("the paths whose change the user merges: the guardrails, the bridge, the checks and the manifest", () => {
+    for (const p of ["apps/shared/secret-patterns.mjs", "apps/shared/safe-text.mjs", "apps/shared/transcript-source.mjs"]) assert.equal(isUserMergePath(p), true, p);
     for (const p of [".claude/agents/developer.md", ".github/workflows/ci.yml", "apps/bridge/agents/host.mjs", "apps/bridge/delivery/plan.mjs", "apps/bridge/agents/governance.json", "scripts/risk-check.mjs", "package.json"]) assert.equal(isUserMergePath(p), true, p);
     for (const p of ["apps/ui/src/App.jsx", "docs/adr/0001.md", "apps/bridgework/x.mjs", "apps/ui/package.json", "apps/ui/.eslintrc", "CONTEXT.md", "packages/board-refs/index.mjs"]) assert.equal(isUserMergePath(p), false, p);
     // What runs by itself on the user's machine or on the git host, the board and gate code, and every root dot path.
