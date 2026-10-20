@@ -363,7 +363,9 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       job.lookAt = { sha: run.sha, items: readLookAt(run.report).map((s) => (hasSecret(s) ? "[masked: possible secret]" : s)) };
       // informative-prs/02: the What changes section of the handoff, for the pull request body; kept only when it has a behavior paragraph.
       const wc = readWhatChanges(run.report);
-      job.changes = { sha: run.sha, text: wc?.text ? proseForBody(wc.text) : "", door: wc?.door ? { way: wc.door.way, reason: inertText(errorText(wc.door.reason)) } : null };
+      // A later run (merge-main, fix round) that reports none keeps the earlier text and door, moved to the new commit.
+      if (wc?.text) job.changes = { sha: run.sha, text: proseForBody(wc.text), door: wc.door ? { way: wc.door.way, reason: inertText(errorText(wc.door.reason)) } : null };
+      else job.changes = { text: "", door: null, ...job.changes, sha: run.sha };
       await build?.close(job.id, { remove: true }).catch(() => {}); // a new commit: a preview of the last one is gone
       job.branch ??= run.branch; // the first developer run names the branch; a fix round moves it forward
       job.findings = null;
@@ -528,6 +530,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       "## What changes", "",
       changes?.text || `${codeSpan(title)}: the developer's handoff had no "What changes" section, so this body has only the ticket title.`, "",
       "## System map", "",
+      "Drawn from the den's main plus this change's paths.", "",
       map ? renderBlock(map, { radius: false }) : `The system map could not be drawn: ${mapNote}`, "",
       "## Risk", "",
       `**Door:** ${changes?.door ? `${changes.door.way}. ${changes.door.reason}`.trim() : "not stated (the developer's handoff has no door line)."}`, "",

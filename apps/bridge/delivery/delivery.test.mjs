@@ -1034,6 +1034,22 @@ describe("the pull request body carries the four sections", () => {
     assert.equal((await t.job()).state, "merged");
   });
 
+  test("a fix round whose report has no What changes keeps the section and door from the earlier developer run", async () => {
+    const t = await setup();
+    t.git.files = FILES;
+    await t.start();
+    t.work(await t.spawn(0), { commit: "feature.txt", say: report() });
+    t.work(await t.spawn(1), { say: "The empty case is not handled.\nVERDICT: bounce" });
+    t.work(await t.spawn(2), { commit: "fix.txt", say: "Handled the empty case. No section here." });
+    t.work(await t.spawn(3), { say: "VERDICT: pass" });
+    await t.when((j) => j.state === "merged", "the delivery to merge");
+    const body = t.git.calls.find((c) => c[0] === "openPr")[1].body;
+    const changes = section(body, "What changes");
+    assert.ok(changes.includes(PARA), "the earlier behavior paragraph is still the section");
+    assert.doesNotMatch(changes, /handoff had no/i);
+    assert.match(section(body, "Risk"), /two-way\. Revert the merge/, "the earlier door is kept too");
+  });
+
   test("a secret-bearing ticket title is not written into the body by the fallback, or into the PR title", async () => {
     const secret = "AKIAABCDEFGHIJKLMNOP";
     const t = await setup({ preWrite: (root) => writeFile(path.join(root, ".scratch", FEATURE, "issues", "09-leaky.md"), `# 09: leaks ${secret}\n\n**Type:** feature\n\n**Blocked by:** None\n\n**Status:** ready-for-agent\n\n## Comments\n\n`) });
