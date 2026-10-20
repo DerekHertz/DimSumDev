@@ -164,6 +164,13 @@ test("a click on the abacus in the scene opens the Tally sheet, and another clic
   const { page, pill, scene, context } = await openApp();
   try {
     await page.waitForFunction(() => document.querySelector('.den-entry button') && document.querySelector('.den-entry button').getAttribute('aria-disabled') !== 'true', null, { timeout: 60000 });
+    await page.waitForFunction(async () => {
+      const url = performance.getEntriesByType('resource').find(r => r.name.includes('@react-three_fiber'))?.name;
+      if (!url) return false;
+      const { _roots } = await import(url);
+      const state = _roots.get(document.querySelector('canvas'))?.store.getState();
+      return state?.gl.info.render.frame > 1 && !!state.camera.userData.viewport;
+    });
     const box = await page.locator('.forest-canvas').boundingBox();
     // Hit the solid right frame of the garden court abacus.
     const mid = screenOf(box, 5.05, 1.41, 13);
@@ -242,7 +249,7 @@ test("the live scene remains usable beside the nonmodal Tally sheet", { timeout:
   }
 });
 
-test("the open Tally sheet contains its two usage meters; no meter renders while closed", { timeout: 90000 }, async () => {
+test("the scene's accessible usage meters move into the Tally sheet without duplicates", { timeout: 90000 }, async () => {
   const { page, pill, scene, context } = await openApp({ usage: usageAt(79, 41) });
   try {
     const read = (loc) =>
@@ -257,7 +264,7 @@ test("the open Tally sheet contains its two usage meters; no meter renders while
       { label: "5-hour window 79%", min: "0", max: "100", now: "79", tabindex: null },
       { label: "Week 41%", min: "0", max: "100", now: "41", tabindex: null },
     ];
-    assert.deepEqual(await read(page.getByRole("meter")), [], "closed: no hidden meter duplicates");
+    assert.deepEqual(await read(page.getByRole("meter")), want, "closed: the abacus has two accessible meter twins");
     assert.equal(await page.locator('[data-sheet] [data-rod]').count(), 0, "the closed topic has no rod rows");
     await pill.click();
     const dialog = dialogOf(page);
@@ -267,6 +274,8 @@ test("the open Tally sheet contains its two usage meters; no meter renders while
     assert.deepEqual(open.map((m) => [m.label, m.now]), [["5-hour window 79%", "79"], ["Week 41%", "41"]]);
     assert.equal(await dialog.getByRole("meter").count(), 2, "open: they are the sheet's rows");
     for (const m of open) assert.deepEqual([m.min, m.max], ["0", "100"]);
+    await page.keyboard.press('Escape');
+    assert.deepEqual(await read(page.getByRole('meter')), want, 'closing restores the scene meter twins');
   } finally {
     await context.close();
   }

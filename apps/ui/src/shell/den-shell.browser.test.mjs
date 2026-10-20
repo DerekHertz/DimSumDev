@@ -105,6 +105,20 @@ const pick = async page => {
 };
 const rail = (page, id) => page.locator(`[data-rail="${id}"]`);
 const side = page => page.locator('[data-sheet=side]');
+async function captureEvidence(page) {
+  const dir = process.env.DEN_SHELL_EVIDENCE_DIR;
+  if (!dir) return;
+  await mkdir(dir, { recursive: true });
+  await page.getByRole('button', { name: 'Back to the diorama · Esc', exact: true }).click();
+  await rail(page, 'team').click();
+  await rail(page, 'bao').click();
+  for (const colorScheme of ['light', 'dark']) {
+    await page.emulateMedia({ colorScheme });
+    await page.screenshot({ path: `${dir}/den-shell-${colorScheme}.png` });
+  }
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.screenshot({ path: `${dir}/den-shell-390.png` });
+}
 
 test('conversation close preserves Panda camera, selection and walk mode; each opener gets focus back', { timeout: 120000 }, async () => {
   const t = await open(); const { page } = t;
@@ -141,6 +155,7 @@ test('conversation close preserves Panda camera, selection and walk mode; each o
     assert.deepEqual(await camera(page), before);
     assert.equal(await page.locator('.den-visiting').count(), 1);
     assert.deepEqual(t.errors, []);
+    await captureEvidence(page);
   } finally { await t.close(); }
 });
 
@@ -246,19 +261,33 @@ test('all former destinations survive, every charter role is listed, and 20 cycl
   } finally { await t.close(); }
 });
 
-test('shell screenshots for the user visual verdict', { timeout: 120000, skip: !process.env.DEN_SHELL_EVIDENCE_DIR }, async () => {
+test('opening or closing the other sheet preserves topic scroll, profile and conversation draft', { timeout: 120000 }, async () => {
   const t = await open(); const { page } = t;
   try {
-    const dir = process.env.DEN_SHELL_EVIDENCE_DIR;
-    await mkdir(dir, { recursive: true });
     await rail(page, 'team').click();
+    await page.getByRole('button', { name: /^The Scout, scout, Claude/ }).click();
+    const body = page.locator('#sheet-topic .den-sheet-body');
+    await body.evaluate(el => { el.scrollTop = 150; });
+    const scroll = await body.evaluate(el => el.scrollTop);
+    assert.ok(scroll > 0);
     await rail(page, 'bao').click();
-    for (const colorScheme of ['light', 'dark']) {
-      await page.emulateMedia({ colorScheme });
-      await page.screenshot({ path: `${dir}/den-shell-${colorScheme}.png` });
-    }
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.screenshot({ path: `${dir}/den-shell-390.png` });
+    assert.equal(await body.evaluate(el => el.scrollTop), scroll);
+    assert.match(await page.locator('.forest-profile').innerText(), /The Scout/);
+    const draft = side(page).locator('.thread-box');
+    await draft.fill('Keep this draft while I check the board.');
+    await rail(page, 'team').click();
+    assert.equal(await draft.inputValue(), 'Keep this draft while I check the board.');
+    await rail(page, 'work').click();
+    await page.keyboard.press('Escape');
+    assert.equal(await draft.inputValue(), 'Keep this draft while I check the board.');
+    await pick(page);
+    await rail(page, 'meetings').click();
+    await page.locator('[data-meeting=running]').getByRole('button', { name: 'Open', exact: true }).click();
+    await page.locator('.proximity-card [data-key=R]:enabled').waitFor({ state: 'attached' });
+    await page.keyboard.press('KeyR');
+    await page.getByRole('dialog', { name: /Conversation with/ }).waitFor();
+    assert.equal(await side(page).count(), 1, 'keyboard conversation replaces the meeting in the one side slot');
+    assert.equal(await side(page).locator('h2').evaluate(el => el === document.activeElement), true);
   } finally { await t.close(); }
 });
 

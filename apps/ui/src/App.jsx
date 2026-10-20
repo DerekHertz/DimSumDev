@@ -139,17 +139,12 @@ export function App() {
   const shownCard = useMemo(() => (denDemo.active ? demoCard(nearby, { transcripts: denDemo.transcripts }) : nearby), [nearby, denDemo.active, denDemo.transcripts]);
   const sideOwned = useRef(false);
   const transcript = useTranscript({ card: shownCard, exploring: engaged, onOpen: () => {
+    setMeetingId(null);
     if (!sideOwned.current) stamp('side');
     releaseCursor();
   }, blocked: reviewOpen, returnFocus: () => focusBack('side') });
   const transcriptClose = useRef(null);
   transcriptClose.current = transcript.close;
-  // A conversation that opened by itself (R in walk mode, the card's R button) takes the side slot too.
-  useEffect(() => {
-    if (!transcript.panel.agentId) return;
-    sideOwned.current = false;
-    setMeetingId(null);
-  }, [transcript.panel.agentId]);
   const openConversation = useCallback((agentId, who, from) => {
     if (!agentId) return;
     releaseCursor();
@@ -157,6 +152,7 @@ export function App() {
     sideOwned.current = true;
     setMeetingId(null);
     transcript.openFor(agentId, who);
+    sideOwned.current = false;
   }, [transcript.openFor, releaseCursor]);
   const bridge = useMemo(() => approvalDemo?.client ?? createBridgeClient({ fetch: steering.session.fetch }), [steering.session, approvalDemo]);
   const onReviewOpen = useCallback(() => { messageClose.current?.(); releaseCursor(); }, [releaseCursor]);
@@ -278,7 +274,9 @@ export function App() {
   const dashboard = useMemo(() => dashboardModel(metrics, { error: metricsFailed }), [metrics, metricsFailed]);
   const tally = useMemo(() => tallyRods(snapshot?.usage ?? null, dashboard, now), [snapshot?.usage, dashboard, now]);
   // The abacus in the scene opens the Tally sheet, like the rail's Tally entry.
-  const openTally = useCallback(() => openTopic('tally', document.querySelector('[data-rail="tally"]')), [openTopic]);
+  const openTally = useCallback(() => {
+    if (topic !== 'tally') openTopic('tally', document.querySelector('[data-rail="tally"]'));
+  }, [topic, openTopic]);
   const hearts = useMemo(() => new Set(handoffs.map((h) => h.ref)), [handoffs]);
   // den-mvp/22 (v5 wave 1): the repair bench and the archive. Marks come from this one snapshot (no second event stream);
   // a click only opens a sheet or a thread. Demo mode and a dropped bridge turn the work actions off and say why.

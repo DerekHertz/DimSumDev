@@ -262,7 +262,7 @@ test("opening Work from walk mode keeps walk mode active", { timeout: 90000 }, a
   } finally { await context.close(); }
 });
 
-test("the physical Library replaces the topic and preserves Bao's side conversation", { timeout: 90000 }, async () => {
+test("the physical Library opens its sheet and preserves Bao's side conversation", { timeout: 90000 }, async () => {
   const { context, page, errors } = await openGarden();
   try {
     await ready(page);
@@ -272,6 +272,7 @@ test("the physical Library replaces the topic and preserves Bao's side conversat
     assert.equal(await page.getByRole('region', { name: 'Selected panda' }).count(), 0, 'portrait selection stays in its profile');
     await page.locator('.den-bar').getByRole('button', { name: /Talk to Bao/ }).click();
     await page.locator('[data-sheet="side"]').waitFor({ state: 'visible' });
+    await page.locator('[data-rail="team"]').click(); // uncover the Library roof before clicking it
     // Click the actual roof at the authored Library position, using the same camera projection as the garden.
     const box = await page.locator('.forest-canvas').boundingBox();
     const roof = screenPoint(box, -21, 5.5, 6);
@@ -315,7 +316,8 @@ const profileLive = (seq = 2, ended = false) => {
   };
 };
 const openProfiles = async page => {
-  await page.locator('[data-rail="team"]').click();
+  const entry = page.locator('[data-rail="team"]');
+  if (await entry.getAttribute('aria-expanded') !== 'true') await entry.click();
   const profiles = page.getByRole('region', { name: 'Panda profiles' });
   await profiles.waitFor({ state: 'visible' });
   return profiles;

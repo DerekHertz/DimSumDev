@@ -113,10 +113,6 @@ async function openApp({ snapshot = fixture(), viewport = DESKTOP, hasTouch = fa
   // behavioral checks exercise the requests card; tests for other topics select them explicitly.
   await page.locator('[data-rail="needs"]').waitFor({ state: "visible", timeout: 30000 });
   await page.locator('[data-rail="needs"]').click();
-  await page.waitForFunction(() => {
-    const button = document.querySelector('.den-entry button');
-    return button && button.getAttribute('aria-disabled') !== 'true';
-  }, null, { timeout: 60000 });
   await page.locator('[data-overlay="logo"]').waitFor({ state: "visible", timeout: 2000 }).catch(() => {});
   // organism-infra/104: 5 s was a load flake ("Ctrl+Enter in the Note", fill after the first POST timed out while
   // the machine was busy). Playwright actions return as soon as the element is ready, so a longer ceiling only
@@ -176,7 +172,13 @@ test("the full-window shell has a top bar, a Den rail, a live scene, and one bou
   const rail = await page.getByRole('navigation', { name: 'Den' }).boundingBox();
   const scene = await page.locator('main[aria-label="Den scene"]').boundingBox();
   const sheet = await needs.boundingBox();
+  const entry = await page.locator('.den-entry').boundingBox();
+  assert.ok(entry.width < 250 && entry.height < 80, 'entry controls leave the canvas available for interaction');
   assert.ok(bar.y >= shell.y && bar.y + bar.height <= scene.y + 1);
+  for (const button of await page.locator('.den-bar .zoom-level').all()) {
+    const bounds = await button.boundingBox();
+    assert.ok(bounds.y >= bar.y && bounds.y + bounds.height <= bar.y + bar.height, 'camera levels fit inside the bar');
+  }
   assert.ok(rail.x >= shell.x && rail.x + rail.width <= scene.x + 1);
   assert.ok(scene.x + scene.width <= shell.x + shell.width + .5);
   assert.ok(sheet.x >= rail.x + rail.width && sheet.x + sheet.width <= shell.x + shell.width);
@@ -244,6 +246,7 @@ test("'j' and 'k' step through the waiting requests; the next 'a' acts on the on
   assert.match(await needs.innerText(), /02-verify-it.* wants merge approval/);
   await page.keyboard.press("j");
   await needs.getByText(/ship-it.* wants dispatch approval/).first().waitFor({ state: "visible" });
+  assert.equal(await page.evaluate(() => !!document.activeElement.closest('.card-wrap')), true, await page.evaluate(() => document.activeElement.outerHTML.slice(0, 300)));
   await page.keyboard.press("a");
   await expectPost(posts, { kind: "dispatch-approve", ref: "demo/03-ship-it" });
   await page.keyboard.press("k");
@@ -474,8 +477,9 @@ test("+ and - buttons step the same zoom the wheel and keys use, and clamp at [0
 }));
 
 test("scroll wheel over the scene zooms freely and clamps at both ends (scope 2026-10-01: wheel, clamp)", { timeout: 90000 }, withApp({}, async ({ page, zoom }) => {
+  await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') === null, null, { timeout: 60000 });
   const canvas = await page.locator('.forest-canvas').boundingBox();
-  await page.mouse.move(canvas.x + canvas.width / 2, canvas.y + canvas.height / 2);
+  await page.mouse.move(canvas.x + canvas.width * .85, canvas.y + canvas.height * .15);
   await page.mouse.wheel(0, -200);
   await page.waitForFunction(() => Number(document.querySelector('[data-overlay=zoom]').dataset.zoom) < 1);
   const closer = await zoomValue(zoom);
@@ -492,12 +496,13 @@ test("two-finger pinch zooms: spreading the fingers moves closer, pinching in mo
   const app = await openApp({ hasTouch: true });
   try {
     const { page, context, zoom } = app;
+    await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') === null, null, { timeout: 60000 });
     const cdp = await context.newCDPSession(page);
     const touch = (type, pts) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: pts.map((p, id) => ({ x: p[0], y: p[1], id })) });
     const canvas = await page.locator('.forest-canvas').boundingBox();
-    const cx = canvas.x + canvas.width / 2;
-    const cy = canvas.y + canvas.height / 2;
-    const wide = Math.min(200, canvas.width * .35);
+    const cx = canvas.x + canvas.width * .75;
+    const cy = canvas.y + canvas.height * .15;
+    const wide = Math.min(160, canvas.width * .15);
     const gesture = async (from, to) => {
       await touch("touchStart", [[cx - from, cy], [cx + from, cy]]);
       for (let i = 1; i <= 10; i++) {

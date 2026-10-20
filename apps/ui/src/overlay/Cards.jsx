@@ -4,7 +4,7 @@
 import { QueueDrawer } from "./QueueDrawer.jsx";
 import { Sheet } from "../shell/Sheet.jsx";
 import { SHEET_HEADS } from "../shell/rail-model.mjs";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { noteCounter, submitGate } from "../panel/gates-model.mjs";
 import { DemoBadge } from "../demo/DemoControls.jsx";
 import { createBridgeClient } from "../state/bridge-client.mjs";
@@ -526,6 +526,14 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
   const [shown, setShown] = useState(null);
   const current = requests.find((r) => r.key === shown) ?? requests[0] ?? null;
   const decision = useRef(null);
+  const cardRoot = useRef(null);
+  const restoreRequestFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (restoreRequestFocus.current) {
+      cardRoot.current?.focus({ preventScroll: true });
+      restoreRequestFocus.current = false;
+    }
+  }, [current?.key]);
   // 228: a dispatch gate also gets Run, and at room 0 its prompt (note, Approve, Deny) is replaced by one line.
   const isDispatch = current?.kind === "gate" && current.gate === "dispatch";
   const prompt = isDispatch ? dispatchPrompt(capacity) : { show: true, line: null };
@@ -540,8 +548,8 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
     else if (e.key === "d") decision.current?.deny();
     else if (e.key === "m") decision.current?.focusNote();
     else if (e.key === "j" || e.key === "k") {
+      restoreRequestFocus.current = true;
       setShown(stepRequest(requests, current.key, e.key === "j" ? 1 : -1));
-      e.currentTarget.focus({ preventScroll: true });
     }
     else return;
     e.preventDefault();
@@ -549,7 +557,7 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
 
   const others = current ? requests.filter((r) => r.key !== current.key) : [];
   return (
-    <div onKeyDown={onKeyDown} tabIndex={-1} className="card-wrap">
+    <div ref={cardRoot} onKeyDown={onKeyDown} tabIndex={-1} className="card-wrap">
       <Card
         id="needs-you"
         overlay="needs-you"
