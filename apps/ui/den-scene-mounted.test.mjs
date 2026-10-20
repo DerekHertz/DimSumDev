@@ -321,8 +321,11 @@ const profileLive = (seq = 2, ended = false) => {
   return {
     ...quietProfiles(), seq,
     tickets: rows.map(([ref]) => ({ ref, feature: 'work', title: ref === 'work/03-visitor' ? 'Visitor-specific task' : 'Maker-specific task', type: 'task', status: 'claimed', ready: false, holder: ended ? null : { role: 'developer', since: at }, gate: null, blockedBy: [] })),
-    agents: rows.map(([ref, id, state]) => ({ id, ref, role: 'developer', state, runtime: 'claude', mode: 'direct', startedAt: at, lastEventAt: at, tool: { name: 'Read', summary: ref + ' tool details' }, capabilities: { send: true, stop: true, approve: true }, followUp: ended })),
-    transcripts: Object.fromEntries(rows.map(([, id]) => [id, { dropped: 0, entries: [{ id: 1, kind: 'message', role: 'agent', at, text: 'Conversation for ' + id }] }])),
+    agents: rows.map(([ref, id, state]) => ({ id, ref, project: 'den', role: 'developer', state, runtime: 'claude', mode: 'direct', startedAt: at, lastEventAt: at, capabilities: { send: true, stop: true, approve: true }, followUp: ended })),
+    transcripts: Object.fromEntries(rows.map(([ref, id]) => [id, { dropped: 0, entries: [
+      { id: 1, kind: 'message', role: 'agent', at, text: 'Conversation for ' + id },
+      { id: 2, kind: 'tool', name: 'Read', summary: ref + ' tool details', status: ended ? 'ended' : 'running', invocationId: id + '-read', source: { project: 'den', runtime: 'claude', role: 'developer', runId: id, entryId: 2 } },
+    ] }])),
   };
 };
 const openProfiles = async page => {

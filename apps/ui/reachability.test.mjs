@@ -60,13 +60,16 @@ function referencedFiles(file) {
   return [...found];
 }
 
-// A browser test that serves the UI with apps/ui/vite.config.mjs (vite createServer)
+// A browser test that serves the UI with apps/ui/vite.config.mjs (dev or production)
 // and drives the mounted App in Chromium tests reachable code through the entry,
 // even though it imports no UI module. Such a test is always kept.
 function mountsLiveApp(file) {
   if (!isTest(file)) return false;
   const text = readFileSync(file, "utf8");
-  return /apps\/ui\/vite\.config\.mjs/.test(text) && /createServer\s*\(/.test(text) && /\.goto\s*\(/.test(text);
+  if (!/apps\/ui\/vite\.config\.mjs/.test(text) || !/\.goto\s*\(/.test(text)) return false;
+  if (/createServer\s*\(/.test(text)) return true;
+  return /\bbuild\s*\(/.test(text) && /\bpreview\s*\(/.test(text)
+    && /\bchromium\.launch\s*\(/.test(text) && /\.newContext\s*\(/.test(text) && /\.newPage\s*\(/.test(text);
 }
 
 test("live-App recognition accepts UI dev and production browser sources and rejects incomplete lookalikes", async (t) => {
