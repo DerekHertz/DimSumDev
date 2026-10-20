@@ -327,7 +327,8 @@ export function TranscriptPanel({ tx, transcripts, agents, approvals, onAnswer, 
   const view = threadView(list, { expanded, atBottom, seenThrough, connection, approvals, agents, now });
   lastN.current = view.rows.at(-1)?.n ?? 0;
 
-  useEffect(() => { setExpanded([]); setSourceState(null); focusedRequest.current = null; setAtBottom(true); setSeenThrough(0); bottomRef.current = true; }, [agentId]);
+  // Reset before a synchronous live-source lookup can complete in the layout effects below.
+  useLayoutEffect(() => { setExpanded([]); setSourceState(null); focusedRequest.current = null; setAtBottom(true); setSeenThrough(0); bottomRef.current = true; }, [agentId]);
   useEffect(() => { if (agentId) document.querySelector("#sheet-side-title")?.focus({ preventScroll: true }); }, [agentId]);
 
   // The role's earlier runs (den-mvp outcome 2): asked from the bridge when the thread opens or moves to a new run, a
