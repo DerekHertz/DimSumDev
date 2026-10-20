@@ -28,12 +28,14 @@ test('the actual garden moves residents and koi, holds the selected identity, an
    window.routineProbe={world,pandas,fish:[1,2,3].map(i=>world.getObjectByName('Tea garden koi '+i))};
    const outfits=Object.entries(pandas).map(([id,p])=>{
     const garment=p.getObjectByName('Shared-rig outfit'),skins=[];p.traverse(n=>{if(n.isSkinnedMesh)skins.push(n);});
-    return {id,count:garment.children.length,shared:skins.every(n=>n.skeleton===skins[0].skeleton),textured:skins.some(n=>(Array.isArray(n.material)?n.material:[n.material]).some(m=>m.map))};
+    return {id,species:p.userData.species,count:garment.children.length,shared:skins.every(n=>n.skeleton===skins[0].skeleton),textured:skins.some(n=>(Array.isArray(n.material)?n.material:[n.material]).some(m=>m.map))};
    });
    return {pandas:Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,p.position.toArray()])),fish:window.routineProbe.fish.map(f=>f.position.toArray()),outfits};
   });
   assert.equal(initial.fish.length,3);assert.equal(Object.keys(initial.pandas).length,32);
-  assert.ok(initial.outfits.every(o=>o.count>0&&o.shared&&o.textured),'all actual residents retain textured outfits on their shared skeleton');
+  // team-and-den-ux/23: the red panda and cloud dragon wear outfits fused into their own textured body.
+  assert.deepEqual([...new Set(initial.outfits.filter(o=>o.species).map(o=>o.species))].sort(),['cloud-dragon','red-panda']);
+  assert.ok(initial.outfits.every(o=>(o.species||o.count>0)&&o.shared&&o.textured),'all actual residents retain textured outfits on their shared skeleton');
   await page.waitForFunction(before=>{
    const p=window.routineProbe;
    return p.fish.every((f,i)=>f.position.toArray().some((v,j)=>Math.abs(v-before.fish[i][j])>.02))&&Object.entries(p.pandas).some(([id,a])=>a.position.toArray().some((v,j)=>Math.abs(v-before.pandas[id][j])>.1));
@@ -42,9 +44,9 @@ test('the actual garden moves residents and koi, holds the selected identity, an
    const {pandas}=window.routineProbe,id=Object.keys(pandas).find(id=>pandas[id].position.toArray().some((v,j)=>Math.abs(v-before[id][j])>.1)),p=pandas[id];
    const skins=[];p.traverse(n=>{if(n.isSkinnedMesh)skins.push(n);});
    window.routineProbe.walking={id,p,skins,shoulder:p.getObjectByName('Shoulder_L').quaternion.clone()};
-   return {id,outfitMeshes:p.getObjectByName('Shared-rig outfit').children.length};
+   return {id,species:p.userData.species,outfitMeshes:p.getObjectByName('Shared-rig outfit').children.length};
   },initial.pandas);
-  assert.ok(walking.outfitMeshes>0);
+  assert.ok(walking.species||walking.outfitMeshes>0);
   await page.waitForFunction(()=>{const w=window.routineProbe.walking;return w.p.getObjectByName('Shoulder_L').quaternion.angleTo(w.shoulder)>.02;},null,{timeout:10000});
   assert.ok(await page.evaluate(()=>window.routineProbe.walking.skins.every(mesh=>{
    const positions=mesh.geometry.attributes.position,point=mesh.position.clone();
