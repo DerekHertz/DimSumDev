@@ -9,7 +9,7 @@ The PR body is written for the user at merge time. They should be able to decide
 
 1. Commit the work, then run `npm run -s pr-map` on the branch. It diffs from the merge-base with `origin/main` (pass `--base <ref>` or `--head <ref>` to change that) and prints the System map block and the blast radius. Done when you have its output; never draw or edit the diagram by hand.
 2. Write the body below, pasting the map block as printed. Done when every section is filled and nothing in it comes from memory rather than the diff and the checks.
-3. Open the PR (`gh pr create --body-file <file>`), and end the body with the attribution lines the session gives you.
+3. Once pushing is authorized (a pass gate: your role and dispatch allow it, or the user said yes), open the PR (`gh pr create --body-file <file>`), and end the body with the attribution lines the session gives you.
 
 ## The four sections
 
@@ -56,7 +56,7 @@ Two to four sentences on behavior: what the user or the system now does differen
 - When unsure, call it one-way and say why. The blast radius is pr-map's list, copied, never written by hand.
 - Codex: this section replaces the "Merge Danger" heading.
 
-**Evidence** sits folded so it doesn't push the change out of view. Report what ran and its result, including failures. No line counts.
+**Evidence** sits folded so it doesn't push the change out of view. Report what ran and its result, including failures, as summaries: no raw test or log output, since the body may be public. Name a secret's location, never its value. No line counts.
 
 ## The map
 
