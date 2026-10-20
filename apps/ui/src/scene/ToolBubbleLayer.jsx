@@ -11,13 +11,18 @@ export function ToolBubbleLayer({bindings,stage,onInspect,picked,selected}){
    for(const el of nodes.current.values())el.style.visibility='hidden';
    if(camera&&size&&layer.current){
     camera.updateMatrixWorld();const rows=[];
+    const origin=layer.current.getBoundingClientRect();
+    const meetingLabels=[...document.querySelectorAll('.meeting-label')].filter(el=>getComputedStyle(el).visibility!=='hidden');
     for(const [id,row]of latest.current.bindings){
      const anchor=stage.toolAnchors?.get(id);if(!anchor||!row.toolActivity)continue;
      const p=anchor.top.clone().project(camera),base=anchor.base.clone().project(camera);
      if(p.z<-1||p.z>1)continue;
-     rows.push({id,x:(p.x+1)*size.width/2,y:(1-p.y)*size.height/2,height:Math.abs(p.y-base.y)*size.height/2,waiting:row.toolActivity.waiting,focused:id===latest.current.picked||row.ref===latest.current.selected});
+     const seat=stage.meetingAnchors?.get(row.role),label=seat?.distanceToSquared(anchor.top)<.001?meetingLabels.find(el=>el.dataset.seat===row.role):null;
+     // The meeting tag shares this crown. Put the tool above its measured box,
+     // so the guest's action stays available after both layers have projected.
+     const ceiling=label?label.getBoundingClientRect().top-origin.y:undefined;
+     rows.push({id,x:(p.x+1)*size.width/2,y:(1-p.y)*size.height/2,ceiling,height:Math.abs(p.y-base.y)*size.height/2,waiting:row.toolActivity.waiting,focused:nodes.current.get(id)===document.activeElement||id===latest.current.picked||row.ref===latest.current.selected});
     }
-    const origin=layer.current.getBoundingClientRect();
     const blocked=[...document.querySelectorAll('[data-sheet],.den-float,.den-walk-pad,.den-entry,.zoom-switcher,.forest-legend,.meeting-label,.wave-ack')].filter(el=>el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden').map(el=>{const r=el.getBoundingClientRect();return {x:r.x-origin.x,y:r.y-origin.y,width:r.width,height:r.height};});
     // Model targets are protected too; the bubble sits above its own crown.
     for(const [id,anchor]of stage.toolAnchors??[]){

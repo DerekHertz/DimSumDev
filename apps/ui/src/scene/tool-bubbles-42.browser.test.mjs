@@ -93,7 +93,7 @@ test('42 production App: real observations, exact/count keyboard inspection, lif
   await page.evaluate(s=>window.tool42emit('snapshot',s),guestSnapshot);
   const guestBubble=page.getByRole('button',{name:'Inspect 1 active tool call for developer: Read · Guest42 own source',exact:true});
   await guestBubble.waitFor({state:'visible'});
-  await guestBubble.focus();await page.keyboard.press('Enter');
+  await guestBubble.focus();assert.equal(await guestBubble.evaluate(el=>el===document.activeElement),true,'guest tool action receives native keyboard focus');await page.keyboard.press('Enter');
   await page.locator('[data-sheet=side] [aria-current=location]').waitFor();
   assert.equal(await page.locator('[data-sheet=side] [aria-current=location]').getAttribute('data-source'),JSON.stringify(['den','claude','developer',guestRun,7]));
   assert.equal(await page.locator('[data-sheet=side] .transcript-tool-head[aria-expanded=true]').count(),1);
