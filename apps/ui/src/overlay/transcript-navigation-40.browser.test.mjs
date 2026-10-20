@@ -15,7 +15,7 @@ before(async () => {
 }, { timeout: 30000 });
 after(async () => { await browser?.close(); await server?.close(); });
 
-async function open(t) {
+async function open(t, { closed = false } = {}) {
   const context = await browser.newContext({ viewport: { width: 1280, height: 800 }, reducedMotion: 'reduce' });
   t.after(() => context.close());
   await context.addInitScript(({ RUN, NEXT }) => {
@@ -30,10 +30,34 @@ async function open(t) {
   await page.route('**/__navigation40', r => r.fulfill({ contentType: 'text/html', body: '<div id="root"></div><script type="module" src="/src/overlay/fixtures/transcript-navigation-40.jsx"></script>' }));
   await page.goto(new URL('/__navigation40', server.resolvedUrls.local[0]).href);
   await page.waitForFunction(() => !!window.navigation40);
-  await page.evaluate(run => window.navigation40.open(run), RUN);
-  await page.waitForFunction(() => window.navigation40Reads.length === 1);
+  if (!closed) {
+    await page.evaluate(run => window.navigation40.open(run), RUN);
+    await page.waitForFunction(() => window.navigation40Reads.length === 1);
+  }
   return page;
 }
+
+test('40 navigation: a closed panel locates and expands a historical tool absent from live agents', { timeout: 15000 }, async t => {
+  const page = await open(t, { closed: true });
+  const target = { id: 7, runId: OLD, kind: 'tool', name: 'Read', status: 'done', result: 'Historical recorded output', source: source(OLD, 7) };
+  await page.evaluate(({ run, source }) => window.navigation40.open(run, source), { run: OLD, source: target.source });
+  await page.locator('#sheet-side-title').waitFor();
+  await page.evaluate(async () => { await new Promise(requestAnimationFrame); await new Promise(requestAnimationFrame); });
+  assert.deepEqual(await page.evaluate(() => window.navigation40Reads.map(({ role, options }) => ({ role, options }))), [
+    { role: 'architect', options: { limit: 100, runtime: 'claude', project: 'den' } },
+  ], 'the pinned historical identity must survive the closed-panel opening commit');
+  await resolve(page, 0, { entries: [target], more: false, before: 0 });
+  const row = page.locator('li[aria-current="location"]');
+  await row.waitFor();
+  assert.equal(await row.evaluate(el => el === document.activeElement), true);
+  assert.equal(await row.getByRole('button').getAttribute('aria-expanded'), 'true');
+  assert.match(await row.innerText(), /Historical recorded output/);
+  assert.equal(await page.getByText('Source unavailable', { exact: true }).count(), 0);
+  await page.evaluate(() => window.navigation40.close());
+  await page.evaluate(run => window.navigation40.open(run), OLD);
+  await page.waitForFunction(() => window.navigation40Reads.length === 2);
+  assert.deepEqual(await page.evaluate(() => window.navigation40Reads[1].options), { limit: 100, runtime: 'claude', project: 'den' }, 'ordinary historical opens use the same complete selectors');
+});
 async function resolve(page, index, response) {
   await page.evaluate(async ({ index, response }) => {
     window.navigation40Reads[index].resolve(response);

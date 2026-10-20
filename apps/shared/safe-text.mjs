@@ -71,4 +71,3 @@ export function safeToolInput(input, max = 16000) {
     return text.length <= max ? safe : `${text.slice(0, max)}\n[clipped input]`;
   } catch { return undefined; }
 }
-

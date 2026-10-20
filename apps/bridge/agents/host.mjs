@@ -246,7 +246,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   // ---- transcript (den-v1 loop S2, amendment 10) --------------------------------------------
   // Each entry goes out once as a change frame and is kept in a small per-agent buffer that rides the snapshot, so
   // a reloaded page can refill its panel. An entry's `id` is its number in that agent's transcript; revise() sends
-  // the same id again with new fields. Entries hold cleaned text only, and never a tool's input.
+  // the same id again with new fields. Entries hold cleaned text and sanitized recorded tool input.
   // den-mvp outcome 2: each entry, and each change to one, is also appended to the role's durable conversation, tagged
   // with this run and its ticket. A failed write is logged; the conversation is a record to read, not an authority.
   const keep = (agent, fields) =>

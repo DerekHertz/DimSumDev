@@ -24,6 +24,39 @@ test('40 history: only an exact live source replaces its history counterpart', (
   assert.equal(list.entries[0].result, 'different source');
 });
 
+test('40 history: durable terminal output survives a stale running live row with stable live numbering', () => {
+  const done = tool({ status: 'done', result: 'durable final output' });
+  const active = tool({ n: 19 });
+  const list = threadEntries({ history: [done], buffer: { entries: [active], dropped: 18 }, agentId: RUN });
+  const [row] = threadView(list, { expanded: [done.source] }).rows;
+  assert.equal(list.entries.length, 1);
+  assert.equal(row.n, 19);
+  assert.equal(row.status, 'done');
+  assert.equal(row.result?.text, 'durable final output');
+  assert.deepEqual(row.source, done.source);
+  assert.equal(active.status, 'running', 'reconciliation does not mutate the live buffer');
+});
+
+test('40 history: terminal live output wins over stale history and terminal history cannot erase newer live output', () => {
+  const live = tool({ status: 'failed', result: 'newer live output' });
+  for (const stale of [tool({}), tool({ status: 'ended' }), tool({ status: 'done', result: 'older history output' })]) {
+    const list = threadEntries({ history: [stale], buffer: { entries: [live] }, agentId: RUN });
+    assert.equal(list.entries.length, 1);
+    assert.equal(list.entries[0].status, 'failed');
+    assert.equal(list.entries[0].result, 'newer live output');
+  }
+});
+
+test('40 history: late recorded result revisions supersede an output-free end in either history or live', () => {
+  const ended = tool({ status: 'ended' });
+  const done = tool({ status: 'done', result: 'late recorded result' });
+  for (const [history, live] of [[done, ended], [ended, done]]) {
+    const [row] = threadView(threadEntries({ history: [history], buffer: { entries: [live] }, agentId: RUN }), { expanded: [done.source] }).rows;
+    assert.equal(row.status, 'done');
+    assert.equal(row.result?.text, 'late recorded result');
+  }
+});
+
 test('40 result: Unicode truncation reports the exact number of omitted bytes', () => {
   const full = '界'.repeat(2000);
   const row = transcriptView({ entries: [tool({ result: full })] }, { expanded: [1] }).rows[0];

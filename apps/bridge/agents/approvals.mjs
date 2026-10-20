@@ -17,7 +17,7 @@
 //   settleAgent(agentId, code)   every pending approval of the agent becomes "expired" (and the child is answered deny)
 //   pending(agentId), list(), release(agentId)
 import { randomBytes } from "node:crypto";
-import { hasSecret, SECRET_PATTERNS } from "../../../scripts/exposure.mjs";
+import { hasSecret } from "../../../scripts/exposure.mjs";
 import {
   APPROVAL_CAP_PER_AGENT, APPROVAL_HISTORY_CAP, APPROVAL_ID_RE, APPROVAL_INPUT_MAX, APPROVAL_NOTE_MAX, APPROVAL_TTL_MS,
   QUESTION_TTL_MS, REQUEST_ID_MAX, REQUEST_IDS_PER_AGENT,
@@ -30,10 +30,6 @@ const INTENT_MAX = 200;
 const TOOL_MAX = 100;
 const MAX_DEPTH = 32;
 const SUMMARY_KEYS = ["command", "file_path", "path", "pattern", "url", "query", "description"];
-// Control characters other than \n and \t, the bidirectional marks and overrides, and zero-width and line-separator
-// characters. Written as escapes so the source itself holds none of them.
-const UNSAFE = /[\u0000-\u0008\u000b-\u001f\u007f-\u009f\u061c\u200b-\u200f\u2028-\u202e\u2060\u2066-\u2069\ufeff]/g;
-
 const clipNote = (text) => (text.length > APPROVAL_NOTE_MAX ? `${text.slice(0, APPROVAL_NOTE_MAX - 1)}…` : text);
 const refuse = (status, error) => ({ ok: false, status, error });
 const isPlainObject = (v) => v !== null && typeof v === "object" && [Object.prototype, null].includes(Object.getPrototypeOf(v));

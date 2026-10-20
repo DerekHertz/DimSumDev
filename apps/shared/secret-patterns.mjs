@@ -29,4 +29,3 @@ export const SECRET_PATTERNS = [
 export function hasSecret(text) {
   return SECRET_PATTERNS.some((p) => p.re.test(String(text ?? "")));
 }
-

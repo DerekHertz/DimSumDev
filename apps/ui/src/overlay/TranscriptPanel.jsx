@@ -30,7 +30,7 @@ export function useTranscript({ card, exploring, onOpen, blocked, returnFocus })
     const { panel: previous, card: current } = latest.current;
     if (next === previous) return;
     if (next.agentId && !previous.agentId) {
-      setIdentity({ name: current?.name || current?.role || next.agentId, role: current?.role ?? "", state: current?.state ?? "" });
+      setIdentity({ name: current?.name || current?.role || next.agentId, role: current?.role ?? "", state: current?.state ?? "", runtime: current?.runtime, project: current?.project });
       latest.current.onOpen?.();
     }
     if (!next.agentId && previous.agentId) {
