@@ -199,7 +199,14 @@ function readAt(cwd, ref, paths) {
 function main(argv) {
   const cwd = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
   const git = (...args) => execFileSync("git", args, { cwd, encoding: "utf8", maxBuffer: 1 << 28 }).trim();
-  const arg = (name) => { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : undefined; };
+  // A ref is resolved to a commit id before any other git call sees it, so `--base --output=<path>` can't act as an option.
+  const ref = (value) => {
+    try { return git("rev-parse", "--verify", "--quiet", "--end-of-options", `${value}^{commit}`); } catch {
+      process.stderr.write(`pr-map: ${value} is not a ref\n`);
+      process.exit(2);
+    }
+  };
+  const arg = (name) => { const i = argv.indexOf(name); return i >= 0 ? ref(argv[i + 1]) : undefined; };
   const head = arg("--head") ?? "HEAD";
   let base = arg("--base");
   if (!base) {

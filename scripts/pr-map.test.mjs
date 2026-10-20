@@ -2,7 +2,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { prMap, areasOf, renderBlock, MAX_NODES } from "./pr-map.mjs";
@@ -153,4 +154,15 @@ test("every declared link in the real map joins two areas it declares", () => {
   const map = JSON.parse(readFileSync(path.join(ROOT, "docs/system-map.json"), "utf8"));
   const ids = new Set(map.areas.map((a) => a.id));
   for (const l of map.links) assert.ok(ids.has(l.from) && ids.has(l.to) && l.label, JSON.stringify(l));
+});
+
+test("--base and --head must name a ref, so a value like --output=<path> never reaches git as an option", () => {
+  const out = path.join(mkdtempSync(path.join(os.tmpdir(), "pr-map-")), "clobbered");
+  for (const flag of ["--base", "--head"]) {
+    assert.throws(
+      () => execFileSync("node", ["scripts/pr-map.mjs", flag, `--output=${out}`], { cwd: ROOT, stdio: "pipe" }),
+      (err) => err.status !== 0 && /not a ref/.test(err.stderr.toString()),
+    );
+    assert.equal(existsSync(out), false, `${flag} let git write ${out}`);
+  }
 });
