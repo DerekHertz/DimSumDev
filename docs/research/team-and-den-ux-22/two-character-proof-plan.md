@@ -1,6 +1,6 @@
 # 22: Costed two-character proof plan
 
-**Status: proposal for user approval, not authorization to build or spend.** Engineer red panda + technical-writer cloud dragon, as signed off in 15. No generated or replacement assets were made during inventory. Scope is two complete character pipelines, matching portraits, runtime variants and integration evidence; the remaining cast waits for the proof and a separately approved rollout estimate.
+**Status: plan and budgets approved by the user on 2026-10-19: “Approve plan with existing Meshy credits”.** This accepts the recommended 22–36 focused-hour estimate, numeric resource/performance limits and up to 300 existing eligible Meshy credits with $0 new purchases. It does not start ticket 23 or waive its prerequisites. Engineer red panda + technical-writer cloud dragon, as signed off in 15. No generated or replacement assets were made during inventory. Scope is two complete character pipelines, matching portraits, runtime variants and integration evidence; the remaining cast waits for the proof and a separately approved rollout estimate.
 
 The inventory and reference-GPU measurements are in [asset-inventory.md](./asset-inventory.md) and [performance-baseline.md](./performance-baseline.md). Approved appearance source: main-board `team-and-den-ux/handoffs/15-designer-spec-final.md`; selected designs are Engineer A and writer C in design commit `30e6528`. Do not silently substitute a crane or redesign either character.
 
@@ -80,4 +80,4 @@ Keep the existing **30 fps cap**. Compare before/after on this RTX 3060 Ti refer
 4. **Integrated proof:** finish both rigs/attachments/portraits, run identity/fitting/performance checks and obtain the user's visual/performance verdict.
 5. **Return with rollout cost:** only a passed proof and a separately accepted estimate authorize 24–34. Stop for changed scope, cost, unsupported rigging or exceeded budgets.
 
-Ticket 22 ends at **ready-for-human** while the estimate/budgets await agreement. This inventory does not start ticket 23 or paid generation. Router stays stopped; main checkout edits and installed services remain untouched.
+The user accepted the estimate/budgets and selected existing-credit Meshy assistance on 2026-10-19, completing 22's approval gate. No new cash purchase is authorized. This inventory does not start ticket 23 or generation; its recorded dependencies still apply. Part 2 of 04 gates final in-den integration/performance acceptance; a standalone preparation slice could precede it only after an agreed ticket split. Router stays stopped; main checkout edits and installed services remain untouched.
