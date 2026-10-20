@@ -1,0 +1,401 @@
+{
+  "source": "parsed checked-in GLB JSON chunks, not runtime scene cost",
+  "files": [
+    {
+      "file": "bao.glb.gz",
+      "compressedBytes": 941948,
+      "decodedBytes": 1066656,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 20786,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 2,
+      "images": 2,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/architect.glb.gz",
+      "compressedBytes": 1470703,
+      "decodedBytes": 1789260,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59992,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/debugger.glb.gz",
+      "compressedBytes": 1597159,
+      "decodedBytes": 1948288,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59984,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/designer.glb.gz",
+      "compressedBytes": 1425660,
+      "decodedBytes": 1727068,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59996,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/developer.glb.gz",
+      "compressedBytes": 1586065,
+      "decodedBytes": 2044416,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59942,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/docs-writer.glb.gz",
+      "compressedBytes": 1488550,
+      "decodedBytes": 1877044,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59966,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/herald.glb.gz",
+      "compressedBytes": 1388372,
+      "decodedBytes": 1693424,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 60000,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/knowledge-keeper.glb.gz",
+      "compressedBytes": 1661779,
+      "decodedBytes": 2084572,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59958,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/orchestrator.glb.gz",
+      "compressedBytes": 1514811,
+      "decodedBytes": 1872208,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59996,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/product.glb.gz",
+      "compressedBytes": 1616271,
+      "decodedBytes": 2040780,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59992,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/qa.glb.gz",
+      "compressedBytes": 1345508,
+      "decodedBytes": 1641764,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59998,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/release-manager.glb.gz",
+      "compressedBytes": 1452047,
+      "decodedBytes": 1766100,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 60000,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/scout.glb.gz",
+      "compressedBytes": 1495988,
+      "decodedBytes": 1821560,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59996,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/security.glb.gz",
+      "compressedBytes": 1465166,
+      "decodedBytes": 1780164,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 59998,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "props/stem-cub.glb.gz",
+      "compressedBytes": 1362350,
+      "decodedBytes": 1658264,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 60000,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "vegetation/ancient-grove.glb.gz",
+      "compressedBytes": 1637013,
+      "decodedBytes": 2223444,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 31111,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 1,
+      "images": 1,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "vegetation/bamboo.glb.gz",
+      "compressedBytes": 2122981,
+      "decodedBytes": 2790216,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 30613,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 3,
+      "images": 3,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "wardrobe/developer-boba.glb.gz",
+      "compressedBytes": 182546,
+      "decodedBytes": 230272,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 2556,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 1,
+      "images": 1,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "wardrobe/developer-headphones.glb.gz",
+      "compressedBytes": 157683,
+      "decodedBytes": 234616,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 4086,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 1,
+      "images": 1,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "wardrobe/developer-tablet.glb.gz",
+      "compressedBytes": 73584,
+      "decodedBytes": 108424,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 1295,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 1,
+      "images": 1,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "wardrobe/developer-vest.glb.gz",
+      "compressedBytes": 265083,
+      "decodedBytes": 384640,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 6034,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 1,
+      "images": 1,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    },
+    {
+      "file": "wardrobe/qa-scarf.glb.gz",
+      "compressedBytes": 152331,
+      "decodedBytes": 197812,
+      "meshes": 1,
+      "primitives": 1,
+      "triangles": 3116,
+      "accessors": 4,
+      "materials": 1,
+      "textures": 1,
+      "images": 1,
+      "skins": 0,
+      "joints": 0,
+      "animations": 0,
+      "extensions": [
+        "EXT_texture_webp"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1804 @@
+{
+  "actors": [
+    {
+      "id": "orchestrator",
+      "role": "orchestrator",
+      "runtime": "claude",
+      "triangles": 35524,
+      "shadowTriangles": 35444,
+      "meshes": 21,
+      "skinnedMeshes": 16,
+      "uniqueGeometries": 21,
+      "uniqueMaterials": 21,
+      "geometryBufferBytes": 3349808,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -3.8634251241495665,
+          0.28999999999999976,
+          -1.9487591633544223
+        ],
+        "worldMax": [
+          -0.09379199698295532,
+          4.880100369771713,
+          0.8281132942693549
+        ],
+        "size": [
+          3.7696331271666113,
+          4.590100369771713,
+          2.776872457623777
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "codex:orchestrator",
+      "role": "orchestrator",
+      "runtime": "codex",
+      "triangles": 35080,
+      "shadowTriangles": 35000,
+      "meshes": 24,
+      "skinnedMeshes": 18,
+      "uniqueGeometries": 24,
+      "uniqueMaterials": 24,
+      "geometryBufferBytes": 3246272,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -0.1269119373374875,
+          0.28999999999999976,
+          -1.9525654645974901
+        ],
+        "worldMax": [
+          3.413645670057461,
+          4.924781054190252,
+          0.832376199278824
+        ],
+        "size": [
+          3.5405576073949483,
+          4.634781054190252,
+          2.7849416638763143
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "product",
+      "role": "product",
+      "runtime": "claude",
+      "triangles": 31400,
+      "shadowTriangles": 31320,
+      "meshes": 17,
+      "skinnedMeshes": 13,
+      "uniqueGeometries": 17,
+      "uniqueMaterials": 17,
+      "geometryBufferBytes": 2675696,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -4.74333921896104,
+          0.5750000000000001,
+          -15.396292830357401
+        ],
+        "worldMax": [
+          -2.9227156180704688,
+          2.6213961590016384,
+          -13.842748315787683
+        ],
+        "size": [
+          1.8206236008905714,
+          2.046396159001638,
+          1.5535445145697189
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "codex:product",
+      "role": "product",
+      "runtime": "codex",
+      "triangles": 31004,
+      "shadowTriangles": 30924,
+      "meshes": 19,
+      "skinnedMeshes": 15,
+      "uniqueGeometries": 19,
+      "uniqueMaterials": 19,
+      "geometryBufferBytes": 2594912,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -3.1093129657886376,
+          0.5750000000000001,
+          -15.399842373626301
+        ],
+        "worldMax": [
+          -1.276557634952802,
+          2.624850383321971,
+          -13.839549588150097
+        ],
+        "size": [
+          1.8327553308358355,
+          2.049850383321971,
+          1.5602927854762036
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "architect",
+      "role": "architect",
+      "runtime": "claude",
+      "triangles": 31936,
+      "shadowTriangles": 31856,
+      "meshes": 20,
+      "skinnedMeshes": 15,
+      "uniqueGeometries": 20,
+      "uniqueMaterials": 20,
+      "geometryBufferBytes": 2744432,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          1.3501968862697593,
+          0.5750000000000001,
+          -15.400384010574202
+        ],
+        "worldMax": [
+          3.2957829918933124,
+          2.723174850193285,
+          -13.839073969153157
+        ],
+        "size": [
+          1.945586105623553,
+          2.1481748501932847,
+          1.561310041421045
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "codex:architect",
+      "role": "architect",
+      "runtime": "codex",
+      "triangles": 31540,
+      "shadowTriangles": 31460,
+      "meshes": 22,
+      "skinnedMeshes": 17,
+      "uniqueGeometries": 22,
+      "uniqueMaterials": 22,
+      "geometryBufferBytes": 2663648,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          2.9948253025430023,
+          0.5750000000000001,
+          -15.39756978475565
+        ],
+        "worldMax": [
+          4.930180163434394,
+          2.7201351252088406,
+          -13.84160902929468
+        ],
+        "size": [
+          1.9353548608913917,
+          2.1451351252088404,
+          1.5559607554609691
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "developer",
+      "role": "developer",
+      "runtime": "claude",
+      "triangles": 32012,
+      "shadowTriangles": 31932,
+      "meshes": 21,
+      "skinnedMeshes": 15,
+      "uniqueGeometries": 21,
+      "uniqueMaterials": 21,
+      "geometryBufferBytes": 2803136,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -25.125826854514823,
+          0.67,
+          -9.870855594798568
+        ],
+        "worldMax": [
+          -23.33584294483864,
+          2.800387868894102,
+          -8.290894417746033
+        ],
+        "size": [
+          1.7899839096761845,
+          2.1303878688941023,
+          1.5799611770525352
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "codex:developer",
+      "role": "developer",
+      "runtime": "codex",
+      "triangles": 31220,
+      "shadowTriangles": 31140,
+      "meshes": 24,
+      "skinnedMeshes": 18,
+      "uniqueGeometries": 24,
+      "uniqueMaterials": 24,
+      "geometryBufferBytes": 2641568,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -23.480638903450284,
+          0.67,
+          -9.868021050320722
+        ],
+        "worldMax": [
+          -21.701079946734016,
+          2.7971884858153753,
+          -8.294033245846677
+        ],
+        "size": [
+          1.7795589567162686,
+          2.1271884858153753,
+          1.5739878044740454
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "scout",
+      "role": "scout",
+      "runtime": "claude",
+      "triangles": 33708,
+      "shadowTriangles": 33628,
+      "meshes": 24,
+      "skinnedMeshes": 17,
+      "uniqueGeometries": 24,
+      "uniqueMaterials": 24,
+      "geometryBufferBytes": 2988848,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -18.878406195071168,
+          0.67,
+          -9.87865649400277
+        ],
+        "worldMax": [
+          -16.930678164724124,
+          2.7563503394328297,
+          -8.28371168600676
+        ],
+        "size": [
+          1.9477280303470437,
+          2.0863503394328298,
+          1.5949448079960113
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "codex:scout",
+      "role": "scout",
+      "runtime": "codex",
+      "triangles": 33312,
+      "shadowTriangles": 33232,
+      "meshes": 26,
+      "skinnedMeshes": 19,
+      "uniqueGeometries": 26,
+      "uniqueMaterials": 26,
+      "geometryBufferBytes": 2908064,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -17.244836725149053,
+          0.67,
+          -9.881688802284877
+        ],
+        "worldMax": [
+          -15.285266629184312,
+          2.7601073286211273,
+          -8.280356750306538
+        ],
+        "size": [
+          1.9595700959647413,
+          2.0901073286211274,
+          1.6013320519783392
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "runner",
+      "role": "runner",
+      "runtime": "claude",
+      "triangles": 32796,
+      "shadowTriangles": 32716,
+      "meshes": 21,
+      "skinnedMeshes": 15,
+      "uniqueGeometries": 21,
+      "uniqueMaterials": 21,
+      "geometryBufferBytes": 2780768,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -22.085429059706385,
+          0.67,
+          -9.786277322944892
+        ],
+        "worldMax": [
+          -20.172228521493942,
+          2.7179444292270167,
+          -8.372924324928787
+        ],
+        "size": [
+          1.9132005382124433,
+          2.047944429227017,
+          1.413352998016105
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "codex:runner",
+      "role": "runner",
+      "runtime": "codex",
+      "triangles": 32004,
+      "shadowTriangles": 31924,
+      "meshes": 24,
+      "skinnedMeshes": 18,
+      "uniqueGeometries": 24,
+      "uniqueMaterials": 24,
+      "geometryBufferBytes": 2619200,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -20.45041483745384,
+          0.67,
+          -9.78847720992626
+        ],
+        "worldMax": [
+          -18.52788807268569,
+          2.72046539860653,
+          -8.37046066118529
+        ],
+        "size": [
+          1.9225267647681505,
+          2.05046539860653,
+          1.4180165487409706
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "qa",
+      "role": "qa",
+      "runtime": "claude",
+      "triangles": 37436,
+      "shadowTriangles": 37356,
+      "meshes": 22,
+      "skinnedMeshes": 17,
+      "uniqueGeometries": 22,
+      "uniqueMaterials": 22,
+      "geometryBufferBytes": 3773120,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          15.451013170995298,
+          0.5750000000000001,
+          -9.899650013228198
+        ],
+        "worldMax": [
+          17.2082318844253,
+          2.755804016889294,
+          -8.339722646048761
+        ],
+        "size": [
+          1.7572187134300012,
+          2.1808040168892937,
+          1.5599273671794371
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "codex:qa",
+      "role": "qa",
+      "runtime": "codex",
+      "triangles": 36644,
+      "shadowTriangles": 36564,
+      "meshes": 25,
+      "skinnedMeshes": 20,
+      "uniqueGeometries": 25,
+      "uniqueMaterials": 25,
+      "geometryBufferBytes": 3611552,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          17.097250213700573,
+          0.5750000000000001,
+          -9.895941714978877
+        ],
+        "worldMax": [
+          18.842095241220672,
+          2.760053882946483,
+          -8.343064426802211
+        ],
+        "size": [
+          1.7448450275200997,
+          2.185053882946483,
+          1.5528772881766653
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "security",
+      "role": "security",
+      "runtime": "claude",
+      "triangles": 32052,
+      "shadowTriangles": 31972,
+      "meshes": 20,
+      "skinnedMeshes": 15,
+      "uniqueGeometries": 20,
+      "uniqueMaterials": 20,
+      "geometryBufferBytes": 2768960,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          21.564379363049326,
+          0.5750000000000001,
+          -9.891731234836389
+        ],
+        "worldMax": [
+          23.43442763715479,
+          2.685093857311874,
+          -8.346867962989496
+        ],
+        "size": [
+          1.8700482741054643,
+          2.110093857311874,
+          1.5448632718468929
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "codex:security",
+      "role": "security",
+      "runtime": "codex",
+      "triangles": 31260,
+      "shadowTriangles": 31180,
+      "meshes": 23,
+      "skinnedMeshes": 18,
+      "uniqueGeometries": 23,
+      "uniqueMaterials": 23,
+      "geometryBufferBytes": 2607392,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          23.207649960898774,
+          0.5750000000000001,
+          -9.889723458815691
+        ],
+        "worldMax": [
+          25.07068262259935,
+          2.683012026684805,
+          -8.34867654743843
+        ],
+        "size": [
+          1.8630326617005757,
+          2.108012026684805,
+          1.5410469113772614
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "designer",
+      "role": "designer",
+      "runtime": "claude",
+      "triangles": 34428,
+      "shadowTriangles": 34348,
+      "meshes": 21,
+      "skinnedMeshes": 15,
+      "uniqueGeometries": 21,
+      "uniqueMaterials": 21,
+      "geometryBufferBytes": 2997056,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          17.44733046241018,
+          0.5750000000000001,
+          0.26517327257424095
+        ],
+        "worldMax": [
+          18.991208146668285,
+          2.708323618032365,
+          2.054991990928672
+        ],
+        "size": [
+          1.5438776842581063,
+          2.1333236180323647,
+          1.789818718354431
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "codex:designer",
+      "role": "designer",
+      "runtime": "codex",
+      "triangles": 33636,
+      "shadowTriangles": 33556,
+      "meshes": 24,
+      "skinnedMeshes": 18,
+      "uniqueGeometries": 24,
+      "uniqueMaterials": 24,
+      "geometryBufferBytes": 2835488,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          17.443704921203132,
+          0.5750000000000001,
+          1.8984419356405409
+        ],
+        "worldMax": [
+          18.99523147863352,
+          2.71242308121394,
+          3.70215621145441
+        ],
+        "size": [
+          1.551526557430389,
+          2.1374230812139396,
+          1.8037142758138691
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "herald",
+      "role": "herald",
+      "runtime": "claude",
+      "triangles": 31756,
+      "shadowTriangles": 31676,
+      "meshes": 22,
+      "skinnedMeshes": 17,
+      "uniqueGeometries": 22,
+      "uniqueMaterials": 22,
+      "geometryBufferBytes": 2683520,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          17.44013257490391,
+          0.5750000000000001,
+          6.3521313754232285
+        ],
+        "worldMax": [
+          18.999209035648768,
+          2.672948226159715,
+          8.24174984009303
+        ],
+        "size": [
+          1.5590764607448584,
+          2.0979482261597147,
+          1.8896184646698018
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "codex:herald",
+      "role": "herald",
+      "runtime": "codex",
+      "triangles": 30964,
+      "shadowTriangles": 30884,
+      "meshes": 24,
+      "skinnedMeshes": 19,
+      "uniqueGeometries": 24,
+      "uniqueMaterials": 24,
+      "geometryBufferBytes": 2521952,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          17.438892544508345,
+          0.5750000000000001,
+          7.98986500368815
+        ],
+        "worldMax": [
+          19.00058561145902,
+          2.6744976162002407,
+          9.884335249352253
+        ],
+        "size": [
+          1.5616930669506743,
+          2.0994976162002406,
+          1.8944702456641025
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "debugger",
+      "role": "debugger",
+      "runtime": "claude",
+      "triangles": 24330,
+      "shadowTriangles": 24250,
+      "meshes": 10,
+      "skinnedMeshes": 4,
+      "uniqueGeometries": 10,
+      "uniqueMaterials": 9,
+      "geometryBufferBytes": 1465436,
+      "uniqueMaterialTextures": 2,
+      "estimatedRgbaTextureBytes": 11184810.666666666,
+      "textureImages": [
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -21.078714620367023,
+          0.67,
+          -11.524078287810914
+        ],
+        "worldMax": [
+          -19.33442929573112,
+          2.718521098666585,
+          -10.07301006400049
+        ],
+        "size": [
+          1.7442853246359036,
+          2.048521098666585,
+          1.4510682238104238
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "release-manager",
+      "role": "release-manager",
+      "runtime": "claude",
+      "triangles": 29116,
+      "shadowTriangles": 29036,
+      "meshes": 8,
+      "skinnedMeshes": 4,
+      "uniqueGeometries": 8,
+      "uniqueMaterials": 8,
+      "geometryBufferBytes": 2186128,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -32.18649314117974,
+          0.895,
+          17.293409145287697
+        ],
+        "worldMax": [
+          -30.213324367632527,
+          2.939397333295881,
+          19.105048998566314
+        ],
+        "size": [
+          1.9731687735472114,
+          2.044397333295881,
+          1.811639853278617
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "knowledge-keeper",
+      "role": "knowledge-keeper",
+      "runtime": "claude",
+      "triangles": 31680,
+      "shadowTriangles": 31600,
+      "meshes": 16,
+      "skinnedMeshes": 9,
+      "uniqueGeometries": 16,
+      "uniqueMaterials": 14,
+      "geometryBufferBytes": 2594764,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -19.184132484769453,
+          0.6900000000000001,
+          6.205095277845343
+        ],
+        "worldMax": [
+          -17.624446956372168,
+          2.9541514392068273,
+          7.99438290707671
+        ],
+        "size": [
+          1.559685528397285,
+          2.2641514392068274,
+          1.7892876292313664
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "docs-writer",
+      "role": "docs-writer",
+      "runtime": "claude",
+      "triangles": 24198,
+      "shadowTriangles": 24118,
+      "meshes": 6,
+      "skinnedMeshes": 2,
+      "uniqueGeometries": 6,
+      "uniqueMaterials": 6,
+      "geometryBufferBytes": 1459652,
+      "uniqueMaterialTextures": 2,
+      "estimatedRgbaTextureBytes": 11184810.666666666,
+      "textureImages": [
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -19.369247470072466,
+          0.6900000000000001,
+          3.0741187666339753
+        ],
+        "worldMax": [
+          -17.730578690407203,
+          2.7301627966680666,
+          4.925423542209809
+        ],
+        "size": [
+          1.638668779665263,
+          2.0401627966680667,
+          1.8513047755758336
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    },
+    {
+      "id": "stem-cub",
+      "role": "stem-cub",
+      "runtime": "claude",
+      "triangles": 29304,
+      "shadowTriangles": 29224,
+      "meshes": 10,
+      "skinnedMeshes": 5,
+      "uniqueGeometries": 10,
+      "uniqueMaterials": 8,
+      "geometryBufferBytes": 2150652,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ],
+      "envelope": {
+        "worldMin": [
+          -0.6705820392841503,
+          0.26000000000000006,
+          25.078658662794403
+        ],
+        "worldMax": [
+          0.6415042140314525,
+          2.0245011847580714,
+          26.112361718089137
+        ],
+        "size": [
+          1.3120862533156028,
+          1.7645011847580714,
+          1.0337030552947333
+        ],
+        "pose": "current idle procedural pose with clothes and tools; not a motion-swept navigation envelope"
+      }
+    }
+  ],
+  "ambient": [
+    {
+      "id": "east",
+      "place": "mahjong",
+      "pose": "seated",
+      "triangles": 26900,
+      "shadowTriangles": 26820,
+      "meshes": 4,
+      "skinnedMeshes": 2,
+      "uniqueGeometries": 4,
+      "uniqueMaterials": 4,
+      "geometryBufferBytes": 1770656,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "south",
+      "place": "mahjong",
+      "pose": "seated",
+      "triangles": 26900,
+      "shadowTriangles": 26820,
+      "meshes": 4,
+      "skinnedMeshes": 2,
+      "uniqueGeometries": 4,
+      "uniqueMaterials": 4,
+      "geometryBufferBytes": 1770656,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "west",
+      "place": "mahjong",
+      "pose": "seated",
+      "triangles": 26900,
+      "shadowTriangles": 26820,
+      "meshes": 4,
+      "skinnedMeshes": 2,
+      "uniqueGeometries": 4,
+      "uniqueMaterials": 4,
+      "geometryBufferBytes": 1770656,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "north",
+      "place": "mahjong",
+      "pose": "seated",
+      "triangles": 26900,
+      "shadowTriangles": 26820,
+      "meshes": 4,
+      "skinnedMeshes": 2,
+      "uniqueGeometries": 4,
+      "uniqueMaterials": 4,
+      "geometryBufferBytes": 1770656,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "tea-host",
+      "place": "tea",
+      "pose": "standing",
+      "triangles": 26900,
+      "shadowTriangles": 26820,
+      "meshes": 4,
+      "skinnedMeshes": 2,
+      "uniqueGeometries": 4,
+      "uniqueMaterials": 4,
+      "geometryBufferBytes": 1770656,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "tea-guest",
+      "place": "tea",
+      "pose": "seated",
+      "triangles": 26900,
+      "shadowTriangles": 26820,
+      "meshes": 4,
+      "skinnedMeshes": 2,
+      "uniqueGeometries": 4,
+      "uniqueMaterials": 4,
+      "geometryBufferBytes": 1770656,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "dreamer",
+      "place": "sleepy",
+      "pose": "reclining",
+      "triangles": 28552,
+      "shadowTriangles": 28552,
+      "meshes": 4,
+      "skinnedMeshes": 4,
+      "uniqueGeometries": 4,
+      "uniqueMaterials": 4,
+      "geometryBufferBytes": 2119728,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "rice-garden-wanderer",
+      "place": "grove",
+      "pose": "idle",
+      "triangles": 26820,
+      "shadowTriangles": 26820,
+      "meshes": 2,
+      "skinnedMeshes": 2,
+      "uniqueGeometries": 2,
+      "uniqueMaterials": 2,
+      "geometryBufferBytes": 1766400,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "bamboo-wanderer",
+      "place": "grove",
+      "pose": "idle",
+      "triangles": 26820,
+      "shadowTriangles": 26820,
+      "meshes": 2,
+      "skinnedMeshes": 2,
+      "uniqueGeometries": 2,
+      "uniqueMaterials": 2,
+      "geometryBufferBytes": 1766400,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "carrier-0",
+      "place": "festival",
+      "pose": "carrier",
+      "triangles": 28820,
+      "shadowTriangles": 28820,
+      "meshes": 4,
+      "skinnedMeshes": 4,
+      "uniqueGeometries": 4,
+      "uniqueMaterials": 4,
+      "geometryBufferBytes": 2174400,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "carrier-1",
+      "place": "festival",
+      "pose": "carrier",
+      "triangles": 28820,
+      "shadowTriangles": 28820,
+      "meshes": 4,
+      "skinnedMeshes": 4,
+      "uniqueGeometries": 4,
+      "uniqueMaterials": 4,
+      "geometryBufferBytes": 2174400,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "carrier-2",
+      "place": "festival",
+      "pose": "carrier",
+      "triangles": 28820,
+      "shadowTriangles": 28820,
+      "meshes": 4,
+      "skinnedMeshes": 4,
+      "uniqueGeometries": 4,
+      "uniqueMaterials": 4,
+      "geometryBufferBytes": 2174400,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "drummer",
+      "place": "festival",
+      "pose": "musician",
+      "triangles": 29492,
+      "shadowTriangles": 29492,
+      "meshes": 8,
+      "skinnedMeshes": 4,
+      "uniqueGeometries": 8,
+      "uniqueMaterials": 5,
+      "geometryBufferBytes": 2195264,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "cymbals",
+      "place": "festival",
+      "pose": "musician",
+      "triangles": 29972,
+      "shadowTriangles": 28820,
+      "meshes": 8,
+      "skinnedMeshes": 4,
+      "uniqueGeometries": 8,
+      "uniqueMaterials": 5,
+      "geometryBufferBytes": 2205120,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    },
+    {
+      "id": "gong",
+      "place": "festival",
+      "pose": "musician",
+      "triangles": 29156,
+      "shadowTriangles": 29156,
+      "meshes": 6,
+      "skinnedMeshes": 4,
+      "uniqueGeometries": 6,
+      "uniqueMaterials": 6,
+      "geometryBufferBytes": 2184832,
+      "uniqueMaterialTextures": 3,
+      "estimatedRgbaTextureBytes": 16777216,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        }
+      ]
+    }
+  ]
+}

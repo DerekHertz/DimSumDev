@@ -1,0 +1,530 @@
+{
+  "count": 25,
+  "rows": [
+    {
+      "id": "orchestrator",
+      "role": "orchestrator",
+      "name": "Bao",
+      "team": "The Pass",
+      "runtime": "claude",
+      "dispatchable": true,
+      "portrait": "/den/portraits/orchestrator.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "orchestrator",
+        "clothing": "vest",
+        "color": "#674698",
+        "headwear": "chef-toque"
+      },
+      "tool": "Bamboo fan",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "codex:orchestrator",
+      "role": "orchestrator",
+      "name": "Jiao",
+      "team": "The Pass",
+      "runtime": "codex",
+      "dispatchable": true,
+      "portrait": "/den/portraits/codex-orchestrator.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "orchestrator",
+        "clothing": "vest",
+        "color": "#674698",
+        "headwear": "chef-toque"
+      },
+      "tool": "Bamboo fan",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "product",
+      "role": "product",
+      "name": "The Planner",
+      "team": "The Pass",
+      "runtime": "claude",
+      "dispatchable": true,
+      "portrait": "/den/portraits/product.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "product",
+        "clothing": "vest",
+        "color": "#674698",
+        "headwear": "spectacles"
+      },
+      "tool": "Open menu",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "codex:product",
+      "role": "product",
+      "name": "The Planner",
+      "team": "The Pass",
+      "runtime": "codex",
+      "dispatchable": true,
+      "portrait": "/den/portraits/codex-product.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "product",
+        "clothing": "vest",
+        "color": "#674698",
+        "headwear": "spectacles"
+      },
+      "tool": "Open menu",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "architect",
+      "role": "architect",
+      "name": "The Architect",
+      "team": "The Pass",
+      "runtime": "claude",
+      "dispatchable": true,
+      "portrait": "/den/portraits/architect.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "architect",
+        "clothing": "vest",
+        "color": "#674698",
+        "headwear": "spectacles-and-pencil"
+      },
+      "tool": "Open blueprint",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "codex:architect",
+      "role": "architect",
+      "name": "The Architect",
+      "team": "The Pass",
+      "runtime": "codex",
+      "dispatchable": true,
+      "portrait": "/den/portraits/codex-architect.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "architect",
+        "clothing": "vest",
+        "color": "#674698",
+        "headwear": "spectacles-and-pencil"
+      },
+      "tool": "Open blueprint",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "developer",
+      "role": "developer",
+      "name": "The Maker",
+      "team": "Steamers",
+      "runtime": "claude",
+      "dispatchable": true,
+      "portrait": "/den/portraits/developer.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "developer",
+        "clothing": "vest",
+        "color": "#2759a2",
+        "headwear": "headphones"
+      },
+      "tool": "Test tablet",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "codex:developer",
+      "role": "developer",
+      "name": "The Maker",
+      "team": "Steamers",
+      "runtime": "codex",
+      "dispatchable": true,
+      "portrait": "/den/portraits/codex-developer.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "developer",
+        "clothing": "vest",
+        "color": "#2759a2",
+        "headwear": "headphones"
+      },
+      "tool": "Test tablet",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "scout",
+      "role": "scout",
+      "name": "The Scout",
+      "team": "Steamers",
+      "runtime": "claude",
+      "dispatchable": true,
+      "portrait": "/den/portraits/scout.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "scout",
+        "clothing": "vest",
+        "color": "#2759a2",
+        "headwear": "goggles"
+      },
+      "tool": "Magnifier and ingredient pouch",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "codex:scout",
+      "role": "scout",
+      "name": "The Scout",
+      "team": "Steamers",
+      "runtime": "codex",
+      "dispatchable": true,
+      "portrait": "/den/portraits/codex-scout.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "scout",
+        "clothing": "vest",
+        "color": "#2759a2",
+        "headwear": "goggles"
+      },
+      "tool": "Magnifier and ingredient pouch",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "runner",
+      "role": "runner",
+      "name": "The Runner",
+      "team": "Steamers",
+      "runtime": "claude",
+      "dispatchable": true,
+      "portrait": "/den/portraits/runner.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "runner",
+        "clothing": "vest",
+        "color": "#2759a2",
+        "headwear": "tied-headband"
+      },
+      "tool": "Delivery pouch, order slip and bamboo tray",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "codex:runner",
+      "role": "runner",
+      "name": "The Runner",
+      "team": "Steamers",
+      "runtime": "codex",
+      "dispatchable": true,
+      "portrait": "/den/portraits/codex-runner.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "runner",
+        "clothing": "vest",
+        "color": "#2759a2",
+        "headwear": "tied-headband"
+      },
+      "tool": "Delivery pouch, order slip and bamboo tray",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "qa",
+      "role": "qa",
+      "name": "The Taster",
+      "team": "Tea",
+      "runtime": "claude",
+      "dispatchable": true,
+      "portrait": "/den/portraits/qa.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "qa",
+        "clothing": "vest",
+        "color": "#006e54",
+        "headwear": "woven-douli"
+      },
+      "tool": "Porcelain teacup",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "codex:qa",
+      "role": "qa",
+      "name": "The Taster",
+      "team": "Tea",
+      "runtime": "codex",
+      "dispatchable": true,
+      "portrait": "/den/portraits/codex-qa.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "qa",
+        "clothing": "vest",
+        "color": "#006e54",
+        "headwear": "woven-douli"
+      },
+      "tool": "Porcelain teacup",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "security",
+      "role": "security",
+      "name": "The Guardian",
+      "team": "Pantry",
+      "runtime": "claude",
+      "dispatchable": true,
+      "portrait": "/den/portraits/security.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "security",
+        "clothing": "vest",
+        "color": "#326a2d",
+        "headwear": "brim-cap"
+      },
+      "tool": "Pantry seal stamp and inspection slip",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "codex:security",
+      "role": "security",
+      "name": "The Guardian",
+      "team": "Pantry",
+      "runtime": "codex",
+      "dispatchable": true,
+      "portrait": "/den/portraits/codex-security.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "security",
+        "clothing": "vest",
+        "color": "#326a2d",
+        "headwear": "brim-cap"
+      },
+      "tool": "Pantry seal stamp and inspection slip",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "designer",
+      "role": "designer",
+      "name": "The Stylist",
+      "team": "Front of House",
+      "runtime": "claude",
+      "dispatchable": true,
+      "portrait": "/den/portraits/designer.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "designer",
+        "clothing": "vest",
+        "color": "#00658b",
+        "headwear": "beret"
+      },
+      "tool": "Garnished dim sum plate",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "codex:designer",
+      "role": "designer",
+      "name": "The Stylist",
+      "team": "Front of House",
+      "runtime": "codex",
+      "dispatchable": true,
+      "portrait": "/den/portraits/codex-designer.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "designer",
+        "clothing": "vest",
+        "color": "#00658b",
+        "headwear": "beret"
+      },
+      "tool": "Garnished dim sum plate",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "herald",
+      "role": "herald",
+      "name": "The Herald",
+      "team": "Front of House",
+      "runtime": "claude",
+      "dispatchable": true,
+      "portrait": "/den/portraits/herald.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "herald",
+        "clothing": "vest",
+        "color": "#00658b",
+        "headwear": "folded-headband"
+      },
+      "tool": "Specials scroll and writing brush",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "codex:herald",
+      "role": "herald",
+      "name": "The Herald",
+      "team": "Front of House",
+      "runtime": "codex",
+      "dispatchable": true,
+      "portrait": "/den/portraits/codex-herald.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "herald",
+        "clothing": "vest",
+        "color": "#00658b",
+        "headwear": "folded-headband"
+      },
+      "tool": "Specials scroll and writing brush",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "debugger",
+      "role": "debugger",
+      "name": "The Debugger",
+      "team": "Steamers",
+      "runtime": "claude",
+      "dispatchable": false,
+      "portrait": "/den/portraits/debugger.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "debugger",
+        "clothing": "scarf",
+        "color": "#637c8d",
+        "headwear": null
+      },
+      "tool": "Inspection lantern",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "release-manager",
+      "role": "release-manager",
+      "name": "The Drummer",
+      "team": "Festival",
+      "runtime": "claude",
+      "dispatchable": false,
+      "portrait": "/den/portraits/release-manager.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "release-manager",
+        "clothing": "vest",
+        "color": "#b97a53",
+        "headwear": "festival-band"
+      },
+      "tool": "Festival mallet",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "knowledge-keeper",
+      "role": "knowledge-keeper",
+      "name": "The Librarian",
+      "team": "Library",
+      "runtime": "claude",
+      "dispatchable": false,
+      "portrait": "/den/portraits/knowledge-keeper.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "knowledge-keeper",
+        "clothing": "vest",
+        "color": "#487a80",
+        "headwear": "archive-hat"
+      },
+      "tool": "Archive book",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "docs-writer",
+      "role": "docs-writer",
+      "name": "The Painter",
+      "team": "Library",
+      "runtime": "claude",
+      "dispatchable": false,
+      "portrait": "/den/portraits/docs-writer.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "docs-writer",
+        "clothing": "scarf",
+        "color": "#59678b",
+        "headwear": null
+      },
+      "tool": "Writing brush",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    },
+    {
+      "id": "stem-cub",
+      "role": "stem-cub",
+      "name": "The Cub",
+      "team": "Cubs",
+      "runtime": "claude",
+      "dispatchable": false,
+      "portrait": "/den/portraits/stem-cub.webp",
+      "portraitExists": true,
+      "sourceBody": "models/bao.glb.gz",
+      "outfit": {
+        "id": "stem-cub",
+        "clothing": "vest",
+        "color": "#9aafc6",
+        "headwear": "nightcap"
+      },
+      "tool": "Bamboo sprout",
+      "socket": "paw_R",
+      "boneCount": 26,
+      "embeddedClipsPlayed": false
+    }
+  ]
+}

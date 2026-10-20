@@ -1,0 +1,10 @@
+{
+  "source": "actual procedural garden assembly, before ambient/resident population; canvas text stub matches existing budget test",
+  "triangles": 1772169,
+  "shadowTriangles": 477576,
+  "meshes": 745,
+  "limits": {
+    "triangles": 1800000,
+    "shadowTriangles": 700000
+  }
+}

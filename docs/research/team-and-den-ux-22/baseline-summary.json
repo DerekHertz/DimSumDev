@@ -1,0 +1,902 @@
+{
+  "sourceCommit": "8b3172df7c9032062c936f6dd04c2f12ffb99cc0",
+  "installed": {
+    "tag": "v0.1.7",
+    "commit": "14b615d73dc0dcbb7a8596a0976619c7ea3a1206",
+    "builtAt": "2026-10-19T20:58:16.764Z",
+    "mutated": false
+  },
+  "reference": {
+    "cpu": "AMD Ryzen 7 5800X",
+    "cores": 8,
+    "logicalProcessors": 16,
+    "physicalMemoryBytes": 17101971456,
+    "gpu": "NVIDIA GeForce RTX 3060 Ti",
+    "vramMiB": 8192,
+    "driver": "617.42",
+    "os": "Windows, native Chrome; WSL used only for build/server",
+    "browser": "155.0.8059.84",
+    "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 Ti (0x000024C9) Direct3D11 vs_5_0 ps_5_0, D3D11)"
+  },
+  "capture": {
+    "utc": "2026-10-20T00:35:51.374Z",
+    "localDate": "2026-10-19",
+    "timeZone": "America/Los_Angeles",
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    },
+    "dpr": 1,
+    "warmupMs": 4000,
+    "sampleMs": 12000,
+    "frameCap": 30,
+    "productionBuild": true,
+    "observationHooks": 2,
+    "applicationRandomSeed": "not overridden",
+    "snapshotFixture": "local fixed synthetic run/meeting identities; explicit actor-count assertions; no dispatched processes"
+  },
+  "scenarios": [
+    {
+      "name": "idle-light",
+      "theme": "light",
+      "reducedMotion": false,
+      "walkMode": false,
+      "actors": 25,
+      "visitors": 0,
+      "meetingGuests": 0,
+      "ambientActors": 15,
+      "totalBodies": 40,
+      "frames": 358,
+      "fps": 29.833783207812303,
+      "frameIntervalMs": {
+        "samples": 357,
+        "median": 33.30000001192093,
+        "p95": 33.89999997615814,
+        "p99": 34.19999998807907,
+        "max": 86.5
+      },
+      "gpuMs": {
+        "samples": 119,
+        "median": 8.184832,
+        "p95": 10.144768,
+        "p99": 10.78784,
+        "max": 13.809664
+      },
+      "renderCpuMs": {
+        "samples": 358,
+        "median": 9.599999994039536,
+        "p95": 11.899999976158142,
+        "p99": 14.099999994039536,
+        "max": 16
+      },
+      "animationCpuMs": {
+        "samples": 358,
+        "median": 1.300000011920929,
+        "p95": 1.600000023841858,
+        "p99": 1.9000000059604645,
+        "max": 54.599999994039536
+      },
+      "medianDrawCalls": 1332,
+      "medianDrawnTriangles": 3007469,
+      "scene": {
+        "triangles": 3011549,
+        "shadowTriangles": 1711196,
+        "meshes": 1396,
+        "skinnedMeshes": 403,
+        "uniqueGeometries": 1381,
+        "uniqueMaterials": 868,
+        "geometryBufferBytes": 266226648,
+        "uniqueMaterialTextures": 65,
+        "estimatedRgbaTextureBytes": 67944448.00000001
+      },
+      "residents": {
+        "triangles": 798340,
+        "shadowTriangles": 796340,
+        "meshes": 494,
+        "skinnedMeshes": 359,
+        "uniqueGeometries": 494,
+        "uniqueMaterials": 489,
+        "geometryBufferBytes": 67672024,
+        "uniqueMaterialTextures": 3,
+        "estimatedRgbaTextureBytes": 16777216
+      },
+      "heap": {
+        "used": 398212011,
+        "total": 446639887,
+        "limit": 4395630592
+      },
+      "camera": {
+        "type": "OrthographicCamera",
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "drawingBuffer": {
+          "width": 980,
+          "height": 483
+        }
+      },
+      "canvasCss": {
+        "width": 980,
+        "height": 483
+      }
+    },
+    {
+      "name": "idle-dark",
+      "theme": "dark",
+      "reducedMotion": false,
+      "walkMode": false,
+      "actors": 25,
+      "visitors": 0,
+      "meetingGuests": 0,
+      "ambientActors": 15,
+      "totalBodies": 40,
+      "frames": 358,
+      "fps": 29.833533894890877,
+      "frameIntervalMs": {
+        "samples": 357,
+        "median": 33.30000001192093,
+        "p95": 33.80000001192093,
+        "p99": 35.400000005960464,
+        "max": 86.30000001192093
+      },
+      "gpuMs": {
+        "samples": 119,
+        "median": 7.694336,
+        "p95": 9.807872,
+        "p99": 10.264576,
+        "max": 11.80672
+      },
+      "renderCpuMs": {
+        "samples": 358,
+        "median": 9,
+        "p95": 11.599999994039536,
+        "p99": 12.800000011920929,
+        "max": 16.19999998807907
+      },
+      "animationCpuMs": {
+        "samples": 358,
+        "median": 1.300000011920929,
+        "p95": 1.5999999940395355,
+        "p99": 2.0999999940395355,
+        "max": 54.69999998807907
+      },
+      "medianDrawCalls": 1332,
+      "medianDrawnTriangles": 3007469,
+      "scene": {
+        "triangles": 3011549,
+        "shadowTriangles": 1711196,
+        "meshes": 1396,
+        "skinnedMeshes": 403,
+        "uniqueGeometries": 1381,
+        "uniqueMaterials": 868,
+        "geometryBufferBytes": 266226648,
+        "uniqueMaterialTextures": 65,
+        "estimatedRgbaTextureBytes": 67944448.00000001
+      },
+      "residents": {
+        "triangles": 798340,
+        "shadowTriangles": 796340,
+        "meshes": 494,
+        "skinnedMeshes": 359,
+        "uniqueGeometries": 494,
+        "uniqueMaterials": 489,
+        "geometryBufferBytes": 67672024,
+        "uniqueMaterialTextures": 3,
+        "estimatedRgbaTextureBytes": 16777216
+      },
+      "heap": {
+        "used": 399431748,
+        "total": 447137144,
+        "limit": 4395630592
+      },
+      "camera": {
+        "type": "OrthographicCamera",
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "drawingBuffer": {
+          "width": 980,
+          "height": 483
+        }
+      },
+      "canvasCss": {
+        "width": 980,
+        "height": 483
+      }
+    },
+    {
+      "name": "crowded-light",
+      "theme": "light",
+      "reducedMotion": false,
+      "walkMode": false,
+      "actors": 29,
+      "visitors": 4,
+      "meetingGuests": 0,
+      "ambientActors": 15,
+      "totalBodies": 44,
+      "frames": 359,
+      "fps": 29.876654482347575,
+      "frameIntervalMs": {
+        "samples": 358,
+        "median": 33.30000001192093,
+        "p95": 33.900000005960464,
+        "p99": 34.400000005960464,
+        "max": 86.80000001192093
+      },
+      "gpuMs": {
+        "samples": 120,
+        "median": 8.503296,
+        "p95": 10.625024,
+        "p99": 11.708416,
+        "max": 14.885888
+      },
+      "renderCpuMs": {
+        "samples": 359,
+        "median": 9.800000011920929,
+        "p95": 13.299999982118607,
+        "p99": 16.099999994039536,
+        "max": 17.5
+      },
+      "animationCpuMs": {
+        "samples": 359,
+        "median": 1.4000000059604645,
+        "p95": 1.7999999821186066,
+        "p99": 2.199999988079071,
+        "max": 55
+      },
+      "medianDrawCalls": 1410,
+      "medianDrawnTriangles": 3146045,
+      "scene": {
+        "triangles": 3150125,
+        "shadowTriangles": 1849772,
+        "meshes": 1474,
+        "skinnedMeshes": 467,
+        "uniqueGeometries": 1459,
+        "uniqueMaterials": 946,
+        "geometryBufferBytes": 279362136,
+        "uniqueMaterialTextures": 65,
+        "estimatedRgbaTextureBytes": 67944448.00000001
+      },
+      "residents": {
+        "triangles": 936916,
+        "shadowTriangles": 934916,
+        "meshes": 572,
+        "skinnedMeshes": 423,
+        "uniqueGeometries": 572,
+        "uniqueMaterials": 567,
+        "geometryBufferBytes": 80807512,
+        "uniqueMaterialTextures": 3,
+        "estimatedRgbaTextureBytes": 16777216
+      },
+      "heap": {
+        "used": 414947250,
+        "total": 463315250,
+        "limit": 4395630592
+      },
+      "camera": {
+        "type": "OrthographicCamera",
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "drawingBuffer": {
+          "width": 980,
+          "height": 483
+        }
+      },
+      "canvasCss": {
+        "width": 980,
+        "height": 483
+      }
+    },
+    {
+      "name": "crowded-dark",
+      "theme": "dark",
+      "reducedMotion": false,
+      "walkMode": false,
+      "actors": 29,
+      "visitors": 4,
+      "meetingGuests": 0,
+      "ambientActors": 15,
+      "totalBodies": 44,
+      "frames": 359,
+      "fps": 29.87540786609292,
+      "frameIntervalMs": {
+        "samples": 358,
+        "median": 33.30000001192093,
+        "p95": 33.80000001192093,
+        "p99": 34.69999998807907,
+        "max": 83.90000000596046
+      },
+      "gpuMs": {
+        "samples": 120,
+        "median": 8.566784,
+        "p95": 11.0592,
+        "p99": 13.33248,
+        "max": 15.051776
+      },
+      "renderCpuMs": {
+        "samples": 359,
+        "median": 9.900000005960464,
+        "p95": 13.199999988079071,
+        "p99": 17.700000017881393,
+        "max": 21.5
+      },
+      "animationCpuMs": {
+        "samples": 359,
+        "median": 1.4000000059604645,
+        "p95": 1.800000011920929,
+        "p99": 2.2999999821186066,
+        "max": 52.400000005960464
+      },
+      "medianDrawCalls": 1410,
+      "medianDrawnTriangles": 3146045,
+      "scene": {
+        "triangles": 3150125,
+        "shadowTriangles": 1849772,
+        "meshes": 1474,
+        "skinnedMeshes": 467,
+        "uniqueGeometries": 1459,
+        "uniqueMaterials": 946,
+        "geometryBufferBytes": 279362136,
+        "uniqueMaterialTextures": 65,
+        "estimatedRgbaTextureBytes": 67944448.00000001
+      },
+      "residents": {
+        "triangles": 936916,
+        "shadowTriangles": 934916,
+        "meshes": 572,
+        "skinnedMeshes": 423,
+        "uniqueGeometries": 572,
+        "uniqueMaterials": 567,
+        "geometryBufferBytes": 80807512,
+        "uniqueMaterialTextures": 3,
+        "estimatedRgbaTextureBytes": 16777216
+      },
+      "heap": {
+        "used": 404650914,
+        "total": 463048178,
+        "limit": 4395630592
+      },
+      "camera": {
+        "type": "OrthographicCamera",
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "drawingBuffer": {
+          "width": 980,
+          "height": 483
+        }
+      },
+      "canvasCss": {
+        "width": 980,
+        "height": 483
+      }
+    },
+    {
+      "name": "meeting-light",
+      "theme": "light",
+      "reducedMotion": false,
+      "walkMode": false,
+      "actors": 35,
+      "visitors": 4,
+      "meetingGuests": 6,
+      "ambientActors": 15,
+      "totalBodies": 50,
+      "frames": 359,
+      "fps": 29.876654482347575,
+      "frameIntervalMs": {
+        "samples": 358,
+        "median": 33.30000001192093,
+        "p95": 34,
+        "p99": 49.5,
+        "max": 81.69999998807907
+      },
+      "gpuMs": {
+        "samples": 120,
+        "median": 3.557376,
+        "p95": 4.557824,
+        "p99": 8.47872,
+        "max": 9.818112
+      },
+      "renderCpuMs": {
+        "samples": 359,
+        "median": 10.099999994039536,
+        "p95": 13,
+        "p99": 14.799999982118607,
+        "max": 19.600000023841858
+      },
+      "animationCpuMs": {
+        "samples": 359,
+        "median": 1.7000000178813934,
+        "p95": 2.0999999940395355,
+        "p99": 2.4000000059604645,
+        "max": 50.099999994039536
+      },
+      "medianDrawCalls": 1519,
+      "medianDrawnTriangles": 3344829,
+      "scene": {
+        "triangles": 3348909,
+        "shadowTriangles": 2048556,
+        "meshes": 1583,
+        "skinnedMeshes": 557,
+        "uniqueGeometries": 1568,
+        "uniqueMaterials": 1055,
+        "geometryBufferBytes": 297099000,
+        "uniqueMaterialTextures": 65,
+        "estimatedRgbaTextureBytes": 67944448.00000001
+      },
+      "residents": {
+        "triangles": 1135700,
+        "shadowTriangles": 1133700,
+        "meshes": 681,
+        "skinnedMeshes": 513,
+        "uniqueGeometries": 681,
+        "uniqueMaterials": 676,
+        "geometryBufferBytes": 98544376,
+        "uniqueMaterialTextures": 3,
+        "estimatedRgbaTextureBytes": 16777216
+      },
+      "heap": {
+        "used": 417110005,
+        "total": 477580601,
+        "limit": 4395630592
+      },
+      "camera": {
+        "type": "OrthographicCamera",
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "drawingBuffer": {
+          "width": 980,
+          "height": 483
+        }
+      },
+      "canvasCss": {
+        "width": 980,
+        "height": 483
+      }
+    },
+    {
+      "name": "meeting-dark",
+      "theme": "dark",
+      "reducedMotion": false,
+      "walkMode": false,
+      "actors": 35,
+      "visitors": 4,
+      "meetingGuests": 6,
+      "ambientActors": 15,
+      "totalBodies": 50,
+      "frames": 359,
+      "fps": 29.833830563887187,
+      "frameIntervalMs": {
+        "samples": 358,
+        "median": 33.30000001192093,
+        "p95": 33.900000005960464,
+        "p99": 34.19999998807907,
+        "max": 83.69999998807907
+      },
+      "gpuMs": {
+        "samples": 120,
+        "median": 3.658752,
+        "p95": 4.53632,
+        "p99": 8.629248,
+        "max": 9.470976
+      },
+      "renderCpuMs": {
+        "samples": 359,
+        "median": 10.699999988079071,
+        "p95": 13.799999982118607,
+        "p99": 15.599999994039536,
+        "max": 17
+      },
+      "animationCpuMs": {
+        "samples": 359,
+        "median": 1.7999999821186066,
+        "p95": 2.0999999940395355,
+        "p99": 2.5,
+        "max": 51.900000005960464
+      },
+      "medianDrawCalls": 1519,
+      "medianDrawnTriangles": 3344829,
+      "scene": {
+        "triangles": 3348909,
+        "shadowTriangles": 2048556,
+        "meshes": 1583,
+        "skinnedMeshes": 557,
+        "uniqueGeometries": 1568,
+        "uniqueMaterials": 1055,
+        "geometryBufferBytes": 297099000,
+        "uniqueMaterialTextures": 65,
+        "estimatedRgbaTextureBytes": 67944448.00000001
+      },
+      "residents": {
+        "triangles": 1135700,
+        "shadowTriangles": 1133700,
+        "meshes": 681,
+        "skinnedMeshes": 513,
+        "uniqueGeometries": 681,
+        "uniqueMaterials": 676,
+        "geometryBufferBytes": 98544376,
+        "uniqueMaterialTextures": 3,
+        "estimatedRgbaTextureBytes": 16777216
+      },
+      "heap": {
+        "used": 429620785,
+        "total": 487659961,
+        "limit": 4395630592
+      },
+      "camera": {
+        "type": "OrthographicCamera",
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "drawingBuffer": {
+          "width": 980,
+          "height": 483
+        }
+      },
+      "canvasCss": {
+        "width": 980,
+        "height": 483
+      }
+    },
+    {
+      "name": "walk-light",
+      "theme": "light",
+      "reducedMotion": false,
+      "walkMode": true,
+      "actors": 29,
+      "visitors": 4,
+      "meetingGuests": 0,
+      "ambientActors": 15,
+      "totalBodies": 44,
+      "frames": 359,
+      "fps": 29.833084724308783,
+      "frameIntervalMs": {
+        "samples": 358,
+        "median": 33.30000001192093,
+        "p95": 33.900000005960464,
+        "p99": 50.20000001788139,
+        "max": 85.59999999403954
+      },
+      "gpuMs": {
+        "samples": 120,
+        "median": 7.93088,
+        "p95": 10.098688,
+        "p99": 12.12416,
+        "max": 15.848448
+      },
+      "renderCpuMs": {
+        "samples": 359,
+        "median": 9.099999994039536,
+        "p95": 11.599999994039536,
+        "p99": 13.099999994039536,
+        "max": 13.800000011920929
+      },
+      "animationCpuMs": {
+        "samples": 359,
+        "median": 1.4000000059604645,
+        "p95": 1.699999988079071,
+        "p99": 2,
+        "max": 53.69999998807907
+      },
+      "medianDrawCalls": 1222,
+      "medianDrawnTriangles": 2847846,
+      "scene": {
+        "triangles": 3150125,
+        "shadowTriangles": 1849772,
+        "meshes": 1474,
+        "skinnedMeshes": 467,
+        "uniqueGeometries": 1459,
+        "uniqueMaterials": 946,
+        "geometryBufferBytes": 279362136,
+        "uniqueMaterialTextures": 65,
+        "estimatedRgbaTextureBytes": 67944448.00000001
+      },
+      "residents": {
+        "triangles": 936916,
+        "shadowTriangles": 934916,
+        "meshes": 572,
+        "skinnedMeshes": 423,
+        "uniqueGeometries": 572,
+        "uniqueMaterials": 567,
+        "geometryBufferBytes": 80807512,
+        "uniqueMaterialTextures": 3,
+        "estimatedRgbaTextureBytes": 16777216
+      },
+      "heap": {
+        "used": 417603190,
+        "total": 464947858,
+        "limit": 4395630592
+      },
+      "camera": {
+        "type": "PerspectiveCamera",
+        "position": [
+          0,
+          2.08,
+          26.265280000025
+        ],
+        "drawingBuffer": {
+          "width": 980,
+          "height": 483
+        }
+      },
+      "canvasCss": {
+        "width": 980,
+        "height": 483
+      }
+    },
+    {
+      "name": "walk-dark",
+      "theme": "dark",
+      "reducedMotion": false,
+      "walkMode": true,
+      "actors": 29,
+      "visitors": 4,
+      "meetingGuests": 0,
+      "ambientActors": 15,
+      "totalBodies": 44,
+      "frames": 359,
+      "fps": 29.875158555340487,
+      "frameIntervalMs": {
+        "samples": 358,
+        "median": 33.30000001192093,
+        "p95": 33.900000005960464,
+        "p99": 35,
+        "max": 86
+      },
+      "gpuMs": {
+        "samples": 120,
+        "median": 7.283712,
+        "p95": 10.238976,
+        "p99": 12.558336,
+        "max": 15.223808
+      },
+      "renderCpuMs": {
+        "samples": 359,
+        "median": 9,
+        "p95": 11.599999994039536,
+        "p99": 14.900000005960464,
+        "max": 17.69999998807907
+      },
+      "animationCpuMs": {
+        "samples": 359,
+        "median": 1.4000000059604645,
+        "p95": 1.800000011920929,
+        "p99": 2.4000000059604645,
+        "max": 54.20000001788139
+      },
+      "medianDrawCalls": 1222,
+      "medianDrawnTriangles": 2847846,
+      "scene": {
+        "triangles": 3150125,
+        "shadowTriangles": 1849772,
+        "meshes": 1474,
+        "skinnedMeshes": 467,
+        "uniqueGeometries": 1459,
+        "uniqueMaterials": 946,
+        "geometryBufferBytes": 279362136,
+        "uniqueMaterialTextures": 65,
+        "estimatedRgbaTextureBytes": 67944448.00000001
+      },
+      "residents": {
+        "triangles": 936916,
+        "shadowTriangles": 934916,
+        "meshes": 572,
+        "skinnedMeshes": 423,
+        "uniqueGeometries": 572,
+        "uniqueMaterials": 567,
+        "geometryBufferBytes": 80807512,
+        "uniqueMaterialTextures": 3,
+        "estimatedRgbaTextureBytes": 16777216
+      },
+      "heap": {
+        "used": 415312051,
+        "total": 464554263,
+        "limit": 4395630592
+      },
+      "camera": {
+        "type": "PerspectiveCamera",
+        "position": [
+          0,
+          2.091663583443218,
+          26.26549000001248
+        ],
+        "drawingBuffer": {
+          "width": 980,
+          "height": 483
+        }
+      },
+      "canvasCss": {
+        "width": 980,
+        "height": 483
+      }
+    },
+    {
+      "name": "reduced-light",
+      "theme": "light",
+      "reducedMotion": true,
+      "walkMode": false,
+      "actors": 35,
+      "visitors": 4,
+      "meetingGuests": 6,
+      "ambientActors": 15,
+      "totalBodies": 50,
+      "frames": 360,
+      "fps": 30.000417833117453,
+      "frameIntervalMs": {
+        "samples": 359,
+        "median": 33.30000001192093,
+        "p95": 33.900000005960464,
+        "p99": 34.19999998807907,
+        "max": 35
+      },
+      "gpuMs": {
+        "samples": 120,
+        "median": 9.335808,
+        "p95": 13.770752,
+        "p99": 15.904768,
+        "max": 18.189312
+      },
+      "renderCpuMs": {
+        "samples": 360,
+        "median": 10.699999988079071,
+        "p95": 15,
+        "p99": 18,
+        "max": 20.69999998807907
+      },
+      "animationCpuMs": {
+        "samples": 360,
+        "median": 1.2000000178813934,
+        "p95": 1.5999999940395355,
+        "p99": 1.800000011920929,
+        "max": 2.0999999940395355
+      },
+      "medianDrawCalls": 1515,
+      "medianDrawnTriangles": 3344669,
+      "scene": {
+        "triangles": 3348909,
+        "shadowTriangles": 2048556,
+        "meshes": 1583,
+        "skinnedMeshes": 557,
+        "uniqueGeometries": 1568,
+        "uniqueMaterials": 1055,
+        "geometryBufferBytes": 297099000,
+        "uniqueMaterialTextures": 65,
+        "estimatedRgbaTextureBytes": 67944448.00000001
+      },
+      "residents": {
+        "triangles": 1135700,
+        "shadowTriangles": 1133700,
+        "meshes": 681,
+        "skinnedMeshes": 513,
+        "uniqueGeometries": 681,
+        "uniqueMaterials": 676,
+        "geometryBufferBytes": 98544376,
+        "uniqueMaterialTextures": 3,
+        "estimatedRgbaTextureBytes": 16777216
+      },
+      "heap": {
+        "used": 438757435,
+        "total": 483435763,
+        "limit": 4395630592
+      },
+      "camera": {
+        "type": "OrthographicCamera",
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "drawingBuffer": {
+          "width": 980,
+          "height": 483
+        }
+      },
+      "canvasCss": {
+        "width": 980,
+        "height": 483
+      }
+    },
+    {
+      "name": "reduced-dark",
+      "theme": "dark",
+      "reducedMotion": true,
+      "walkMode": false,
+      "actors": 35,
+      "visitors": 4,
+      "meetingGuests": 6,
+      "ambientActors": 15,
+      "totalBodies": 50,
+      "frames": 360,
+      "fps": 29.95785872240998,
+      "frameIntervalMs": {
+        "samples": 359,
+        "median": 33.30000001192093,
+        "p95": 33.900000005960464,
+        "p99": 34.80000001192093,
+        "max": 50.400000005960464
+      },
+      "gpuMs": {
+        "samples": 120,
+        "median": 9.326592,
+        "p95": 11.635712,
+        "p99": 14.17728,
+        "max": 15.686656
+      },
+      "renderCpuMs": {
+        "samples": 360,
+        "median": 10.900000005960464,
+        "p95": 13.599999994039536,
+        "p99": 15.5,
+        "max": 17.799999982118607
+      },
+      "animationCpuMs": {
+        "samples": 360,
+        "median": 1.2000000178813934,
+        "p95": 1.5,
+        "p99": 1.9000000059604645,
+        "max": 2.5
+      },
+      "medianDrawCalls": 1515,
+      "medianDrawnTriangles": 3344669,
+      "scene": {
+        "triangles": 3348909,
+        "shadowTriangles": 2048556,
+        "meshes": 1583,
+        "skinnedMeshes": 557,
+        "uniqueGeometries": 1568,
+        "uniqueMaterials": 1055,
+        "geometryBufferBytes": 297099000,
+        "uniqueMaterialTextures": 65,
+        "estimatedRgbaTextureBytes": 67944448.00000001
+      },
+      "residents": {
+        "triangles": 1135700,
+        "shadowTriangles": 1133700,
+        "meshes": 681,
+        "skinnedMeshes": 513,
+        "uniqueGeometries": 681,
+        "uniqueMaterials": 676,
+        "geometryBufferBytes": 98544376,
+        "uniqueMaterialTextures": 3,
+        "estimatedRgbaTextureBytes": 16777216
+      },
+      "heap": {
+        "used": 407599940,
+        "total": 460538896,
+        "limit": 4395630592
+      },
+      "camera": {
+        "type": "OrthographicCamera",
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "drawingBuffer": {
+          "width": 980,
+          "height": 483
+        }
+      },
+      "canvasCss": {
+        "width": 980,
+        "height": 483
+      }
+    }
+  ],
+  "errors": [],
+  "writes": []
+}
