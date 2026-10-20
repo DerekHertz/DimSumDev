@@ -1,14 +1,14 @@
 {
   "ticket": "team-and-den-ux/24-bao",
-  "stage": "Candidate A chosen by user; production adoption pending",
+  "stage": "Selected A packaged; Bao-only rig fitting remains red; no final acceptance",
   "date": "2026-10-20",
   "cli_version": "0.4.0",
   "api_origin": "https://api.meshy.ai",
   "approved_credit_cap": 100,
   "balance_before": 433,
-  "balance_after": 373,
-  "actual_total_credits": 60,
-  "remaining_ticket_credits": 40,
+  "balance_after": 368,
+  "actual_total_credits": 65,
+  "remaining_ticket_credits": 35,
   "purchases_usd": 0,
   "estimate_source": "meshy make <reference> --dry-run, 30 credits per textured image source, requests_made0",
   "reference": {
@@ -52,14 +52,14 @@
       "running_total": 30,
       "created_at": 1792519107969,
       "finished_at": 1792519189283,
-      "project_dir": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/projects/20261020_105834_bao24-candidate-a_01a15a76",
+      "project_dir": "/home/dhertzell/dimsumden/.worktrees/bao-24-source-cache/24-candidates/projects/20261020_105834_bao24-candidate-a_01a15a76",
       "model": {
-        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/candidate-a.glb",
+        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24-source-cache/24-candidates/candidate-a.glb",
         "bytes": 17358972,
         "sha256": "5e4a0d2ad9295d2b616fb6e01ceaa746d0da69fc2ac98edfedda124b2580a4d5"
       },
       "provider_preview": {
-        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/candidate-a-preview.png",
+        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24-source-cache/24-candidates/candidate-a-preview.png",
         "bytes": 120594,
         "sha256": "7c62592d7f407d1cf09072be425037e6de4362b6d67c140d535eb9ebc66bfd46"
       },
@@ -148,14 +148,14 @@
       "running_total": 60,
       "created_at": 1792519242181,
       "finished_at": 1792519302194,
-      "project_dir": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/projects/20261020_110048_bao24-candidate-b_01a15a78",
+      "project_dir": "/home/dhertzell/dimsumden/.worktrees/bao-24-source-cache/24-candidates/projects/20261020_110048_bao24-candidate-b_01a15a78",
       "model": {
-        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/candidate-b.glb",
+        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24-source-cache/24-candidates/candidate-b.glb",
         "bytes": 20518712,
         "sha256": "c96ad77d040da26a826da8d13a8bde80df3cacb4ef9af8781dec8783c180177f"
       },
       "provider_preview": {
-        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24/meshy_output/24-candidates/candidate-b-preview.png",
+        "path": "/home/dhertzell/dimsumden/.worktrees/bao-24-source-cache/24-candidates/candidate-b-preview.png",
         "bytes": 153482,
         "sha256": "b5cdee12e96bd7b848b09fcc3b2d504f1c89f8768c1281fbfef8a6761690bfe8"
       },
@@ -224,5 +224,22 @@
     "date": "2026-10-20",
     "user_words": "Use A",
     "relayed_by": "orchestrator root"
+  },
+  "remesh": {
+    "resource": "remesh",
+    "task_id": "01a15a82-843f-740c-a650-be1b2ad33877",
+    "input_task_id": "01a15a76-e214-75bf-a510-25c77230a8a2",
+    "target_polycount": 7500,
+    "topology": "triangle",
+    "consumed_credits": 5,
+    "status": "SUCCEEDED",
+    "model": {
+      "path": "/home/dhertzell/dimsumden/.worktrees/bao-24-source-cache/24-candidates/remesh-a-7500.glb",
+      "bytes": 9211912,
+      "sha256": "2f246951113c8824c69063c49ab6a3f9a7d833688db79aef26fdc36d73f3ed38"
+    },
+    "triangles": 7767,
+    "pricing_source": "https://docs.meshy.ai/en/api/pricing",
+    "pricing_checked": "2026-10-20"
   }
 }

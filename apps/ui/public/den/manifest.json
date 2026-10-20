@@ -588,17 +588,23 @@
     "characters.bao": {
       "url": "/den/models/characters/bao.glb.gz",
       "kind": "character",
-      "characterId": "bao",
-      "roleId": "orchestrator",
-      "runtime": "claude",
-      "sourceFilename": "bao.glb.gz (local simplified reuse)",
-      "triangles": 7890,
-      "bytes": 211492,
-      "decodedBytes": 350804,
-      "sha256": "ad4b885a8e9f5b774bc5ea93e8516bedf64387d1f089646f0e4ebdc6e34424a0",
+      "sourceFilename": "remesh-a-7500.glb",
+      "triangles": 7767,
+      "bytes": 288510,
+      "sha256": "296860c4a4c62899c95ba376574d7c3f23eb09be17f71d7f9eb8ca112be03de8",
       "compression": "gzip",
-      "textures": []
+      "decodedBytes": 400196,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "orchestrator",
+      "characterId": "bao",
+      "runtime": "claude"
     }
   },
-  "bytes": 27263570
+  "bytes": 27340588
 }

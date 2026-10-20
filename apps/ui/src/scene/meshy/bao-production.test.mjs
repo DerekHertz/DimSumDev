@@ -3,13 +3,14 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import * as T from 'three';
+import { readGlbGeometry } from "../../../assets-src/den/read-glb-geometry.mjs";
 import { createBalancedPandaRig } from './panda-rig.mjs';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { createPandaAppearanceFactory } from './panda-appearance.mjs';
 import { createLeisureGesture } from './leisure-gesture.mjs';
 import { ROLE_PORTRAITS, ROLE_PORTRAIT_FALLBACKS } from '../../shell/role-portraits.mjs';
 
 const manifest = JSON.parse(readFileSync(new URL('../../../public/den/manifest.json', import.meta.url)));
+
 
 test('Bao ships a complete matte replacement within the approved geometry and texture budgets', () => {
   const asset = manifest.assets['characters.bao'];
@@ -23,8 +24,14 @@ test('Bao ships a complete matte replacement within the approved geometry and te
   assert.ok(triangles <= 8000, `${triangles} complete/shadow triangles, target 8k`);
   assert.ok(primitives.length <= 6, 'at most six main-pass draw calls');
   assert.ok((gltf.images || []).length <= 1);
-  assert.deepEqual(asset.textures, [], 'flat vertex colours add no unique texture allocation');
-  for (const p of primitives) assert.ok(p.attributes.COLOR_0 !== undefined, 'painted panda face and sash colours are packaged');
+  assert.equal(asset.textures.length, 1, 'selected Meshy finish remains a colour texture');
+  assert.ok(asset.textures[0].width <= 512 && asset.textures[0].height <= 512);
+  for (const p of primitives) assert.ok(p.attributes.TEXCOORD_0 !== undefined, 'source UVs preserve face and robe');
+  for (const m of gltf.materials) {
+    assert.ok(m.pbrMetallicRoughness.baseColorTexture);
+    assert.equal(m.normalTexture, undefined);
+    assert.equal(m.pbrMetallicRoughness.metallicRoughnessTexture, undefined);
+  }
   for (const m of gltf.materials) {
     assert.ok(m.pbrMetallicRoughness.roughnessFactor >= .9);
     assert.equal(m.pbrMetallicRoughness.metallicFactor, 0);
@@ -43,7 +50,7 @@ test('Bao ships its matching cached portrait while retaining the existing rollba
 test('Bao selects the replacement in every Claude instance while Jiao and failed loads retain their appearance', async () => {
   const a = manifest.assets['characters.bao'];
   const b = gunzipSync(readFileSync(new URL('../../../public' + a.url, import.meta.url)));
-  const baoSource = (await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '')).scene;
+  const baoSource = readGlbGeometry(b);
   const body = new T.Mesh(new T.BoxGeometry(1, 3, 1).translate(0, 1.5, 0), new T.MeshStandardMaterial());
   const factory = createPandaAppearanceFactory({ body, vest: body, characters: { bao: baoSource } });
   try {
@@ -87,7 +94,7 @@ test('the shared rig preserves authored matte colours when weight inspection is 
 test('Bao supports the shared motions inside conservative head, garment and prop envelopes', async () => {
   const a = manifest.assets['characters.bao'];
   const b = gunzipSync(readFileSync(new URL('../../../public' + a.url, import.meta.url)));
-  const source = (await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength), '')).scene;
+  const source = readGlbGeometry(b);
   const factory = createPandaAppearanceFactory({ characters: { bao: source } });
   const { rig, model } = factory.createPanda('orchestrator'); model.scale.setScalar(1);
   const gesture = createLeisureGesture(rig), v = new T.Vector3();
@@ -125,13 +132,35 @@ test('Bao supports the shared motions inside conservative head, garment and prop
   } finally {gesture.dispose();factory.dispose();}
 });
 
-test('Bao keeps the source panda cream forehead instead of sampling the opposite side of its atlas', async () => {
+test('Bao reproducible source is the user-selected Meshy A rather than the rejected local route', () => {
+  const provenance=JSON.parse(readFileSync(new URL('../../../assets-src/den/bao-provenance.json',import.meta.url)));
+  assert.equal(provenance.selectedSourceTask,'01a15a76-e214-75bf-a510-25c77230a8a2');
+  assert.equal(provenance.remeshTask,'01a15a82-843f-740c-a650-be1b2ad33877');
+  assert.equal(provenance.meshyCredits,65);
+  assert.equal(provenance.purchases,0);
+});
+
+test('Bao wave raises the outer paw beside its head instead of folding it into the torso', () => {
   const a=manifest.assets['characters.bao'],b=gunzipSync(readFileSync(new URL('../../../public'+a.url,import.meta.url)));
-  const source=(await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),'')).scene;
-  let count=0,cream=0;
-  source.traverse(m=>{if(!m.isMesh||m.userData.attachBone)return;const p=m.geometry.attributes.position,c=m.geometry.attributes.color;
-    for(let i=0;i<p.count;i++)if(Math.abs(p.getX(i))<.22&&p.getY(i)>2.65&&p.getZ(i)>.25){count++;if(c.getX(i)>.55&&c.getY(i)>.5)cream++;}
-  });
-  assert.ok(count>10);
-  assert.ok(cream/count>.85, `${cream}/${count} forehead vertices are cream (brow edges excluded by tolerance)`);
+  const factory=createPandaAppearanceFactory({characters:{bao:readGlbGeometry(b)}}),{rig,model}=factory.createPanda('orchestrator');model.scale.setScalar(1);
+  const gesture=createLeisureGesture(rig),samples=[],p=new T.Vector3();
+  try{
+    rig.poseIdle(.4);
+    for(const mesh of rig.meshes){const position=mesh.geometry.attributes.position;for(let i=0;i<position.count;i++){
+      p.fromBufferAttribute(position,i);
+      if(p.x>1.25&&p.y>1&&p.y<1.4){samples.push({mesh,i});}
+    }}
+    assert.ok(samples.length>10,'the actual outer paw has sampled vertices');
+    gesture.pose('greeting',.4);
+    let x=0,y=0;for(const {mesh,i}of samples){p.fromBufferAttribute(mesh.geometry.attributes.position,i);mesh.applyBoneTransform(i,p);x+=p.x;y+=p.y;}
+    assert.ok(y/samples.length>2.2,`wave paw height ${y/samples.length}`);
+    assert.ok(x/samples.length>.8,`wave paw stays beside head: ${x/samples.length}`);
+    for(const mesh of rig.meshes){
+      const pos=mesh.geometry.attributes.position,posed=Array.from({length:pos.count},(_,i)=>mesh.applyBoneTransform(i,new T.Vector3().fromBufferAttribute(pos,i)));
+      for(let i=0;i<mesh.geometry.index.count;i+=3)for(const [a,b]of [[0,1],[1,2],[2,0]]){
+        const ai=mesh.geometry.index.getX(i+a),bi=mesh.geometry.index.getX(i+b),v=new T.Vector3().fromBufferAttribute(pos,ai),w=new T.Vector3().fromBufferAttribute(pos,bi),rest=v.distanceTo(w);
+        if(rest>.03)assert.ok(posed[ai].distanceTo(posed[bi])/rest<3,`wave stretches sleeve edge ${posed[ai].distanceTo(posed[bi])/rest} times from ${v.toArray()} to ${w.toArray()}`);
+      }
+    }
+  }finally{gesture.dispose();factory.dispose();}
 });

@@ -2,13 +2,13 @@
 import fs from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 import * as T from 'three';
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { readGlbGeometry } from '../../../apps/ui/assets-src/den/read-glb-geometry.mjs';
 import { createPandaAppearanceFactory } from '../../../apps/ui/src/scene/meshy/panda-appearance.mjs';
 import { createLeisureGesture } from '../../../apps/ui/src/scene/meshy/leisure-gesture.mjs';
 import { RESIDENTS } from '../../../apps/ui/src/shell/resident-inventory.mjs';
 const assetRoot=new URL('../../../apps/ui/public/',import.meta.url),manifest=JSON.parse(fs.readFileSync(new URL('./den/manifest.json',assetRoot)));
 const a=manifest.assets['characters.bao'],b=gunzipSync(fs.readFileSync(new URL('.'+a.url,assetRoot)));
-const source=(await new GLTFLoader().parseAsync(b.buffer.slice(b.byteOffset,b.byteOffset+b.byteLength),'')).scene;
+const source=readGlbGeometry(b);
 const factory=createPandaAppearanceFactory({characters:{bao:source}}),{model,rig}=factory.createPanda('orchestrator'),gesture=createLeisureGesture(rig);
 model.scale.setScalar(1);
 function sample(){

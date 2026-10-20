@@ -1,25 +1,49 @@
 {
   "ticket": "team-and-den-ux/24-bao",
-  "method": "Offline face-preserving simplification of shipped Balanced Bao; UV colour sampled to vertices; source-fitted flat jade sash and pouch; existing code rig",
-  "source": "apps/ui/public/den/models/bao.glb.gz",
-  "sourceSha256": "793118be3b0c3fa311a9baf21081e7482c713abf60a564333726527b06cc616c",
+  "method": "User-selected Meshy A; triangle remesh; proven23 colour-only 512px atlas packer; local shared code rig",
+  "selectedSourceTask": "01a15a76-e214-75bf-a510-25c77230a8a2",
+  "remeshTask": "01a15a82-843f-740c-a650-be1b2ad33877",
+  "sourceFilename": "remesh-a-7500.glb",
+  "sourceSha256": "2f246951113c8824c69063c49ab6a3f9a7d833688db79aef26fdc36d73f3ed38",
   "builder": "apps/ui/assets-src/den/build-bao.mjs",
-  "preservedFaceTriangles": 2549,
-  "meshyTasks": [],
-  "meshyCredits": 0,
+  "meshyCredits": 65,
   "purchases": 0,
   "output": {
     "url": "/den/models/characters/bao.glb.gz",
     "kind": "character",
-    "characterId": "bao",
-    "roleId": "orchestrator",
-    "runtime": "claude",
-    "sourceFilename": "bao.glb.gz (local simplified reuse)",
-    "triangles": 7890,
-    "bytes": 211492,
-    "decodedBytes": 350804,
-    "sha256": "ad4b885a8e9f5b774bc5ea93e8516bedf64387d1f089646f0e4ebdc6e34424a0",
+    "sourceFilename": "remesh-a-7500.glb",
+    "triangles": 7767,
+    "bytes": 288510,
+    "sha256": "296860c4a4c62899c95ba376574d7c3f23eb09be17f71d7f9eb8ca112be03de8",
     "compression": "gzip",
-    "textures": []
+    "decodedBytes": 400196,
+    "textures": [
+      {
+        "width": 512,
+        "height": 512,
+        "mimeType": "image/webp"
+      }
+    ],
+    "roleId": "orchestrator",
+    "characterId": "bao",
+    "runtime": "claude"
+  },
+  "audit": {
+    "source": "remesh-a-7500.glb",
+    "sourceBytes": 9211912,
+    "sourceSha256": "2f246951113c8824c69063c49ab6a3f9a7d833688db79aef26fdc36d73f3ed38",
+    "packedBytes": 400196,
+    "narrowedIndexAccessors": [],
+    "images": [
+      {
+        "width": 512,
+        "height": 512,
+        "mimeType": "image/webp",
+        "sourceWidth": 2048,
+        "sourceHeight": 2048
+      }
+    ],
+    "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+    "droppedImages": 2
   }
 }
