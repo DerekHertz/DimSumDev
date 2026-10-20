@@ -38,3 +38,10 @@ Native `cmd.exe` emitted the usual nonfatal UNC-cwd notice and defaulted to Wind
 | First source-path probe during bounded diagnosis | Missing `plush/characters/bao*.mjs` and `plush/character*.mjs` | Used exact files from scoped `rg --files`. Discovery error. |
 
 Continuation startup itself ran the existing lockfile install and reported engine warnings under WSL Node18 plus one moderate audit finding; no dependency files were edited or audit fix attempted. Native captures used the established Node22 executable. All native calls used file-based helpers/literal argument arrays with TypeSafe absent; no Jev/TypeSafe calls or credential inspection occurred. Nonfatal native UNC-cwd notices persisted. No automatic approval rejection occurred in this round.
+
+### Original/original control round
+- Expected TDD red: identical-control.test.mjs could not find identical-control.cjs before implementation; implemented generator, targeted tests green.
+- apply_patch report append failed because expected final sentence said inline scripts/logs while file said inline recomputation/output; reread last8lines and added separate identical-control.md plus exact matching report link. Fixable patch-context friction; no data changed by failed patch.
+- Native cmd emitted standard UNC cwd fallback notice; capture completed successfully from explicit paths. No automatic approval rejection, timeout, service action or Jev/TypeSafe call.
+- Runner exploratory arithmetic inspection read nonexistent raw.gpu[0]: TypeError: Cannot convert undefined or null to object. It switched to actual raw shape and completed independent checks; fixable schema-discovery friction.
+- Runner initially resolved immutable files under absent worktree .scratch: ENOENT for .scratch/resumed/performance-assembled-60.json. It used the supplied external acceptance root instead; both hashes matched. Fixable path-discovery friction.

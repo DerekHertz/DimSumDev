@@ -1,0 +1,1341 @@
+{
+  "kind": "Original/original diagnostic ONLY; acceptance gates remain failed",
+  "browser": "155.0.8059.85",
+  "source": {
+    "commit": "efbb225f9569abeb269cd052236dac426c4d9af4",
+    "instrumentedProductionBuild": true,
+    "hooks": 4,
+    "port": 4425,
+    "out": "/tmp/den-cast-24-acceptance"
+  },
+  "observed": {
+    "camera": {
+      "type": "OrthographicCamera",
+      "position": [
+        0,
+        65.50852961085883,
+        89.81462390204986
+      ],
+      "target": [
+        0,
+        2,
+        0
+      ],
+      "zoom": 1,
+      "drawingBuffer": {
+        "width": 1384,
+        "height": 856
+      }
+    },
+    "actors": 42,
+    "visitors": 4,
+    "meetingGuests": 6,
+    "scene": {
+      "triangles": 3412220,
+      "shadowTriangles": 2111307,
+      "meshes": 1615,
+      "skinnedMeshes": 573,
+      "uniqueGeometries": 1600,
+      "uniqueMaterials": 1087,
+      "geometryBufferBytes": 303017250,
+      "uniqueMaterialTextures": 67,
+      "estimatedRgbaTextureBytes": 70740650.66666667,
+      "textureImages": [
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 1024,
+          "height": 143,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 1024,
+          "height": 104,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 1024,
+          "height": 104,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 1024,
+          "height": 171,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 1024,
+          "height": 171,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 1024,
+          "height": 171,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 94,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 453,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 125,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 360,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 140,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 128,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 74,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 118,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 352,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 466,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 118,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 466,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 149,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 74,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 118,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 276,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 87,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 118,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 86,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 466,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 149,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 74,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 118,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 489,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 370,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 118,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 515,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 834,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 834,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 834,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 149,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 1024,
+          "height": 93,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 1024,
+          "height": 109,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0_metallic_roughness",
+          "width": 1024,
+          "height": 1024,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 85,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 512,
+          "height": 512,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 140,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 100,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 100,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 72,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 768,
+          "height": 115,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 512,
+          "height": 512,
+          "mipmaps": true
+        },
+        {
+          "name": "texture_0",
+          "width": 512,
+          "height": 512,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        },
+        {
+          "name": "",
+          "width": 256,
+          "height": 256,
+          "mipmaps": true
+        }
+      ]
+    }
+  },
+  "runs": [
+    {
+      "rep": 1,
+      "label": "A",
+      "originalAsset": true,
+      "frames": 900,
+      "gpu": {
+        "n": 300,
+        "min": 3.38944,
+        "p50": 11.03872,
+        "p95": 13.437952,
+        "max": 17.626112
+      },
+      "renderCpu": {
+        "n": 900,
+        "min": 9.100000001490116,
+        "p50": 10.600000001490116,
+        "p95": 13.600000001490116,
+        "max": 22.100000001490116
+      },
+      "animationCpu": {
+        "n": 900,
+        "min": 1.5,
+        "p50": 1.8000000044703484,
+        "p95": 2.2000000029802322,
+        "max": 3.1999999955296516
+      },
+      "combinedCpu": {
+        "n": 900,
+        "min": 10.700000002980232,
+        "p50": 12.5,
+        "p95": 15.800000004470348,
+        "max": 24.50000000745058
+      },
+      "components": {
+        "agents.update": {
+          "n": 900,
+          "min": 1.0999999940395355,
+          "p50": 1.3000000044703484,
+          "p95": 1.7000000029802322,
+          "max": 2.2999999970197678
+        },
+        "ambient.pose": {
+          "n": 900,
+          "min": 0.29999999701976776,
+          "p50": 0.5,
+          "p95": 0.6000000014901161,
+          "max": 1
+        },
+        "koi.update": {
+          "n": 900,
+          "min": 0,
+          "p50": 0,
+          "p95": 0.09999999403953552,
+          "max": 0.10000000149011612
+        }
+      },
+      "clocks": [
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.58,
+          "temperatureC": 44,
+          "gpuPercent": 13,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.05,
+          "temperatureC": 44,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.89,
+          "temperatureC": 44,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.57,
+          "temperatureC": 44,
+          "gpuPercent": 12,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.63,
+          "temperatureC": 44,
+          "gpuPercent": 14,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.8,
+          "temperatureC": 44,
+          "gpuPercent": 15,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.65,
+          "temperatureC": 44,
+          "gpuPercent": 13,
+          "memoryPercent": 3
+        }
+      ]
+    },
+    {
+      "rep": 1,
+      "label": "B",
+      "originalAsset": true,
+      "frames": 903,
+      "gpu": {
+        "n": 301,
+        "min": 3.680256,
+        "p50": 3.728384,
+        "p95": 11.215872,
+        "max": 16.211968
+      },
+      "renderCpu": {
+        "n": 903,
+        "min": 8.899999998509884,
+        "p50": 10.399999998509884,
+        "p95": 13.699999995529652,
+        "max": 18.5
+      },
+      "animationCpu": {
+        "n": 903,
+        "min": 1.3999999985098839,
+        "p50": 1.7999999970197678,
+        "p95": 2.100000001490116,
+        "max": 2.600000001490116
+      },
+      "combinedCpu": {
+        "n": 903,
+        "min": 10.49999999254942,
+        "p50": 12.199999995529652,
+        "p95": 15.600000001490116,
+        "max": 21
+      },
+      "components": {
+        "agents.update": {
+          "n": 903,
+          "min": 1,
+          "p50": 1.2999999970197678,
+          "p95": 1.6000000014901161,
+          "max": 1.8999999985098839
+        },
+        "ambient.pose": {
+          "n": 903,
+          "min": 0.29999999701976776,
+          "p50": 0.5,
+          "p95": 0.6000000014901161,
+          "max": 1
+        },
+        "koi.update": {
+          "n": 903,
+          "min": 0,
+          "p50": 0,
+          "p95": 0,
+          "max": 0.10000000149011612
+        }
+      },
+      "clocks": [
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.31,
+          "temperatureC": 44,
+          "gpuPercent": 15,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.32,
+          "temperatureC": 44,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.29,
+          "temperatureC": 45,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.31,
+          "temperatureC": 44,
+          "gpuPercent": 15,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.6,
+          "temperatureC": 45,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.16,
+          "temperatureC": 45,
+          "gpuPercent": 13,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.75,
+          "temperatureC": 45,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.75,
+          "temperatureC": 45,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        }
+      ]
+    },
+    {
+      "rep": 2,
+      "label": "B",
+      "originalAsset": true,
+      "frames": 900,
+      "gpu": {
+        "n": 300,
+        "min": 3.341312,
+        "p50": 3.730432,
+        "p95": 9.453568,
+        "max": 18.737152
+      },
+      "renderCpu": {
+        "n": 900,
+        "min": 8.899999998509884,
+        "p50": 10.600000001490116,
+        "p95": 14.200000002980232,
+        "max": 29.600000001490116
+      },
+      "animationCpu": {
+        "n": 900,
+        "min": 1.3999999985098839,
+        "p50": 1.8000000044703484,
+        "p95": 2.2000000029802322,
+        "max": 4.100000001490116
+      },
+      "combinedCpu": {
+        "n": 900,
+        "min": 10.5,
+        "p50": 12.399999998509884,
+        "p95": 16.30000000447035,
+        "max": 32.899999998509884
+      },
+      "components": {
+        "agents.update": {
+          "n": 900,
+          "min": 0.9000000059604645,
+          "p50": 1.3000000044703484,
+          "p95": 1.7000000029802322,
+          "max": 3.3000000044703484
+        },
+        "ambient.pose": {
+          "n": 900,
+          "min": 0.29999999701976776,
+          "p50": 0.5,
+          "p95": 0.6000000014901161,
+          "max": 0.8999999985098839
+        },
+        "koi.update": {
+          "n": 900,
+          "min": 0,
+          "p50": 0,
+          "p95": 0.10000000149011612,
+          "max": 0.10000000149011612
+        }
+      },
+      "clocks": [
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.17,
+          "temperatureC": 45,
+          "gpuPercent": 15,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.06,
+          "temperatureC": 45,
+          "gpuPercent": 16,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.71,
+          "temperatureC": 45,
+          "gpuPercent": 15,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.35,
+          "temperatureC": 45,
+          "gpuPercent": 13,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.71,
+          "temperatureC": 45,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.4,
+          "temperatureC": 45,
+          "gpuPercent": 15,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.78,
+          "temperatureC": 45,
+          "gpuPercent": 13,
+          "memoryPercent": 3
+        }
+      ]
+    },
+    {
+      "rep": 2,
+      "label": "A",
+      "originalAsset": true,
+      "frames": 865,
+      "gpu": {
+        "n": 289,
+        "min": 3.698688,
+        "p50": 3.729408,
+        "p95": 11.74528,
+        "max": 151.227392
+      },
+      "renderCpu": {
+        "n": 865,
+        "min": 8.899999998509884,
+        "p50": 10.5,
+        "p95": 14.100000001490116,
+        "max": 231.70000000298023
+      },
+      "animationCpu": {
+        "n": 865,
+        "min": 1.3999999985098839,
+        "p50": 1.8000000044703484,
+        "p95": 2.2000000029802322,
+        "max": 70.39999999850988
+      },
+      "combinedCpu": {
+        "n": 865,
+        "min": 10.5,
+        "p50": 12.300000004470348,
+        "p95": 16.099999994039536,
+        "max": 289.3999999985099
+      },
+      "components": {
+        "agents.update": {
+          "n": 865,
+          "min": 1,
+          "p50": 1.3999999985098839,
+          "p95": 1.7000000029802322,
+          "max": 69.60000000149012
+        },
+        "ambient.pose": {
+          "n": 865,
+          "min": 0.29999999701976776,
+          "p50": 0.5,
+          "p95": 0.6000000014901161,
+          "max": 1
+        },
+        "koi.update": {
+          "n": 865,
+          "min": 0,
+          "p50": 0,
+          "p95": 0.09999999403953552,
+          "max": 0.10000000149011612
+        }
+      },
+      "clocks": [
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.46,
+          "temperatureC": 45,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.75,
+          "temperatureC": 45,
+          "gpuPercent": 13,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.76,
+          "temperatureC": 45,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.38,
+          "temperatureC": 45,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.71,
+          "temperatureC": 45,
+          "gpuPercent": 16,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 73.48,
+          "temperatureC": 44,
+          "gpuPercent": 4,
+          "memoryPercent": 1
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.61,
+          "temperatureC": 45,
+          "gpuPercent": 12,
+          "memoryPercent": 3
+        }
+      ]
+    },
+    {
+      "rep": 3,
+      "label": "A",
+      "originalAsset": true,
+      "frames": 901,
+      "gpu": {
+        "n": 301,
+        "min": 8.27392,
+        "p50": 11.141952,
+        "p95": 14.680064,
+        "max": 18.382848
+      },
+      "renderCpu": {
+        "n": 901,
+        "min": 8.899999998509884,
+        "p50": 10.700000002980232,
+        "p95": 14.300000004470348,
+        "max": 20.200000002980232
+      },
+      "animationCpu": {
+        "n": 901,
+        "min": 1.5,
+        "p50": 1.8000000044703484,
+        "p95": 2.2000000029802322,
+        "max": 3.1999999955296516
+      },
+      "combinedCpu": {
+        "n": 901,
+        "min": 10.5,
+        "p50": 12.5,
+        "p95": 16.399999998509884,
+        "max": 22.899999998509884
+      },
+      "components": {
+        "agents.update": {
+          "n": 901,
+          "min": 1,
+          "p50": 1.3000000044703484,
+          "p95": 1.7000000029802322,
+          "max": 2.399999998509884
+        },
+        "ambient.pose": {
+          "n": 901,
+          "min": 0.29999999701976776,
+          "p50": 0.5,
+          "p95": 0.6000000014901161,
+          "max": 0.8999999985098839
+        },
+        "koi.update": {
+          "n": 901,
+          "min": 0,
+          "p50": 0,
+          "p95": 0.09999999403953552,
+          "max": 0.10000000149011612
+        }
+      },
+      "clocks": [
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.64,
+          "temperatureC": 45,
+          "gpuPercent": 12,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.73,
+          "temperatureC": 45,
+          "gpuPercent": 15,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.55,
+          "temperatureC": 45,
+          "gpuPercent": 13,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.61,
+          "temperatureC": 45,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.02,
+          "temperatureC": 45,
+          "gpuPercent": 12,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.76,
+          "temperatureC": 45,
+          "gpuPercent": 13,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.1,
+          "temperatureC": 45,
+          "gpuPercent": 14,
+          "memoryPercent": 4
+        }
+      ]
+    },
+    {
+      "rep": 3,
+      "label": "B",
+      "originalAsset": true,
+      "frames": 904,
+      "gpu": {
+        "n": 302,
+        "min": 3.32288,
+        "p50": 3.862528,
+        "p95": 9.531392,
+        "max": 13.476864
+      },
+      "renderCpu": {
+        "n": 904,
+        "min": 8.799999997019768,
+        "p50": 10.299999997019768,
+        "p95": 13.600000001490116,
+        "max": 24.799999997019768
+      },
+      "animationCpu": {
+        "n": 904,
+        "min": 1.4000000059604645,
+        "p50": 1.7999999970197678,
+        "p95": 2.2000000029802322,
+        "max": 3.399999998509884
+      },
+      "combinedCpu": {
+        "n": 904,
+        "min": 10.399999991059303,
+        "p50": 12,
+        "p95": 16,
+        "max": 27.299999997019768
+      },
+      "components": {
+        "agents.update": {
+          "n": 904,
+          "min": 1,
+          "p50": 1.2999999970197678,
+          "p95": 1.6000000014901161,
+          "max": 2.399999998509884
+        },
+        "ambient.pose": {
+          "n": 904,
+          "min": 0.29999999701976776,
+          "p50": 0.5,
+          "p95": 0.6000000014901161,
+          "max": 1
+        },
+        "koi.update": {
+          "n": 904,
+          "min": 0,
+          "p50": 0,
+          "p95": 0.09999999403953552,
+          "max": 0.10000000149011612
+        }
+      },
+      "clocks": [
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.47,
+          "temperatureC": 45,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.27,
+          "temperatureC": 45,
+          "gpuPercent": 16,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.33,
+          "temperatureC": 45,
+          "gpuPercent": 15,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.03,
+          "temperatureC": 45,
+          "gpuPercent": 15,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.06,
+          "temperatureC": 46,
+          "gpuPercent": 14,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.47,
+          "temperatureC": 45,
+          "gpuPercent": 16,
+          "memoryPercent": 4
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.71,
+          "temperatureC": 45,
+          "gpuPercent": 13,
+          "memoryPercent": 3
+        },
+        {
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 81.71,
+          "temperatureC": 45,
+          "gpuPercent": 13,
+          "memoryPercent": 3
+        }
+      ]
+    }
+  ],
+  "pairs": [
+    {
+      "rep": 1,
+      "order": [
+        "A",
+        "B"
+      ],
+      "p95": {
+        "gpu": {
+          "A": 13.437952,
+          "B": 11.215872,
+          "percent": -16.535853082374462,
+          "apparentRegressionAbove5Percent": false
+        },
+        "renderCpu": {
+          "A": 13.600000001490116,
+          "B": 13.699999995529652,
+          "percent": 0.7352940737395564,
+          "apparentRegressionAbove5Percent": false
+        },
+        "animationCpu": {
+          "A": 2.2000000029802322,
+          "B": 2.100000001490116,
+          "percent": -4.545454607029587,
+          "apparentRegressionAbove5Percent": false
+        },
+        "combinedCpu": {
+          "A": 15.800000004470348,
+          "B": 15.600000001490116,
+          "percent": -1.2658228033142094,
+          "apparentRegressionAbove5Percent": false
+        }
+      }
+    },
+    {
+      "rep": 2,
+      "order": [
+        "B",
+        "A"
+      ],
+      "p95": {
+        "gpu": {
+          "A": 11.74528,
+          "B": 9.453568,
+          "percent": -19.511769834350467,
+          "apparentRegressionAbove5Percent": false
+        },
+        "renderCpu": {
+          "A": 14.100000001490116,
+          "B": 14.200000002980232,
+          "percent": 0.709219868649269,
+          "apparentRegressionAbove5Percent": false
+        },
+        "animationCpu": {
+          "A": 2.2000000029802322,
+          "B": 2.2000000029802322,
+          "percent": 0,
+          "apparentRegressionAbove5Percent": false
+        },
+        "combinedCpu": {
+          "A": 16.099999994039536,
+          "B": 16.30000000447035,
+          "percent": 1.2422360900922635,
+          "apparentRegressionAbove5Percent": false
+        }
+      }
+    },
+    {
+      "rep": 3,
+      "order": [
+        "A",
+        "B"
+      ],
+      "p95": {
+        "gpu": {
+          "A": 14.680064,
+          "B": 9.531392,
+          "percent": -35.07254464285714,
+          "apparentRegressionAbove5Percent": false
+        },
+        "renderCpu": {
+          "A": 14.300000004470348,
+          "B": 13.600000001490116,
+          "percent": -4.895104914415416,
+          "apparentRegressionAbove5Percent": false
+        },
+        "animationCpu": {
+          "A": 2.2000000029802322,
+          "B": 2.2000000029802322,
+          "percent": 0,
+          "apparentRegressionAbove5Percent": false
+        },
+        "combinedCpu": {
+          "A": 16.399999998509884,
+          "B": 16,
+          "percent": -2.43902438137944,
+          "apparentRegressionAbove5Percent": false
+        }
+      }
+    }
+  ],
+  "medianOfThreeP95": {
+    "gpu": {
+      "A": 13.437952,
+      "B": 9.531392,
+      "percent": -29.071096548045404,
+      "apparentRegressionAbove5Percent": false
+    },
+    "renderCpu": {
+      "A": 14.100000001490116,
+      "B": 13.699999995529652,
+      "percent": -2.8368794745971093,
+      "apparentRegressionAbove5Percent": false
+    },
+    "animationCpu": {
+      "A": 2.2000000029802322,
+      "B": 2.2000000029802322,
+      "percent": 0,
+      "apparentRegressionAbove5Percent": false
+    },
+    "combinedCpu": {
+      "A": 16.099999994039536,
+      "B": 16,
+      "percent": -0.6211179756307916,
+      "apparentRegressionAbove5Percent": false
+    }
+  },
+  "gpuP95Spread": {
+    "n": 6,
+    "min": 9.453568,
+    "p50": 11.215872,
+    "p95": 14.680064,
+    "max": 14.680064
+  },
+  "limitations": [
+    "Identical assets can expose measurement instability but cannot absolve the selected asset or establish a causal host/driver/timer fault.",
+    "GPU elapsed intervals are not continuous GPU busy time; utilization is total device sampling, not per-frame or per-process attribution.",
+    "No failed60/quiet6 samples are replaced; no acceptance threshold changes."
+  ],
+  "rawSha256": "1865d756b291bfbd760ceef6c003113eefcbd91578b6658f17bb3a0e514f438d"
+}

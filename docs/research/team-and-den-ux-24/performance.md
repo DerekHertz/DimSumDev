@@ -79,7 +79,7 @@ All eight stationary scenarios record identical observed OrthographicCamera posi
 
 Walk mode records PerspectiveCamera x0/y2.08, with final z26.26444–26.29993 in light and26.250055–26.30014 in dark. Endpoints vary with elapsed movement timing; draw totals therefore change along the path (original1195–1325, selected1177–1307). Camera world/projection matrices, rotation, exact pose quaternions/phase and actual matchMedia values were not captured. Motion/theme inputs and source are identical, but exact observed pose equality is not proven; none of the five failing gates are walk scenarios. `observed-audit.json` retains each recorded camera/count/workload row.
 
-Historical NVIDIA telemetry contains clocks, power and temperature, **not utilization or process activity**. Before power mean82.484W/p95 83.77/range80.44–84.80; after82.302W/p95 83.27/range81.26–84.29. Graphics/memory clocks are fixed across recorded samples; that alone does not prove a quiet host. A post-capture snapshot at21:20:22UTC shows2% GPU/1% memory utilization,73.42W,43°C and unrelated GPU clients including Chrome PIDs7100/15688, Codex, Claude, Teams, WebView, NZXT CAM and iCUE. It contains names/PIDs only, with no command-line or environment inspection; no unrelated process was stopped. This snapshot cannot establish historical contention or quietness. The quiet-host condition remains unverified.
+Historical NVIDIA telemetry contains clocks, power and temperature, **not utilization or process activity**. Before power mean82.484W/p95 83.77/range80.44–84.80; after82.302W/p95 83.27/range81.26–84.29. Graphics/memory clocks are fixed across recorded samples; that alone does not prove a quiet host. A post-capture snapshot at21:20:22UTC shows2% GPU/1% memory utilization,73.42W,43°C and unrelated GPU clients including Chrome PIDs7100/15688, Codex, Claude, Teams, WebView, NZXT CAM and iCUE. It contains names/PIDs only, with no command-line or environment inspection; no unrelated process was stopped. This snapshot cannot establish historical contention or quietness. The historical acceptance run’s quiet-host condition remains unverified; the user later reported other GPU workloads closed before the separate diagnostic captures below.
 
 `gpu-host.json` and `observed-audit.json` are separately hashed in the receipt and never count as acceptance samples. No concrete local harness bug or causal asset regression was identified. The failed numeric gates stay failed; root owns the next scoped profiling/quiet-host decision.
 
@@ -104,7 +104,7 @@ Per-run p50/p95 values below keep render CPU and the timestamp-aligned sum of al
 
 Idle-dark median-of-three render p95:15.70→16.80ms; summed-animation p95:1.90→2.20ms. Meeting-dark render p95:17.40→18.90ms; summed-animation p95:2.40→2.70ms. Both render and animation timings contribute; no local Bao-only cost can be isolated from these samples. Named agents/ambient/koi component p50/p95 values for every repetition are retained in `cpuFailureComponents` and external `cpu-components.json`.
 
-No further timing run is authorized while root awaits the user’s quiet-host readiness response. Preserve this failed60-run baseline in full; root will settle the next controlled diagnostic. No production/art/budget change was made.
+Historical checkpoint before the user’s Ready response (superseded): no further timing run was then authorized. The user subsequently confirmed other GPU workloads closed, enabling the separate quiet-host and original/original diagnostics below. The failed60-run baseline stays preserved; no production/art/budget change was made.
 
 ## User-ready quiet-host diagnostic, separate from acceptance
 
@@ -126,3 +126,5 @@ The original GPU p95 still spans3.972096–22.345728ms, versus16.141312–16.731
 The diagnostic raw retains the generic harness recipe label mentioning10scenarios; its explicit diagnostic kind, predeclared one-scenario plan, filtered harness and observed six rows establish the actual diagnostic scope. The label is not used to claim completion of a second full recipe. Native browser exited successfully; owned diagnostic serverPID32282 stopped and4425 closed.
 
 An independent runner also recomputed all six quiet-diagnostic GPU/combined CPU p95 values, medians and camera/count/draw consistency; they match the saved diagnostic summary. Its inline recomputation and output were not saved.
+
+The subsequent [original/original control](identical-control.md) exposes a29.07% apparent GPU improvement between identical asset labels, while combined CPU differs−0.62%. Its six rows remain separate; this failed60-run acceptance verdict is unchanged. Root owns the next bounded native tracing continuation; no full rerun was started.

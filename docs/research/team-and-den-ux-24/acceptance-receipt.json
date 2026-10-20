@@ -176,6 +176,66 @@
       "name": "resumed/audit-observed.cjs",
       "bytes": 2429,
       "sha256": "de486c8fa885f42d6f1e21a111e946c9483ae473d653586fd237c4017bf34315"
+    },
+    {
+      "name": "identical-control/capture-review.cjs",
+      "bytes": 14184,
+      "sha256": "c515ba0c9f420460c0adc76159ccff6a2a1b5d56751e222702ebcb02d3bfd315"
+    },
+    {
+      "name": "identical-control/diagnostic-plan.json",
+      "bytes": 1125,
+      "sha256": "d7cec666d0c4d328c0bf4370f7db9249dbf82edd768cd1e74e5885c206665ec7"
+    },
+    {
+      "name": "identical-control/native-performance.cjs",
+      "bytes": 8867,
+      "sha256": "71ec8194391dd8dfb86c2c98c15caacb37a07b8c4aedbd44885a47df004afa6b"
+    },
+    {
+      "name": "identical-control/perf-after-meeting-light-1.png",
+      "bytes": 517726,
+      "sha256": "0d8813b4f2d37842835bd9911761d70c056058bd91a457afe3a8882d36fa4c96"
+    },
+    {
+      "name": "identical-control/perf-after-meeting-light-2.png",
+      "bytes": 517718,
+      "sha256": "dc0e69c6d84300070990840c84417e9b9de5de9a5a7f0eb0b79be11d3df16ef7"
+    },
+    {
+      "name": "identical-control/perf-after-meeting-light-3.png",
+      "bytes": 517760,
+      "sha256": "c6a106be2dd55ed94e9394ebbe60aacd1c911ff924c3c4cbdb7c763ff6ef4aad"
+    },
+    {
+      "name": "identical-control/perf-before-meeting-light-1.png",
+      "bytes": 517737,
+      "sha256": "798f71ad2c119d9d9585e6e80b55dc854f7e32b07435aa7f9d3ab8cf75b72539"
+    },
+    {
+      "name": "identical-control/perf-before-meeting-light-2.png",
+      "bytes": 518066,
+      "sha256": "13ceeeba80660bf31bdd795d61cc1dca25d609c3522fa7a0e376b0a0ac51223e"
+    },
+    {
+      "name": "identical-control/perf-before-meeting-light-3.png",
+      "bytes": 517797,
+      "sha256": "af717aed0813c1af81fa63a1717278b8c50bca7839e9fe543e5c67f8411c3894"
+    },
+    {
+      "name": "identical-control/performance-raw.json",
+      "bytes": 1537643,
+      "sha256": "1865d756b291bfbd760ceef6c003113eefcbd91578b6658f17bb3a0e514f438d"
+    },
+    {
+      "name": "identical-control/performance-resume.cjs",
+      "bytes": 4299,
+      "sha256": "266c5e8767154a8383e22a8a09b3a1a4ec92b086853f6cae6d4def881683e195"
+    },
+    {
+      "name": "identical-control/summary.json",
+      "bytes": 30795,
+      "sha256": "6bc92f588a407c31715b6ec19f35d0b45a314c0f3efc8b546eb66845a0ae0dfb"
     }
   ],
   "performanceSelection": {
@@ -211,5 +271,21 @@
       "percent": -2.564102564102566
     },
     "conclusion": "Baseline GPU variability persists; causal profiling remains root-owned; no full acceptance rerun started."
+  },
+  "identicalControl": {
+    "kind": "Original/original diagnostic only; no acceptance waiver",
+    "runs": 6,
+    "gpuMedianP95": {
+      "A": 13.437952,
+      "B": 9.531392,
+      "percent": -29.071096548045404
+    },
+    "combinedCpuMedianP95": {
+      "A": 16.099999994039536,
+      "B": 16,
+      "percent": -0.6211179756307916
+    },
+    "conclusion": "Identical-asset GPU comparison not repeatable at5%; cause unresolved; failed60 preserved",
+    "next": "Root-owned bounded native trace continuation; no further capture in this round"
   }
 }
