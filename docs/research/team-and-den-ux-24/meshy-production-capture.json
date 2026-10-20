@@ -1,0 +1,1302 @@
+{
+  "kind": "Partial static appearance evidence; motion regression remains red; no timed hardware acceptance",
+  "commit": "347197369aec6d9711b192783d74adf59a721411",
+  "outputDirectory": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-meshy-production/",
+  "errors": [],
+  "writes": [],
+  "portraitSizes": [
+    {
+      "width": 62,
+      "height": 62,
+      "source": "/den/portraits/bao-jade.webp"
+    },
+    {
+      "width": 40,
+      "height": 40,
+      "source": "/den/portraits/bao-jade.webp"
+    },
+    {
+      "width": 40,
+      "height": 40,
+      "source": "/den/portraits/codex-orchestrator.webp"
+    },
+    {
+      "width": 40,
+      "height": 40,
+      "source": "/den/portraits/product.webp"
+    }
+  ],
+  "fallback": {
+    "species": null,
+    "scale": 1.35,
+    "load": {
+      "loaded": [
+        "developer",
+        "technical-writer"
+      ],
+      "failed": [
+        {
+          "role": "orchestrator",
+          "message": "Failed to fetch"
+        }
+      ]
+    },
+    "camera": [
+      0,
+      2,
+      0
+    ],
+    "zoom": 1,
+    "portrait": "/den/portraits/orchestrator.webp",
+    "afterPanel": {
+      "camera": [
+        0,
+        2,
+        0
+      ],
+      "zoom": 1
+    }
+  },
+  "gpu": [
+    {
+      "device": "NVIDIA GeForce RTX 3060 Ti",
+      "vendor": ""
+    },
+    {
+      "device": "Microsoft Basic Render Driver",
+      "vendor": ""
+    }
+  ],
+  "captures": [
+    {
+      "theme": "light",
+      "name": "far-working",
+      "file": "den-light-far-working.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      },
+      "residents": {
+        "triangles": 996199,
+        "shadowTriangles": 993639,
+        "meshes": 604,
+        "skinnedMeshes": 438,
+        "uniqueGeometries": 604,
+        "uniqueMaterials": 599,
+        "geometryBufferBytes": 86076782,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209408,
+        "shadowTriangles": 1908495,
+        "meshes": 1506,
+        "skinnedMeshes": 482,
+        "uniqueGeometries": 1491,
+        "uniqueMaterials": 978,
+        "geometryBufferBytes": 284631406,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "light",
+      "name": "near-working",
+      "file": "den-light-near-working.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996199,
+        "shadowTriangles": 993639,
+        "meshes": 604,
+        "skinnedMeshes": 438,
+        "uniqueGeometries": 604,
+        "uniqueMaterials": 599,
+        "geometryBufferBytes": 86076782,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209408,
+        "shadowTriangles": 1908495,
+        "meshes": 1506,
+        "skinnedMeshes": 482,
+        "uniqueGeometries": 1491,
+        "uniqueMaterials": 978,
+        "geometryBufferBytes": 284631406,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "light",
+      "name": "portraits",
+      "file": "den-light-portraits.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996199,
+        "shadowTriangles": 993639,
+        "meshes": 604,
+        "skinnedMeshes": 438,
+        "uniqueGeometries": 604,
+        "uniqueMaterials": 599,
+        "geometryBufferBytes": 86076782,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209408,
+        "shadowTriangles": 1908495,
+        "meshes": 1506,
+        "skinnedMeshes": 482,
+        "uniqueGeometries": 1491,
+        "uniqueMaterials": 978,
+        "geometryBufferBytes": 284631406,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "light",
+      "name": "first-person",
+      "file": "den-light-first-person.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          2.08,
+          6.2
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996199,
+        "shadowTriangles": 993639,
+        "meshes": 604,
+        "skinnedMeshes": 438,
+        "uniqueGeometries": 604,
+        "uniqueMaterials": 599,
+        "geometryBufferBytes": 86076782,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209408,
+        "shadowTriangles": 1908495,
+        "meshes": 1506,
+        "skinnedMeshes": 482,
+        "uniqueGeometries": 1491,
+        "uniqueMaterials": 978,
+        "geometryBufferBytes": 284631406,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "light",
+      "name": "far-meeting",
+      "file": "den-light-far-meeting.png",
+      "meta": null,
+      "actorCount": 42,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      },
+      "residents": {
+        "triangles": 1171334,
+        "shadowTriangles": 1168774,
+        "meshes": 695,
+        "skinnedMeshes": 514,
+        "uniqueGeometries": 695,
+        "uniqueMaterials": 690,
+        "geometryBufferBytes": 101784312,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3384543,
+        "shadowTriangles": 2083630,
+        "meshes": 1597,
+        "skinnedMeshes": 558,
+        "uniqueGeometries": 1582,
+        "uniqueMaterials": 1069,
+        "geometryBufferBytes": 300338936,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "light",
+      "name": "near-meeting",
+      "file": "den-light-near-meeting.png",
+      "meta": null,
+      "actorCount": 42,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 1171334,
+        "shadowTriangles": 1168774,
+        "meshes": 695,
+        "skinnedMeshes": 514,
+        "uniqueGeometries": 695,
+        "uniqueMaterials": 690,
+        "geometryBufferBytes": 101784312,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3384543,
+        "shadowTriangles": 2083630,
+        "meshes": 1597,
+        "skinnedMeshes": 558,
+        "uniqueGeometries": 1582,
+        "uniqueMaterials": 1069,
+        "geometryBufferBytes": 300338936,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "far-working",
+      "file": "den-dark-far-working.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      },
+      "residents": {
+        "triangles": 996199,
+        "shadowTriangles": 993639,
+        "meshes": 604,
+        "skinnedMeshes": 438,
+        "uniqueGeometries": 604,
+        "uniqueMaterials": 599,
+        "geometryBufferBytes": 86076782,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209408,
+        "shadowTriangles": 1908495,
+        "meshes": 1506,
+        "skinnedMeshes": 482,
+        "uniqueGeometries": 1491,
+        "uniqueMaterials": 978,
+        "geometryBufferBytes": 284631406,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "near-working",
+      "file": "den-dark-near-working.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996199,
+        "shadowTriangles": 993639,
+        "meshes": 604,
+        "skinnedMeshes": 438,
+        "uniqueGeometries": 604,
+        "uniqueMaterials": 599,
+        "geometryBufferBytes": 86076782,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209408,
+        "shadowTriangles": 1908495,
+        "meshes": 1506,
+        "skinnedMeshes": 482,
+        "uniqueGeometries": 1491,
+        "uniqueMaterials": 978,
+        "geometryBufferBytes": 284631406,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "portraits",
+      "file": "den-dark-portraits.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996199,
+        "shadowTriangles": 993639,
+        "meshes": 604,
+        "skinnedMeshes": 438,
+        "uniqueGeometries": 604,
+        "uniqueMaterials": 599,
+        "geometryBufferBytes": 86076782,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209408,
+        "shadowTriangles": 1908495,
+        "meshes": 1506,
+        "skinnedMeshes": 482,
+        "uniqueGeometries": 1491,
+        "uniqueMaterials": 978,
+        "geometryBufferBytes": 284631406,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "first-person",
+      "file": "den-dark-first-person.png",
+      "meta": null,
+      "actorCount": 36,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          2.08,
+          6.2
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 996199,
+        "shadowTriangles": 993639,
+        "meshes": 604,
+        "skinnedMeshes": 438,
+        "uniqueGeometries": 604,
+        "uniqueMaterials": 599,
+        "geometryBufferBytes": 86076782,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3209408,
+        "shadowTriangles": 1908495,
+        "meshes": 1506,
+        "skinnedMeshes": 482,
+        "uniqueGeometries": 1491,
+        "uniqueMaterials": 978,
+        "geometryBufferBytes": 284631406,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "far-meeting",
+      "file": "den-dark-far-meeting.png",
+      "meta": null,
+      "actorCount": 42,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          0,
+          65.50852961085883,
+          89.81462390204986
+        ],
+        "zoom": 1,
+        "target": [
+          0,
+          2,
+          0
+        ]
+      },
+      "residents": {
+        "triangles": 1171334,
+        "shadowTriangles": 1168774,
+        "meshes": 695,
+        "skinnedMeshes": 514,
+        "uniqueGeometries": 695,
+        "uniqueMaterials": 690,
+        "geometryBufferBytes": 101784312,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3384543,
+        "shadowTriangles": 2083630,
+        "meshes": 1597,
+        "skinnedMeshes": 558,
+        "uniqueGeometries": 1582,
+        "uniqueMaterials": 1069,
+        "geometryBufferBytes": 300338936,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    },
+    {
+      "theme": "dark",
+      "name": "near-meeting",
+      "file": "den-dark-near-meeting.png",
+      "meta": null,
+      "actorCount": 42,
+      "baoCount": 1,
+      "characterLoad": {
+        "loaded": [
+          "developer",
+          "technical-writer",
+          "bao"
+        ],
+        "failed": []
+      },
+      "camera": {
+        "position": [
+          -1.75,
+          65.00852961085883,
+          89.21462390204987
+        ],
+        "zoom": 0.25,
+        "target": [
+          -1.75,
+          1.5,
+          -0.6
+        ]
+      },
+      "residents": {
+        "triangles": 1171334,
+        "shadowTriangles": 1168774,
+        "meshes": 695,
+        "skinnedMeshes": 514,
+        "uniqueGeometries": 695,
+        "uniqueMaterials": 690,
+        "geometryBufferBytes": 101784312,
+        "uniqueMaterialTextures": 6,
+        "estimatedRgbaTextureBytes": 20971519.999999996,
+        "textureImages": [
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          }
+        ]
+      },
+      "scene": {
+        "triangles": 3384543,
+        "shadowTriangles": 2083630,
+        "meshes": 1597,
+        "skinnedMeshes": 558,
+        "uniqueGeometries": 1582,
+        "uniqueMaterials": 1069,
+        "geometryBufferBytes": 300338936,
+        "uniqueMaterialTextures": 68,
+        "estimatedRgbaTextureBytes": 72138752
+      }
+    }
+  ],
+  "authoring": {
+    "kind": "selected-A textured authoring poses; no runtime chair or performance claim",
+    "errors": [],
+    "captures": [
+      "light-idle.png",
+      "light-work.png",
+      "light-sit.png",
+      "light-walk.png",
+      "light-greeting.png",
+      "dark-idle.png",
+      "dark-work.png",
+      "dark-sit.png",
+      "dark-walk.png",
+      "dark-greeting.png"
+    ],
+    "resources": {
+      "triangles": 7847,
+      "shadowTriangles": 7767,
+      "geometryBytes": 671494,
+      "bones": 26,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mips": true
+        }
+      ],
+      "calls": 1
+    }
+  },
+  "files": [
+    {
+      "file": "bao-jade.webp",
+      "bytes": 21762,
+      "sha256": "7a097e5ede95572eb41649259bd305c0b637883f0b6e7b1c02c2a5f577ae4f78"
+    },
+    {
+      "file": "dark-greeting.png",
+      "bytes": 138139,
+      "sha256": "d61a4b0bf7d7e47b342cf14d7f4739a081c2bcf6665e29833e26c3410c78aef1"
+    },
+    {
+      "file": "dark-idle.png",
+      "bytes": 136941,
+      "sha256": "1b26c93c03aedde5f30382d8b0a29ec00d47941d21aa80224d84bb7e0b3f637e"
+    },
+    {
+      "file": "dark-sit.png",
+      "bytes": 132565,
+      "sha256": "096ee2d2cc0fcf11efaea7384210c7237dd4e18c0495aeadd7941e5c6e308366"
+    },
+    {
+      "file": "dark-walk.png",
+      "bytes": 136848,
+      "sha256": "74b7890d28231508978a66e3fdc71932b3b3368f7c0082253301afa1e5250912"
+    },
+    {
+      "file": "dark-work.png",
+      "bytes": 136941,
+      "sha256": "1b26c93c03aedde5f30382d8b0a29ec00d47941d21aa80224d84bb7e0b3f637e"
+    },
+    {
+      "file": "den-dark-far-meeting.png",
+      "bytes": 521880,
+      "sha256": "dc639c2df85388aba405814be0de891808d2d97748988d9fc59eeb0636b7b1ee"
+    },
+    {
+      "file": "den-dark-far-working.png",
+      "bytes": 512609,
+      "sha256": "4c40a148435af847dd1fa8167169e14d71c2429dcfc222237bab67b461054816"
+    },
+    {
+      "file": "den-dark-first-person.png",
+      "bytes": 459105,
+      "sha256": "74f43ae1000ee5a2f3f4f2911373084b4f641aa6d6315d55187a8a7a52036bb6"
+    },
+    {
+      "file": "den-dark-near-meeting.png",
+      "bytes": 524632,
+      "sha256": "ebd2b1e082042947539e62fd9a05e35eecbc415f40071adf74f7b6fdca608311"
+    },
+    {
+      "file": "den-dark-near-working.png",
+      "bytes": 440221,
+      "sha256": "14c0e795d7ecb46ebdcbbc6a4160a179895a9c1f669c1b002b60e89280116365"
+    },
+    {
+      "file": "den-dark-portraits.png",
+      "bytes": 455688,
+      "sha256": "3619076e01052457590cad3324d4fdd38f82364a562edfdcd5b15f7b59e60534"
+    },
+    {
+      "file": "den-light-fallback.png",
+      "bytes": 485085,
+      "sha256": "2f2e01d672f9192e74c897e327c8b25da6b9f31560d591263878f0e850d39649"
+    },
+    {
+      "file": "den-light-far-meeting.png",
+      "bytes": 517269,
+      "sha256": "fd7d8bbd6f925dffb0b151d7e25b636a1daf15a4c1c2c4113948fc488fb72162"
+    },
+    {
+      "file": "den-light-far-working.png",
+      "bytes": 510363,
+      "sha256": "835c039320701ca126caa76b99ea81e39a93a75b7db4aff80da9d7da53a61c96"
+    },
+    {
+      "file": "den-light-first-person.png",
+      "bytes": 455634,
+      "sha256": "2668c6d87de8e4d978b2b55ae3b171b2d519d43de6a131ae200d50e090133c8a"
+    },
+    {
+      "file": "den-light-near-meeting.png",
+      "bytes": 518871,
+      "sha256": "962b4e6f9e76ad7df50bff1eda5d71357942bdffdad3fcd4548dc763876e9f07"
+    },
+    {
+      "file": "den-light-near-working.png",
+      "bytes": 436429,
+      "sha256": "a25d2c0bf4b032fb5d4faeb34a7f7024196ec78892407705af3a5596c2596438"
+    },
+    {
+      "file": "den-light-portraits.png",
+      "bytes": 451670,
+      "sha256": "0faacd6abeb089bf2886b4f32dc2d9ff962d66b924078db77176212804b40d06"
+    },
+    {
+      "file": "light-greeting.png",
+      "bytes": 139654,
+      "sha256": "99b3868b2cec3f49da2a3a4ed86bf13b3a86b816fadb77d9d97dcb4bf60889ba"
+    },
+    {
+      "file": "light-idle.png",
+      "bytes": 138276,
+      "sha256": "88bd2db31a158a304e2831f49bd7e01751c59235fef8acef6c71313246748b65"
+    },
+    {
+      "file": "light-sit.png",
+      "bytes": 133530,
+      "sha256": "42c95105acdc08985f8aeb9f6c2fb23f82a9fd381ca0c3ce6e81f6cb0a60b47c"
+    },
+    {
+      "file": "light-walk.png",
+      "bytes": 138020,
+      "sha256": "f27e624f89763c917deef761eaa8112066f2da95b7a14fdfd6109210e8b3c454"
+    },
+    {
+      "file": "light-work.png",
+      "bytes": 138276,
+      "sha256": "88bd2db31a158a304e2831f49bd7e01751c59235fef8acef6c71313246748b65"
+    },
+    {
+      "file": "portrait-48-72-authoring.png",
+      "bytes": 21134,
+      "sha256": "9330ac099c111bb871cf984ac7c256f92a7e7f1d9437990cc15c5af1d84179ca"
+    },
+    {
+      "file": "side-idle.png",
+      "bytes": 127448,
+      "sha256": "d5a8626ee58c95eebc4b272303b5e9b68447cf7c90dc18c9bf5e9f0d92a7d28a"
+    }
+  ]
+}
