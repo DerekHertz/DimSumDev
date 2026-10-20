@@ -1,0 +1,14 @@
+import fs from 'node:fs';
+import crypto from 'node:crypto';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const {assemble}=createRequire(import.meta.url)('./performance-resume.cjs');
+const [frozenPath,continuationPath,output]=process.argv.slice(2);
+if(!output)throw Error('Usage: node assemble-performance.mjs frozen.json continuation.json output.json');
+const frozen=fs.readFileSync(frozenPath),continuation=fs.readFileSync(continuationPath);
+const sha=b=>crypto.createHash('sha256').update(b).digest('hex');
+assert.equal(sha(frozen),'9f4bdcfd468b39c3e8264df670f4859aee181e5d88853f6e9ef15f01bd9af734','approved frozen raw checksum');
+const next=JSON.parse(continuation),combined=assemble(JSON.parse(frozen),next);
+Object.assign(combined.resume,{frozenSha256:sha(frozen),continuationSha256:sha(continuation),nativeNode:next.nativeNode,selectionRecordedAt:next.resumePlan.recordedAt});
+fs.writeFileSync(output,JSON.stringify(combined));
+console.log(JSON.stringify({runs:combined.scenarios.length,resume:combined.resume,sha256:sha(fs.readFileSync(output))},null,2));

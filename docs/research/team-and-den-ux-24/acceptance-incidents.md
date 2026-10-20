@@ -24,3 +24,17 @@ No additional Meshy stages, purchases, dependency edits or installed-service cha
 | Initial native cleanup inspection | Bash expanded PowerShell's dollar-underscore token and the echoed command exposed the configured TypeSafe credential (`TYPESAFE_API_KEY`) in tool output | Quoting mistake acknowledged immediately to root. No value copied into files/reports. Switched to file-based native helper with argument arrays; user credential rotation remains necessary. This was not an approval rejection. |
 
 Native `cmd.exe` emitted the usual nonfatal UNC-cwd notice and defaulted to Windows directory; every native command used absolute paths. Intentional owned-server SIGTERM is cleanup, not an acceptance failure. Full GPU results are reported separately; preflight and failed initial validation never count as acceptance samples.
+
+## Resumed developer evidence round
+
+| Call | Exact failure or observation | Resolution / classification |
+| --- | --- | --- |
+| Initial scoped file discovery | `rg: .scratch: No such file or directory (os error 2)` and same for `.den` in the worktree | Used the main board and known research files. Invocation/discovery error. |
+| Overbroad optional temp discovery | `Permission denied (os error 13)` for protected `/tmp` service/daemon directories | Stopped broad discovery; no permissions changed or files accessed. Ordinary Linux read boundary. |
+| Optional guessed role-doc path | `cat: docs/agents/genome.md: No such file or directory` | The developer role definition was already read at `.codex/agents/developer.toml`. Discovery error. |
+| Expected resume-test red | `Cannot find module ./performance-resume.cjs` | Tests written first; new helper makes all five pass. Expected TDD red. |
+| New summary tests against previous script | `The string argument must be of type string. Received type undefined` and `Missing expected exception.` for a59-run dataset | Corrected declared percentile/named CPU reporting and mandatory full-recipe guards. Two tests pass; `/tmp/24-summary-red-tests.txt` retains expected red. |
+| Captured-data performance gate | `AssertionError: unchanged per-scenario five-percent acceptance gate` | Three GPU and two combinedCPU scenario gates fail. Retained all60 rows; no waiver or sample replacement. Genuine measured acceptance failure; cause unresolved. |
+| First source-path probe during bounded diagnosis | Missing `plush/characters/bao*.mjs` and `plush/character*.mjs` | Used exact files from scoped `rg --files`. Discovery error. |
+
+Continuation startup itself ran the existing lockfile install and reported engine warnings under WSL Node18 plus one moderate audit finding; no dependency files were edited or audit fix attempted. Native captures used the established Node22 executable. All native calls used file-based helpers/literal argument arrays with TypeSafe absent; no Jev/TypeSafe calls or credential inspection occurred. Nonfatal native UNC-cwd notices persisted. No automatic approval rejection occurred in this round.

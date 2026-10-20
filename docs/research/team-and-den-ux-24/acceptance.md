@@ -38,11 +38,9 @@ GC loaded heap, cycles1→5: original **365.83→368.45 MB**, selected **359.60�
 
 Before uses this same current build with **only `assets['characters.bao']` removed from the manifest before world load** and the original portrait served. It never requests/loads the selected GLB, never enters failed-load fallback and does not use rejected local art. The original body `bao.glb.gz` has unchanged SHA256 `793118be3b0c3fa311a9baf21081e7482c713abf60a564333726527b06cc616c`; vest/headphones/scarf and legacy role outfit/tool branches are unchanged from current `origin/main`. Shared rig edits are Bao-profile opt-ins or preserve legacy defaults; new source profile is unused in before. Both run the same 04 shell, actor/navigation/camera/garden runtime. Parent approved atlas exception remains exactly1,398,100 **GL-requested** bytes, not driver VRAM.
 
-**User paused this work during the full run.** Forty-five of60 complete runs are retained exactly; the46th was interrupted by closing the owned Chrome. The initial canvas assertion failure and20-case short preflight are separate receipts, never acceptance samples. No pooled/per-scenario performance verdict was produced, and the remaining15 runs were not started/completed after the pause. Resume requires the user's instruction; a resumed developer must assess the matching/quiet-box recipe before using a later continuation as one comparable run.
+**Completed after explicit user resume.** The original45-row frozen file remains intact; predeclared pair-boundary assembly retains44 and adds16 new full rows. All60 hardware runs are valid, but the approved per-scenario +5% gates fail for GPU in idle-dark/meeting-light/reduced-dark and combined CPU in idle-dark/meeting-dark. No replacement acceptance or budget waiver is claimed. See `performance.md`, `performance-statistics.json` and updated `acceptance-receipt.json` for full numbers, raw hashes, comparability checks and the bounded diagnosis.
 
-Frozen partial raw: `ticket24-acceptance/performance-paused-45-runs.json` in the retained native visual evidence folder; SHA256 `9f4bdcfd468b39c3e8264df670f4859aee181e5d88853f6e9ef15f01bd9af734`. `pause-receipt.json` records the interruption and cleanup. Owned Chrome26300 was gracefully terminated; native Node50812 exited through its catch/finally and saved the partial file; owned server1915952 received SIGTERM, process absent and4425 closed. No tests, benchmark, or final-result analysis continued after the pause.
-
-Full 60-run hardware comparison, pooled/per-scenario p95 verdict, independent QA/code review and final user fitting/performance acceptance remain pending. `summarize-performance.mjs` is prepared but unexecuted and unverified at this pause, so it is not a result.
+The summarizer is now executed and independently verified. Owned capture/diagnostic browsers and servers are stopped;4425 is closed. Final user seated-fit/performance verdict, causal performance profiling/correction and independent product QA/code review remain pending.
 
 ## Verification map
 
@@ -53,7 +51,7 @@ Full 60-run hardware comparison, pooled/per-scenario p95 verdict, independent QA
 | Five motions/reduced motion/envelopes | Existing Bao production cycle/wave/static-rest tests and `measure-bao.mjs` | Green; seated capture updated |
 | Model/portrait/runtime/project/run binding | Actual-asset integration test + native before/after UI wire cases; existing 42 tests | Green for current supported contracts; pre-existing anchor/body limits explicit |
 | State/action/fallback/rollback | Native ten cases, camera/anchor equality, retained fallback assets,43backend tests | Green for current shell; obsolete names not applicable to both |
-| Budgets/garden/frame-time | Existing per-character/garden tests, matched disposal; prepared full hardware recipe | Resource evidence green; full GPU comparison pending |
+| Budgets/garden/frame-time | Existing per-character/garden tests, matched disposal; prepared full hardware recipe | Resource evidence green; complete60-run comparison fails five per-scenario timing gates |
 | User final verdict | Approved model/portrait/atlas checkpoint; new seated fit + full performance | Pending, not self-approved |
 
 Failed calls and red diagnostic history: `acceptance-incidents.md`. Nonhidden focused output: `/tmp/24-final-focused-tests.txt`.

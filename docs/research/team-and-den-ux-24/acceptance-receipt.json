@@ -2,10 +2,10 @@
   "sourceCommit": "efbb225f9569abeb269cd052236dac426c4d9af4",
   "evidenceCommit": "366ae75",
   "evidenceRoot": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-acceptance",
-  "pausedByUser": true,
-  "completePerformanceRuns": 45,
+  "pausedByUser": false,
+  "completePerformanceRuns": 60,
   "requiredPerformanceRuns": 60,
-  "performanceVerdict": null,
+  "performanceVerdict": "FAIL: three GPU and two combinedCPU per-scenario +5% gates; no waiver",
   "files": [
     {
       "name": "acceptance-results.json",
@@ -46,6 +46,170 @@
       "name": "pause-receipt.json",
       "bytes": 532,
       "sha256": "0fd071187342f17795510679a69ce98a2b6e96d345b7e19f57aa497f8d20c0d3"
+    },
+    {
+      "name": "resumed/resume-plan.json",
+      "bytes": 11112,
+      "sha256": "120f9cc6d53d5d38b955edcc4104197b509810ae87d077869cc008dd07e13c14"
+    },
+    {
+      "name": "resumed/performance-preflight.json",
+      "bytes": 44849,
+      "sha256": "37cddae2678f158cb5e2e751db5775789a01099bc1ddd97822c361790a3ca135"
+    },
+    {
+      "name": "resumed/performance-raw.json",
+      "bytes": 4101298,
+      "sha256": "5803fcf73a0f38c1192367da5be466ee41a915a367e43c6e0437f5bcbf6e8e52"
+    },
+    {
+      "name": "resumed/performance-assembled-60.json",
+      "bytes": 15326918,
+      "sha256": "d3a5ca47a75a7bef4f586d560fed68039dc37d3b67ad72d56470d2e357221b1d"
+    },
+    {
+      "name": "resumed/performance-summary.json",
+      "bytes": 1453863,
+      "sha256": "0954c0bdb44feef0bfd9f78a18efe8e11583eec2117bfc1273fa55b984296972"
+    },
+    {
+      "name": "resumed/runtime-receipt.json",
+      "bytes": 793,
+      "sha256": "0fe6b373f2fd81b67008d4a3fe36981a67379e1ca8de0ecc2f43f50de1ea4a43"
+    },
+    {
+      "name": "resumed/material-profile.json",
+      "bytes": 40571,
+      "sha256": "5db424fb6b9442429d456ed2c6a7c2403ca58d7f11d5ce3f68641184106ab6f0"
+    },
+    {
+      "name": "resumed/observed-audit.json",
+      "bytes": 78732,
+      "sha256": "4b005437155e026183d09955d6f2e93a8aaf21149de03a3e10861f2cb11caf3b"
+    },
+    {
+      "name": "resumed/gpu-host.json",
+      "bytes": 8224,
+      "sha256": "684c0cbf1dca3b8a318a7ee124a5d23ed466b570ec8665152a785bfc08cacfa8"
+    },
+    {
+      "name": "resumed/native-performance.cjs",
+      "bytes": 8991,
+      "sha256": "359390e90d3780db8692be24207f89494ad6c88846bad68ea4fc6a49984cb0c2"
+    },
+    {
+      "name": "resumed/performance-resume.cjs",
+      "bytes": 3883,
+      "sha256": "a370eb3a2ebdf90a626efe39d9f9f14703f6343fc74c42b24a617246e5dc5481"
+    },
+    {
+      "name": "resumed/capture-review.cjs",
+      "bytes": 14184,
+      "sha256": "c515ba0c9f420460c0adc76159ccff6a2a1b5d56751e222702ebcb02d3bfd315"
+    },
+    {
+      "name": "resumed/native-profile.cjs",
+      "bytes": 4456,
+      "sha256": "072b7894000192cc8e39009a01cc1d742854f11e4fdcd9cfa3c35a04c765aee1"
+    },
+    {
+      "name": "resumed/gpu-host.cjs",
+      "bytes": 681,
+      "sha256": "7192c7ca4a68a7aa24ec8dccfa6aa2d708d6b0a87896ffa5edcb14fb4e6ceaaa"
+    },
+    {
+      "name": "resumed/runtime-receipt.cjs",
+      "bytes": 665,
+      "sha256": "173f1e4b0f696fbbdb39186d6a89778c6dcaac76b4a5a65aadfd230fab40a155"
+    },
+    {
+      "name": "resumed/run-native.cjs",
+      "bytes": 552,
+      "sha256": "0a1213fc2ef4cfcec4cb70e4a81fa1988aef3cb8ef3673a3a3f8182cf8f4427b"
+    },
+    {
+      "name": "resumed/cpu-components.json",
+      "bytes": 6455,
+      "sha256": "79913d7df817b12c1827dd773e8b1dd3f7935623c885997d079c24b5a64b2125"
+    },
+    {
+      "name": "quiet-diagnostic/diagnostic-plan.json",
+      "bytes": 869,
+      "sha256": "95dd1ea133f09e5bf193ca500c57b6d7b8796c4924534da51ee0b63814188ca9"
+    },
+    {
+      "name": "quiet-diagnostic/performance-raw.json",
+      "bytes": 1550630,
+      "sha256": "692e851fa7894d92855e5b0db0f4ee419bac6bbd0f32739b5748d072ea87b699"
+    },
+    {
+      "name": "quiet-diagnostic/summary.json",
+      "bytes": 21791,
+      "sha256": "97d2000153dafe1f8322e7deb0f233dd006a274a4c0bccc0c10cee1df5976653"
+    },
+    {
+      "name": "quiet-diagnostic/native-performance.cjs",
+      "bytes": 8554,
+      "sha256": "c85a9c54e4923205718669c74e13384c13e70c5c871815fcafea05406ed04e86"
+    },
+    {
+      "name": "quiet-diagnostic/capture-review.cjs",
+      "bytes": 14184,
+      "sha256": "c515ba0c9f420460c0adc76159ccff6a2a1b5d56751e222702ebcb02d3bfd315"
+    },
+    {
+      "name": "quiet-diagnostic/performance-resume.cjs",
+      "bytes": 4299,
+      "sha256": "266c5e8767154a8383e22a8a09b3a1a4ec92b086853f6cae6d4def881683e195"
+    },
+    {
+      "name": "quiet-diagnostic/summarize-diagnostic.cjs",
+      "bytes": 3392,
+      "sha256": "1f6a44e333239d57febc84541ee207f5737d12ebe6417d6594e89a59134c3a1f"
+    },
+    {
+      "name": "quiet-diagnostic/prepare-diagnostic.cjs",
+      "bytes": 2037,
+      "sha256": "9ac7f0b09cbb1eddb5dd86a7822291d565f8888d62dfe6620a4c04ddc9e58135"
+    },
+    {
+      "name": "resumed/audit-observed.cjs",
+      "bytes": 2429,
+      "sha256": "de486c8fa885f42d6f1e21a111e946c9483ae473d653586fd237c4017bf34315"
     }
-  ]
+  ],
+  "performanceSelection": {
+    "retained": 44,
+    "newRuns": 16,
+    "excludedDiagnostic": 1,
+    "reason": "Predeclared incomplete-pair boundary; frozen rows retained verbatim",
+    "startedAt": "2026-10-20T21:02:38.366Z",
+    "frozenSha256": "9f4bdcfd468b39c3e8264df670f4859aee181e5d88853f6e9ef15f01bd9af734",
+    "continuationSha256": "5803fcf73a0f38c1192367da5be466ee41a915a367e43c6e0437f5bcbf6e8e52",
+    "nativeNode": "v22.20.0",
+    "selectionRecordedAt": "2026-10-20T21:02:38.366Z"
+  },
+  "trackedStatistics": {
+    "path": "docs/research/team-and-den-ux-24/performance-statistics.json",
+    "bytes": 366467,
+    "sha256": "4a59ec6430f8b693ef5cb22111bd2a1fe71589e5de03077a8fd8020c3ca0f9cd"
+  },
+  "comparabilityLimits": [
+    "Original raw omitted native Node version; same established executable mtime predates both segments.",
+    "Historical GPU utilization/process activity, exact pose phase/quaternions and camera matrices were not recorded; quiet-host condition remains unverified."
+  ],
+  "quietDiagnostic": {
+    "kind": "diagnostic only; six valid rows, never substitutes failed60",
+    "gpuMedian": {
+      "before": 16.816128,
+      "after": 16.555008,
+      "percent": -1.552795031055887
+    },
+    "cpuMedian": {
+      "before": 19.5,
+      "after": 19,
+      "percent": -2.564102564102566
+    },
+    "conclusion": "Baseline GPU variability persists; causal profiling remains root-owned; no full acceptance rerun started."
+  }
 }

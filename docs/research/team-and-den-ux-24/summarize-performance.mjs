@@ -1,29 +1,33 @@
 // Read-only statistics over every retained run; never filters poor scenarios.
 import fs from 'node:fs';
 import crypto from 'node:crypto';
+import assert from 'node:assert/strict';
+import {createRequire} from 'node:module';
+const {combinedCpu,namedAnimations,validateRow,plan}=createRequire(import.meta.url)('./performance-resume.cjs');
 const input=process.argv[2],output=process.argv[3];
 if(!input||!output)throw Error('Usage: node summarize-performance.mjs raw.json summary.json');
 const bytes=fs.readFileSync(input),raw=JSON.parse(bytes),rows=raw.scenarios;
+assert.equal(rows.length,60,'full approved recipe only');
+assert.ok(!raw.failure,'successful assembled capture');assert.ok(raw.finishedAt,'capture finished');assert.deepEqual(raw.errors,[]);assert.deepEqual(raw.writes,[]);
+rows.forEach((row,i)=>{const expected=plan(0).all[i];for(const key of ['name','rep','baseline'])assert.equal(row[key],expected[key],'full paired recipe order');validateRow(row);});
 const median=xs=>quantile(xs,.5);
 function quantile(xs,p){if(!xs.length)return null;const sorted=[...xs].sort((a,b)=>a-b);return sorted[Math.max(0,Math.ceil(sorted.length*p)-1)];}
 const distribution=xs=>({n:xs.length,min:xs.length?Math.min(...xs):null,p50:quantile(xs,.5),p95:quantile(xs,.95),p99:quantile(xs,.99),max:xs.length?Math.max(...xs):null,mean:xs.length?xs.reduce((s,v)=>s+v,0)/xs.length:null});
 const change=(before,after)=>({before,after,percent:before?100*(after/before-1):null});
-function combinedCpu(row){
- const animations=[...row.animationCpu].sort((a,b)=>a.at-b.at);let cursor=0;
- return row.records.map(frame=>{let animation=0;while(cursor<animations.length&&animations[cursor].at<=frame.at)animation+=animations[cursor++].ms;return frame.cpuMs+animation;});
-}
 function clocks(row){return row.clocks.flatMap(c=>c.csv.split('\n').map(line=>{const xs=line.split(',').map(s=>s.trim());return {timestamp:xs[0],pstate:xs[1],graphicsMHz:Number(xs[2]),memoryMHz:Number(xs[3]),powerW:Number(xs[4]),temperatureC:Number(xs[5])};}));}
 function fps(row){const records=row.records;return 1000*(records.length-1)/(records.at(-1).at-records[0].at);}
-const evaluated=rows.map(row=>({...row,combined:combinedCpu(row),clockSamples:clocks(row)}));
+const evaluated=rows.map(row=>({...row,combined:combinedCpu(row),namedAnimations:namedAnimations(row),clockSamples:clocks(row)}));
 function report(list){return {
  runs:list.length,frames:list.reduce((n,r)=>n+r.records.length,0),gpuMs:distribution(list.flatMap(r=>r.gpuMs)),renderCpuMs:distribution(list.flatMap(r=>r.records.map(f=>f.cpuMs))),renderAndAnimationCpuMs:distribution(list.flatMap(r=>r.combined)),
- animationCallbacks:Object.fromEntries(['update','pose'].map(key=>[key,distribution(list.flatMap(r=>r.animationCpu.filter(a=>a.key===key).map(a=>a.ms)))])),
+ frameIntervalMs:distribution(list.flatMap(r=>r.records.slice(1).map((f,i)=>f.at-r.records[i].at))),
+ animationCallbacks:Object.fromEntries(['agents.update','ambient.pose','koi.update'].map(key=>[key,distribution(list.flatMap(r=>r.namedAnimations.filter(a=>a.name===key).map(a=>a.ms)))])),
  deliveredFps:distribution(list.map(fps)),perRunGpuP95:distribution(list.map(r=>quantile(r.gpuMs,.95))),perRunCombinedCpuP95:distribution(list.map(r=>quantile(r.combined,.95))),heapBytes:distribution(list.map(r=>r.heap.used)),
  calls:distribution(list.flatMap(r=>r.records.map(f=>f.calls))),sceneTriangles:distribution(list.map(r=>r.scene.triangles)),geometryBufferBytes:distribution(list.map(r=>r.scene.geometryBufferBytes)),estimatedRgbaTextureBytes:distribution(list.map(r=>r.scene.estimatedRgbaTextureBytes)),
- disjointQueries:list.reduce((n,r)=>n+(r.disjoint||0),0),clockMHz:distribution(list.flatMap(r=>r.clockSamples.map(c=>c.graphicsMHz))),pstates:[...new Set(list.flatMap(r=>r.clockSamples.map(c=>c.pstate)))],
+ disjointQueries:list.reduce((n,r)=>n+(r.disjoint||0),0),pendingQueries:list.reduce((n,r)=>n+r.pendingQueries,0),clockMHz:distribution(list.flatMap(r=>r.clockSamples.map(c=>c.graphicsMHz))),memoryClockMHz:distribution(list.flatMap(r=>r.clockSamples.map(c=>c.memoryMHz))),temperatureC:distribution(list.flatMap(r=>r.clockSamples.map(c=>c.temperatureC))),powerW:distribution(list.flatMap(r=>r.clockSamples.map(c=>c.powerW))),pstates:[...new Set(list.flatMap(r=>r.clockSamples.map(c=>c.pstate)))],
 };}
 const summary={rawSha256:crypto.createHash('sha256').update(bytes).digest('hex'),meta:raw.meta,recipe:raw.recipe,startedAt:raw.startedAt,finishedAt:raw.finishedAt,complete:rows.length===60&&!raw.failure,failure:raw.failure||null,hardware:raw.gpu,browser:raw.browser,viewport:raw.viewport,dpr:raw.dpr,frameCap:raw.frameCap,errors:raw.errors,writes:raw.writes,
- cpuMethod:'renderer.render CPU plus agents.update, den.ambient.pose and koi.update callbacks timestamp-aligned between successive rendered frames; excludes unrelated browser/UI/React work.',
+ percentileMethod:'Nearest rank: sorted[ceil(n*p)-1]; the middle repetition is the median of three per-run p95 values. Pooled distributions retain every measured sample.',
+ cpuMethod:'renderer.render CPU plus agents.update, den.ambient.pose and koi.update callbacks timestamp-aligned between successive rendered frames; excludes unrelated browser/UI/React work. Legacy update/pose/update tags are named by the unchanged, validated production callback sequence; all callbacks must be assigned.',
  pooled:{before:report(evaluated.filter(r=>r.baseline)),after:report(evaluated.filter(r=>!r.baseline))},scenarios:[],runs:[],limitations:['Texture memory is a material-dimension RGBA+mipmap estimate; observed Bao GL texStorage2D allowance is a separate exact requested-storage metric, not driver VRAM.','NVIDIA clocks are observed, never pinned or modified; all three repetitions remain in the verdict.']};
 for(const name of [...new Set(rows.map(r=>r.name))]){
  const before=evaluated.filter(r=>r.name===name&&r.baseline),after=evaluated.filter(r=>r.name===name&&!r.baseline),b=report(before),a=report(after),gpu=change(b.perRunGpuP95.p50,a.perRunGpuP95.p50),cpu=change(b.perRunCombinedCpuP95.p50,a.perRunCombinedCpuP95.p50);

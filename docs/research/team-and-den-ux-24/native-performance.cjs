@@ -1,5 +1,7 @@
 const fs=require('node:fs'),assert=require('node:assert/strict'),{execFileSync}=require('node:child_process');
 const {chromium}=require('C:/Users/Derek/AppData/Local/Temp/den-cast-23/22-runtime/node_modules/playwright');
+const {plan,validateMetadata}=require('./performance-resume.cjs');
+const resumeIndex=process.argv.indexOf('--resume'),resume=resumeIndex<0?null:JSON.parse(fs.readFileSync(process.argv[resumeIndex+1]));
 const reference=fs.readFileSync(__dirname+'/capture-review.cjs','utf8');
 let source=reference.slice(reference.indexOf('function instrumentation()'),reference.indexOf('\nfunction fixture('));
 source=source.replace('p.anim.push({key,ms:performance.now()-t})','p.anim.push({key,at:t,ms:performance.now()-t})').replace('if(!gl.getParameter(ext.GPU_DISJOINT_EXT))p.gpu.push(gl.getQueryParameter(next,gl.QUERY_RESULT)/1e6);','if(!gl.getParameter(ext.GPU_DISJOINT_EXT))p.gpu.push(gl.getQueryParameter(next,gl.QUERY_RESULT)/1e6);else p.disjoint=(p.disjoint||0)+1;');
@@ -8,10 +10,12 @@ const fixture=new Function('return ('+reference.slice(reference.indexOf('functio
 const preflight=process.argv.includes('--preflight'),output=process.argv[2]||__dirname,results={schema:1,kind:preflight?'Metadata/layout/hardware preflight; NOT acceptance performance':'Full approved acceptance recipe',recipe:'10 scenarios x 3 repetitions x 10s warmup + 30s sample x original-shipped Bao / selected A; one Chrome, interleaved pairs with alternating order',viewport:{width:1440,height:900},canvas:{width:1384,height:856,reason:'Current04 shell reserves56px rail and44px bar'},dpr:1,frameCap:30,warmupMs:preflight?0:10000,sampleMs:preflight?1000:30000,reps:preflight?1:3,scenarios:[],errors:[],writes:[],startedAt:new Date().toISOString()};
 const clock=()=>({at:new Date().toISOString(),csv:execFileSync('C:/Windows/System32/nvidia-smi.exe',['--query-gpu=timestamp,pstate,clocks.current.graphics,clocks.current.memory,power.draw,temperature.gpu','--format=csv,noheader,nounits'],{encoding:'utf8',timeout:5000}).trim()});
 const save=()=>fs.writeFileSync(output+(preflight?'/performance-preflight.json':'/performance-raw.json'),JSON.stringify(results));
+if(resume)results.resumePlan={...plan(resume.scenarios.length),recordedAt:new Date().toISOString(),selection:'Keep44 saved paired runs; exclude old unpaired45th only; recollect full pair and remaining pairs'};
 const cases=[['idle-light',false,false,false,false,'light'],['idle-dark',false,false,false,false,'dark'],['crowded-light',true,false,false,false,'light'],['crowded-dark',true,false,false,false,'dark'],['meeting-light',true,true,false,false,'light'],['meeting-dark',true,true,false,false,'dark'],['walk-light',true,false,true,false,'light'],['walk-dark',true,false,true,false,'dark'],['reduced-light',true,true,false,true,'light'],['reduced-dark',true,true,false,true,'dark']];
-(async()=>{let browser;const deadline=setTimeout(()=>{results.failure=preflight?'Overall5-minute preflight deadline':'Overall50-minute deadline';save();console.error(results.failure);process.exit(2);},preflight?300000:3000000);
+(async()=>{let browser;const bound=preflight?300000:resume?1200000:3000000;const deadline=setTimeout(()=>{results.failure='Overall deadline '+bound+'ms';save();console.error(results.failure);process.exit(2);},bound);
  try{browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,args:['--enable-precise-memory-info']});results.browser=browser.version();results.gpu=(await(await browser.newBrowserCDPSession()).send('SystemInfo.getInfo')).gpu;
   for(let rep=1;rep<=results.reps;rep++)for(const [name,crowded,meeting,walk,reduced,theme]of cases)for(const baseline of rep%2?[true,false]:[false,true]){
+   if(resume&&(preflight?name!=='idle-light':!results.resumePlan.remaining.some(r=>r.rep===rep&&r.name===name&&r.baseline===baseline)))continue;
    const context=await browser.newContext({viewport:results.viewport,deviceScaleFactor:1,colorScheme:theme,reducedMotion:reduced?'reduce':'no-preference'});await context.addInitScript(instrumentation);const page=await context.newPage(),snapshot=fixture(crowded,meeting);
    await page.route('**/*',async route=>{const req=route.request(),u=new URL(req.url()),p=u.pathname;
     if(req.method()!=='GET'){results.writes.push({method:req.method(),path:p});return route.abort();}
@@ -23,7 +27,7 @@ const cases=[['idle-light',false,false,false,false,'light'],['idle-dark',false,f
     if(p==='/session'||p.startsWith('/api/'))return route.fulfill({status:404,json:{}});
     return route.continue();});
    page.on('pageerror',e=>results.errors.push({name,rep,baseline,message:e.message}));await page.goto('http://127.0.0.1:4425/',{waitUntil:'load',timeout:45000});
-   if(!results.meta)results.meta=await page.evaluate(()=>fetch('/__meta').then(r=>r.json()));
+   if(!results.meta){results.meta=await page.evaluate(()=>fetch('/__meta').then(r=>r.json()));results.nativeNode=process.version;if(resume)validateMetadata(resume,{...results,warmupMs:resume.warmupMs,sampleMs:resume.sampleMs});}
    await page.waitForFunction(()=>globalThis.__cast22?.stage.camera,null,{timeout:60000});
    await page.waitForFunction(()=>{const p=__cast22,n=p.agents.actors.size;if(n&&n===p._last)p._stable=(p._stable||0)+1;else{p._stable=0;p._last=n;}return n>0&&p._stable>20;},null,{timeout:20000,polling:50});
    if(walk){await page.getByRole('button',{name:'Enter the den',exact:true}).click();await page.waitForTimeout(500);}
