@@ -1,0 +1,51 @@
+{
+  "sourceCommit": "efbb225f9569abeb269cd052236dac426c4d9af4",
+  "evidenceCommit": "366ae75",
+  "evidenceRoot": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-acceptance",
+  "pausedByUser": true,
+  "completePerformanceRuns": 45,
+  "requiredPerformanceRuns": 60,
+  "performanceVerdict": null,
+  "files": [
+    {
+      "name": "acceptance-results.json",
+      "bytes": 52555,
+      "sha256": "fc9c743306a14007f176270ad1bdf69926cc9c07d42d1ae0b0203606ed4bde62"
+    },
+    {
+      "name": "chair-results.json",
+      "bytes": 939,
+      "sha256": "4a6d528865979c860e1b645da9d0ea7d1726e7eefd513e1d417a5e486b24af82"
+    },
+    {
+      "name": "chair-light-three-quarter.png",
+      "bytes": 449255,
+      "sha256": "932da91ca96df9ae8f0cd74a0364f72741b4b2837a0360cdbfa4abf38b65a34d"
+    },
+    {
+      "name": "chair-dark-three-quarter.png",
+      "bytes": 453116,
+      "sha256": "41b44afd4aa98ba14b6d8d91fc383cbfee5339d5cf350b7e93d6de991d901a6a"
+    },
+    {
+      "name": "performance-initial-canvas-assertion.json",
+      "bytes": 7719,
+      "sha256": "24b33b34c671583f61590bc93d565fccc9bba6976a7f4d7261d52d8eba90ecea"
+    },
+    {
+      "name": "performance-preflight.json",
+      "bytes": 342369,
+      "sha256": "2235d65c3efc57e2e91864694f299c910aae2018e762b80dbfa824e7ade9bc9d"
+    },
+    {
+      "name": "performance-paused-45-runs.json",
+      "bytes": 11492605,
+      "sha256": "9f4bdcfd468b39c3e8264df670f4859aee181e5d88853f6e9ef15f01bd9af734"
+    },
+    {
+      "name": "pause-receipt.json",
+      "bytes": 532,
+      "sha256": "0fd071187342f17795510679a69ce98a2b6e96d345b7e19f57aa497f8d20c0d3"
+    }
+  ]
+}
