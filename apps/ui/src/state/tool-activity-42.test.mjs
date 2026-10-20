@@ -49,5 +49,11 @@ test('42 real runs and paired visitors keep their own activity; agent.tool alone
 test('42 run ledger is bounded and prototype-like identities cannot alias another run',()=>{
  let state={};for(let i=0;i<250;i++)state=observeTools(state,`run-${i}`,tool(1,{source:{...tool(1).source,runId:`run-${i}`}}));
  assert.ok(Object.keys(state).length<=200);
- for(const id of ['constructor','__proto__']){state=observeTools(state,id,tool(1,{source:{...tool(1).source,runId:id}}));assert.equal(view(state,{...agent,id}).count,1);}
+ assert.equal(view(state,{...agent,id:'run-249'}),null,'saturation suppresses new run assertions until authoritative pruning');
+ for(const id of ['constructor','__proto__']){const s=observeTools({},id,tool(1,{source:{...tool(1).source,runId:id}}));assert.equal(view(s,{...agent,id}).count,1);}
+});
+test('42 evicted completed invocation cannot revive after more than200 newer terminal entries',()=>{
+ let s=observe({},tool(1,{status:'done'}));for(let id=2;id<=250;id++)s=observe(s,tool(id,{status:'ended'}));
+ assert.equal(s.run42.rows.some(row=>row.source.entryId===1),false);
+ s=observe(s,tool(1));assert.equal(view(s),null);assert.ok(s.run42.floor>=1);
 });

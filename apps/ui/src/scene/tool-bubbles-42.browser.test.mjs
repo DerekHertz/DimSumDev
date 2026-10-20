@@ -1,8 +1,10 @@
 // Production App + real live-store, with synthetic normalized bridge observations.
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {mkdir} from 'node:fs/promises';
-import {preview} from 'vite';
+import {mkdir,mkdtemp,rm} from 'node:fs/promises';
+import {tmpdir} from 'node:os';
+import path from 'node:path';
+import {build,preview} from 'vite';
 import {chromium} from 'playwright';
 import {buildLaunchOptions} from '../../../ci-cd/launch-options.mjs';
 import {lightenScene} from '../../../ci-cd/light-scene.mjs';
@@ -11,9 +13,12 @@ const secret='sk-proj-'+ 'A'.repeat(80);
 const source=id=>({project:'den',runtime:'claude',role:'orchestrator',runId:run,entryId:id});
 const tool=(id,extra={})=>({id,kind:'tool',name:'Read',summary:`inspect safe source ${id}`,status:'running',invocationId:`call-${id}`,source:source(id),...extra});
 test('42 production App: real observations, exact/count keyboard inspection, lifecycle, themes, narrow and cleanup',{timeout:180000},async t=>{
- let server,browser;
+ let server,browser,outDir;
  try{
-  server=await preview({configFile:'apps/ui/vite.config.mjs',configLoader:'native',preview:{port:0,host:'127.0.0.1'},logLevel:'silent'});
+  outDir=await mkdtemp(path.join(tmpdir(),'tool42-production-'));
+  const config={configFile:'apps/ui/vite.config.mjs',configLoader:'native',build:{outDir,emptyOutDir:true},logLevel:'silent'};
+  await build(config);
+  server=await preview({...config,preview:{port:0,host:'127.0.0.1'}});
   browser=await chromium.launch(buildLaunchOptions());
   const context=await browser.newContext({viewport:{width:1440,height:900},reducedMotion:'reduce'});
   await lightenScene(context,{skipDraws:!process.env.TOOL42_EVIDENCE_DIR,frameDelayMs:150});
@@ -77,5 +82,5 @@ test('42 production App: real observations, exact/count keyboard inspection, lif
   assert.deepEqual(errors,[]);assert.deepEqual(posts,[]);assert.equal(await page.evaluate(()=>window.tool42streams.size),1);
   t.diagnostic(process.env.TOOL42_EVIDENCE_DIR?'Production WebGL captures with synthetic correlated observations; actual assets rendered.':'Production App interactions, rasterization omitted; no pixel evidence claimed.');
   await context.close();
- }finally{await browser?.close();await new Promise(resolve=>server?.httpServer.close(resolve)??resolve());}
+ }finally{await browser?.close();await new Promise(resolve=>server?.httpServer.close(resolve)??resolve());if(outDir)await rm(outDir,{recursive:true,force:true});}
 });

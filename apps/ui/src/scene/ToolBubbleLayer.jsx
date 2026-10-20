@@ -20,7 +20,13 @@ export function ToolBubbleLayer({bindings,stage,onInspect,picked,selected}){
     const origin=layer.current.getBoundingClientRect();
     const blocked=[...document.querySelectorAll('[data-sheet],.den-float,.den-walk-pad,.den-entry,.zoom-switcher,.forest-legend,.meeting-label,.wave-ack')].filter(el=>el.getClientRects().length&&getComputedStyle(el).visibility!=='hidden').map(el=>{const r=el.getBoundingClientRect();return {x:r.x-origin.x,y:r.y-origin.y,width:r.width,height:r.height};});
     // Model targets are protected too; the bubble sits above its own crown.
-    for(const anchor of stage.toolAnchors?.values()??[]){const top=anchor.top.clone().project(camera),base=anchor.base.clone().project(camera);if(top.z>=-1&&top.z<=1)blocked.push({x:(top.x+1)*size.width/2-18,y:(1-top.y)*size.height/2,width:36,height:Math.max(24,Math.abs(top.y-base.y)*size.height/2)});}
+    for(const [id,anchor]of stage.toolAnchors??[]){
+     const actor=latest.current.bindings.get(id);
+     // At overview scale idle targets fill the roofline. Reserve the targets the user is
+     // inspecting and the other live calls; generic idle targets must not erase all activity.
+     if(!actor?.toolActivity&&id!==latest.current.picked&&(!latest.current.selected||actor?.ref!==latest.current.selected))continue;
+     const top=anchor.top.clone().project(camera),base=anchor.base.clone().project(camera);if(top.z>=-1&&top.z<=1)blocked.push({x:(top.x+1)*size.width/2-18,y:(1-top.y)*size.height/2,width:36,height:Math.max(24,Math.abs(top.y-base.y)*size.height/2)});
+    }
     for(const p of placeToolBubbles(rows,{...size,blocked})){
      const el=nodes.current.get(p.id);if(!el)continue;
      el.style.left=`${p.x}px`;el.style.top=`${p.y}px`;el.style.visibility='visible';el.dataset.compact=String(p.compact);

@@ -8,7 +8,9 @@ const LIMIT = 200;
 const safe = value => typeof value === 'string' ? cleanText(value).replace(/\s+/g,' ').trim() : '';
 const clip = (value, limit) => [...value].length > limit ? [...value].slice(0,limit-1).join('')+'…' : value;
 const own=(object,key)=>object&&Object.hasOwn(object,key)?object[key]:undefined;
-function retainRun(state,id,run){const next={...state,[id]:run};const ids=Object.keys(next);for(const id of ids.slice(0,Math.max(0,ids.length-LIMIT)))delete next[id];return next;}
+// At saturation suppress a new run until a snapshot prunes disposed runs. Evicting
+// a whole run's tombstones would let its later replay masquerade as a first observation.
+function retainRun(state,id,run){if(!Object.hasOwn(state,id)&&Object.keys(state).length>=LIMIT)return state;return {...state,[id]:run};}
 export function observeTools(state = {}, runId, entry) {
  const old=own(state,runId)??{rows:[],floor:-1,ended:false};
  if(old.ended)return state;
