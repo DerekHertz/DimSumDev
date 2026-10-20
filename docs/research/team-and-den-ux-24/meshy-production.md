@@ -1,14 +1,14 @@
-# Selected Bao A: partial production checkpoint
+# Selected Bao A: rig fitting checkpoint
 
 User chose Meshy A. The selected source is now remeshed and packaged with its
 textured face, robe, jade sash and pouch. The replacement stays confined to Claude
 orchestrators; Jiao retains the original Codex source and portrait. No layout,
 camera, router, installed service, dependency or purchase changes.
 
-**Motion fitting is unfinished.** This is a WIP checkpoint, not a request to accept
-the replacement. The new actual-mesh wave regression remains red. Native neutral
-scene and portrait renders are useful for the next continuation but do not waive
-the motion, fit, hardware or independent review gates.
+The retained actual-mesh wave regression and the new static-rest/cycle checks now
+pass. This is a fitting checkpoint; furniture clearance, matched performance,
+independent review and the user's visual verdict remain pending. No further paid
+stages were run during fitting.
 
 ## Reproduce
 
@@ -47,41 +47,47 @@ checked2026-10-20: <https://docs.meshy.ai/en/api/pricing>.
 | Unique atlas | one512×512WebP; matte color only |
 | Estimated RGBA8 + mip atlas allocation | 1,398,101bytes (1.33MiB) |
 
-`fitting.json` sweeps0.2s samples through4.8s of idle, sit, walk, tea, greeting,
-pond and mahjong/work gestures. All published outer envelopes and floor limits
-pass. This measures geometry, not correct deformation or collision clearance.
+The updated measurement script sweeps25 frames per state through4.8s of idle,
+work, sit, walk, tea, greeting, pond and mahjong. It checks outer/head envelopes,
+floor limits and actual surface-edge stretch. Pass an output path to retain prior
+evidence. The head radius follows the source's upper-head vertices, rather than
+mistaking a raised paw for part of the head.
 It does not establish desk, conversation or meeting-chair fit. Bao's current
 runtime host anchor has no chair and remains standing; seated renders are
 authoring previews only.
 
-## Exact motion finding
+## Motion findings and changes
 
-The legacy profile initially rotated the raised paw toward the torso. A Bao-only
-positive greeting direction corrects that. A second actual-mesh check detects
-sleeve stretching under the inherited shoulder/weight bands. The WIP Bao profile
-contains selected-A shoulder anchors and wider arm weights plus a bounded
-shoulder/elbow greeting. Its current paw centroid reaches only1.916rigunits in
-the tested frame, below the2.2 threshold. The edge-stretch assertion remains
-unchanged and must also pass after fixing the pose. Do not disable this test or
-claim that finite outer bounds prove satisfactory motion.
+The inherited shoulder pivot was too far out and low. Moving it from[1,1.5] to
+[.8,1.65] and removing the compensating elbow rotation raises the test-frame paw
+centroid from1.916 to2.250, above the retained2.2 threshold. A broader sleeve blend
+with a sloping underarm excludes the robe hem/pouch; peak wave edge stretch is
+2.156× across the sampled cycle, below the unchanged3× limit. Broader inner-thigh
+weights reduce seated robe/leg stretch from4.419× to2.687×. Idle/work and walking
+peak at1.486× and1.734× respectively. These are deformation guards, not aesthetic
+acceptance or collision tests.
 
-Next developer should fit the arm from the retained selected-A geometry, verify
-all gesture phases and native wave deformation, then rerender the portrait and
-all authoring/scene captures if the neutral pose changes. The shared gesture
-defaults preserve every other character's existing direction and amplitude.
+Bao's fitted arm drop is.65. It opts into retaining that resting posture when
+reduced motion stops ambient animation; the mesh exactly matches normal idle at
+time0 and stays still across time and stopped walking. Other character profiles
+retain their existing static defaults. Normal work uses the existing idle posture.
+The atlas, geometry/UVs, costume, other identities and runtime bindings stay intact.
 
 ## Evidence and remaining gates
 
-Native captures live under the existing visualization root in
-`ticket24-meshy-production/`. `capture-authoring.cjs` captures five named poses in
+Prior native captures live under the existing visualization root in
+`ticket24-meshy-production/`; fitting captures use a new `ticket24-meshy-fit/`
+folder. `capture-authoring.cjs` captures five named poses in
 both themes, a side render and a face-plus-robe portrait. The work authoring pose
 uses the runtime's idle working posture. `capture-review.cjs` captures the actual
 instrumented den, native Team40/62px portraits, a separate48/72px sheet, forced
 fallback, near/overview, meeting and first-person views. Synthetic bridge events
 are read-only and do not claim live backend action verification.
 
-No full timed before/after GPU/frame/heap run has started. The new atlas probably
-adds1.33MiB while legacy textures remain for Jiao and others. The aggregate
+No full timed before/after GPU/frame/heap run has started. The new atlas likely
+adds1.33MiB while legacy textures remain for Jiao and others. The bounded capture
+harness now observes GL texture storage calls for a matched loaded/fallback pair;
+results will accompany the new checkpoint. The aggregate
 no-increase target remains unwaived; compare matched live allocations before
 proposing a measured exception. Ticket23's separate allowance does not apply.
 Full fitting/state/action checks, five disposal cycles, hardware comparison,

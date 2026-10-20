@@ -164,3 +164,49 @@ test('Bao wave raises the outer paw beside its head instead of folding it into t
     }
   }finally{gesture.dispose();factory.dispose();}
 });
+
+test('Bao reduced motion keeps its fitted resting arms in idle, work and stopped walking', () => {
+  const source=readGlbGeometry(gunzipSync(readFileSync(new URL('../../../public'+manifest.assets['characters.bao'].url,import.meta.url))));
+  const factory=createPandaAppearanceFactory({characters:{bao:source}}),{rig}=factory.createPanda('orchestrator');
+  function vertices(){return rig.meshes.flatMap(mesh=>Array.from({length:mesh.geometry.attributes.position.count},(_,i)=>mesh.applyBoneTransform(i,new T.Vector3().fromBufferAttribute(mesh.geometry.attributes.position,i)).toArray()));}
+  function equalPose(actual,expected,label){const delta=Math.max(...actual.flatMap((p,i)=>p.map((v,j)=>Math.abs(v-expected[i][j]))));assert.ok(delta<1e-8,`${label}: maximum vertex displacement ${delta}`);}
+  try{
+    rig.poseIdle(0);const neutral=vertices();
+    rig.poseIdle(0,{reducedMotion:true});const still=vertices();
+    equalPose(still,neutral,'reduced motion retains the normal resting posture');
+    rig.poseIdle(2.4,{reducedMotion:true});equalPose(vertices(),still,'idle/work posture has no ambient motion');
+    rig.poseWaddle(.4,{reducedMotion:true});equalPose(vertices(),still,'stopped walking uses the same resting posture');
+    for(const sign of [-1,1]){
+      const paw=[];
+      for(const mesh of rig.meshes){const pos=mesh.geometry.attributes.position;for(let i=0;i<pos.count;i++)if(sign*pos.getX(i)>1.25&&pos.getY(i)>1&&pos.getY(i)<1.4)paw.push(mesh.applyBoneTransform(i,new T.Vector3().fromBufferAttribute(pos,i)));}
+      const center=paw.reduce((sum,p)=>sum.add(p),new T.Vector3()).divideScalar(paw.length);
+      assert.ok(sign*center.x<1.3&&sign*center.x>.85,`resting paw beside robe: ${center.x}`);
+      assert.ok(center.y<1.15&&center.y>.7,`resting paw below shoulder: ${center.y}`);
+    }
+  }finally{factory.dispose();}
+});
+
+test('Bao pose cycles keep the actual sleeves, collar, pouch and robe connected without stretched edges', () => {
+  const source=readGlbGeometry(gunzipSync(readFileSync(new URL('../../../public'+manifest.assets['characters.bao'].url,import.meta.url))));
+  const factory=createPandaAppearanceFactory({characters:{bao:source}}),{rig}=factory.createPanda('orchestrator'),gesture=createLeisureGesture(rig);
+  const surfaces=rig.meshes.map(mesh=>{
+    const pos=mesh.geometry.attributes.position,index=mesh.geometry.index,edges=[];
+    for(let i=0;i<index.count;i+=3)for(const [a,b]of [[0,1],[1,2],[2,0]]){
+      const ai=index.getX(i+a),bi=index.getX(i+b),rest=new T.Vector3().fromBufferAttribute(pos,ai).distanceTo(new T.Vector3().fromBufferAttribute(pos,bi));
+      if(rest>.03)edges.push([ai,bi,rest]);
+    }
+    return {mesh,pos,edges};
+  });
+  try{
+    for(const kind of ['idle','work','walk','sit','greeting','tea','pond','mahjong'])for(let frame=0;frame<=24;frame++){
+      const time=frame*.2;gesture.pose(null,0);
+      if(kind==='walk')rig.poseWaddle(time);else if(kind==='sit')rig.poseSit(time);else {rig.poseIdle(time);if(!['idle','work'].includes(kind))gesture.pose(kind,time);}
+      let worst=0;
+      for(const {mesh,pos,edges}of surfaces){
+        const posed=Array.from({length:pos.count},(_,i)=>mesh.applyBoneTransform(i,new T.Vector3().fromBufferAttribute(pos,i)));
+        for(const [a,b,rest]of edges)worst=Math.max(worst,posed[a].distanceTo(posed[b])/rest);
+      }
+      assert.ok(worst<3,`${kind} at ${time.toFixed(1)} stretches a surface edge ${worst} times`);
+    }
+  }finally{gesture.dispose();factory.dispose();}
+});

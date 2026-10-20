@@ -4,7 +4,7 @@ const {chromium}=require('C:/Users/Derek/AppData/Local/Temp/den-cast-23/22-runti
 (async()=>{
  const output=process.argv[2]||__dirname;fs.mkdirSync(output,{recursive:true});
  const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true});
- const results={kind:'selected-A textured authoring poses; no runtime chair or performance claim',errors:[],captures:[]};
+ const results={kind:'selected-A textured authoring poses; no runtime chair or performance claim',commit:process.argv[3]||'portrait preparation; uncommitted',errors:[],captures:[]};
  try{
   const page=await browser.newPage({viewport:{width:1024,height:768}});page.on('pageerror',e=>results.errors.push(e.message));
   await page.goto('http://127.0.0.1:4426/assets-src/den/bao-review.html');await page.waitForFunction(()=>globalThis.ready,null,{timeout:60000});

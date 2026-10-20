@@ -1,10 +1,32 @@
 const fs=require('node:fs');
 const {chromium}=require(process.env.PLAYWRIGHT_MODULE||'C:/Users/Derek/AppData/Local/Temp/den-cast-23/22-runtime/node_modules/playwright');
 function instrumentation(){
+ const storage=new WeakMap(),getContext=HTMLCanvasElement.prototype.getContext;
+ globalThis.__bao24TextureStorage=storage;
+ HTMLCanvasElement.prototype.getContext=function(...args){
+  const gl=getContext.apply(this,args);if(!gl?.texStorage2D||gl.__bao24Observed)return gl;
+  gl.__bao24Observed=true;const bound=new Map(),bind=gl.bindTexture,allocate=gl.texStorage2D;
+  gl.bindTexture=function(target,texture){bound.set(target,texture);return bind.apply(this,arguments);};
+  gl.texStorage2D=function(target,levels,internalFormat,width,height){
+   const texture=bound.get(target);if(texture)storage.set(texture,{levels,internalFormat,width,height});return allocate.apply(this,arguments);
+  };return gl;
+ };
  HTMLCanvasElement.prototype.requestPointerLock=undefined;
  globalThis.__cast22Attach=({den,agents,scene,renderer,stage})=>{
   const gl=renderer.getContext(),ext=gl.getExtension('EXT_disjoint_timer_query_webgl2');
   const p={den,agents,scene,renderer,stage,records:[],gpu:[],pending:[],anim:[],collect:false,seq:0};globalThis.__cast22=p;
+  p.textureAllocation=()=>{
+   const actor=agents.actors.get('orchestrator'),textures=new Set();
+   actor.panda.model.traverse(m=>{if(m.isMesh)for(const material of Array.isArray(m.material)?m.material:[m.material])if(material.map)textures.add(material.map);});
+   const atlas=[...textures].map(t=>{
+    const allocation=storage.get(renderer.properties.get(t).__webglTexture);
+    if(!allocation)return {observed:false};
+    const {levels,internalFormat,width,height}=allocation,rgba8=[gl.RGBA8,gl.SRGB8_ALPHA8].includes(internalFormat);
+    let requestedBytes=0;for(let level=0;level<levels;level++)requestedBytes+=Math.max(1,width>>level)*Math.max(1,height>>level)*4;
+    return {...allocation,format:rgba8?'RGBA8/sRGB8-alpha8':String(internalFormat),requestedBytes:rgba8?requestedBytes:null,observed:true};
+   });
+   return {rendererTextures:renderer.info.memory.textures,actorCount:agents.actors.size,atlas};
+  };
   for(const [object,key] of [[agents,'update'],[den.ambient,'pose'],[den.garden.assets.tea.koi,'update']]){
    const original=object[key];object[key]=function(...args){const t=performance.now();try{return original.apply(this,args);}finally{if(p.collect)p.anim.push({key,ms:performance.now()-t});}};
   }
@@ -41,7 +63,7 @@ function fixture(crowded,meeting){
  return {schema:1,seq:1,tickets:[],frontier:[],usage:null,requests:[],approvals:[],agents,placements:[],meetings:meeting?[{id:'baseline-meeting',ref:'baseline/24-bao',title:'Bao appearance fitting',state:'running',startedAt:new Date().toISOString(),seats:roles.map(role=>({role,status:'waiting'})),live:{role:'developer'}}]:[]};
 }
 (async()=>{
- const output=process.env.OUTPUT||__dirname,port=process.env.PORT||4425,results={kind:'native appearance capture; not a performance acceptance run',viewport:{width:1440,height:900},dpr:1,writes:[],errors:[],captures:[]};
+ const output=process.argv[2]||process.env.OUTPUT||__dirname,port=process.env.PORT||4425,results={kind:'native appearance capture; not a performance acceptance run',viewport:{width:1440,height:900},dpr:1,writes:[],errors:[],captures:[]};
  const browser=await chromium.launch({executablePath:'C:/Program Files/Google/Chrome/Application/chrome.exe',headless:true,args:['--enable-precise-memory-info']});
  try{
   results.browser=browser.version();results.gpu=(await (await browser.newBrowserCDPSession()).send('SystemInfo.getInfo')).gpu;
@@ -60,6 +82,7 @@ function fixture(crowded,meeting){
    async function shot(name){await page.waitForTimeout(600);const file='den-'+theme+'-'+name+'.png';await page.screenshot({path:output+'/'+file});results.captures.push({theme,name,file,...await page.evaluate(()=>{const p=__cast22;return {meta:null,actorCount:p.agents.actors.size,baoCount:[...p.agents.actors.values()].filter(a=>a.panda.model.userData.species==='giant-panda').length,characterLoad:p.den.characterLoad,camera:{position:p.stage.camera.position.toArray(),zoom:__cast22Camera.getZoom(),target:__cast22Camera.getTarget()},residents:p.weigh(p.den.residents),scene:p.weigh(p.scene)};})});}
    results.meta=await page.evaluate(()=>fetch('/__meta').then(r=>r.json()));
    await shot('far-working');
+   if(theme==='light')results.loadedTextureAllocation=await page.evaluate(()=>__cast22.textureAllocation());
    await page.evaluate(()=>{__cast22Camera.goToLevel(3);__cast22Camera.setTarget([-1.75,1.5,-.6]);});await shot('near-working');
    await page.getByRole('button',{name:'Team',exact:true}).click();await shot('portraits');
    results.portraitSizes=await page.locator('.forest-portrait').evaluateAll(nodes=>nodes.slice(0,4).map(n=>({width:n.clientWidth,height:n.clientHeight,source:n.querySelector('img').getAttribute('src')})));
@@ -73,16 +96,20 @@ function fixture(crowded,meeting){
    await page.evaluate(()=>{__cast22Camera.goToLevel(3);__cast22Camera.setTarget([-1.75,1.5,-.6]);});await shot('near-meeting');
    await context.close();
   }
-  const fallback=await browser.newContext({viewport:results.viewport,reducedMotion:'reduce'}),page=await fallback.newPage();await fallback.addInitScript(instrumentation);
+  const fallback=await browser.newContext({viewport:results.viewport,deviceScaleFactor:1,colorScheme:'light',reducedMotion:'reduce'}),page=await fallback.newPage();await fallback.addInitScript(instrumentation);
+  const fallbackSnapshot=fixture(true,false);fallbackSnapshot.agents.push({id:'bao-main',ref:'bao24/working',role:'orchestrator',runtime:'claude',state:'working',task:'Bao appearance fixture',startedAt:new Date().toISOString()});
   await page.route('**/*',async route=>{const req=route.request(),u=new URL(req.url());if(req.method()!=='GET'){results.writes.push(u.pathname);return route.abort();}
    if(u.pathname==='/den/models/characters/bao.glb.gz')return route.abort();
    if(u.pathname==='/den/portraits/bao-jade.webp')return route.fulfill({status:404,body:''});
-   if(u.pathname==='/events')return route.fulfill({contentType:'text/event-stream',body:'event: snapshot\ndata: '+JSON.stringify(fixture(false,false))+'\n\n'});
-   if(u.pathname==='/state')return route.fulfill({json:fixture(false,false)});
+   if(u.pathname==='/events')return route.fulfill({contentType:'text/event-stream',body:'event: snapshot\ndata: '+JSON.stringify(fallbackSnapshot)+'\n\n'});
+   if(u.pathname==='/state')return route.fulfill({json:fallbackSnapshot});
    if(u.pathname==='/metrics')return route.fulfill({json:{throughput:{windows:[]},tokensByRole:{},incidentsByTool:{}}});
    if(u.pathname==='/session'||u.pathname.startsWith('/api/'))return route.fulfill({status:404,json:{}});
    return route.continue();});
   await page.goto('http://127.0.0.1:'+port+'/');await page.waitForFunction(()=>globalThis.__cast22?.stage.camera,null,{timeout:60000});
+  await page.waitForTimeout(2100);
+  results.fallbackTextureAllocation=await page.evaluate(()=>__cast22.textureAllocation());
+  results.matchedTextureStorage={method:'Same native GPU/browser/viewport/DPR/reduced motion, 36 actors, working state and far camera; GL texStorage2D requested storage, not driver VRAM.',before:results.fallbackTextureAllocation,after:results.loadedTextureAllocation,textureCountDelta:results.loadedTextureAllocation.rendererTextures-results.fallbackTextureAllocation.rendererTextures};
   results.fallback=await page.evaluate(()=>{const p=__cast22,a=p.agents.actors.get('orchestrator');return {species:a.panda.model.userData.species??null,scale:a.panda.model.scale.x,load:p.den.characterLoad,camera:__cast22Camera.getTarget(),zoom:__cast22Camera.getZoom()};});
   await page.getByRole('button',{name:'Team',exact:true}).click();await page.waitForFunction(()=>document.querySelector('.forest-profile img')?.src.endsWith('/den/portraits/orchestrator.webp'));
   results.fallback.portrait=await page.locator('.forest-profile img').getAttribute('src');
