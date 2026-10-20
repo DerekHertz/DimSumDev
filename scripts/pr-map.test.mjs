@@ -6,7 +6,7 @@ import { existsSync, mkdtempSync, readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { prMap, areasOf, renderBlock, MAX_NODES } from "./pr-map.mjs";
+import { prMap, areasOf, renderBlock, specifiers, MAX_NODES } from "./pr-map.mjs";
 
 const ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -165,4 +165,41 @@ test("--base and --head must name a ref, so a value like --output=<path> never r
     );
     assert.equal(existsSync(out), false, `${flag} let git write ${out}`);
   }
+});
+
+// informative-prs/02 scope (b): a file name is text from the branch, and the Unmapped line puts it in a markdown code span.
+// The code spans of a line as CommonMark reads them: an opening backtick run closes at the next run of exactly its length,
+// and one space of padding on each side is dropped when both are there.
+function codeSpans(line) {
+  const runs = [...line.matchAll(/`+/g)].map((m) => ({ at: m.index, len: m[0].length }));
+  const spans = [];
+  for (let i = 0; i < runs.length; i += 1) {
+    const close = runs.findIndex((r, j) => j > i && r.len === runs[i].len);
+    if (close < 0) continue;
+    let text = line.slice(runs[i].at + runs[i].len, runs[close].at);
+    if (text.length > 1 && text.startsWith(" ") && text.endsWith(" ") && text.trim()) text = text.slice(1, -1);
+    spans.push(text);
+    i = close;
+  }
+  return spans;
+}
+
+test("a backtick in an unmapped file name cannot break the Unmapped line out of its code span", () => {
+  const names = ["we`ird.txt", "``double``.txt", "`lead.txt", "plain.txt"];
+  const line = renderBlock(run(names.map((n) => `stray/${n}`))).split("\n").find((l) => l.startsWith("Unmapped:"));
+  assert.ok(line, "an Unmapped line");
+  const head = line.slice(0, line.indexOf(" (no area"));
+  assert.deepEqual(codeSpans(head.slice("Unmapped:".length)), names.map((n) => `stray/${n}`), "each name is one whole code span");
+  assert.match(line, / \(no area in docs\/system-map\.json claims these\)\.$/, "the explanation stays outside the spans");
+});
+
+// scope (c): IMPORT_RE read a file of repeated `import` in quadratic time (280 KB took 9 s), and the CLI runs it on every tracked source file.
+test("the import scan runs in linear time on a file of repeated 'import', and still reads real imports", () => {
+  const imports = 'import a from "./a.mjs";\nexport * from "./b.mjs";\nexport { c } from "./c.mjs";\nconst d = await import("./d.mjs");\nimport "./e.mjs";\n';
+  assert.deepEqual(specifiers(imports), ["./a.mjs", "./b.mjs", "./c.mjs", "./d.mjs", "./e.mjs"]);
+  const hostile = "import ".repeat(40_000); // 280 KB
+  const t0 = performance.now();
+  assert.deepEqual(specifiers(hostile), []);
+  const ms = performance.now() - t0;
+  assert.ok(ms < 2000, `scanning 280 KB of 'import import ...' took ${Math.round(ms)} ms`);
 });

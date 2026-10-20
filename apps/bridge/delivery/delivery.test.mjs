@@ -972,3 +972,145 @@ describe("a delivery that starts from a tests branch (den-mvp/82)", () => {
     assert.equal((await t.state()).deliveries.length, 0);
   });
 });
+
+// informative-prs/02: the pull request the bridge opens has the four sections of every informative PR, in order:
+// What changes (the developer's handoff), System map (scripts/pr-map.mjs on the candidate's changed paths), Risk (the
+// developer's door plus the computed blast radius) and Evidence (today's checklist and the file list, in a <details> fold).
+// The handoff's section is a `## What changes` heading, a behavior paragraph, a ```diff block and a `**Door:** one-way|two-way. <reason>` line.
+describe("the pull request body carries the four sections", () => {
+  const PARA = "A den-delivered pull request now opens with what changed for the user.\nThe reviewer reads behavior first.";
+  const DIFF = "- before: a delivered PR is only an evidence checklist\n+ after: a delivered PR opens with a description of the change";
+  const DOOR = "**Door:** two-way. Revert the merge, then run npm run den:update.";
+  const report = ({ door = DOOR, tail = "## Notes\n\nSTRAY-NOTE stays on the board." } = {}) =>
+    ["Done. CHATTER-LINE.", "", "## What changes", "", PARA, "", "```diff", DIFF, "```", "", ...(door ? [door, ""] : []), tail].join("\n");
+  // A docs-only change claims no security run; docs/agents/ lands in the docs area of docs/system-map.json.
+  const FILES = ["docs/agents/new-note.md"];
+  const deliver = async ({ say, files = FILES, guard } = {}) => {
+    const t = await setup();
+    if (files) t.git.files = files;
+    if (guard) t.git.guard = guard;
+    await t.start();
+    t.work(await t.spawn(0), { commit: "feature.txt", say });
+    t.work(await t.spawn(1), { say: "I ran the tests.\nVERDICT: pass" });
+    await t.when((j) => j.state === "merged", "the delivery to merge");
+    const pr = t.git.calls.find((c) => c[0] === "openPr")[1];
+    return { t, pr, body: pr.body };
+  };
+  // The part of the body that sits under one `## ` heading, up to the next one.
+  const section = (body, name) => {
+    const m = new RegExp(`^## ${name}\\s*$([\\s\\S]*?)(?=^## |(?![\\s\\S]))`, "m").exec(body);
+    assert.ok(m, `the body has no "## ${name}" section`);
+    return m[1];
+  };
+  const fold = (body) => {
+    const m = /<details>[\s\S]*?<\/details>/.exec(body);
+    assert.ok(m, "the body has no <details> fold");
+    return m[0];
+  };
+
+  test("What changes, System map, Risk and Evidence come in that order", async () => {
+    const { body } = await deliver({ say: report() });
+    const at = ["What changes", "System map", "Risk", "Evidence"].map((n) => body.search(new RegExp(`^## ${n}\\s*$`, "m")));
+    assert.ok(at.every((i) => i >= 0), `a section heading is missing: ${at}`);
+    assert.deepEqual(at, [...at].sort((a, b) => a - b), "the sections are out of order");
+    assert.ok(body.indexOf("<details>") > at[3], "the fold is inside Evidence");
+  });
+
+  test("What changes is the handoff's paragraph and its diff lines, and nothing else the developer said", async () => {
+    const { body } = await deliver({ say: report() });
+    const changes = section(body, "What changes");
+    assert.ok(changes.includes(PARA), "the behavior paragraph is copied");
+    assert.ok(changes.includes("```diff\n" + DIFF + "\n```"), "the before/after lines come as a diff block");
+    assert.doesNotMatch(body, /CHATTER-LINE|STRAY-NOTE/, "the rest of the report stays on the board, not in the pull request");
+  });
+
+  test("a handoff without What changes falls back to the ticket title, says so, and the delivery still opens the PR", async () => {
+    const { t, body } = await deliver({ say: "Added feature.txt. The tests pass. CHATTER-LINE." });
+    const changes = section(body, "What changes");
+    assert.match(changes, /08: Plain/);
+    assert.match(changes, /handoff had no .?What changes.? section/i);
+    assert.doesNotMatch(body, /CHATTER-LINE/);
+    assert.deepEqual(t.sideEffects(), ["push", "openPr", "waitChecks", "merge"]);
+    assert.equal((await t.job()).state, "merged");
+  });
+
+  test("a secret-bearing ticket title is not written into the body by the fallback, or into the PR title", async () => {
+    const secret = "AKIAABCDEFGHIJKLMNOP";
+    const t = await setup({ preWrite: (root) => writeFile(path.join(root, ".scratch", FEATURE, "issues", "09-leaky.md"), `# 09: leaks ${secret}\n\n**Type:** feature\n\n**Blocked by:** None\n\n**Status:** ready-for-agent\n\n## Comments\n\n`) });
+    t.git.files = FILES;
+    await t.start({ ref: `${FEATURE}/09-leaky` });
+    t.work(await t.spawn(0), { commit: "feature.txt", say: "Done, with no section." });
+    t.work(await t.spawn(1), { say: "VERDICT: pass" });
+    await t.when((j) => j.state === "merged", "the delivery to merge");
+    const pr = t.git.calls.find((c) => c[0] === "openPr")[1];
+    assert.doesNotMatch(pr.title, new RegExp(secret));
+    assert.match(section(pr.body, "What changes"), /handoff had no .?What changes.? section/i, "the fallback runs for this ticket");
+    assert.doesNotMatch(pr.body, new RegExp(secret), "the title fallback masks a secret-looking title");
+  });
+
+  test("System map is the PR map run on the candidate's changed paths: edited part, legend and blast radius", async () => {
+    const { body } = await deliver({ say: report() });
+    const map = section(body, "System map");
+    assert.match(map, /```mermaid\nflowchart LR[\s\S]*\n```/);
+    assert.match(map, /\["new-note"\]:::edited/, "the changed file's module is filled in");
+    assert.match(map, /filled = edited[\s\S]*dashed outline[\s\S]*grey = untouched/, "the legend follows the diagram");
+    assert.match(body, /\*\*Blast radius:\*\* docs\b/, "docs/ is in the docs area and nothing declares a link into it");
+  });
+
+  test("a changed path no area claims is listed as unmapped in the System map", async () => {
+    const { body } = await deliver({ say: report(), files: null }); // the real diff: feature.txt, at the repo root
+    assert.match(section(body, "System map"), /Unmapped: `feature\.txt`/);
+  });
+
+  test("Risk shows the developer's door and reason, and the computed blast radius", async () => {
+    const { body } = await deliver({ say: report() });
+    const risk = section(body, "Risk");
+    assert.match(risk, /two-way/i);
+    assert.ok(risk.includes("Revert the merge, then run npm run den:update."), "the developer's reason is kept");
+    assert.match(risk, /\*\*Blast radius:\*\* docs\b/);
+  });
+
+  test("a one-way door is shown as one-way", async () => {
+    const { body } = await deliver({ say: report({ door: "**Door:** one-way. It rewrites board files; a revert does not restore them." }) });
+    const risk = section(body, "Risk");
+    assert.match(risk, /one-way/i);
+    assert.ok(risk.includes("It rewrites board files; a revert does not restore them."));
+    assert.doesNotMatch(risk, /two-way/i);
+  });
+
+  test("with no door stated, Risk says not stated and still gives the blast radius", async () => {
+    const { body } = await deliver({ say: report({ door: null }) });
+    const risk = section(body, "Risk");
+    assert.match(risk, /not stated/i);
+    assert.match(risk, /\*\*Blast radius:\*\* docs\b/);
+  });
+
+  test("the evidence lines, the guard hits and the file list are folded under Evidence, with the bridge's note", async () => {
+    const hits = ["a.test.mjs: test file deleted", "b.test.mjs: can't fail"];
+    const { t, body } = await deliver({ say: report(), guard: async () => ({ hits }) });
+    const evidence = section(body, "Evidence");
+    const details = fold(body);
+    assert.ok(evidence.includes(details), "the fold sits under the Evidence heading");
+    const sha = (await t.job()).candidate.sha;
+    for (const line of [`- Commit: \`${sha}\``, "- Code review: pass", "- qa verify: pass", "- Risk check: clean", "- Test guard: 2 hit(s) listed for the verifier", "  - `a.test.mjs: test file deleted`"]) {
+      assert.ok(details.includes(line), `inside the fold: ${line}`);
+    }
+    assert.match(details, /The bridge opened this pull request as the release manager's step; no agent holds git-host credentials\./);
+    assert.ok(details.includes("docs/agents/new-note.md"), "the file list is in the fold");
+    const outside = body.replace(details, "");
+    assert.doesNotMatch(outside, /- Commit:|qa verify|Risk check|Test guard|docs\/agents\/new-note\.md/, "none of the evidence or the file list is outside the fold");
+  });
+
+  test("the evidence fold keeps its security line and the user-merge note", async () => {
+    const t = await setup();
+    await t.start();
+    t.git.files = ["apps/bridge/agents/host.mjs"]; // a bridge path: security runs, and the user merges
+    t.work(await t.spawn(0), { commit: "feature.txt", say: report() });
+    t.work(await t.spawn(1), { say: "VERDICT: pass" });
+    t.work(await t.spawn(2), { say: "VERDICT: pass" });
+    await t.paused("guardrail");
+    const details = fold(t.git.calls.find((c) => c[0] === "openPr")[1].body);
+    assert.match(details, /- Security review: pass \(run c-[0-9a-f]+\)/);
+    assert.match(details, /- Risk check: [^\n]*touches a guardrail, bridge or check path: the user reviews and merges/);
+  });
+});
