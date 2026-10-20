@@ -1,0 +1,642 @@
+{
+ "before": {
+  "commit": "3465b89651dca44e9cd8aabf825977b0a508498d",
+  "instrumentedProductionBuild": true,
+  "port": 4422
+ },
+ "after": {
+  "commit": "773157e31c247e766a7cdc9c0f056b9da78c4a2d",
+  "instrumentedProductionBuild": true,
+  "port": 4423
+ },
+ "errors": {
+  "before": [],
+  "after": []
+ },
+ "writes": [
+  0,
+  0
+ ],
+ "scenarios": {
+  "idle-light": {
+   "fps": {
+    "before": 30,
+    "after": 30,
+    "delta": 0
+   },
+   "gpuP95": {
+    "before": 17.526,
+    "after": 11.071,
+    "delta": -36.8
+   },
+   "renderCpuP95": {
+    "before": 19.9,
+    "after": 13,
+    "delta": -34.7
+   },
+   "animCpuP95": {
+    "before": 1.4,
+    "after": 1.1,
+    "delta": -21.4
+   },
+   "calls": {
+    "before": 1483,
+    "after": 1404,
+    "delta": -5.3
+   },
+   "triangles": {
+    "before": 3233617,
+    "after": 3141167,
+    "delta": -2.9
+   },
+   "sceneTris": {
+    "before": 3238257,
+    "after": 3145807,
+    "delta": -2.9
+   },
+   "residentTris": {
+    "before": 1025048,
+    "after": 932598,
+    "delta": -9
+   },
+   "geometryMiB": {
+    "before": 272.627,
+    "after": 265.344,
+    "delta": -2.7
+   },
+   "textureMiB": {
+    "before": 64.797,
+    "after": 67.464,
+    "delta": 4.1
+   },
+   "heapMiB": {
+    "before": 392.572,
+    "after": 366.193,
+    "delta": -6.7
+   },
+   "actors": {
+    "before": 32,
+    "after": 32,
+    "delta": 0
+   }
+  },
+  "idle-dark": {
+   "fps": {
+    "before": 30.033,
+    "after": 30,
+    "delta": -0.1
+   },
+   "gpuP95": {
+    "before": 16.11,
+    "after": 18.166,
+    "delta": 12.8
+   },
+   "renderCpuP95": {
+    "before": 18.2,
+    "after": 21.4,
+    "delta": 17.6
+   },
+   "animCpuP95": {
+    "before": 1.5,
+    "after": 1.6,
+    "delta": 6.7
+   },
+   "calls": {
+    "before": 1483,
+    "after": 1404,
+    "delta": -5.3
+   },
+   "triangles": {
+    "before": 3233617,
+    "after": 3141167,
+    "delta": -2.9
+   },
+   "sceneTris": {
+    "before": 3238257,
+    "after": 3145807,
+    "delta": -2.9
+   },
+   "residentTris": {
+    "before": 1025048,
+    "after": 932598,
+    "delta": -9
+   },
+   "geometryMiB": {
+    "before": 272.627,
+    "after": 265.344,
+    "delta": -2.7
+   },
+   "textureMiB": {
+    "before": 64.797,
+    "after": 67.464,
+    "delta": 4.1
+   },
+   "heapMiB": {
+    "before": 426.476,
+    "after": 369.405,
+    "delta": -13.4
+   },
+   "actors": {
+    "before": 32,
+    "after": 32,
+    "delta": 0
+   }
+  },
+  "crowded-light": {
+   "fps": {
+    "before": 29.967,
+    "after": 30,
+    "delta": 0.1
+   },
+   "gpuP95": {
+    "before": 20.489,
+    "after": 14.65,
+    "delta": -28.5
+   },
+   "renderCpuP95": {
+    "before": 24.1,
+    "after": 16.3,
+    "delta": -32.4
+   },
+   "animCpuP95": {
+    "before": 1.9,
+    "after": 1.4,
+    "delta": -26.3
+   },
+   "calls": {
+    "before": 1561,
+    "after": 1446,
+    "delta": -7.4
+   },
+   "triangles": {
+    "before": 3372193,
+    "after": 3232445,
+    "delta": -4.1
+   },
+   "sceneTris": {
+    "before": 3376833,
+    "after": 3237085,
+    "delta": -4.1
+   },
+   "residentTris": {
+    "before": 1163624,
+    "after": 1023876,
+    "delta": -12
+   },
+   "geometryMiB": {
+    "before": 285.154,
+    "after": 274,
+    "delta": -3.9
+   },
+   "textureMiB": {
+    "before": 64.797,
+    "after": 67.464,
+    "delta": 4.1
+   },
+   "heapMiB": {
+    "before": 398.166,
+    "after": 380.565,
+    "delta": -4.4
+   },
+   "actors": {
+    "before": 36,
+    "after": 36,
+    "delta": 0
+   }
+  },
+  "crowded-dark": {
+   "fps": {
+    "before": 30.033,
+    "after": 29.967,
+    "delta": -0.2
+   },
+   "gpuP95": {
+    "before": 17.213,
+    "after": 19.095,
+    "delta": 10.9
+   },
+   "renderCpuP95": {
+    "before": 19.9,
+    "after": 21.9,
+    "delta": 10.1
+   },
+   "animCpuP95": {
+    "before": 1.6,
+    "after": 1.7,
+    "delta": 6.2
+   },
+   "calls": {
+    "before": 1561,
+    "after": 1446,
+    "delta": -7.4
+   },
+   "triangles": {
+    "before": 3372193,
+    "after": 3232445,
+    "delta": -4.1
+   },
+   "sceneTris": {
+    "before": 3376833,
+    "after": 3237085,
+    "delta": -4.1
+   },
+   "residentTris": {
+    "before": 1163624,
+    "after": 1023876,
+    "delta": -12
+   },
+   "geometryMiB": {
+    "before": 285.154,
+    "after": 274,
+    "delta": -3.9
+   },
+   "textureMiB": {
+    "before": 64.797,
+    "after": 67.464,
+    "delta": 4.1
+   },
+   "heapMiB": {
+    "before": 402.654,
+    "after": 372.5,
+    "delta": -7.5
+   },
+   "actors": {
+    "before": 36,
+    "after": 36,
+    "delta": 0
+   }
+  },
+  "meeting-light": {
+   "fps": {
+    "before": 30,
+    "after": 29.967,
+    "delta": -0.1
+   },
+   "gpuP95": {
+    "before": 19.698,
+    "after": 19.624,
+    "delta": -0.4
+   },
+   "renderCpuP95": {
+    "before": 21.6,
+    "after": 21.4,
+    "delta": -0.9
+   },
+   "animCpuP95": {
+    "before": 1.9,
+    "after": 1.9,
+    "delta": 0
+   },
+   "calls": {
+    "before": 1670,
+    "after": 1537,
+    "delta": -8
+   },
+   "triangles": {
+    "before": 3570977,
+    "after": 3407580,
+    "delta": -4.6
+   },
+   "sceneTris": {
+    "before": 3575617,
+    "after": 3412220,
+    "delta": -4.6
+   },
+   "residentTris": {
+    "before": 1362408,
+    "after": 1199011,
+    "delta": -12
+   },
+   "geometryMiB": {
+    "before": 302.069,
+    "after": 288.98,
+    "delta": -4.3
+   },
+   "textureMiB": {
+    "before": 64.797,
+    "after": 67.464,
+    "delta": 4.1
+   },
+   "heapMiB": {
+    "before": 411.674,
+    "after": 408.26,
+    "delta": -0.8
+   },
+   "actors": {
+    "before": 42,
+    "after": 42,
+    "delta": 0
+   }
+  },
+  "meeting-dark": {
+   "fps": {
+    "before": 29.967,
+    "after": 29.933,
+    "delta": -0.1
+   },
+   "gpuP95": {
+    "before": 20.763,
+    "after": 11.524,
+    "delta": -44.5
+   },
+   "renderCpuP95": {
+    "before": 21.7,
+    "after": 21,
+    "delta": -3.2
+   },
+   "animCpuP95": {
+    "before": 1.9,
+    "after": 2,
+    "delta": 5.3
+   },
+   "calls": {
+    "before": 1670,
+    "after": 1537,
+    "delta": -8
+   },
+   "triangles": {
+    "before": 3570977,
+    "after": 3407580,
+    "delta": -4.6
+   },
+   "sceneTris": {
+    "before": 3575617,
+    "after": 3412220,
+    "delta": -4.6
+   },
+   "residentTris": {
+    "before": 1362408,
+    "after": 1199011,
+    "delta": -12
+   },
+   "geometryMiB": {
+    "before": 302.069,
+    "after": 288.98,
+    "delta": -4.3
+   },
+   "textureMiB": {
+    "before": 64.797,
+    "after": 67.464,
+    "delta": 4.1
+   },
+   "heapMiB": {
+    "before": 465.709,
+    "after": 396.924,
+    "delta": -14.8
+   },
+   "actors": {
+    "before": 42,
+    "after": 42,
+    "delta": 0
+   }
+  },
+  "walk-light": {
+   "fps": {
+    "before": 30,
+    "after": 30.033,
+    "delta": 0.1
+   },
+   "gpuP95": {
+    "before": 16.086,
+    "after": 13.339,
+    "delta": -17.1
+   },
+   "renderCpuP95": {
+    "before": 18.3,
+    "after": 14.3,
+    "delta": -21.9
+   },
+   "animCpuP95": {
+    "before": 1.7,
+    "after": 1.4,
+    "delta": -17.6
+   },
+   "calls": {
+    "before": 1310,
+    "after": 1195,
+    "delta": -8.8
+   },
+   "triangles": {
+    "before": 3049220,
+    "after": 2909472,
+    "delta": -4.6
+   },
+   "sceneTris": {
+    "before": 3376833,
+    "after": 3237085,
+    "delta": -4.1
+   },
+   "residentTris": {
+    "before": 1163624,
+    "after": 1023876,
+    "delta": -12
+   },
+   "geometryMiB": {
+    "before": 285.154,
+    "after": 274,
+    "delta": -3.9
+   },
+   "textureMiB": {
+    "before": 64.797,
+    "after": 67.464,
+    "delta": 4.1
+   },
+   "heapMiB": {
+    "before": 389.143,
+    "after": 372.07,
+    "delta": -4.4
+   },
+   "actors": {
+    "before": 36,
+    "after": 36,
+    "delta": 0
+   }
+  },
+  "walk-dark": {
+   "fps": {
+    "before": 30,
+    "after": 30,
+    "delta": 0
+   },
+   "gpuP95": {
+    "before": 16.633,
+    "after": 18.268,
+    "delta": 9.8
+   },
+   "renderCpuP95": {
+    "before": 19.3,
+    "after": 20.3,
+    "delta": 5.2
+   },
+   "animCpuP95": {
+    "before": 1.7,
+    "after": 1.8,
+    "delta": 5.9
+   },
+   "calls": {
+    "before": 1310,
+    "after": 1195,
+    "delta": -8.8
+   },
+   "triangles": {
+    "before": 3049220,
+    "after": 2909472,
+    "delta": -4.6
+   },
+   "sceneTris": {
+    "before": 3376833,
+    "after": 3237085,
+    "delta": -4.1
+   },
+   "residentTris": {
+    "before": 1163624,
+    "after": 1023876,
+    "delta": -12
+   },
+   "geometryMiB": {
+    "before": 285.154,
+    "after": 274,
+    "delta": -3.9
+   },
+   "textureMiB": {
+    "before": 64.797,
+    "after": 67.464,
+    "delta": 4.1
+   },
+   "heapMiB": {
+    "before": 401.819,
+    "after": 393.372,
+    "delta": -2.1
+   },
+   "actors": {
+    "before": 36,
+    "after": 36,
+    "delta": 0
+   }
+  },
+  "reduced-light": {
+   "fps": {
+    "before": 29.9,
+    "after": 30,
+    "delta": 0.3
+   },
+   "gpuP95": {
+    "before": 22.414,
+    "after": 19.588,
+    "delta": -12.6
+   },
+   "renderCpuP95": {
+    "before": 26,
+    "after": 22.5,
+    "delta": -13.5
+   },
+   "animCpuP95": {
+    "before": 1.5,
+    "after": 1.4,
+    "delta": -6.7
+   },
+   "calls": {
+    "before": 1666,
+    "after": 1533,
+    "delta": -8
+   },
+   "triangles": {
+    "before": 3570817,
+    "after": 3407420,
+    "delta": -4.6
+   },
+   "sceneTris": {
+    "before": 3575617,
+    "after": 3412220,
+    "delta": -4.6
+   },
+   "residentTris": {
+    "before": 1362408,
+    "after": 1199011,
+    "delta": -12
+   },
+   "geometryMiB": {
+    "before": 302.069,
+    "after": 288.98,
+    "delta": -4.3
+   },
+   "textureMiB": {
+    "before": 64.797,
+    "after": 67.464,
+    "delta": 4.1
+   },
+   "heapMiB": {
+    "before": 411.828,
+    "after": 403.084,
+    "delta": -2.1
+   },
+   "actors": {
+    "before": 42,
+    "after": 42,
+    "delta": 0
+   }
+  },
+  "reduced-dark": {
+   "fps": {
+    "before": 30,
+    "after": 30,
+    "delta": 0
+   },
+   "gpuP95": {
+    "before": 17.408,
+    "after": 11.079,
+    "delta": -36.4
+   },
+   "renderCpuP95": {
+    "before": 20,
+    "after": 12.3,
+    "delta": -38.5
+   },
+   "animCpuP95": {
+    "before": 1.3,
+    "after": 1,
+    "delta": -23.1
+   },
+   "calls": {
+    "before": 1666,
+    "after": 1533,
+    "delta": -8
+   },
+   "triangles": {
+    "before": 3570817,
+    "after": 3407420,
+    "delta": -4.6
+   },
+   "sceneTris": {
+    "before": 3575617,
+    "after": 3412220,
+    "delta": -4.6
+   },
+   "residentTris": {
+    "before": 1362408,
+    "after": 1199011,
+    "delta": -12
+   },
+   "geometryMiB": {
+    "before": 302.069,
+    "after": 288.98,
+    "delta": -4.3
+   },
+   "textureMiB": {
+    "before": 64.797,
+    "after": 67.464,
+    "delta": 4.1
+   },
+   "heapMiB": {
+    "before": 409.443,
+    "after": 443.531,
+    "delta": 8.3
+   },
+   "actors": {
+    "before": 42,
+    "after": 42,
+    "delta": 0
+   }
+  }
+ }
+}
