@@ -3,8 +3,8 @@ export const ROLE_PORTRAITS = Object.freeze({
   orchestrator:'/den/portraits/orchestrator.webp',
   product:'/den/portraits/product.webp',
   architect:'/den/portraits/architect.webp',
-  // team-and-den-ux/23: species portraits; both runtimes share the body (labels tell them apart). The
-  // panda portraits stay beside them for rollback.
+  // team-and-den-ux/23: species portraits; both runtimes share the body (labels tell them apart). The old
+  // panda portraits were removed (unreferenced files fail reachability); rollback is a git revert.
   developer:'/den/portraits/developer-red-panda.webp',
   scout:'/den/portraits/scout.webp',
   runner:'/den/portraits/runner.webp',

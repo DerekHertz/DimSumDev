@@ -303,10 +303,22 @@ def pack_asset(asset, source_root, output_root):
     return record, private
 
 
+def source_root_for(asset, source_root, named_roots):
+    """Most assets come from the original artifact folder; an entry naming a sourceRoot comes from that folder instead."""
+    name = asset.get("sourceRoot")
+    if name is None:
+        return source_root
+    if name not in named_roots:
+        raise SystemExit(f'{asset["key"]}: unknown sourceRoot {name!r}')
+    return named_roots[name]
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("source_root", type=Path, help="The original artifact folder containing bao-customizer and frontend-layout-mockup")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT)
+    parser.add_argument("--meshy-output", type=Path, default=HERE.parents[3] / "meshy_output",
+                        help="Folder for catalog entries with sourceRoot meshy_output (default: meshy_output at the repo root)")
     parser.add_argument("--only", action="append", metavar="KEY",
                         help="Repack just these catalog keys from source_root into the existing manifest and audit")
     args = parser.parse_args()
@@ -322,7 +334,8 @@ def main():
     for asset in catalog["assets"]:
         if asset.get("runtime") is False or (args.only and asset["key"] not in args.only):
             continue
-        record, private = pack_asset(asset, args.source_root, args.output)
+        root = source_root_for(asset, args.source_root, {"meshy_output": args.meshy_output})
+        record, private = pack_asset(asset, root, args.output)
         manifest["assets"][asset["key"]] = record
         receipt["assets"][asset["key"]] = private
         print(f'{asset["key"]}: {record["bytes"] / 1048576:.2f} MiB', flush=True)

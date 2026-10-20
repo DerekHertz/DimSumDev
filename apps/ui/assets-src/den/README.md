@@ -49,10 +49,12 @@ builds use the checked-in files and require no Python dependency.
 `characters.developer` (red panda engineer) and `characters.technical-writer` (cloud
 dragon writer) come from Meshy image-to-3D and remesh tasks, not the original
 artifact folder; their catalog entries name `sourceRoot: meshy_output` and the task
-IDs. Repack just these two from a `meshy_output` folder without touching the rest:
+IDs. The packager reads those two from `--meshy-output` (default: `meshy_output` at the
+repo root) and everything else from the artifact folder, so a full repack needs both.
+Repack just these two without touching the rest:
 
 ```sh
-python3 apps/ui/assets-src/den/pack-assets.py /path/to/meshy_output --only characters.developer --only characters.technical-writer
+python3 apps/ui/assets-src/den/pack-assets.py /path/to/artifacts --meshy-output /path/to/meshy_output --only characters.developer --only characters.technical-writer
 ```
 
 `colorOnly` keeps a single base colour map (at most `maxTextureSize`, 512 here),

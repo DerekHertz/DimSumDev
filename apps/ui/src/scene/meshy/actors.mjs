@@ -113,8 +113,8 @@ export function createMeshyActors(den){
    a.gesture?.pose(!reduced&&a.routine?.stage==='visit'?a.routine.spot.kind:null,a.routine?.elapsed||0);
   }
  }
- // A species publishes its own footprint (tail and props included); Bao-bodied pandas keep .65.
- const footprint=a=>{const e=a.panda.rig.profile?.envelope;return e?(a.seat&&!a.path?e.seated:e.standing).radius*a.panda.model.scale.x:.65;};
- den.walkAvoid=()=>[...actors.values()].map(a=>({x:a.panda.model.position.x,z:a.panda.model.position.z,r:footprint(a)}));
+ // The walker keeps a body's width from every resident, species included: a species envelope covers its tail and props
+ // for layout checks, and a walker caught inside one that wide could not step out.
+ den.walkAvoid=()=>[...actors.values()].map(a=>({x:a.panda.model.position.x,z:a.panda.model.position.z,r:.65}));
  return {actors,applyLive,applyMeeting,seatModels,seatOf,setSelected,hold,liveFigures,update,dispose(){routines.dispose();for(const a of actors.values()){a.gesture?.dispose();if(a.visitor||a.guest)den.destroyPanda(a.panda.model);}actors.clear();}};
 }

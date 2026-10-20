@@ -110,6 +110,17 @@ class PackAssetsTests(unittest.TestCase):
             self.assertEqual(len(out["images"]), 1)
             self.assertEqual(PACK.accessor_bytes(out, out_binary, 0), PACK.accessor_bytes(doc, PACK.read_glb(root / "source.glb")[1], 0))
 
+    def test_entries_naming_a_source_root_are_read_from_that_folder(self):
+        catalog = json.loads(Path(__file__).with_name("sources.json").read_text())["assets"]
+        artifacts, meshy = Path("/artifacts"), Path("/meshy")
+        named = [a for a in catalog if "sourceRoot" in a]
+        self.assertEqual({a["key"] for a in named}, {"characters.developer", "characters.technical-writer"})
+        for asset in catalog:
+            expected = meshy if "sourceRoot" in asset else artifacts
+            self.assertEqual(PACK.source_root_for(asset, artifacts, {"meshy_output": meshy}), expected)
+        with self.assertRaises(SystemExit):
+            PACK.source_root_for({"key": "x", "sourceRoot": "elsewhere"}, artifacts, {"meshy_output": meshy})
+
     def test_catalog_contains_approved_unique_assets_and_all_role_tools(self):
         catalog = json.loads(Path(__file__).with_name("sources.json").read_text())["assets"]
         self.assertEqual(len(catalog), 38)
