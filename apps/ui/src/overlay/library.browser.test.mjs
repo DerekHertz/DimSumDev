@@ -33,7 +33,7 @@ const library = {
   ],
   skills: [
     { kind: 'skill', name: 'tdd', description: 'Test-driven development. Use when the user wants to build features or fix bugs test-first.', roles: ['developer', 'qa'] },
-    { kind: 'skill', name: 'handoff', description: 'Write the handoff a cell leaves for the next one.', roles: ['developer', 'qa', 'security'] },
+    { kind: 'skill', name: 'handoff', description: 'Write the handoff a placement leaves for the next one.', roles: ['developer', 'qa', 'security'] },
   ],
 };
 

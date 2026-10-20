@@ -41,7 +41,7 @@ export function createGardenNavigation(garden){
  box(root,[4,1.1,2.35],[0,GROUND+.55,3.15]);
  for(const furniture of garden.welcomeFurniture||[])box(root,furniture.size,furniture.position);
  garden.root.traverse(n=>{if(n.name==='Soft bamboo cluster'){const p=n.getWorldPosition(new T.Vector3()),s=n.getWorldScale(new T.Vector3());obstacles.push({type:'circle',x:p.x,z:p.z,radius:.25*s.x});}});
- const nav=createSurfaceNavigation([root],{cell:.20,floorRadius:70,baseY:GROUND});
+ const nav=createSurfaceNavigation([root],{placement:.20,floorRadius:70,baseY:GROUND});
  root.traverse(n=>{n.geometry?.dispose();n.material?.dispose();});
  const inside=(x,z)=> (Math.abs(x)/46.4)**(2/.58)+(Math.abs(z+4)/41.4)**(2/.58)<1;
  const groundAt=nav.groundAt;

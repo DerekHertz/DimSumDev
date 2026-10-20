@@ -67,7 +67,7 @@ def dev_slumped(name, at, rot_z):
 
 
 def alarm_glow(name, x, y, r=3.2):
-    """Inflammation: a warm alarm-red glow spread on Bao under the failed cell."""
+    """Inflammation: a warm alarm-red glow spread on Bao under the failed agent."""
     m = bpy.data.materials.get("AlarmGlow")
     if not m:
         m = shadow_material().copy(); m.name = "AlarmGlow"

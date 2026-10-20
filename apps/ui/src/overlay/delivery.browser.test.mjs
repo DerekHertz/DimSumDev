@@ -62,16 +62,16 @@ test('deliveries in the den: start one on a ticket or from text, see where each 
     await needs.getByRole('button', { name: 'Resume' }).click();
     await page.waitForFunction(() => true);
 
-    const stations = page.locator('[data-overlay=stations]');
-    await stations.locator('.card-toggle').click();
-    const list = stations.getByRole('region', { name: 'Deliveries' });
+    const teams = page.locator('[data-overlay=teams]');
+    await teams.locator('.card-toggle').click();
+    const list = teams.getByRole('region', { name: 'Deliveries' });
     const text = await list.innerText();
     assert.match(text, /1 running[\s\S]*04: Export as CSV[\s\S]*Qa is verifying the commit[\s\S]*05: Slot panel[\s\S]*Waiting: a required check failed: test[\s\S]*03: Old fix[\s\S]*Merged as #5/);
     await list.getByRole('button', { name: 'Stop delivery of fx/04-export' }).click();
 
     // Deliver is on the software ticket and not on the design question.
-    await stations.getByRole('button', { name: 'Deliver fx/08-plain' }).click();
-    assert.equal(await stations.getByRole('button', { name: 'Deliver fx/09-question' }).count(), 0);
+    await teams.getByRole('button', { name: 'Deliver fx/08-plain' }).click();
+    assert.equal(await teams.getByRole('button', { name: 'Deliver fx/09-question' }).count(), 0);
     await list.getByLabel('Deliver a change with no ticket yet').fill('Add a health route to the dev server.');
     await list.getByRole('button', { name: 'Deliver', exact: true }).click();
     await page.waitForFunction(() => document.querySelector('#deliver-new')?.value === '');
@@ -81,7 +81,7 @@ test('deliveries in the den: start one on a ticket or from text, see where each 
       { path: '/deliveries', body: { ref: 'fx/08-plain' } },
       { path: '/deliveries', body: { text: 'Add a health route to the dev server.' } },
     ]);
-    await shot(page, '[data-overlay=stations]', 'delivery-stations.png');
+    await shot(page, '[data-overlay=teams]', 'delivery-teams.png');
     assert.deepEqual(t.errors, []);
   } finally {
     await t.close();
@@ -92,10 +92,10 @@ test('deliveries at 375px: the cards do not scroll sideways', { timeout: 90000 }
   const t = await open({ width: 375 });
   try {
     const { page } = t;
-    await page.locator('[data-overlay=stations] .card-toggle').click();
+    await page.locator('[data-overlay=teams] .card-toggle').click();
     await page.getByRole('region', { name: 'Deliveries' }).waitFor();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
-    await shot(page, '[data-overlay=stations]', 'delivery-stations-375.png');
+    await shot(page, '[data-overlay=teams]', 'delivery-teams-375.png');
     assert.deepEqual(t.errors, []);
   } finally {
     await t.close();

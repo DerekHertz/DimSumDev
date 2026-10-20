@@ -42,8 +42,8 @@ function nearestClear(p,obstacles,connected=false){
   }
   candidates.sort((a,b)=>distance(a,p)-distance(b,p));return candidates[0];
 }
-// den-mvp/25: the village's promenades and station approaches. Walking off them costs half as much again, so a panda
-// follows the paths between stations and cuts across the lawn only when that is much shorter.
+// den-mvp/25: the village's promenades and team approaches. Walking off them costs half as much again, so a panda
+// follows the paths between teams and cuts across the lawn only when that is much shorter.
 const PATH_WIDTH=1.1,OFF_PATH=1.5;
 const segmentDistance=(x,z,[a,b])=>{
   const dx=b[0]-a[0],dz=b[1]-a[1],t=Math.max(0,Math.min(1,((x-a[0])*dx+(z-a[1])*dz)/(dx*dx+dz*dz||1)));
@@ -112,7 +112,7 @@ export function createReviewAgents(den,createBao,{direction='traveler',onChange=
   const obstacles=[...den.obstacles,...REVIEW_OBSTACLES].filter(o=>!o.thin);
   function emit(){onChange(snapshot());lastSnapshot=time;}
   function log(a,text){events.push({id:++eventId,role:a.role,name:a.name,text,time});if(events.length>30)events.shift();emit();}
-  function snapshot(){return {simulated:true,actors:[...actors.values()].map(a=>({role:a.role,name:a.name,station:a.station,state:a.state,activity:a.activity,bubble:a.bubble,task:a.task,reply:a.reply,concept:a.concept,stationary:a.stationary})),events:events.slice(-8)};}
+  function snapshot(){return {simulated:true,actors:[...actors.values()].map(a=>({role:a.role,name:a.name,team:a.team,state:a.state,activity:a.activity,bubble:a.bubble,task:a.task,reply:a.reply,concept:a.concept,stationary:a.stationary})),events:events.slice(-8)};}
   function route(a,destination,target,arrival='leisure'){
     if(PLACES[destination]){
       const reserved=[...actors.values()].filter(other=>other!==a&&other.destination===destination);
@@ -124,10 +124,10 @@ export function createReviewAgents(den,createBao,{direction='traveler',onChange=
     const path=end&&findReviewPath(start,end,obstacles);
     if(!path){a.path=[];a.state='blocked';a.activity='Path blocked';a.bubble='This path is blocked. Try another place.';log(a,'could not find a clear path.');return false;}
     a.path=path.slice(1);a.target=end;a.destination=destination;a.arrival=arrival;a.state='walking';a.age=0;
-    a.activity=arrival==='working'?`Heading to ${a.station}`:`Walking to ${PLACES[destination]?.name.toLowerCase()||'you'}`;
+    a.activity=arrival==='working'?`Heading to ${a.team}`:`Walking to ${PLACES[destination]?.name.toLowerCase()||'you'}`;
     return true;
   }
-  for(const [i,[role,name,station,,,concept]]of CHARACTERS.entries()){
+  for(const [i,[role,name,team,,,concept]]of CHARACTERS.entries()){
     const panda=role==='orchestrator'?den.hero:createBao(THREE,{detail:'low'});
     if(panda!==den.hero){owned.push(panda);compactPanda(THREE,panda);}
     root.attach(panda.model);panda.model.visible=true;panda.model.scale.setScalar(role==='orchestrator'?BAO_SCALE:role==='stem-cub'?0.36:0.43);
@@ -135,17 +135,17 @@ export function createReviewAgents(den,createBao,{direction='traveler',onChange=
     const home=role==='orchestrator'?BAO_HOME:nearestClear(ROLE_HOMES[role],[...obstacles,...occupied]);panda.model.position.set(home[0],groundY(home[0],home[1])+(role==='orchestrator'?0.03:0.04),home[1]);panda.model.rotation.set(0,0,0);
     panda.model.userData.reviewAgent=role;panda.model.userData.reviewPart=`${name} · body`;panda.model.userData.actorKey=role;
     gears.push(compactReviewGear(createTraditionalGear(panda,role,direction)));
-    const a={role,name,station,stationary:role==='orchestrator',concept:!!concept,index:i,panda,home,favorite:FAVORITES[i],state:'leisure',activity:role==='orchestrator'?'Hosting the den':'Getting ready for a break',bubble:'',reply:'',task:'',age:0,wave:0,path:[],destination:null};actors.set(role,a);
+    const a={role,name,team,stationary:role==='orchestrator',concept:!!concept,index:i,panda,home,favorite:FAVORITES[i],state:'leisure',activity:role==='orchestrator'?'Hosting the den':'Getting ready for a break',bubble:'',reply:'',task:'',age:0,wave:0,path:[],destination:null};actors.set(role,a);
     if(!a.stationary){const place=PLACES[a.favorite];route(a,a.favorite,place.spots[i%place.spots.length]);}
   }
   function sendTask(role,text){
     const a=actors.get(role),task=String(text||'').trim().slice(0,600);
     if(!a||!task||isBusy(a))return false;
-    a.path=[];a.task=task;a.reply='';a.state='received';a.activity='Message received';a.bubble=a.stationary?'Got your message. Let’s work on it here.':'Got your message. I’m heading to my station.';a.age=0;log(a,'received your preview task.');return true;
+    a.path=[];a.task=task;a.reply='';a.state='received';a.activity='Message received';a.bubble=a.stationary?'Got your message. Let’s work on it here.':'Got your message. I’m heading to my team.';a.age=0;log(a,'received your preview task.');return true;
   }
   function isBusy(a){return !!a.live||RUNNING.has(a.state)||a.state==='walking'&&a.arrival==='working';}
   function wave(role){const a=actors.get(role);if(!a)return;a.wave=2.5;a.bubble=`Hello! I’m ${a.name}.`;log(a,'waves back to you.');}
-  function talk(role){const a=actors.get(role);if(!a)return;a.wave=1.5;if(!isBusy(a))a.bubble=`Find me at ${a.station}, or join me for ${PLACES[a.favorite].name.toLowerCase()}.`;log(a,'is ready to chat.');}
+  function talk(role){const a=actors.get(role);if(!a)return;a.wave=1.5;if(!isBusy(a))a.bubble=`Find me at ${a.team}, or join me for ${PLACES[a.favorite].name.toLowerCase()}.`;log(a,'is ready to chat.');}
   function comeHere(role,point){
     const a=actors.get(role);if(!a||a.stationary||isBusy(a))return false;
     if(!route(a,'greeting',point,'greeting'))return false;
@@ -163,14 +163,14 @@ export function createReviewAgents(den,createBao,{direction='traveler',onChange=
   }
   function gather(){let seat=0;for(const role of ['product','architect','designer','qa']){const a=actors.get(role);if(isBusy(a))continue;if(route(a,'meeting',PLACES.meeting.spots[seat++]))log(a,'is joining the dim sum table.');}}
   // The panda the user stands with (its card is showing) holds still, so a task can be typed without chasing it.
-  // One with a live agent is not held: it goes to its station and stays there anyway.
+  // One with a live agent is not held: it goes to its team and stays there anyway.
   let heldActor=null;
   function hold(key=null){heldActor=actors.get(key)??null;}
   function update(dt,paused=false){
     if(paused||dt<=0)return;time+=dt;
     for(const a of actors.values()){
       a.age+=dt;a.wave=Math.max(0,a.wave-dt);const p=a.panda.model,b=a.panda.bones,held=a===heldActor&&!a.live;
-      if(a.state==='received'&&a.age>=0.8){a.answered=false;if(a.stationary){a.state='working';a.age=0;a.activity='Inspecting the request';a.bubble='Thinking through your request…';log(a,'is inspecting your request.');}else if(route(a,'station',a.home,'working'))log(a,`is heading to ${a.station}.`);}
+      if(a.state==='received'&&a.age>=0.8){a.answered=false;if(a.stationary){a.state='working';a.age=0;a.activity='Inspecting the request';a.bubble='Thinking through your request…';log(a,'is inspecting your request.');}else if(route(a,'team',a.home,'working'))log(a,`is heading to ${a.team}.`);}
       if(a.state==='walking'){
         let budget=held?0:dt*1.65;
         while(a.path.length&&budget>0){
@@ -190,7 +190,7 @@ export function createReviewAgents(den,createBao,{direction='traveler',onChange=
               if(bypass){a.path=bypass.slice(1);bypassed=true;}
             }
             if(bypassed)break;
-            // Give the planner room when two pandas meet between grid cells.
+            // Give the planner room when two pandas meet between grid placements.
             // A small outward step preserves clearance instead of pushing through the other panda.
             const nearest=others.reduce((best,o)=>Math.hypot(o.panda.model.position.x-p.position.x,o.panda.model.position.z-p.position.z)<Math.hypot(best.panda.model.position.x-p.position.x,best.panda.model.position.z-p.position.z)?o:best,others[0]);
             const q=nearest.panda.model.position,before=Math.hypot(p.position.x-q.x,p.position.z-q.z),angle=Math.atan2(p.position.z-q.z,p.position.x-q.x);
@@ -215,7 +215,7 @@ export function createReviewAgents(den,createBao,{direction='traveler',onChange=
         }
       }else if(a.state==='working'&&!a.live){
         if(!a.answered&&a.age>=3.5){a.state='needs-you';a.age=0;a.activity='Needs your answer';a.bubble='Should I prepare a first draft for you to review?';log(a,'has a question for you.');}
-        else if(a.answered&&a.age>=2){a.state='complete';a.age=0;a.activity='Waiting for you';a.reply=`Preview complete: “${a.task}”. ${a.station} has a first draft ready for your review. This is a simulated response.`;a.bubble='Your first draft is ready!';log(a,'finished the preview and is waiting for you.');}
+        else if(a.answered&&a.age>=2){a.state='complete';a.age=0;a.activity='Waiting for you';a.reply=`Preview complete: “${a.task}”. ${a.team} has a first draft ready for your review. This is a simulated response.`;a.bubble='Your first draft is ready!';log(a,'finished the preview and is waiting for you.');}
         else if(a.age>1.5)a.bubble=a.answered?'Preparing the first draft…':'Inspecting recipe notes…';
       }
       if(!a.stationary&&!held&&a.state==='leisure'&&a.age>16+a.index*0.7){
@@ -240,7 +240,7 @@ export function createReviewAgents(den,createBao,{direction='traveler',onChange=
     if(time-lastSnapshot>0.4)emit();
   }
   // den-layout/03: real agents drive the pandas. applyLive replaces the whole live set (the output of
-  // liveActorsFromSnapshot). A bound panda walks to its station and shows its agent's state, bubble and ticket;
+  // liveActorsFromSnapshot). A bound panda walks to its team and shows its agent's state, bubble and ticket;
   // a second agent of a role gets a split-off panda; a role that leaves the set returns to idle wandering.
   const splits=new Map();let splitIndex=CHARACTERS.length;
   function addSplit(role){
@@ -251,7 +251,7 @@ export function createReviewAgents(den,createBao,{direction='traveler',onChange=
     root.attach(panda.model);panda.model.visible=true;panda.model.scale.setScalar(0.43);panda.model.position.set(home[0],groundY(home[0],home[1])+0.04,home[1]);panda.model.rotation.set(0,0,0);
     panda.model.userData.reviewAgent=role;panda.model.userData.reviewPart=`${base.name} (split) · body`;
     const gear=compactReviewGear(createTraditionalGear(panda,role,direction));gears.push(gear);
-    return {role,name:`${base.name} (split)`,station:base.station,stationary:false,concept:false,index:splitIndex++,panda,home,favorite:base.favorite,state:'working',activity:'Working',bubble:'',reply:'',task:'',age:0,wave:0,path:[],destination:'station',gear};
+    return {role,name:`${base.name} (split)`,team:base.team,stationary:false,concept:false,index:splitIndex++,panda,home,favorite:base.favorite,state:'working',activity:'Working',bubble:'',reply:'',task:'',age:0,wave:0,path:[],destination:'team',gear};
   }
   function removeSplit(key){
     const a=actors.get(key);if(!a)return;
@@ -277,11 +277,11 @@ export function createReviewAgents(den,createBao,{direction='traveler',onChange=
     a.panda.model.userData.ticketRef=l.ref;glow(a,l.ref===selectedRef);
     if(a.state==='walking')return;
     a.state=l.state;a.activity=l.activity;
-    if(!a.stationary&&a.age>=3&&distance([a.panda.model.position.x,a.panda.model.position.z],a.home)>0.9){a.age=0;route(a,'station',a.home,'working');}
+    if(!a.stationary&&a.age>=3&&distance([a.panda.model.position.x,a.panda.model.position.z],a.home)>0.9){a.age=0;route(a,'team',a.home,'working');}
   }
   function bind(a,l){
     const fresh=!a.live;a.live=l;a.reply='';a.answered=false;
-    if(fresh&&!a.stationary)route(a,'station',a.home,'working');
+    if(fresh&&!a.stationary)route(a,'team',a.home,'working');
     syncLive(a);
   }
   function unbind(a){

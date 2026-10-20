@@ -1,5 +1,5 @@
 // Connected Garden & Desk regression coverage. The original steering/session, Needs you,
-// station, zoom, keyboard and accessibility behaviors remain real mounted-App checks.
+// team, zoom, keyboard and accessibility behaviors remain real mounted-App checks.
 // Layout assertions follow the approved focused desk and garden card; the removed disabled
 // intent/replay placeholders are replaced by Bao conversation and responsive control checks.
 import { test, before, after, describe } from "node:test";
@@ -124,7 +124,7 @@ async function openApp({ snapshot = fixture(), viewport = DESKTOP, hasTouch = fa
     noSession: page.locator('[data-session="none"]'),
     logo: page.locator('[data-overlay="logo"]'),
     needs: page.locator('[data-overlay="needs-you"]'),
-    stations: page.locator('[data-overlay="stations"]'),
+    teams: page.locator('[data-overlay="teams"]'),
     zoom: page.locator('[data-overlay="zoom"]'),
   };
 }
@@ -153,7 +153,7 @@ const withApp = (opts, fn) => async () => {
 
 // ---- Layout: distinct garden and focused desk -----------------------------------------------------------
 
-test("the focused desk sits beside a separate garden card with no usage meters in board cards", { timeout: 90000 }, withApp({}, async ({ page, logo, needs, stations }) => {
+test("the focused desk sits beside a separate garden card with no usage meters in board cards", { timeout: 90000 }, withApp({}, async ({ page, logo, needs, teams }) => {
   assert.equal(await page.getByRole('complementary', { name: 'Your desk' }).count(), 1);
   assert.equal(await page.locator('.panel').count(), 0);
   const garden = await page.locator('main[aria-label="Den scene"]').boundingBox();
@@ -161,27 +161,27 @@ test("the focused desk sits beside a separate garden card with no usage meters i
   assert.ok(garden.x >= 16 && desk.x >= garden.x + garden.width + 15, 'garden and desk retain a visible gutter');
   assert.ok(desk.x + desk.width <= DESKTOP.width - 16);
   assert.equal(await page.getByText(/Plan usage/i).count(), 0);
-  for (const card of [logo, needs, stations]) assert.equal(await card.locator('[role="meter"]').count(), 0, 'usage stays on Tally');
+  for (const card of [logo, needs, teams]) assert.equal(await card.locator('[role="meter"]').count(), 0, 'usage stays on Tally');
 }));
 
-test("the masthead precedes garden controls and the desk keeps Needs you before Stations", { timeout: 90000 }, withApp({}, async ({ page }) => {
+test("the masthead precedes garden controls and the desk keeps Needs you before Teams", { timeout: 90000 }, withApp({}, async ({ page }) => {
   const order = await page.evaluate(() => {
     const el = n => document.querySelector(`[data-overlay="${n}"]`);
     const before = (a, b) => !!a && !!b && !!(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
     return {
       title: document.querySelector('.forest-masthead h1')?.textContent.trim(),
       logoBeforeZoom: before(el('logo'), el('zoom')),
-      needsBeforeStations: before(el('needs-you'), el('stations')),
-      deskContainsCards: ['needs-you', 'stations', 'library', 'meetings'].every(n => !!el(n)?.closest('aside[aria-label="Your desk"]')),
+      needsBeforeTeams: before(el('needs-you'), el('teams')),
+      deskContainsCards: ['needs-you', 'teams', 'library', 'meetings'].every(n => !!el(n)?.closest('aside[aria-label="Your desk"]')),
     };
   });
   assert.equal(order.title, 'Dim Sum Dev');
   assert.equal(order.logoBeforeZoom, true);
-  assert.equal(order.needsBeforeStations, true);
+  assert.equal(order.needsBeforeTeams, true);
   assert.equal(order.deskContainsCards, true);
 }));
 
-test("desktop garden, toolbar, footer controls and desk occupy separate bounded areas", { timeout: 90000 }, withApp({}, async ({ page, zoom, needs, stations }) => {
+test("desktop garden, toolbar, footer controls and desk occupy separate bounded areas", { timeout: 90000 }, withApp({}, async ({ page, zoom, needs, teams }) => {
   const garden = await page.locator('main.scene').boundingBox();
   const canvas = await page.locator('.forest-canvas').boundingBox();
   const desk = await page.getByRole('complementary', { name: 'Your desk' }).boundingBox();
@@ -192,7 +192,7 @@ test("desktop garden, toolbar, footer controls and desk occupy separate bounded 
   assert.ok(desk.x >= garden.x + garden.width + 15);
   const z = await zoom.boundingBox();
   assert.ok(z.x >= footer.x && z.x + z.width <= footer.x + footer.width);
-  for (const card of [needs, stations]) {
+  for (const card of [needs, teams]) {
     const box = await card.boundingBox();
     assert.ok(box.x >= desk.x && box.x + box.width <= desk.x + desk.width);
   }
@@ -212,7 +212,7 @@ test("Needs you: open with waiting requests, named with the count, count pill, e
   assert.match(await header(needs).textContent(), /Needs you/);
   assert.match(await header(needs).textContent(), /\b2\b/, "count pill shows 2");
   const text = await needs.innerText();
-  assert.match(text, /Tea · qa · .*02-verify-it/, "eyebrow: Station · role · ticket");
+  assert.match(text, /Tea · qa · .*02-verify-it/, "eyebrow: Team · role · ticket");
   assert.match(text, /02-verify-it.* wants merge approval/, "title: <id> wants <action>");
   assert.ok((await needs.locator("code, pre").count()) >= 1, "code preview well");
   const approve = needs.getByRole("button", { name: /^Approve/ });
@@ -363,21 +363,21 @@ test("Needs you collapses and reopens from its header (aria-expanded flips, body
 
 // ---- Teams & queue ----------------------------------------------------------------------------------------
 
-test("Teams & queue is closed by default and opens from its header (criterion: collapsible, default closed)", { timeout: 90000 }, withApp({}, async ({ stations }) => {
-  assert.equal(await header(stations).getAttribute("aria-expanded"), "false");
-  assert.equal(await stations.locator('[data-station-pill="steamers"]').isVisible(), false);
-  await header(stations).click();
-  assert.equal(await header(stations).getAttribute("aria-expanded"), "true");
-  await stations.locator('[data-station-pill="steamers"]').waitFor({ state: "visible" });
-  await header(stations).click();
-  assert.equal(await header(stations).getAttribute("aria-expanded"), "false");
+test("Teams & queue is closed by default and opens from its header (criterion: collapsible, default closed)", { timeout: 90000 }, withApp({}, async ({ teams }) => {
+  assert.equal(await header(teams).getAttribute("aria-expanded"), "false");
+  assert.equal(await teams.locator('[data-team-pill="steamers"]').isVisible(), false);
+  await header(teams).click();
+  assert.equal(await header(teams).getAttribute("aria-expanded"), "true");
+  await teams.locator('[data-team-pill="steamers"]').waitFor({ state: "visible" });
+  await header(teams).click();
+  assert.equal(await header(teams).getAttribute("aria-expanded"), "false");
 }));
 
-test("open stations: one pill each in order with name and count; a pill shows '· waiting' in lantern only when one of its pandas waits (criterion: waiting pill)", { timeout: 90000 }, withApp({}, async ({ page, stations }) => {
-  await header(stations).click();
-  const ids = await stations.locator("[data-station-pill]").evaluateAll((els) => els.map((e) => e.dataset.stationPill));
+test("open teams: one pill each in order with name and count; a pill shows '· waiting' in lantern only when one of its pandas waits (criterion: waiting pill)", { timeout: 90000 }, withApp({}, async ({ page, teams }) => {
+  await header(teams).click();
+  const ids = await teams.locator("[data-team-pill]").evaluateAll((els) => els.map((e) => e.dataset.teamPill));
   assert.deepEqual(ids, ["pass", "steamers", "tea", "pantry", "front-of-house", "cubs", "library", "drum"]);
-  const pill = (id) => stations.locator(`[data-station-pill="${id}"]`);
+  const pill = (id) => teams.locator(`[data-team-pill="${id}"]`);
   assert.match(await pill("steamers").innerText(), /Steamers\s*1\b/);
   assert.match(await pill("pass").innerText(), /\bPass\b/);
   assert.match(await pill("pantry").innerText(), /Pantry\s*0\b/);
@@ -395,9 +395,9 @@ test("open stations: one pill each in order with name and count; a pill shows '�
   }
 }));
 
-test("dormant stations are dashed, non-interactive pills: Library and Drum 'coming online', Cubs 'N asleep' (criterion: dormant pills)", { timeout: 90000 }, withApp({}, async ({ stations }) => {
-  await header(stations).click();
-  const pill = (id) => stations.locator(`[data-station-pill="${id}"]`);
+test("dormant teams are dashed, non-interactive pills: Library and Drum 'coming online', Cubs 'N asleep' (criterion: dormant pills)", { timeout: 90000 }, withApp({}, async ({ teams }) => {
+  await header(teams).click();
+  const pill = (id) => teams.locator(`[data-team-pill="${id}"]`);
   assert.match(await pill("library").innerText(), /coming online/);
   assert.match(await pill("drum").innerText(), /coming online/);
   assert.match(await pill("cubs").innerText(), /\b1 asleep\b/, "one cub in the fixture");
@@ -413,8 +413,8 @@ test("dormant stations are dashed, non-interactive pills: Library and Drum 'comi
 test("summary and queue: '5 open · N ready', 'Next on the susan', rows with a P-chip and title; an empty susan says so (criterion: Queue contents)", { timeout: 90000 }, async () => {
   const app = await openApp({});
   try {
-    await header(app.stations).click();
-    const text = await app.stations.innerText();
+    await header(app.teams).click();
+    const text = await app.teams.innerText();
     assert.match(text, /5 open · 2 ready/);
     assert.match(text, /Next on the susan/i);
     assert.match(text, /P0[\s\S]*next-up/);
@@ -425,17 +425,17 @@ test("summary and queue: '5 open · N ready', 'Next on the susan', rows with a P
   }
   const quiet = await openApp({ snapshot: quietSnapshot() });
   try {
-    await header(quiet.stations).click();
-    await quiet.stations.getByText("The susan is empty.").waitFor({ state: "visible" });
-    assert.match(await quiet.stations.innerText(), /0 ready/);
+    await header(quiet.teams).click();
+    await quiet.teams.getByText("The susan is empty.").waitFor({ state: "visible" });
+    assert.match(await quiet.teams.innerText(), /0 ready/);
   } finally {
     await quiet.context.close();
   }
 });
 
-test("clicking an open station pill zooms to that station (level 2 · Team becomes current)", { timeout: 90000 }, withApp({}, async ({ stations, zoom }) => {
-  await header(stations).click();
-  await stations.locator('[data-station-pill="tea"]').click();
+test("clicking an open team pill zooms to that team (level 2 · Team becomes current)", { timeout: 90000 }, withApp({}, async ({ teams, zoom }) => {
+  await header(teams).click();
+  await teams.locator('[data-team-pill="tea"]').click();
   await zoom.getByRole("button", { name: "2 · Team" }).waitFor({ state: "visible" });
   assert.equal(await zoom.getByRole("button", { name: "2 · Team" }).getAttribute("aria-current"), "true");
   assert.ok((await zoomValue(zoom)) < 1, "closer than the Level 1 framing");
@@ -612,13 +612,13 @@ test("phone coarse-pointer controls keep a 44px target for Bao, navigation and g
 test("phone cards stay inside the desk below the garden and opening one closes the other", { timeout: 90000 }, async () => {
   const app = await openApp({ viewport: PHONE });
   try {
-    const { page, needs, stations, zoom } = app;
+    const { page, needs, teams, zoom } = app;
     assert.equal(await header(needs).getAttribute('aria-expanded'), 'false');
-    assert.equal(await header(stations).getAttribute('aria-expanded'), 'false');
+    assert.equal(await header(teams).getAttribute('aria-expanded'), 'false');
     const garden = await page.locator('main.scene').boundingBox();
     const desk = await page.getByRole('complementary', { name: 'Your desk' }).boundingBox();
     assert.ok(desk.y >= garden.y + garden.height + 15);
-    for (const card of [needs, stations]) {
+    for (const card of [needs, teams]) {
       const box = await card.boundingBox();
       assert.ok(box.x >= desk.x && box.x + box.width <= desk.x + desk.width);
     }
@@ -626,8 +626,8 @@ test("phone cards stay inside the desk below the garden and opening one closes t
     assert.equal(await page.locator('[data-overlay="intent"], [data-overlay="timeline"]').count(), 0);
     await header(needs).click();
     assert.equal(await header(needs).getAttribute('aria-expanded'), 'true');
-    await header(stations).click();
-    assert.equal(await header(stations).getAttribute('aria-expanded'), 'true');
+    await header(teams).click();
+    assert.equal(await header(teams).getAttribute('aria-expanded'), 'true');
     assert.equal(await header(needs).getAttribute('aria-expanded'), 'false');
   } finally { await app.context.close(); }
 });
@@ -637,8 +637,8 @@ test("phone cards stay inside the desk below the garden and opening one closes t
 test("every control is keyboard-reachable in the garden-then-desk tab order with a 2px focus-ring outline at 2px offset (criterion: keyboard, focus ring)", { timeout: 120000 }, async () => {
   const app = await openApp({});
   try {
-    const { page, needs, stations } = app;
-    if ((await header(stations).getAttribute("aria-expanded")) === "false") await header(stations).click();
+    const { page, needs, teams } = app;
+    if ((await header(teams).getAttribute("aria-expanded")) === "false") await header(teams).click();
     assert.equal(await header(needs).getAttribute("aria-expanded"), "true");
     const ring = await token(page, "focus-ring");
     // Interactive elements that must be reachable, in the overlays.
@@ -647,7 +647,7 @@ test("every control is keyboard-reachable in the garden-then-desk tab order with
         .filter((e) => e.getClientRects().length > 0 && (e.tabIndex < 0 || e.disabled))
         .map((e) => e.outerHTML.slice(0, 80)));
     assert.deepEqual(unreachable, [], "no visible control is removed from the tab order");
-    // Reset the Tab starting point: clicking the Stations header above leaves Chromium's sequential-focus
+    // Reset the Tab starting point: clicking the Teams header above leaves Chromium's sequential-focus
     // start at that header, which would skip the Needs you stops. Focus the scene, then walk from there.
     await page.evaluate(() => { document.activeElement?.blur(); window.scrollTo(0, 0); });
     await page.locator('main[aria-label="Den scene"]').focus();
@@ -668,8 +668,8 @@ test("every control is keyboard-reachable in the garden-then-desk tab order with
     const overlaySeq = [];
     for (const s of seen) if (s.overlay && overlaySeq.at(-1) !== s.overlay) overlaySeq.push(s.overlay);
     const first = (name) => overlaySeq.indexOf(name);
-    for (const name of ["needs-you", "stations", "zoom"]) assert.ok(first(name) >= 0, `${name} is reachable by Tab; saw ${overlaySeq}`);
-    assert.ok(first("zoom") < first("needs-you") && first("needs-you") < first("stations"), `tab order follows garden controls then Needs you and Stations; saw ${overlaySeq}`);
+    for (const name of ["needs-you", "teams", "zoom"]) assert.ok(first(name) >= 0, `${name} is reachable by Tab; saw ${overlaySeq}`);
+    assert.ok(first("zoom") < first("needs-you") && first("needs-you") < first("teams"), `tab order follows garden controls then Needs you and Teams; saw ${overlaySeq}`);
     const labels = seen.filter((s) => s.overlay === "zoom").map((s) => s.text);
     for (const want of ["1 · Den", "2 · Team", "3 · Panda", "4 · Workspace", "Zoom in", "Zoom out"]) assert.ok(labels.includes(want), `Tab reaches ${want}`);
     const inCards = seen.filter((s) => s.overlay);
@@ -687,8 +687,8 @@ test("every control is keyboard-reachable in the garden-then-desk tab order with
 
 // Stand-in for axe (not a dependency; adding one is a security gate): the rules axe would flag on these
 // overlays, checked through Playwright's accessibility tree and the DOM.
-test("accessibility basics: every button, link and field has a name, ids are unique, landmarks are named, aria-controls resolve, and den words only (criterion: axe finds no serious issues; den words)", { timeout: 90000 }, withApp({}, async ({ page, stations }) => {
-  await header(stations).click();
+test("accessibility basics: every button, link and field has a name, ids are unique, landmarks are named, aria-controls resolve, and den words only (criterion: axe finds no serious issues; den words)", { timeout: 90000 }, withApp({}, async ({ page, teams }) => {
+  await header(teams).click();
   const tree = await page.locator("body").ariaSnapshot();
   const unnamed = tree.split("\n").filter((line) => /^\s*- (button|link|textbox|slider|combobox|checkbox|switch)\b/.test(line) && !/^\s*- \w+ "/.test(line));
   assert.deepEqual(unnamed, [], "controls without an accessible name");
@@ -697,7 +697,7 @@ test("accessibility basics: every button, link and field has a name, ids are uni
     const dupes = ids.filter((id, i) => ids.indexOf(id) !== i);
     const broken = [...document.querySelectorAll("[aria-controls]")].filter((e) => !document.getElementById(e.getAttribute("aria-controls"))).map((e) => e.outerHTML.slice(0, 80));
     const unnamedRegions = [...document.querySelectorAll('section, nav, [role="region"]')].filter((e) => !e.getAttribute("aria-label") && !e.getAttribute("aria-labelledby")).map((e) => e.outerHTML.slice(0, 80));
-    const words = /\b(organism|organisms|cell|cells|genome|apoptosis|endocrine)\b/i;
+    const words = /\b(organism|organisms|placement|placements|genome|apoptosis|endocrine)\b/i;
     const biology = [...document.querySelectorAll("[data-overlay]")].flatMap((root) => [root, ...root.querySelectorAll("*")])
       .flatMap((e) => [e.getAttribute("aria-label"), e.children.length === 0 ? e.textContent : null, e.getAttribute("placeholder")])
       .filter((t) => t && words.test(t));

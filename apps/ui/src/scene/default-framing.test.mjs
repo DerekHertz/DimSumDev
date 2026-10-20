@@ -7,28 +7,28 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { defaultFrame, worldToScreen } from "./iso-projection.mjs";
 import { BAO, CUB_BASKET, CUB_BASKET_RADIUS, TABLE, TALLY, STALL_CENTERS, stallCenterX, stallPlatform, stallRoof, stallWidth, stallYaw } from "./banquet-layout.mjs";
-import { stationLabels } from "./station-labels.mjs";
+import { teamLabels } from "./team-labels.mjs";
 import { EAVE_Y, POST_BASE, POST_SIZE, postHeight, postPositions, roofTriangles } from "./stall-roof.mjs";
 
 const SIZES = [{ width: 1440, height: 900 }, { width: 375, height: 667 }];
-const N = 3; // default three-slot kiosks: the layout constants, no extra cells
+const N = 3; // default three-slot kiosks: the layout constants, no extra placements
 
 const box = (x, y, z, hx, hy, hz) => [-1, 1].flatMap((sx) => [-1, 1].flatMap((sy) => [-1, 1].map((sz) => [x + sx * hx, y + sy * hy, z + sz * hz])));
-const world = (station, n, [x, y, z]) => {
-  const yaw = stallYaw(station);
-  return [stallCenterX(station, n) + x * Math.cos(yaw) + z * Math.sin(yaw), y + stallPlatform(station), STALL_CENTERS[station].z - x * Math.sin(yaw) + z * Math.cos(yaw)];
+const world = (team, n, [x, y, z]) => {
+  const yaw = stallYaw(team);
+  return [stallCenterX(team, n) + x * Math.cos(yaw) + z * Math.sin(yaw), y + stallPlatform(team), STALL_CENTERS[team].z - x * Math.sin(yaw) + z * Math.cos(yaw)];
 };
-const completeKiosk = (station, n) => {
-  const width = stallWidth(n), roof = stallRoof(station);
+const completeKiosk = (team, n) => {
+  const width = stallWidth(n), roof = stallRoof(team);
   const flatRoof = roofTriangles(width, 1, roof);
   const points = Array.from({ length: flatRoof.length / 3 }, (_, i) => flatRoof.slice(i * 3, i * 3 + 3));
   points.push(...box(0, 0.25, 0, width / 2, 0.25, 0.5));
   points.push(...box(0, 0.52, 0.5, (width + 0.1) / 2, 0.03, 0.05));
   for (const [x, z] of postPositions(width, 1)) points.push(...box(x, POST_BASE + postHeight(roof) / 2, z, POST_SIZE / 2, postHeight(roof) / 2, POST_SIZE / 2));
   points.push(...box(0, (roof?.eave ?? EAVE_Y) - 0.2, 0.45, 0.14, 0.14, 0.14));
-  const platform = stallPlatform(station);
+  const platform = stallPlatform(team);
   if (platform) points.push(...box(0, -platform / 2, 0, (width + 0.3) / 2, platform / 2, 0.65));
-  return points.map((p) => world(station, n, p));
+  return points.map((p) => world(team, n, p));
 };
 const baoBox = () => { const [x, y, z] = BAO.position, s = BAO.scale; return box(x, y, z, s, s, s * 0.875); };
 const tableRing = () => Array.from({ length: 128 }, (_, i) => [TABLE.x + TABLE.radius * Math.cos(i * Math.PI / 64), TABLE.height, TABLE.z + TABLE.radius * Math.sin(i * Math.PI / 64)]);
@@ -54,10 +54,10 @@ test("the default frame contains every kiosk, Bao, the susan, the hamper and the
   }
 });
 
-test("every station sign anchor is inside the default frame at both sizes", () => {
+test("every team sign anchor is inside the default frame at both sizes", () => {
   for (const size of SIZES) {
     const frame = defaultFrame(size);
-    for (const l of stationLabels({})) {
+    for (const l of teamLabels({})) {
       const s = worldToScreen([l.x, l.y, l.z], frame);
       assert.ok(s.x >= 0 && s.x <= size.width && s.y >= 0 && s.y <= size.height, `${l.id} at ${size.width}: ${JSON.stringify(s)}`);
     }
@@ -75,15 +75,15 @@ test("den-map check 1: at the default frame every counter is clear of other coun
   for (const size of SIZES) {
     const frame = defaultFrame(size);
     const bao = rect(baoBox(), frame), table = rect(tableRing(), frame);
-    const counters = Object.keys(STALL_CENTERS).map((station) => ({
-      station,
-      rect: rect([-1, 1].flatMap((x) => [-1, 1].map((z) => world(station, N, [x * stallWidth(N) / 2, 0.5, z * 0.5]))), frame),
+    const counters = Object.keys(STALL_CENTERS).map((team) => ({
+      team,
+      rect: rect([-1, 1].flatMap((x) => [-1, 1].map((z) => world(team, N, [x * stallWidth(N) / 2, 0.5, z * 0.5]))), frame),
     }));
     for (let i = 0; i < counters.length; i++) {
-      const { station, rect: r } = counters[i];
-      assert.ok(!overlaps(r, bao), `${size.width}: ${station} counter / Bao`);
-      assert.ok(!overlaps(r, table), `${size.width}: ${station} counter / table`);
-      for (let j = i + 1; j < counters.length; j++) assert.ok(!overlaps(r, counters[j].rect), `${size.width}: ${station} / ${counters[j].station} counters`);
+      const { team, rect: r } = counters[i];
+      assert.ok(!overlaps(r, bao), `${size.width}: ${team} counter / Bao`);
+      assert.ok(!overlaps(r, table), `${size.width}: ${team} counter / table`);
+      for (let j = i + 1; j < counters.length; j++) assert.ok(!overlaps(r, counters[j].rect), `${size.width}: ${team} / ${counters[j].team} counters`);
     }
   }
 });
@@ -93,11 +93,11 @@ test("den-map check 1: at the default frame no kiosk sign sits behind another ki
     const frame = defaultFrame(size);
     const bao = rect(baoBox(), frame), table = rect(tableRing(), frame);
     const kiosks = Object.fromEntries(Object.keys(STALL_CENTERS).map((s) => [s, rect(completeKiosk(s, N), frame)]));
-    for (const l of stationLabels({}).filter((x) => STALL_CENTERS[x.station])) {
+    for (const l of teamLabels({}).filter((x) => STALL_CENTERS[x.team])) {
       const sign = worldToScreen([l.x, l.y, l.z], frame);
-      assert.ok(!within(sign, bao), `${size.width}: ${l.station} sign / Bao`);
-      assert.ok(!within(sign, table), `${size.width}: ${l.station} sign / table`);
-      for (const [other, r] of Object.entries(kiosks)) if (other !== l.station) assert.ok(!within(sign, r), `${size.width}: ${l.station} sign / ${other} kiosk`);
+      assert.ok(!within(sign, bao), `${size.width}: ${l.team} sign / Bao`);
+      assert.ok(!within(sign, table), `${size.width}: ${l.team} sign / table`);
+      for (const [other, r] of Object.entries(kiosks)) if (other !== l.team) assert.ok(!within(sign, r), `${size.width}: ${l.team} sign / ${other} kiosk`);
     }
   }
 });
@@ -111,10 +111,10 @@ test("den-scene-v1/11 A1: every kiosk sign anchor is at least 4 px outside every
   for (const size of SIZES) {
     const frame = defaultFrame(size);
     const kiosks = Object.fromEntries(Object.keys(STALL_CENTERS).map((s) => [s, rect(completeKiosk(s, N), frame)]));
-    for (const l of stationLabels({}).filter((x) => STALL_CENTERS[x.station])) {
+    for (const l of teamLabels({}).filter((x) => STALL_CENTERS[x.team])) {
       const sign = worldToScreen([l.x, l.y, l.z], frame);
       for (const [other, r] of Object.entries(kiosks)) {
-        if (other !== l.station) assert.ok(pxOutside(sign, r) >= 4, `${size.width}: ${l.station} sign is ${pxOutside(sign, r).toFixed(1)} px from the ${other} kiosk`);
+        if (other !== l.team) assert.ok(pxOutside(sign, r) >= 4, `${size.width}: ${l.team} sign is ${pxOutside(sign, r).toFixed(1)} px from the ${other} kiosk`);
       }
     }
   }
@@ -123,9 +123,9 @@ test("den-scene-v1/11 A1: every kiosk sign anchor is at least 4 px outside every
 test("den-scene-v1/11 A1: the Tea and Pantry kiosk rectangles are at least 1 px inside the viewport at both sizes", () => {
   for (const size of SIZES) {
     const frame = defaultFrame(size);
-    for (const station of ["tea", "pantry"]) {
-      const r = rect(completeKiosk(station, N), frame);
-      assert.ok(r.x0 >= 1 && r.x1 <= size.width - 1 && r.y0 >= 1 && r.y1 <= size.height - 1, `${station} at ${size.width}: ${JSON.stringify(r)}`);
+    for (const team of ["tea", "pantry"]) {
+      const r = rect(completeKiosk(team, N), frame);
+      assert.ok(r.x0 >= 1 && r.x1 <= size.width - 1 && r.y0 >= 1 && r.y1 <= size.height - 1, `${team} at ${size.width}: ${JSON.stringify(r)}`);
     }
   }
 });

@@ -3,7 +3,7 @@ import { DESK_REF } from '../../../bridge/agents/policy.mjs';
 import { sameResident, runtimeOf, boundAgentKey, RUNTIME_UNAVAILABLE, LIVE_AGENT_STATES } from '../shell/resident-inventory.mjs';
 
 // den-v1/04: pure proximity selection. Positions and yaw use the walk core's world coordinates.
-// The scene supplies {id, name, role, station, position:{x,z}, ref?, state?, tool?, agent?} per panda.
+// The scene supplies {id, name, role, team, position:{x,z}, ref?, state?, tool?, agent?} per panda.
 // den-v1 loop S1: the roles the bridge starts from the den (apps/bridge/agents/policy.mjs ROLES; a test keeps the two
 // equal). T on a resident with one of these roles opens the task box. A scenery panda (dispatchable: false) never does,
 // even when it shares a role's name: the Drummer stays scenery until team-and-den-ux/03 seats the release manager.
@@ -81,7 +81,7 @@ function cardOf(nearest, approvals) {
     T: action(start ? null : inactive || (agent.capabilities?.send !== true ? 'runtime cannot send messages' : null)),
   };
   return {
-    id: nearest.id, name: nearest.name, role: nearest.role, station: nearest.station, runtime, projectId:nearest.projectId,
+    id: nearest.id, name: nearest.name, role: nearest.role, team: nearest.team, runtime, projectId:nearest.projectId,
     agentId: agent?.id ?? null, threadId: agent?.id ?? (desk ? (past?.ref === DESK_REF ? past.id : DESK_THREAD) : past?.id ?? null), ref: agent?.ref ?? nearest.ref ?? null, start,
     state, tool: agent ? agent.tool ?? null : nearest.agent ? null : nearest.tool ?? null, approval, actions,
     last: past ? {

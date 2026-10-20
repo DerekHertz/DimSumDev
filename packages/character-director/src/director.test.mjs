@@ -37,27 +37,27 @@ test("every state maps to a loop, entry one-shot, face frame and held pose, all 
 test("pose clips are held once settled, and only contract loop clips repeat", () => {
   const director = createCharacterDirector();
   for (const state of STATES) {
-    director.setState("cell-1", state, 0);
-    const cmd = director.tick("cell-1", 10);
+    director.setState("agent-1", state, 0);
+    const cmd = director.tick("agent-1", 10);
     assert.equal(cmd.clip, STATE_MAP[state].loop, state);
     assert.equal(cmd.loop, LOOPS.includes(cmd.clip), state);
   }
 });
 
-test("a terminated cell waves once, then settles instead of waving again", () => {
+test("a terminated agent waves once, then settles instead of waving again", () => {
   const director = createCharacterDirector();
-  director.setState("cell-1", "terminated", 0);
-  const waving = director.tick("cell-1", 1);
+  director.setState("agent-1", "terminated", 0);
+  const waving = director.tick("agent-1", 1);
   assert.equal(waving.clip, "wave");
   assert.equal(waving.loop, false);
-  const settled = director.tick("cell-1", 5);
+  const settled = director.tick("agent-1", 5);
   assert.notEqual(settled.clip, "wave");
   assert.equal(settled.loop, false);
 });
 
-test("a cell defaults to idle before any state is pushed", () => {
+test("a agent defaults to idle before any state is pushed", () => {
   const director = createCharacterDirector();
-  const cmd = director.tick("cell-1", 0);
+  const cmd = director.tick("agent-1", 0);
   assert.equal(cmd.clip, STATE_MAP.idle.enter);
   assert.equal(cmd.face, STATE_MAP.idle.face);
 });
@@ -65,8 +65,8 @@ test("a cell defaults to idle before any state is pushed", () => {
 test("tick plays each state's entry clip and face frame right after a state change", () => {
   const director = createCharacterDirector();
   for (const state of STATES) {
-    director.setState("cell-1", state, 0);
-    const cmd = director.tick("cell-1", 0);
+    director.setState("agent-1", state, 0);
+    const cmd = director.tick("agent-1", 0);
     assert.equal(cmd.clip, STATE_MAP[state].enter, state);
     assert.equal(cmd.face, STATE_MAP[state].face, state);
   }
@@ -74,30 +74,30 @@ test("tick plays each state's entry clip and face frame right after a state chan
 
 test("tick settles into the state's loop once the entry duration has elapsed", () => {
   const director = createCharacterDirector();
-  director.setState("cell-1", "working", 0);
-  const cmd = director.tick("cell-1", 10);
+  director.setState("agent-1", "working", 0);
+  const cmd = director.tick("agent-1", 10);
   assert.equal(cmd.clip, STATE_MAP.working.loop);
   assert.equal(cmd.loop, true);
 });
 
 test("a state change interrupts immediately, even mid one-shot, and cross-fades for dur-fast", () => {
   const director = createCharacterDirector();
-  director.setState("cell-1", "terminated", 0); // wave is a one-shot, never reaches a loop
-  director.tick("cell-1", 0.05); // still mid one-shot
-  director.setState("cell-1", "blocked", 0.05);
-  const justChanged = director.tick("cell-1", 0.05);
+  director.setState("agent-1", "terminated", 0); // wave is a one-shot, never reaches a loop
+  director.tick("agent-1", 0.05); // still mid one-shot
+  director.setState("agent-1", "blocked", 0.05);
+  const justChanged = director.tick("agent-1", 0.05);
   assert.equal(justChanged.clip, STATE_MAP.blocked.enter);
   assert.equal(justChanged.crossFade, DUR_FAST);
 
-  const afterFade = director.tick("cell-1", 0.05 + DUR_FAST + 0.01);
+  const afterFade = director.tick("agent-1", 0.05 + DUR_FAST + 0.01);
   assert.equal(afterFade.crossFade, 0);
 });
 
 test("reduced motion holds every state's pose and face with no loop, breathing, blink or crossfade", () => {
   const director = createCharacterDirector({ reducedMotion: true });
   for (const state of STATES) {
-    director.setState("cell-1", state, 0);
-    const cmd = director.tick("cell-1", 500); // long after any transition or blink would fire
+    director.setState("agent-1", state, 0);
+    const cmd = director.tick("agent-1", 500); // long after any transition or blink would fire
     assert.equal(cmd.clip, STATE_MAP[state].heldPose, state);
     assert.equal(cmd.face, STATE_MAP[state].face, state);
     assert.equal(cmd.loop, false, state);
@@ -108,10 +108,10 @@ test("reduced motion holds every state's pose and face with no loop, breathing, 
 test("the calm rule: blinks never come faster than dur-heartbeat apart", () => {
   // A deterministic "random" that always returns 0 asks for the fastest legal blink cadence.
   const director = createCharacterDirector({ random: () => 0 });
-  director.setState("cell-1", "working", 0);
+  director.setState("agent-1", "working", 0);
   const blinkTimes = [];
   for (let t = 0; t < 20; t += 0.05) {
-    const cmd = director.tick("cell-1", t);
+    const cmd = director.tick("agent-1", t);
     if (cmd.face === "blink") blinkTimes.push(t);
   }
   const starts = blinkTimes.filter((t, i) => i === 0 || t - blinkTimes[i - 1] > 0.1);
@@ -123,13 +123,13 @@ test("the calm rule: blinks never come faster than dur-heartbeat apart", () => {
 
 test("reduced motion never blinks", () => {
   const director = createCharacterDirector({ reducedMotion: true, random: () => 0 });
-  director.setState("cell-1", "working", 0);
+  director.setState("agent-1", "working", 0);
   for (let t = 0; t < 20; t += 0.1) {
-    assert.notEqual(director.tick("cell-1", t).face, "blink");
+    assert.notEqual(director.tick("agent-1", t).face, "blink");
   }
 });
 
-test("cells are tracked independently", () => {
+test("agents are tracked independently", () => {
   const director = createCharacterDirector();
   director.setState("a", "done", 0);
   director.setState("b", "failed", 0);
@@ -138,45 +138,45 @@ test("cells are tracked independently", () => {
 });
 
 test("every habit loop is a contract clip that also appears in the prop-asset map (ticket 07)", () => {
-  for (const [cellType, clip] of Object.entries(HABIT_LOOPS)) {
-    assert.ok(CLIPS.includes(clip), `${cellType}'s habit "${clip}" is not a contract clip`);
-    assert.ok(LOOPS.includes(clip), `${cellType}'s habit "${clip}" is not a contract loop`);
-    assert.equal(PROP_ASSETS[cellType]?.clip, clip, `${cellType}'s prop-asset entry disagrees with HABIT_LOOPS`);
+  for (const [role, clip] of Object.entries(HABIT_LOOPS)) {
+    assert.ok(CLIPS.includes(clip), `${role}'s habit "${clip}" is not a contract clip`);
+    assert.ok(LOOPS.includes(clip), `${role}'s habit "${clip}" is not a contract loop`);
+    assert.equal(PROP_ASSETS[role]?.clip, clip, `${role}'s prop-asset entry disagrees with HABIT_LOOPS`);
   }
 });
 
-test("a working Brain-type cell loops its own habit clip instead of the generic breathe", () => {
+test("a working Brain-type agent loops its own habit clip instead of the generic breathe", () => {
   const director = createCharacterDirector();
-  for (const [cellType, clip] of Object.entries(HABIT_LOOPS)) {
-    director.setCellType("cell-1", cellType);
-    director.setState("cell-1", "working", 0);
-    const settled = director.tick("cell-1", 10);
-    assert.equal(settled.clip, clip, cellType);
-    assert.equal(settled.loop, true, cellType);
+  for (const [role, clip] of Object.entries(HABIT_LOOPS)) {
+    director.setAgentType("agent-1", role);
+    director.setState("agent-1", "working", 0);
+    const settled = director.tick("agent-1", 10);
+    assert.equal(settled.clip, clip, role);
+    assert.equal(settled.loop, true, role);
   }
 });
 
-test("a working cell with no habit (or an unmodeled type) still breathes", () => {
+test("a working agent with no habit (or an unmodeled type) still breathes", () => {
   const director = createCharacterDirector();
-  director.setState("cell-1", "working", 0);
-  assert.equal(director.tick("cell-1", 10).clip, "breathe");
+  director.setState("agent-1", "working", 0);
+  assert.equal(director.tick("agent-1", 10).clip, "breathe");
 
-  director.setCellType("cell-2", "developer");
-  director.setState("cell-2", "working", 0);
-  assert.equal(director.tick("cell-2", 10).clip, "breathe");
+  director.setAgentType("agent-2", "developer");
+  director.setState("agent-2", "working", 0);
+  assert.equal(director.tick("agent-2", 10).clip, "breathe");
 });
 
-test("setCellType before the first setState still cross-fades normally on the first real state change", () => {
+test("setAgentType before the first setState still cross-fades normally on the first real state change", () => {
   const director = createCharacterDirector();
-  director.setCellType("cell-1", "orchestrator"); // no `now`; must not skew the cell's `since`
-  director.setState("cell-1", "working", 100);
-  const justChanged = director.tick("cell-1", 100);
+  director.setAgentType("agent-1", "orchestrator"); // no `now`; must not skew the agent's `since`
+  director.setState("agent-1", "working", 100);
+  const justChanged = director.tick("agent-1", 100);
   assert.equal(justChanged.crossFade, DUR_FAST);
 });
 
-test("a Brain-type cell's habit only applies to working; other states are unaffected", () => {
+test("a Brain-type agent's habit only applies to working; other states are unaffected", () => {
   const director = createCharacterDirector();
-  director.setCellType("cell-1", "orchestrator");
-  director.setState("cell-1", "done", 0);
-  assert.equal(director.tick("cell-1", 10).clip, STATE_MAP.done.loop);
+  director.setAgentType("agent-1", "orchestrator");
+  director.setState("agent-1", "done", 0);
+  assert.equal(director.tick("agent-1", 10).clip, STATE_MAP.done.loop);
 });

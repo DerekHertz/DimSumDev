@@ -28,9 +28,9 @@ test('profiles preserve live task and tool activity for the primary resident and
   const snapshot = { tickets: [
     { ref: 'feature/01', title: 'Build the garden', holder: { role: 'developer' } },
     { ref: 'feature/02', title: 'Repair the bridge', holder: { role: 'developer' } },
-  ], cells: [
-    { ref: 'feature/01', cellType: 'developer', state:'working', lastEventAt: '2026-10-16T12:00:00Z', tool: { name: 'Read', summary: 'garden model' } },
-    { ref: 'feature/02', cellType: 'developer', state:'working', lastEventAt: '2026-10-16T12:00:00Z' },
+  ], placements: [
+    { ref: 'feature/01', role: 'developer', state:'working', lastEventAt: '2026-10-16T12:00:00Z', tool: { name: 'Read', summary: 'garden model' } },
+    { ref: 'feature/02', role: 'developer', state:'working', lastEventAt: '2026-10-16T12:00:00Z' },
   ] };
   const rows = deskResidents(snapshot, { now: Date.parse('2026-10-16T12:00:01Z') });
   assert.equal(rows.find(row => row.id === 'developer').task, 'feature/01 · Build the garden');

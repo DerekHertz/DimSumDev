@@ -81,7 +81,7 @@ export function tallyRods(usage, model, nowMs) {
         text: (v) => `${v} ${v === 1 ? "ticket" : "tickets"}`,
       }),
       metricRod({
-        id: "tokens", label: "Tokens", color: "station-steamers", state: stateOf(tokens), scale: TOKENS_SCALE,
+        id: "tokens", label: "Tokens", color: "team-steamers", state: stateOf(tokens), scale: TOKENS_SCALE,
         value: tokens && !tokens.empty ? mean(tokens) : undefined,
         text: (v) => `${tokenText(v)} / ticket`,
       }),

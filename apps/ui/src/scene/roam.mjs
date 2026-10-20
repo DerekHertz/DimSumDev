@@ -1,6 +1,6 @@
-// den-scene-v1/01: pandas remain at their station; only handoffs trigger travel.
+// den-scene-v1/01: pandas remain at their team; only handoffs trigger travel.
 // Pure snapshot-event lifecycle shared by the renderer and integration tests.
-import { BAO, CUB_BASKET, CUB_BASKET_RADIUS, STALL_CENTERS, TABLE, TALLY, placeCell, stallCenterX, stallWidth, stallYaw, stationOf } from "./banquet-layout.mjs";
+import { BAO, CUB_BASKET, CUB_BASKET_RADIUS, STALL_CENTERS, TABLE, TALLY, placeRole, stallCenterX, stallWidth, stallYaw, teamOf } from "./banquet-layout.mjs";
 import { handoffPath } from "./handoffs.mjs";
 
 export const ROAMER_TYPES = ["product", "architect", "developer", "scout", "qa", "security", "designer"];
@@ -17,10 +17,10 @@ export function roamObstacles(counts = {}) {
     rect(0, 4.6, stallWidth(counts.cubs ?? 0) / 2, 0.35),
     rect(TALLY.x, TALLY.z, TALLY.frame.width / 2 + 0.1, TALLY.frame.depth / 2 + 0.1),
   ];
-  for (const [station, c] of Object.entries(STALL_CENTERS)) {
-    const yaw = stallYaw(station), half = stallWidth(counts[station] ?? 0) / 2;
+  for (const [team, c] of Object.entries(STALL_CENTERS)) {
+    const yaw = stallYaw(team), half = stallWidth(counts[team] ?? 0) / 2;
     const platform = c.z < 0 ? 0.15 : 0;
-    out.push(rect(stallCenterX(station, counts[station] ?? 0), c.z,
+    out.push(rect(stallCenterX(team, counts[team] ?? 0), c.z,
       half * Math.cos(yaw) + 0.5 * Math.abs(Math.sin(yaw)) + platform,
       half * Math.abs(Math.sin(yaw)) + 0.5 * Math.cos(yaw) + platform));
   }
@@ -42,24 +42,24 @@ function walk(route, distance) {
 }
 
 /**
- * Idle and working pandas share their fixed station slot. A derived handoff moves only its source
+ * Idle and working pandas share their fixed team slot. A derived handoff moves only its source
  * participant, delivers at the receiving kiosk, then returns to its own slot. Event expiry never
  * cancels a delivery; duplicate events never restart it. Reduced motion consumes events in place.
  */
-export function stepRoamer(prev, { seed, slot = placeCell(seed, 0), working, handoffs = [], dt, reduced }) {
+export function stepRoamer(prev, { seed, slot = placeRole(seed, 0), working, handoffs = [], dt, reduced }) {
   const seen = new Set(prev?.seen ?? []);
   const queue = [...(prev?.queue ?? [])];
   for (const h of handoffs) {
     if (seen.has(h.id)) continue;
     seen.add(h.id);
-    if (h.fromCell === seed && !h.sameStation && STALL_CENTERS[h.from] && STALL_CENTERS[h.to]) queue.push(h);
+    if (h.fromPlacement === seed && !h.sameTeam && STALL_CENTERS[h.from] && STALL_CENTERS[h.to]) queue.push(h);
   }
   // The UI retains only a short expiring event window; keep enough history without growing forever.
   const history = [...seen].slice(-128);
-  const home = slot ?? placeCell(seed, 0);
-  const station = stationOf(seed);
+  const home = slot ?? placeRole(seed, 0);
+  const team = teamOf(seed);
   const resting = () => ({ phase: working ? "working" : "idle", ...home,
-    heading: STALL_CENTERS[station] ? stallYaw(station) : 0, moving: false, opacity: 1, seen: history, queue });
+    heading: STALL_CENTERS[team] ? stallYaw(team) : 0, moving: false, opacity: 1, seen: history, queue });
   if (reduced) return { ...resting(), queue: [] };
   let state = prev?.route ? { ...prev, seen: history, queue } : resting();
   if (!state.route && queue.length) {

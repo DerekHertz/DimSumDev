@@ -14,7 +14,7 @@ test('the actual garden moves residents and koi, holds the selected identity, an
   browser=await chromium.launch(buildLaunchOptions());const context=await browser.newContext({reducedMotion:'no-preference',viewport:{width:1200,height:800}});
   await lightenScene(context,{frameDelayMs:16});const page=await context.newPage(),errors=[],writes=[];
   page.on('pageerror',e=>errors.push(e.message));page.on('request',r=>{if(r.method()==='POST')writes.push(r.url());});
-  const snapshot={schema:1,seq:1,tickets:[],frontier:[],usage:null,requests:[],agents:[],cells:[],meetings:[]};
+  const snapshot={schema:1,seq:1,tickets:[],frontier:[],usage:null,requests:[],agents:[],placements:[],meetings:[]};
   await page.route('**/events',r=>r.fulfill({contentType:'text/event-stream',body:`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`}));
   await page.route('**/state',r=>r.fulfill({json:snapshot}));await page.route('**/metrics',r=>r.fulfill({json:{throughput:{windows:[]},tokensByRole:{},incidentsByTool:{}}}));await page.route('**/session',r=>r.fulfill({status:404,json:{}}));
   await page.goto(server.resolvedUrls.local[0]);

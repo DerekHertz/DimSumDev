@@ -35,7 +35,7 @@ export function Residents({ snapshot, now, bindings, onTalk, onViewWork, getTalk
       <header className="forest-profile-heading">
         <Portrait row={selected} large />
         <div>
-          <p className="forest-eyebrow">{selected.station}{selected.visitor ? ' · Visitor' : ''}</p>
+          <p className="forest-eyebrow">{selected.team}{selected.visitor ? ' · Visitor' : ''}</p>
           <h3 id={profileId}>{selected.name}</h3>
           <p className="forest-profile-role">{selected.role} · {selected.runtime==='codex'?'Codex':'Claude'}</p>
           <p className="forest-profile-project">Current project · {selected.projectId || 'Project identity unavailable'}</p>

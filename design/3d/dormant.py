@@ -1,4 +1,4 @@
-"""Dormant organs: fade their props and put their cells to sleep.
+"""Dormant organs: fade their props and put their agents to sleep.
 
     exec(open(r"D:/claude_sessions/agent_office/design/3d/dormant.py").read())
     make_dormant(("Liver_", "Heart_", "Mem_", "Stem_", "L1_qa-01", "L1_sec-01", "L1_Cub"))
@@ -49,7 +49,7 @@ def make_dormant(prefixes):
         for slot in o.material_slots:
             m = slot.material
             if not m or m.name.endswith("·dormant") or m.name in ("ToonOutline",): continue
-            if o.data.users > 1:           # shared mesh (copied cells): give this object its own slots
+            if o.data.users > 1:           # shared mesh (copied agents): give this object its own slots
                 slot.link = 'OBJECT'
             slot.material = dormant_twin(m)
         if "_Eye_" in o.name:              # asleep: eyes shut to a line

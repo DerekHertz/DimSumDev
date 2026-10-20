@@ -31,7 +31,7 @@ export function stackChips(items, { width = 96, height = 22, gap = 2 } = {}) {
   return out;
 }
 
-export function chipModel(cell, title) {
-  const chip = CHIPS[cell.pose] ?? CHIPS.idle;
-  return { ...chip, ariaLabel: `${title ?? cell.ref}, ${chip.label}` };
+export function chipModel(placement, title) {
+  const chip = CHIPS[placement.pose] ?? CHIPS.idle;
+  return { ...chip, ariaLabel: `${title ?? placement.ref}, ${chip.label}` };
 }

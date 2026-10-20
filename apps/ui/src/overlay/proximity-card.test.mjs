@@ -40,7 +40,7 @@ test('the bound agent supplies state, ticket, tool and runtime capability flags'
 
 // den-v1 loop S1: T on a resident starts a task for that role, so it is enabled when the role is one the bridge can start.
 test('a resident with no live agent keeps its role; T starts a task and the other actions stay off with a reason', () => {
-  const resident = { id: 'qa', name: 'Mei', role: 'qa', station: 'Tea', position: { x: 0, z: -2 } };
+  const resident = { id: 'qa', name: 'Mei', role: 'qa', team: 'Tea', position: { x: 0, z: -2 } };
   const card = cardFor([resident], [], { x: 0, z: 0, yaw: 0 });
   assert.equal(card.role, 'qa');
   assert.equal(card.agentId, null);
@@ -113,7 +113,7 @@ test('a board-bound panda keeps its working details even before it has a bridge 
 // cost is the badge text made from the agent's costUsd (the CLI's own figure); costExact is that figure in full.
 const viewer = { x: 0, z: 0, yaw: 0 };
 const ended = (over = {}) => ({ id: 'c-old', ref: 'den/07-scout', role: 'scout', state: 'done', reply: 'Counted 12 baskets.', costUsd: 0.34, ...over });
-const scout = (agent) => ({ id: 'scout', name: 'Bo', role: 'scout', station: 'Steamers', position: { x: 0, z: -2 }, ...(agent ? { agent } : {}) });
+const scout = (agent) => ({ id: 'scout', name: 'Bo', role: 'scout', team: 'Steamers', position: { x: 0, z: -2 }, ...(agent ? { agent } : {}) });
 
 test('costLabel reads the reported cost to two figures and says it is an API-equivalent', () => {
   assert.equal(costLabel(0.34), '≈34¢ API-equiv');
@@ -197,7 +197,7 @@ test("the card's actions are the QERT row, in keyboard order: Q deny, E allow, R
 
 // den-mvp/30: Bao's thread always opens. With no run it is the desk's thread, where the first message starts one.
 test("Bao with no run: R opens the desk thread; with a run, its own; other residents keep R off", () => {
-  const bao = { id: 'bao', name: 'Bao', role: 'orchestrator', station: 'Pass', position: { x: 0, z: -2 } };
+  const bao = { id: 'bao', name: 'Bao', role: 'orchestrator', team: 'Pass', position: { x: 0, z: -2 } };
   const card = cardFor([bao], [], { x: 0, z: 0, yaw: 0 });
   assert.deepEqual(card.actions.R, { enabled: true, reason: null });
   assert.deepEqual([card.agentId, card.threadId], [null, 'desk']);

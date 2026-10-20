@@ -46,12 +46,12 @@ const settle = (agents, seconds) => {
 const rows = (agents, role) => agents.snapshot().actors.filter((a) => a.role === role);
 const dist = (actor, point) => Math.hypot(actor.panda.model.position.x - point[0], actor.panda.model.position.z - point[1]);
 
-test("a bound panda walks to its station and shows the real state, bubble and ticket", () => {
+test("a bound panda walks to its team and shows the real state, bubble and ticket", () => {
   withAgents((agents) => {
     const dev = agents.actors.get("developer");
     agents.applyLive([live("developer", "fx/01-a")]);
     settle(agents, 60);
-    assert.ok(dist(dev, dev.home) < 1.0, "at its station");
+    assert.ok(dist(dev, dev.home) < 1.0, "at its team");
     const [row] = rows(agents, "developer");
     assert.equal(row.state, "working");
     assert.equal(row.bubble, "Bash: npm test");
@@ -79,7 +79,7 @@ test("a newer live update changes state and bubble on the same panda without mov
     const [row] = rows(agents, "developer");
     assert.equal(row.state, "needs-you");
     assert.equal(row.bubble, "Write: x.mjs");
-    assert.ok(dist(dev, dev.home) < 1.0, "still at its station");
+    assert.ok(dist(dev, dev.home) < 1.0, "still at its team");
   });
 });
 
@@ -154,7 +154,7 @@ test("when the agent's session ends the panda returns to idle wandering: task an
     // Until it first arrives: a panda that has sat a while moves on to another area, so a fixed wait would depend on the walk's length.
     for (let i = 0; i < 900 && dev.state !== "leisure"; i++) agents.update(0.1);
     assert.equal(dev.state, "leisure", "arrived at a leisure area");
-    assert.ok(dist(dev, dev.home) > 1.5, "no longer standing at its station");
+    assert.ok(dist(dev, dev.home) > 1.5, "no longer standing at its team");
     assert.equal(rows(agents, "developer")[0].bubble, "");
   });
 });
@@ -211,13 +211,13 @@ test("an idle held panda starts no new wander, and the others keep theirs", () =
   });
 });
 
-test("holding does not keep a panda from its station once it has an agent", () => {
+test("holding does not keep a panda from its team once it has an agent", () => {
   withAgents((agents) => {
     const dev = agents.actors.get("developer");
     agents.hold("developer");
     agents.applyLive([live("developer", "fx/01-a")]);
     settle(agents, 60);
-    assert.ok(dist(dev, dev.home) < 1.0, "a panda with a task goes to its station, held or not");
+    assert.ok(dist(dev, dev.home) < 1.0, "a panda with a task goes to its team, held or not");
     assert.equal(rows(agents, "developer")[0].state, "working");
   });
 });

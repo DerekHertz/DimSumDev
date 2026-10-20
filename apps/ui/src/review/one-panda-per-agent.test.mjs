@@ -30,7 +30,7 @@ function withLiveDen(run) {
 }
 
 const live = (role, ref, extra = {}) => ({ role, ref, split: false, state: "working", activity: "Working", bubble: "", task: ref, ...extra });
-const cell = (ref, cellType = "developer") => ({ ref, cellType, pose: "working" });
+const placement = (ref, role = "developer") => ({ ref, role, pose: "working" });
 // Every object in the den that stands for this agent (carries its ticket ref).
 const pandasFor = (den, ref) => {
   const found = [];
@@ -41,7 +41,7 @@ const pandasFor = (den, ref) => {
 test("one live agent yields exactly one panda, not a role panda plus a ticket panda", () => {
   withLiveDen(({ den, agents, controller }) => {
     const before = den.pandas.length;
-    controller.sync([cell("fx/01-a")], [], []);
+    controller.sync([placement("fx/01-a")], [], []);
     agents.applyLive([live("developer", "fx/01-a")]);
     assert.equal(controller.figures.size, 0, "the controller adds no ticket panda");
     assert.equal(den.pandas.length, before, "the den gained no panda");
@@ -53,7 +53,7 @@ test("one live agent yields exactly one panda, not a role panda plus a ticket pa
 
 test("a second live agent of a role is one split-off panda, and each agent has exactly one", () => {
   withLiveDen(({ den, agents, controller }) => {
-    controller.sync([cell("fx/01-a"), cell("fx/02-b")], [], []);
+    controller.sync([placement("fx/01-a"), placement("fx/02-b")], [], []);
     agents.applyLive([live("developer", "fx/01-a"), live("developer", "fx/02-b", { split: true })]);
     assert.equal(pandasFor(den, "fx/01-a").length, 1);
     assert.equal(pandasFor(den, "fx/02-b").length, 1);

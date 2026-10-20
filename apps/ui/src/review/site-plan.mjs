@@ -9,9 +9,9 @@ export const REVIEW_SKIES={morning:'#dce7d9',lantern:'#22373e',garden:'#cfdfd6'}
 const P=VILLAGE_POSITIONS;
 const at=(id,dx=0,dz=0)=>[P[id][0]+dx,P[id][2]+dz];
 
-// The four working stations (the kit's `station(kind)`: a 4.1 x 3 pavilion open to the back and the sides, a prep counter
+// The four working teams (the kit's `team(kind)`: a 4.1 x 3 pavilion open to the back and the sides, a prep counter
 // along its front). `roles` stand behind the counter, at `homes`.
-export const REVIEW_STATIONS=[
+export const REVIEW_TEAMS=[
   {id:'steamers',asset:'steamers',label:'Steamers',x:P.steamers[0],z:P.steamers[2],yaw:0,roles:['developer','scout']},
   {id:'front-of-house',asset:'front',label:'Front of House',x:P.front[0],z:P.front[2],yaw:0,roles:['designer','herald']},
   {id:'tea',asset:'tea',label:'Tea & Pantry',x:P.tea[0],z:P.tea[2],yaw:0,roles:['qa']},
@@ -40,7 +40,7 @@ export const ROLE_HOMES={
 };
 // Ground the feet stand on: the kit's raised platforms and round pads.
 const FLOORS=[
-  ...REVIEW_STATIONS.map(s=>({x:s.x,z:s.z,halfX:1.95,halfZ:1.4,y:.21})),
+  ...REVIEW_TEAMS.map(s=>({x:s.x,z:s.z,halfX:1.95,halfZ:1.4,y:.21})),
   {x:P.rest[0],z:P.rest[2],halfX:1.7,halfZ:1.2,y:.21},
 ];
 const PADS=[
@@ -59,7 +59,7 @@ const box=(x,z,halfX,halfZ,extra)=>({type:'box',x,z,halfX,halfZ,rotation:0,...ex
 const circle=(x,z,radius,extra)=>({type:'circle',x,z,radius,...extra});
 // The frontier baskets' grid (den-scene.mjs) beside the ticket baskets.
 const FRONTIER_BOX=[-19,-7.7];
-const stationSolids=REVIEW_STATIONS.flatMap(({x,z})=>{
+const teamSolids=REVIEW_TEAMS.flatMap(({x,z})=>{
   const out=[box(x,z+.65,1.5,.42),
     ...[-1.6,1.6].flatMap(dx=>[-1.08,1.08].map(dz=>circle(x+dx,z+dz,.15,{thin:true})))];
   return out;
@@ -68,7 +68,7 @@ const pantryShelf=box(P.pantry[0]+1,P.pantry[2]-.83,.6,.3);
 const bambooRing=Array.from({length:28},(_,i)=>{const a=Math.PI*.53+i*Math.PI*.94/27;return [Math.sin(a)*26,Math.cos(a)*26];}).filter(([,z])=>z<4)
   .map(([x,z])=>circle(x,z,.35));
 export const REVIEW_OBSTACLES=[
-  ...stationSolids,pantryShelf,
+  ...teamSolids,pantryShelf,
   // The Pass: the counter and its sign, the two planters, Bao at his post.
   box(PASS.x,PASS.z+2,1.95,.5),...[-2.5,2.5].map(dx=>circle(PASS.x+dx,PASS.z,.5)),circle(BAO_HOME[0],BAO_HOME[1],.9),
   ...[-1.6,1.6].map(dx=>circle(PASS.x+dx,PASS.z+1.75,.12,{thin:true})),

@@ -15,9 +15,9 @@ SRC = globals().get("PANDA_SRC") or os.path.dirname(globals().get("__file__", ""
 OUT_DIR = os.path.normpath(os.path.join(SRC, "..", "..", "public", "models", "props"))
 SCENE = "PropAssets"
 
-# Design bounce (ticket 07, MEDIUM): the design system artifact's cell-types.md (not checked into
-# this repo; see handoffs/07-designer-1.md) says a cell type's personality comes from a hat and held
-# prop "in its station hue". Orchestrator/product/architect are all Brain (station-pass = wisteria, the
+# Design bounce (ticket 07, MEDIUM): the design system artifact's agent-types.md (not checked into
+# this repo; see handoffs/07-designer-1.md) says a agent type's personality comes from a hat and held
+# prop "in its team hue". Orchestrator/product/architect are all Brain (team-pass = wisteria, the
 # artifact's tokens.json #674698 light / #c3a5f9 dark, hue ~264deg). The three props stay in that
 # hue family, varied by lightness/saturation for shape-driven distinguishability rather than by
 # swapping to unrelated narrative colours.
@@ -76,8 +76,8 @@ def new_object(name, bm, color):
 
 
 def make_fan():
-    """A folding fan, open: a pie-wedge held closed-edge-first at the paw (paw_R). Wisteria (station
-    Brain hue, cell-types.md), a mid lightness so it reads distinctly from the scroll and blueprint.
+    """A folding fan, open: a pie-wedge held closed-edge-first at the paw (paw_R). Wisteria (team
+    Brain hue, agent-types.md), a mid lightness so it reads distinctly from the scroll and blueprint.
 
     The wedge stands upright with its face to the camera (its thin solidify axis on Blender Z, which
     is world depth). The hinge sits on the paw surface, FAN_HINGE out past the paw tip, and the
@@ -100,7 +100,7 @@ def make_fan():
 
 
 def make_scroll():
-    """A rolled scroll, held horizontally in the paw (paw_L). Wisteria (Pass station hue), lighter
+    """A rolled scroll, held horizontally in the paw (paw_L). Wisteria (Pass team hue), lighter
     than the fan and blueprint so the three read as distinct at a glance.
 
     Its length runs across the paw (Blender X), perpendicular to the forearm, and it lies just past
@@ -117,7 +117,7 @@ def make_scroll():
 
 def make_blueprint():
     """An unrolled blueprint sheet, held in the left paw (paw_L is the attach socket) and steadied
-    with both arms as build_clips.py's blueprint_unroll plays. Wisteria (Pass station hue), darker
+    with both arms as build_clips.py's blueprint_unroll plays. Wisteria (Pass team hue), darker
     than the fan and scroll so the three read as distinct at a glance.
 
     The sheet stands up facing the camera (thin on Blender Z, world depth), just in front of the

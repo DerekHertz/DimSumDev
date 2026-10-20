@@ -4,28 +4,28 @@ import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
 import { chipModel, stackChips } from "./chip-model.mjs";
 import { TALLY_ARIA_LABEL, TALLY_CARD_ID, TALLY_LABEL } from "./tally-face.mjs";
-import { stationLabels } from "./station-labels.mjs";
-import { stationOf } from "./banquet-layout.mjs";
+import { teamLabels } from "./team-labels.mjs";
+import { teamOf } from "./banquet-layout.mjs";
 import { ROAMER_TYPES } from "./roam.mjs";
 
 export const TALLY_CHIP_ID = "__tally";
 
-// `hearts` is a Set of cell refs that just received a handoff (showcase-v1/04): a heart bubble shows.
-export function ChipLayer({ cells, tickets, selected, onSelect, stage, hearts, onToggleTally, tallyOpen = false, tally, labelsOverride }) {
+// `hearts` is a Set of placement refs that just received a handoff (showcase-v1/04): a heart bubble shows.
+export function ChipLayer({ placements, tickets, selected, onSelect, stage, hearts, onToggleTally, tallyOpen = false, tally, labelsOverride }) {
   const nodes = useRef(new Map());
-  // Station labels (showcase-v1/05): plain text on a rice-paper pill, placed over each stall roof.
+  // Team labels (showcase-v1/05): plain text on a rice-paper pill, placed over each stall roof.
   const labelNodes = useRef(new Map());
   const labels = useMemo(() => {
     if(labelsOverride)return labelsOverride;
     const counts = {};
-    for (const c of cells) counts[stationOf(c.cellType)] = (counts[stationOf(c.cellType)] ?? 0) + 1;
+    for (const c of placements) counts[teamOf(c.role)] = (counts[teamOf(c.role)] ?? 0) + 1;
     for (const type of ROAMER_TYPES) {
-      if (cells.some((c) => c.cellType === type)) continue;
-      const station = stationOf(type);
-      counts[station] = (counts[station] ?? 0) + 1;
+      if (placements.some((c) => c.role === type)) continue;
+      const team = teamOf(type);
+      counts[team] = (counts[team] ?? 0) + 1;
     }
-    return stationLabels(counts);
-  }, [cells,labelsOverride]);
+    return teamLabels(counts);
+  }, [placements,labelsOverride]);
   const labelsRef = useRef(labels);
   labelsRef.current = labels;
   useEffect(() => {
@@ -77,7 +77,7 @@ export function ChipLayer({ cells, tickets, selected, onSelect, stage, hearts, o
         <span
           key={l.id}
           ref={(el) => (el ? labelNodes.current.set(l.id, el) : labelNodes.current.delete(l.id))}
-          className="station-label"
+          className="team-label"
           style={{ visibility: "hidden" }}
         >
           {l.text}
@@ -112,7 +112,7 @@ export function ChipLayer({ cells, tickets, selected, onSelect, stage, hearts, o
             />
           ))
         : null}
-      {cells.map((c) => {
+      {placements.map((c) => {
         const chip = chipModel(c, titles.get(c.ref));
         return (
           <button

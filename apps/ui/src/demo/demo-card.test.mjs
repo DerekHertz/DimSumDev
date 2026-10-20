@@ -24,7 +24,7 @@ const agent = {
 };
 const approval = { id: "ap1", agentId: "a1", status: "pending", tool: "Bash" };
 const liveCard = (over = {}) => cardFor(
-  [{ id: "p", name: "Dev", role: "developer", station: "Steamers", position: { x: -2, z: 0 }, ref: agent.ref, agent: { ...agent, ...over } }],
+  [{ id: "p", name: "Dev", role: "developer", team: "Steamers", position: { x: -2, z: 0 }, ref: agent.ref, agent: { ...agent, ...over } }],
   [approval], viewer,
 );
 const lines = (id, n = 1) => ({ [id]: { entries: Array.from({ length: n }, (_, i) => ({ kind: "message", role: "agent", text: "hi", n: i + 1 })), dropped: 0 } });
@@ -46,7 +46,7 @@ describe("T, E and Q", () => {
     }
   });
   test("a resident panda greys all four, T E Q with the Demo reason and R with no transcript", () => {
-    const resident = cardFor([{ id: "qa", name: "Mei", role: "qa", station: "Tea", position: { x: -2, z: 0 } }], [], viewer);
+    const resident = cardFor([{ id: "qa", name: "Mei", role: "qa", team: "Tea", position: { x: -2, z: 0 } }], [], viewer);
     const card = demoCard(resident, { transcripts: lines("a1") });
     assert.deepEqual(card.actions.T, OFF);
     assert.deepEqual(card.actions.E, OFF);
@@ -96,7 +96,7 @@ describe("the rest of the card", () => {
   test("walk mode keeps working: name, role, state, tool, ref, agent and the pending request are untouched", () => {
     const base = liveCard();
     const card = demoCard(base, { transcripts: lines("a1") });
-    for (const key of ["id", "name", "role", "station", "state", "ref", "agentId", "tool", "approval"]) {
+    for (const key of ["id", "name", "role", "team", "state", "ref", "agentId", "tool", "approval"]) {
       assert.deepEqual(card[key], base[key], key);
     }
     assert.equal(pendingLine(card), "Waiting on you · Bash");

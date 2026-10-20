@@ -1,6 +1,6 @@
 // The character director (ADR 0007, spec.md "Character director"): a pure module, no renderer
-// dependency. It takes cell-state changes (and, later, handoff events, perch anchors and time) and
-// answers `tick(cellId, now)` with a clip name, whether it loops, a face frame and a cross-fade hint. State→clip
+// dependency. It takes agent-state changes (and, later, handoff events, perch anchors and time) and
+// answers `tick(agentId, now)` with a clip name, whether it loops, a face frame and a cross-fade hint. State→clip
 // names were the panda asset contract (removed with the glbs, den-v1/08; director.test.mjs keeps a frozen copy) so the two
 // stay in lockstep.
 
@@ -16,7 +16,7 @@ export const DUR_HEARTBEAT = 1.2;
 const BLINK_DURATION = 0.12;
 
 // Each state maps to a looping clip, an entry one-shot, a face frame and a held pose for reduced
-// motion (spec.md, "State → clip map"). `loop` is what the cell settles into after the entry;
+// motion (spec.md, "State → clip map"). `loop` is what the agent settles into after the entry;
 // `loops` says whether it repeats (a contract LOOPS clip) or is a pose clip played once and held.
 // Every clip named here must exist in the asset contract's CLIPS list, and `loops` must agree with
 // its LOOPS list (both enforced by director.test.mjs, not re-imported here to keep this module
@@ -35,7 +35,7 @@ export const STATE_MAP = {
 
 const DEFAULT_STATE = "idle";
 
-// Per-type idle habits (spec.md "Per-type idle habits", ticket 07): a working Brain-type cell
+// Per-type idle habits (spec.md "Per-type idle habits", ticket 07): a working Brain-type agent
 // loops its own prop clip instead of the generic `breathe`. Only the three modeled Brain types
 // (orchestrator, product, architect) have a habit today; every other type still breathes. Clip
 // names must exist in the asset contract's CLIPS/LOOPS (cross-checked in director.test.mjs, not
@@ -46,13 +46,13 @@ export const HABIT_LOOPS = {
   architect: "blueprint_unroll",
 };
 
-function newCell(state, now) {
+function newAgent(state, now) {
   return { state, since: now, nextBlinkAt: undefined };
 }
 
-/** Returns state's mapping, substituting the habit loop for `working` when cellType has one. */
-function mappingFor(state, cellType) {
-  const habit = state === "working" ? HABIT_LOOPS[cellType] : undefined;
+/** Returns state's mapping, substituting the habit loop for `working` when role has one. */
+function mappingFor(state, role) {
+  const habit = state === "working" ? HABIT_LOOPS[role] : undefined;
   if (!habit) return STATE_MAP[state];
   return { ...STATE_MAP[state], loop: habit, enter: habit, heldPose: habit, loops: true };
 }
@@ -60,21 +60,21 @@ function mappingFor(state, cellType) {
 /**
  * Creates a character director. `reducedMotion` and `random` (an injectable RNG, for
  * deterministic tests of the calm rule) are the only options; everything else arrives through
- * `setState`/`setCellType`/`tick`.
+ * `setState`/`setAgentType`/`tick`.
  */
 export function createCharacterDirector({ reducedMotion = false, random = Math.random } = {}) {
-  const cells = new Map();
-  // Kept separate from `cells`: a type is a fixed identity, not part of the state timeline, so
-  // recording it never resets or depends on a cell's `since` (order-independent with setState).
-  const cellTypes = new Map();
+  const agents = new Map();
+  // Kept separate from `agents`: a type is a fixed identity, not part of the state timeline, so
+  // recording it never resets or depends on a agent's `since` (order-independent with setState).
+  const roles = new Map();
 
-  function cellOf(cellId, now) {
-    let cell = cells.get(cellId);
-    if (!cell) {
-      cell = newCell(DEFAULT_STATE, now);
-      cells.set(cellId, cell);
+  function agentOf(agentId, now) {
+    let agent = agents.get(agentId);
+    if (!agent) {
+      agent = newAgent(DEFAULT_STATE, now);
+      agents.set(agentId, agent);
     }
-    return cell;
+    return agent;
   }
 
   return {
@@ -82,22 +82,22 @@ export function createCharacterDirector({ reducedMotion = false, random = Math.r
       reducedMotion = value;
     },
 
-    /** Pushes a cell-state-changed event. Interrupts immediately, even mid one-shot or mid loop. */
-    setState(cellId, state, now) {
+    /** Pushes a agent-state-changed event. Interrupts immediately, even mid one-shot or mid loop. */
+    setState(agentId, state, now) {
       if (!STATE_MAP[state]) throw new Error(`unknown state "${state}"`);
-      cells.set(cellId, newCell(state, now));
+      agents.set(agentId, newAgent(state, now));
     },
 
-    /** Records `cellId`'s cell type (spec.md "Per-type idle habits"), for the `working` habit loop. */
-    setCellType(cellId, cellType) {
-      cellTypes.set(cellId, cellType);
+    /** Records `agentId`'s agent type (spec.md "Per-type idle habits"), for the `working` habit loop. */
+    setAgentType(agentId, role) {
+      roles.set(agentId, role);
     },
 
-    /** Samples the clip, face frame and cross-fade hint for `cellId` at time `now` (seconds). */
-    tick(cellId, now) {
-      const cell = cellOf(cellId, now);
-      const mapping = mappingFor(cell.state, cellTypes.get(cellId));
-      const sinceChange = now - cell.since;
+    /** Samples the clip, face frame and cross-fade hint for `agentId` at time `now` (seconds). */
+    tick(agentId, now) {
+      const agent = agentOf(agentId, now);
+      const mapping = mappingFor(agent.state, roles.get(agentId));
+      const sinceChange = now - agent.since;
       const crossFade = sinceChange < DUR_FAST ? DUR_FAST : 0;
 
       if (reducedMotion) {
@@ -109,15 +109,15 @@ export function createCharacterDirector({ reducedMotion = false, random = Math.r
 
       // The calm rule: blinks are spaced no closer than dur-heartbeat, scheduled independently of
       // the body clip since the face is a separate texture-atlas channel (spec.md, "Faces").
-      if (cell.nextBlinkAt === undefined) {
-        cell.nextBlinkAt = now + DUR_HEARTBEAT + random() * DUR_HEARTBEAT;
+      if (agent.nextBlinkAt === undefined) {
+        agent.nextBlinkAt = now + DUR_HEARTBEAT + random() * DUR_HEARTBEAT;
       }
       let face = mapping.face;
-      if (now >= cell.nextBlinkAt) {
-        if (now < cell.nextBlinkAt + BLINK_DURATION) {
+      if (now >= agent.nextBlinkAt) {
+        if (now < agent.nextBlinkAt + BLINK_DURATION) {
           face = "blink";
         } else {
-          cell.nextBlinkAt = now + DUR_HEARTBEAT + random() * DUR_HEARTBEAT;
+          agent.nextBlinkAt = now + DUR_HEARTBEAT + random() * DUR_HEARTBEAT;
         }
       }
 

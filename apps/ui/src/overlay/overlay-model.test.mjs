@@ -1,7 +1,7 @@
 // den-scene-v1/07: view-models for the floating cards and bottom overlays. Literals come from the ticket copy.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { relativeAge, stepRequest, badgeModel, clockText, timelineMarkers, shortRef, stationIdOf, stationsModel, needsYouModel } from "./overlay-model.mjs";
+import { relativeAge, stepRequest, badgeModel, clockText, timelineMarkers, shortRef, teamIdOf, teamsModel, needsYouModel } from "./overlay-model.mjs";
 
 const NOW = Date.parse("2026-10-01T12:00:00Z");
 
@@ -23,12 +23,12 @@ test("stepRequest wraps in both directions and falls back to the first when the 
   assert.equal(stepRequest([], "a", 1), null);
 });
 
-test("shortRef drops the feature slug; the three Pass types share the pass station; unknown cell types are cubs", () => {
+test("shortRef drops the feature slug; the three Pass types share the pass team; unknown placement types are cubs", () => {
   assert.equal(shortRef("den-scene-v1/07-sidebar-overlays"), "07-sidebar-overlays");
-  assert.equal(stationIdOf("orchestrator"), "pass");
-  assert.equal(stationIdOf("product"), "pass");
-  assert.equal(stationIdOf("developer"), "steamers");
-  assert.equal(stationIdOf("designer"), "front-of-house");
+  assert.equal(teamIdOf("orchestrator"), "pass");
+  assert.equal(teamIdOf("product"), "pass");
+  assert.equal(teamIdOf("developer"), "steamers");
+  assert.equal(teamIdOf("designer"), "front-of-house");
 });
 
 test("badgeModel: Live, Offline with the run hint, Reconnecting politely", () => {
@@ -61,8 +61,8 @@ test("timelineMarkers: last hour only, lantern for a gate, alarm for blocked, po
   assert.ok(Math.abs(m[1].at - (1 - 1 / 60)) < 1e-9);
 });
 
-test("stationsModel with no snapshot: five open pills, three dormant (Cubs 0 asleep, the others coming online)", () => {
-  const m = stationsModel(null);
+test("teamsModel with no snapshot: five open pills, three dormant (Cubs 0 asleep, the others coming online)", () => {
+  const m = teamsModel(null);
   assert.deepEqual(m.open.map((s) => s.id), ["pass", "steamers", "tea", "pantry", "front-of-house"]);
   assert.deepEqual(m.dormant.map((s) => s.text), ["0 asleep", "coming online", "coming online"]);
   assert.equal(m.summary, "5 open · 0 ready");
@@ -83,7 +83,7 @@ test("a red pull request is a Needs you card for Bao, or for security; a re-run 
   ];
   const { requests } = needsYouModel({ tickets: [], ci: { prs }, deliveries: [{ id: "d-1", state: "paused", pr: { number: 10 } }] }, 0);
   const ci = requests.filter((r) => r.kind === "ci");
-  assert.deepEqual(ci.map((r) => [r.key, r.role, r.station]), [["ci:7", "orchestrator", "pass"], ["ci:8", "security", stationIdOf("security")]]);
+  assert.deepEqual(ci.map((r) => [r.key, r.role, r.team]), [["ci:7", "orchestrator", "pass"], ["ci:8", "security", teamIdOf("security")]]);
   assert.equal(ci[0].title, "PR #7 is red: test");
   assert.equal(ci[0].reason, "test: timed out at 15m0s");
   assert.equal(ci[0].pr, "https://github.com/o/r/pull/7");

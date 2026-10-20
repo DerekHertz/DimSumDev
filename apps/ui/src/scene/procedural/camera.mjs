@@ -1,5 +1,5 @@
 // Garden framing uses the same dolly-factor convention as the app's zoom switcher.
-import { DEN_TARGET, STATIONS } from './bindings.mjs';
+import { DEN_TARGET, TEAMS } from './bindings.mjs';
 export const clampZoom=z=>Math.max(0.25,Math.min(1.2,z));
 const sin=Math.sin(Math.atan(1/Math.SQRT2)),cos=Math.cos(Math.atan(1/Math.SQRT2));
 export function cameraConfig({width,height,zoom=1,target=DEN_TARGET}) {
@@ -21,6 +21,6 @@ export function createDenCameraStore(base,onNavigate=()=>{},targets=null) {
   base.setTarget(DEN_TARGET);
   return {...base,
     goToLevel(level){onNavigate();base.goToLevel(level);if(level===1)base.setTarget(DEN_TARGET);},
-    goToStation(id){onNavigate();base.setZoom(base.levels?.[2]??0.75);const s=STATIONS[id];base.setTarget(targets?.[id]??(s?[s.x,1,s.z]:id==='pass'?[0,2,-10]:DEN_TARGET));},
+    goToTeam(id){onNavigate();base.setZoom(base.levels?.[2]??0.75);const s=TEAMS[id];base.setTarget(targets?.[id]??(s?[s.x,1,s.z]:id==='pass'?[0,2,-10]:DEN_TARGET));},
   };
 }

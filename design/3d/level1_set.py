@@ -1,4 +1,4 @@
-"""Level 1 set dressing: pillow, organ workstations, grove, qi ribbons, and placed cells.
+"""Level 1 set dressing: pillow, organ workstations, grove, qi ribbons, and placed agents.
 
 Run inside Blender after panda_build.py, role_types.py, toon.py and level1.py
 (uses mat(), obj_from_bm(), sphere(), cyl(), dome(), solid(), hex_lin(), PAL).
@@ -42,7 +42,7 @@ def rug(name, loc, w, d, hexcol, rot_z=0.0, lift=0.08):
     """A woven mat that marks a workstation, draped over whatever it lies on.
 
     Every vertex is dropped onto Bao / the pillow, so the mat follows the curve
-    of the belly instead of cutting through it (or through a cell standing on it).
+    of the belly instead of cutting through it (or through a agent standing on it).
     """
     bm = bmesh.new()
     bmesh.ops.create_grid(bm, x_segments=14, y_segments=14, size=0.5)
@@ -196,8 +196,8 @@ def ribbon(name, pts, width=0.09):
     return o
 
 
-def place_cell(src_root, name, loc, rot_z=0.0):
-    """Copy a cell panda (root + props) from the character sheet into this scene."""
+def place_agent(src_root, name, loc, rot_z=0.0):
+    """Copy a agent panda (root + props) from the character sheet into this scene."""
     src = bpy.data.objects[src_root]
     old = bpy.data.objects.get(name)
     if old:
@@ -234,7 +234,7 @@ def shadow_material():
 
 
 def contact_shadow(name, x, y, r=1.1, lift=0.04):
-    """A soft dark blob draped under a cell, so it sits on Bao instead of floating."""
+    """A soft dark blob draped under a agent, so it sits on Bao instead of floating."""
     bm = bmesh.new()
     bmesh.ops.create_circle(bm, cap_ends=True, cap_tris=True, segments=24, radius=1.0)
     bmesh.ops.subdivide_edges(bm, edges=bm.edges[:], cuts=3, use_grid_fill=True)

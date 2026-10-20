@@ -50,10 +50,10 @@ test("the card is a non-modal dialog whose Esc handling stops arrow keys reachin
   assert.match(sources, /Escape/);
 });
 
-test("design tokens the card and the bead slide need are in styles.css: --dur-base 240ms, --shadow-panel, --station-steamers", () => {
+test("design tokens the card and the bead slide need are in styles.css: --dur-base 240ms, --shadow-panel, --team-steamers", () => {
   assert.match(css, /--dur-base:\s*240ms/);
   assert.match(css, /--shadow-panel:/);
-  assert.match(css, /--station-steamers:/);
+  assert.match(css, /--team-steamers:/);
 });
 
 test("the card reads --scene-bottom-inset with a 0 fallback so 07's overlays can keep it clear", () => {

@@ -6,7 +6,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRe
 import { noteCounter, submitGate } from "../panel/gates-model.mjs";
 import { DemoBadge } from "../demo/DemoControls.jsx";
 import { createBridgeClient } from "../state/bridge-client.mjs";
-import { STATION_HUE, badgeModel, needsYouModel, stationsModel, stepRequest } from "./overlay-model.mjs";
+import { TEAM_HUE, badgeModel, needsYouModel, teamsModel, stepRequest } from "./overlay-model.mjs";
 import { deliverState, deliveryRows } from "./delivery-model.mjs";
 import { behindLine, buildLine, newVersionReady, rollbackState } from "./build-model.mjs";
 import { Card } from "./Card.jsx";
@@ -128,7 +128,7 @@ function PermissionDecision({ request, onAnswer, onOpenThread }) {
 }
 
 // organism-infra/228: Run starts an agent for a frontier ticket. The state that must outlive a row (a start in flight,
-// the last refusal, the usage note) lives here, once, so the Stations row and the Needs you dispatch card agree.
+// the last refusal, the usage note) lives here, once, so the Teams row and the Needs you dispatch card agree.
 const RUN_NOTICE = "Started. Usage reading unavailable.";
 const refusalText = (e) => `Couldn't run: ${e?.status ? `${e.status} ` : ""}${e?.reason ?? "the bridge refused the request."}`;
 const without = (obj, keep) => Object.fromEntries(Object.entries(obj).filter(([k, v]) => keep(k, v)));
@@ -562,7 +562,7 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
         {current ? (
           <>
             <div className="needs-head" aria-live="polite">
-              <span className="portrait" style={{ "--zone": `var(${STATION_HUE[current.station]}-zone)` }} aria-hidden="true"><PandaFace /></span>
+              <span className="portrait" style={{ "--zone": `var(${TEAM_HUE[current.team]}-zone)` }} aria-hidden="true"><PandaFace /></span>
               <div className="needs-text">
                 <p className="eyebrow">{current.eyebrow}</p>
                 <p className="needs-title">{current.title}</p>
@@ -605,14 +605,14 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
   );
 }
 
-export function StationsCard({ snapshot, open, onToggle, busy, placeholder, onZoomStation, capacity = null, steer = { state: "ready" }, run = null, deliveries = null }) {
-  const m = stationsModel(snapshot);
+export function TeamsCard({ snapshot, open, onToggle, busy, placeholder, onZoomTeam, capacity = null, steer = { state: "ready" }, run = null, deliveries = null }) {
+  const m = teamsModel(snapshot);
   const listed = new Set(m.next.map((r) => r.ref));
   const notes = run ? Object.entries(run.results).filter(([ref, v]) => v.notice && !listed.has(ref)) : []; // the row left the list: say it here instead
   return (
     <Card
-      id="stations"
-      overlay="stations"
+      id="teams"
+      overlay="teams"
       label="Teams & queue"
       edge="line"
       open={open}
@@ -624,18 +624,18 @@ export function StationsCard({ snapshot, open, onToggle, busy, placeholder, onZo
       {placeholder ? <p className="muted">{placeholder}</p> : null}
       <div className="pills">
         {m.open.map((s) => (
-          <button key={s.id} type="button" className="pill-station" data-station-pill={s.id} style={{ "--hue": `var(${STATION_HUE[s.id]})` }} onClick={() => onZoomStation(s.id)}>
-            <span className="station-dot" aria-hidden="true">{s.glyph}</span>
-            <span className="station-name">{s.name}</span>
-            <span className="station-count">{s.count}</span>
-            {s.waiting ? <span className="station-waiting">· waiting</span> : null}
+          <button key={s.id} type="button" className="pill-team" data-team-pill={s.id} style={{ "--hue": `var(${TEAM_HUE[s.id]})` }} onClick={() => onZoomTeam(s.id)}>
+            <span className="team-dot" aria-hidden="true">{s.glyph}</span>
+            <span className="team-name">{s.name}</span>
+            <span className="team-count">{s.count}</span>
+            {s.waiting ? <span className="team-waiting">· waiting</span> : null}
           </button>
         ))}
         {m.dormant.map((s) => (
-          <span key={s.id} className="pill-station pill-dormant" data-station-pill={s.id}>
-            <span className="station-glyph" aria-hidden="true">{s.glyph}</span>
-            <span className="station-name">{s.name}</span>
-            <span className="station-count">{s.text}</span>
+          <span key={s.id} className="pill-team pill-dormant" data-team-pill={s.id}>
+            <span className="team-glyph" aria-hidden="true">{s.glyph}</span>
+            <span className="team-name">{s.name}</span>
+            <span className="team-count">{s.text}</span>
           </span>
         ))}
       </div>
@@ -654,8 +654,8 @@ export function StationsCard({ snapshot, open, onToggle, busy, placeholder, onZo
                 <span className="queue-title">{r.title}</span>
               </div>
               <span className="code-small muted queue-ref">{r.ref}</span>
-              {run ? <RunControl scope="stations" ticket={{ ref: r.ref, type: r.type }} capacity={capacity} steer={steer} run={run} /> : null}
-              {deliveries ? <DeliverControl scope="stations" ticket={{ ref: r.ref, type: r.type }} snapshot={snapshot} steer={steer} deliveries={deliveries} /> : null}
+              {run ? <RunControl scope="teams" ticket={{ ref: r.ref, type: r.type }} capacity={capacity} steer={steer} run={run} /> : null}
+              {deliveries ? <DeliverControl scope="teams" ticket={{ ref: r.ref, type: r.type }} snapshot={snapshot} steer={steer} deliveries={deliveries} /> : null}
             </li>
           ))}
         </ul>
@@ -670,7 +670,7 @@ export function StationsCard({ snapshot, open, onToggle, busy, placeholder, onZo
  */
 export function Cards({ snapshot, ownBuild = null, now, connection, placeholder, camera, steering, onAnswer, onOpenThread = null, onOpenTicket = null, demo = false, libraryRequest = 0, focusRequest = null }) {
   const [needsOpen, setNeedsOpen] = useState(null); // null: follow the data
-  const [stationsOpen, setStationsOpen] = useState(false);
+  const [teamsOpen, setTeamsOpen] = useState(false);
   const [libraryOpen, setLibraryOpen] = useState(false);
   const [meetingsOpen, setMeetingsOpen] = useState(false);
   const [shownMeeting, setShownMeeting] = useState(null); // the meeting whose brief is open in the Meetings card
@@ -692,7 +692,7 @@ export function Cards({ snapshot, ownBuild = null, now, connection, placeholder,
   useEffect(() => {
     if (!focusRequest) return;
     setNeedsOpen(focusRequest.section === 'home');
-    setStationsOpen(focusRequest.section === 'work');
+    setTeamsOpen(focusRequest.section === 'work');
     setLibraryOpen(focusRequest.section === 'library');
     setMeetingsOpen(focusRequest.section === 'meetings');
     // den-mvp/64: from the table, the meeting opens on the seat's take.
@@ -712,31 +712,31 @@ export function Cards({ snapshot, ownBuild = null, now, connection, placeholder,
   );
   const toggleNeeds = () => {
     setNeedsOpen(!needs);
-    if (!needs && isPhone()) { setStationsOpen(false); setLibraryOpen(false); setMeetingsOpen(false); }
+    if (!needs && isPhone()) { setTeamsOpen(false); setLibraryOpen(false); setMeetingsOpen(false); }
   };
-  const toggleStations = () => {
-    setStationsOpen(!stationsOpen);
-    if (!stationsOpen && isPhone()) { setNeedsOpen(false); setLibraryOpen(false); setMeetingsOpen(false); }
+  const toggleTeams = () => {
+    setTeamsOpen(!teamsOpen);
+    if (!teamsOpen && isPhone()) { setNeedsOpen(false); setLibraryOpen(false); setMeetingsOpen(false); }
   };
   const toggleLibrary = () => {
     setLibraryOpen(!libraryOpen);
-    if (!libraryOpen && isPhone()) { setNeedsOpen(false); setStationsOpen(false); setMeetingsOpen(false); }
+    if (!libraryOpen && isPhone()) { setNeedsOpen(false); setTeamsOpen(false); setMeetingsOpen(false); }
   };
   // den-mvp/22: a click on the archive's chest in the scene opens this same Library card (one card, no duplicate).
   useEffect(() => {
     if (!libraryRequest) return;
     setLibraryOpen(true);
-    if (isPhone()) { setNeedsOpen(false); setStationsOpen(false); setMeetingsOpen(false); }
+    if (isPhone()) { setNeedsOpen(false); setTeamsOpen(false); setMeetingsOpen(false); }
   }, [libraryRequest]);
   const toggleMeetings = () => {
     setMeetingsOpen(!meetingsOpen);
-    if (!meetingsOpen && isPhone()) { setNeedsOpen(false); setStationsOpen(false); setLibraryOpen(false); }
+    if (!meetingsOpen && isPhone()) { setNeedsOpen(false); setTeamsOpen(false); setLibraryOpen(false); }
   };
   // From Needs you: the Meetings card opens with that meeting's brief shown.
   const openMeeting = (id) => {
     setShownMeeting(id);
     setMeetingsOpen(true);
-    if (isPhone()) { setNeedsOpen(false); setStationsOpen(false); setLibraryOpen(false); }
+    if (isPhone()) { setNeedsOpen(false); setTeamsOpen(false); setLibraryOpen(false); }
   };
   return (
     <>
@@ -745,7 +745,7 @@ export function Cards({ snapshot, ownBuild = null, now, connection, placeholder,
       {steering.message ? <p className="small muted session-none" data-session="none" role="status">{steering.message}</p> : null}
       <BuildStatus snapshot={snapshot} ownBuild={ownBuild} steer={steer} client={client} />
       <NeedsYouCard snapshot={snapshot} now={now} open={needs} onToggle={toggleNeeds} busy={busy} placeholder={placeholder} session={steering.session} onAnswer={onAnswer} onOpenThread={onOpenThread} capacity={capacity} steer={steer} run={run} deliveries={deliveries} meetings={meetings} onOpenMeeting={openMeeting} />
-      <StationsCard snapshot={snapshot} open={stationsOpen} onToggle={toggleStations} busy={busy} placeholder={placeholder} onZoomStation={(id) => camera.goToStation(id)} capacity={capacity} steer={steer} run={run} deliveries={deliveries} />
+      <TeamsCard snapshot={snapshot} open={teamsOpen} onToggle={toggleTeams} busy={busy} placeholder={placeholder} onZoomTeam={(id) => camera.goToTeam(id)} capacity={capacity} steer={steer} run={run} deliveries={deliveries} />
       <MeetingsCard client={client} snapshot={snapshot} open={meetingsOpen} onToggle={toggleMeetings} busy={busy} steer={steer} meetings={meetings} shown={shownMeeting} shownRole={shownRole} onShow={setShownMeeting} />
       <LibraryCard client={reader} rev={snapshot?.libraryRev ?? 0} now={now} open={libraryOpen} onToggle={toggleLibrary} busy={busy} demo={demo} />
     </div>

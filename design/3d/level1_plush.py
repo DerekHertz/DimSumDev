@@ -1,4 +1,4 @@
-"""Level 1 with plush Bao sitting up, cells perched on it (supersedes level1_compose.py).
+"""Level 1 with plush Bao sitting up, agents perched on it (supersedes level1_compose.py).
 
     exec(open(r"D:/claude_sessions/agent_office/design/3d/level1_plush.py").read())
 
@@ -60,7 +60,7 @@ for i, (x, y, s) in enumerate(((-31, 24, 1), (-12, 30, 2), (18, 28, 3), (-37, 2,
     bamboo_cluster(f"Grove{i}", x, y, n=6, h=17, seed=s)
 flowers(rx=40, ry=36, keep_out=(21.0, 21.0))
 
-cells = [
+agents = [
     ("PCell_Orchestrator", "L1_orch-01", CROWN[0]),
     ("PCell_Product", "L1_prod-01", CROWN[1]),
     ("PCell_Architect", "L1_arch-01", CROWN[2]),
@@ -70,14 +70,14 @@ cells = [
     ("PCell_QA", "L1_qa-01", (-3.2, -13.8)),
     ("PCell_Security", "L1_sec-01", (14.5, -13.2)),
 ]
-for src, name, (x, y) in cells:
+for src, name, (x, y) in agents:
     z = surface_z(x, y, only=("Bao",))
-    place_cell(src, name, (x, y, z + 0.02 + CELL_SCALE), FACE_CAM)   # plush origin is its centre
+    place_agent(src, name, (x, y, z + 0.02 + AGENT_SCALE), FACE_CAM)   # plush origin is its centre
     contact_shadow(f"Shadow_{name[3:]}", x, y + 0.15)
 
 # Stem: two sleeping cubs in the basket
 for i, (dx, dy, rz) in enumerate(((-0.7, 0.1, 40), (0.8, -0.2, -30))):
-    place_cell("PCell_QA", f"L1_Cub{i}", (-12.0 + dx, -14.0 + dy, 0.35 + 0.6 * CELL_SCALE), math.radians(rz))
+    place_agent("PCell_QA", f"L1_Cub{i}", (-12.0 + dx, -14.0 + dy, 0.35 + 0.6 * AGENT_SCALE), math.radians(rz))
     cub = bpy.data.objects[f"L1_Cub{i}"]; cub.scale = (0.6, 0.6, 0.6)
     for c in cub.children:                                    # a cub has no props yet
         if "_Fur" not in c.name: c.hide_render = True
@@ -109,7 +109,7 @@ path0 = route([crown, side_r, top(SH_R, 0.4)], 0.5)
 obj_from_bm("Qi_Bead", sphere(0.36, 16, 10), bpy.data.materials["Qi"], None, loc=tuple(path0[len(path0) // 2]), subsurf=0)
 
 untoon_scene()
-# dormant cells: no fur shells (the fade would make them opaque), skin and props faded
+# dormant agents: no fur shells (the fade would make them opaque), skin and props faded
 for n in ("L1_qa-01", "L1_sec-01", "L1_Cub0", "L1_Cub1"):
     for c in bpy.data.objects[n].children:
         if "_Fur" in c.name: c.hide_render = True

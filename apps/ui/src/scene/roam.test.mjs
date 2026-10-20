@@ -4,12 +4,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { ROAMER_TYPES, roamObstacles, stepRoamer } from "./roam.mjs";
-import { placeCell } from "./banquet-layout.mjs";
+import { placeRole } from "./banquet-layout.mjs";
 
 for (const reduced of [false, true]) {
   test("work starts and ends in place, without grass travel or fade (reduced=" + reduced + ")", () => {
     for (const seed of ROAMER_TYPES) {
-      const slot = placeCell(seed, 0);
+      const slot = placeRole(seed, 0);
       let state;
       for (const working of [false, true, false, true, false]) {
         state = stepRoamer(state, { seed, slot, working, dt: 1 / 30, reduced });
@@ -20,9 +20,9 @@ for (const reduced of [false, true]) {
   });
 }
 
-test("unassigned pandas use their station slot instead of an arbitrary grass home", () => {
+test("unassigned pandas use their team slot instead of an arbitrary grass home", () => {
   for (const seed of ROAMER_TYPES) {
-    const slot = placeCell(seed, 0);
+    const slot = placeRole(seed, 0);
     const state = stepRoamer(undefined, { seed, slot: null, working: false, dt: 1, reduced: false });
     assert.deepEqual([state.x, state.y, state.z, state.moving], [slot.x, slot.y, slot.z, false]);
   }

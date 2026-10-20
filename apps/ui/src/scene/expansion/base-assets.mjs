@@ -76,7 +76,7 @@ function worker(p,role,pos,s=.36,yaw=0,sleep=false){
 }
 function workbench(p,w=2.8,z=.55,h=1.15){box(p,[w,.16,.8],[0,h,z],C.woodLight);for(const x of [-w*.42,w*.42])box(p,[.14,h-.16,.65],[x,(h-.16)/2+.08,z],C.wood);box(p,[w,.4,.12],[0,h-.28,z+.35],C.wood);}
 
-function station(kind){
+function team(kind){
   const g=group(kind+' pavilion');const color={steamers:C.blue,tea:C.jade,pantry:C.jadeDark,front:C.red}[kind];
   pavilion(g,4.1,3,3.35,color);const names={steamers:'STEAMERS',tea:'TEA & TASTING',pantry:'THE PANTRY',front:'PLATING STUDIO'};sign(g,names[kind],[0,2.85,1.1],2.6,color);
   workbench(g,3,.65);lantern(g,[1.62,3.14,.85]);
@@ -117,16 +117,16 @@ function buildPad(){const g=group('Future workspace plot');roundPad(g,1.5,C.gras
 
 export const ASSETS=[
  ['bao','Bao & the Pass','Chef’s porch','Work & coordination',baoPass,'A welcoming place to talk to Bao, with order slips, a service bell and dishes ready for service.','Existing identity · chief-of-staff dressing proposed'],
- ['steamers','Steamers workshop','Developer & scout','Work & coordination',()=>station('steamers'),'Bamboo baskets, a generous prep counter and a panda folding the next fix.','Existing station · new furniture study'],
- ['tea','Tea & tasting bar','Quality assurance','Work & coordination',()=>station('tea'),'A calm tasting bench where the batch is checked before it moves on.','Existing station · new furniture study'],
- ['pantry','The Pantry','Security & seals','Work & coordination',()=>station('pantry'),'A tidy pantry, ingredient shelves and a seal stamp give security its own recognizable place.','Existing station · new furniture study'],
- ['front','Plating studio','Designer & herald','Work & coordination',()=>station('front'),'A creative workbench for polishing the final dish, menus and draft scrolls.','Existing station · new furniture study'],
+ ['steamers','Steamers workshop','Developer & scout','Work & coordination',()=>team('steamers'),'Bamboo baskets, a generous prep counter and a panda folding the next fix.','Existing team · new furniture study'],
+ ['tea','Tea & tasting bar','Quality assurance','Work & coordination',()=>team('tea'),'A calm tasting bench where the batch is checked before it moves on.','Existing team · new furniture study'],
+ ['pantry','The Pantry','Security & seals','Work & coordination',()=>team('pantry'),'A tidy pantry, ingredient shelves and a seal stamp give security its own recognizable place.','Existing team · new furniture study'],
+ ['front','Plating studio','Designer & herald','Work & coordination',()=>team('front'),'A creative workbench for polishing the final dish, menus and draft scrolls.','Existing team · new furniture study'],
  ['meeting','Round-table pavilion','Six places to gather','New workspace ideas',meeting,'A shared lazy susan, six movable seats and a central decision scroll. Open sides preserve the view into the meeting.','Accepted meeting concept · scene treatment proposed'],
  ['library','Recipe library','Decisions & memory','New workspace ideas',library,'An open recipe archive with shelves, rolled recipes, reading steps and a cushioned bench.','Proposed knowledge workspace'],
  ['study','Quiet study nook','A little room to think','New workspace ideas',study,'A canopy, scroll desk and floor cushion tucked into bamboo. A quieter alternative to the bustling kitchen.','Proposed scenery'],
  ['connector','Connector cabinet','Tools & connection cues','New workspace ideas',connector,'A bamboo-framed service cabinet turns tool connections into legible scenery, with a separate indicator per connection.','Video-inspired proposal · sample indicators'],
  ['skills','Practice garden','Learn by making','New workspace ideas',skills,'A miniature training garden with practice baskets and a recipe scroll. Small challenges, repeatable habits.','Existing training idea · functional dressing proposed'],
- ['trolley','Handoff trolley','Carry the next dish','Props & signals',trolley,'A two-tier bamboo trolley carries baskets between stations. The handoff stays tangible and on-theme.','Proposed reusable handoff prop'],
+ ['trolley','Handoff trolley','Carry the next dish','Props & signals',trolley,'A two-tier bamboo trolley carries baskets between teams. The handoff stays tangible and on-theme.','Proposed reusable handoff prop'],
  ['abacus','Kitchen tally','Budget & capacity','Props & signals',abacus,'A wooden abacus holds five rods: the current window, weekly usage, slots, served work and spills.','Existing tally idea · illustrative values'],
  ['rail','Order-slip rail','Work waiting to happen','Props & signals',rail,'Clipped paper orders make the queue visible without filling the garden with floating panels.','Existing order-slip metaphor'],
  ['baskets','Ticket baskets','Next & in progress','Props & signals',baskets,'Closed baskets wait their turn; an open basket reveals the work inside. A next-order tag gives the stack direction.','Existing ticket-basket metaphor'],
@@ -140,14 +140,14 @@ export const ASSETS=[
  ['grove','Bamboo planting kit','A soft garden edge','Life in the den',grove,'Jointed bamboo, jade leaves, soft shrubs and rounded stones make a consistent garden vocabulary.','Reusable environment kit'],
  ['gate','Garden welcome gate','A sense of arrival','Life in the den',gate,'A low upturned roof and two quiet paper lanterns frame the entrance to the den.','Proposed scenery'],
  ['paths','Courtyard paving','Room to walk','Life in the den',paths,'Broad stepping stones connect the pavilions and leave space for pandas to carry work between them.','Existing walkable-layout goal'],
- ['pad','Future workspace plot','Room to grow','Life in the den',buildPad,'An empty marked garden plot leaves a clear place for a station that does not exist yet.','Existing build-pad direction'],
+ ['pad','Future workspace plot','Room to grow','Life in the den',buildPad,'An empty marked garden plot leaves a clear place for a team that does not exist yet.','Existing build-pad direction'],
 ].map(([id,name,subtitle,category,build,description,basis],index)=>({id,name,subtitle,category,build,description,basis,index:index+1}));
 
 export function createAsset(id,{includeResidents=true}={}){const asset=ASSETS.find(x=>x.id===id);if(!asset)throw new Error(`Unknown asset: ${id}`);const before=residentsOn;residentsOn=includeResidents;try{const root=asset.build();root.userData.assetId=id;return root;}finally{residentsOn=before;}}
 
 // Where each kit asset stands in the assembled den (renders/layout-top.png).
 export const VILLAGE_POSITIONS={bao:[0,0,-10],steamers:[-14,0,-10],tea:[-14,0,0],pantry:[14,0,0],front:[14,0,-10],meeting:[0,0,9],library:[0,0,-20],study:[-10,0,-20],connector:[14,0,-19],skills:[14,0,18],trolley:[-9,0,-10],abacus:[18,0,10],rail:[-19,0,-10],baskets:[-19,0,-5],dishes:[-10,.77,18],request:[14,0,10],states:[0,0,0],crew:[0,0,0],retreat:[-14,0,10],mahjong:[-9,0,19],rest:[4,0,20],grove:[-23,0,-10],gate:[0,0,25],paths:[0,0,23],pad:[-19,0,-17]};
-// The two promenades, the crosspaths and the short station approaches, as [x,z] polylines.
+// The two promenades, the crosspaths and the short team approaches, as [x,z] polylines.
 export const VILLAGE_PATHS=(()=>{
   const s=[[[-7,-16],[-7,21]],[[7,-16],[7,21]],[[-7,-16],[7,-16]],[[-7,-5],[7,-5]],[[-7,4],[7,4]],[[-7,15],[7,15]],[[-7,23],[7,23]],[[0,23],[0,25]],[[0,-16],[0,-13.4]],[[0,-16],[0,-18]],[[0,4],[0,5.2]],[[0,13],[0,15]],[[7,21],[7,23]],[[-7,21],[-7,23]]];
   for(const z of [-10,0,10,19])s.push([[-7,z],[-11,z]],[[7,z],[11,z]]);
@@ -169,7 +169,7 @@ function buildVillage(includeResidents){
   const serving=group('Courtyard snack table');cyl(serving,.1,.65,[0,.42,0],C.wood);cyl(serving,.8,.12,[0,.8,0],C.woodLight);at(serving,createAsset('dishes',{includeResidents}),[0,.89,0],0,.65);at(world,serving,[-12.8,0,19]);
   worker(world,'product',[-2.9,.05,-10],.36,.35);worker(world,'architect',[2.9,.05,-10],.36,-.3);worker(world,'scout',[-12,.05,-7],.34,.3);worker(world,'herald',[12,.05,-8],.34,-.3);
   worker(world,'qa',[-14,.15,10],.29,.2);worker(world,'designer',[-9,.15,20.7],.29,0);worker(world,'security',[12,.15,18],.28,-.3);
-  // Two continuous promenades, crosspaths and short perpendicular station approaches.
+  // Two continuous promenades, crosspaths and short perpendicular team approaches.
   const segments=VILLAGE_PATHS;
   for(const [a,b] of segments){const length=Math.hypot(b[0]-a[0],b[1]-a[1]),n=Math.ceil(length/.85);for(let i=0;i<n;i++){const t=i/n;const m=cyl(world,.43,.05,[a[0]+(b[0]-a[0])*t,.005,a[1]+(b[1]-a[1])*t],C.stone);m.scale.z=.85;}}
   // Intentionally low planting around the front; taller bamboo frames the back silhouette.

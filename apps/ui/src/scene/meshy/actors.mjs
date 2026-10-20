@@ -17,9 +17,9 @@ export function createMeshyActors(den){
  let meeting=null;const holders=new Map();
  for(const source of den.propManifest){
   const model=den.roleWorkspaces.workspaces.get(source.id)?.person;if(!model)continue;
-  const identity=RESIDENTS.find(r=>r.id===source.id),legacy=definitions.get(source.id),role=identity?.role||legacy[0],name=identity?.name||legacy[1],station=identity?.station||legacy[2],concept=identity?!identity.dispatchable:legacy[5],runtime=identity?.runtime||'claude',home=model.position.clone();
+  const identity=RESIDENTS.find(r=>r.id===source.id),legacy=definitions.get(source.id),role=identity?.role||legacy[0],name=identity?.name||legacy[1],team=identity?.team||legacy[2],concept=identity?!identity.dispatchable:legacy[5],runtime=identity?.runtime||'claude',home=model.position.clone();
   const rig=den.pandaRigs.get(model).rig;
-  actors.set(source.id,{id:source.id,role,runtime,name,station,concept:!!concept,stationary:role==='orchestrator',panda:{model,rig},gesture:createLeisureGesture(rig),home,baseYaw:model.rotation.y,index:actors.size,state:'idle',activity:role==='orchestrator'?'Hosting the Den':'At the workspace',live:null});
+  actors.set(source.id,{id:source.id,role,runtime,name,team,concept:!!concept,stationary:role==='orchestrator',panda:{model,rig},gesture:createLeisureGesture(rig),home,baseYaw:model.rotation.y,index:actors.size,state:'idle',activity:role==='orchestrator'?'Hosting the Den':'At the workspace',live:null});
  }
  const routines=createDailyRoutines(den,actors);
  function clearPoint(base,index){

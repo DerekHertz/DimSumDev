@@ -1,6 +1,6 @@
 // The one place the camera's goal lives (den-scene-v1/07): the zoom factor and the look-at target. The rig
 // (CameraRig.jsx) eases the camera toward it; the wheel, pinch, + and - keys, the zoom buttons, the level
-// switcher and the station pills all write here, so they can never disagree. Pure: no React, no three.
+// switcher and the team pills all write here, so they can never disagree. Pure: no React, no three.
 // Zoom is the dolly factor of iso-projection.mjs (smaller is closer), always held inside [ZOOM_MIN, ZOOM_MAX].
 import { STALL_CENTERS } from "./banquet-layout.mjs";
 import { TARGET } from "./iso-projection.mjs";
@@ -55,8 +55,8 @@ export function createCameraStore({minZoom=.55,levels=LEVEL_ZOOM}={}) {
       store.setZoom(levels[level]);
       if (level === 1) store.setTarget(TARGET);
     },
-    /** Level 2 on a station: the look-at moves to its kiosk (the rig pulls it inside the pan limits). */
-    goToStation(id) {
+    /** Level 2 on a team: the look-at moves to its kiosk (the rig pulls it inside the pan limits). */
+    goToTeam(id) {
       const c = STALL_CENTERS[id];
       store.setZoom(levels[2]);
       store.setTarget(c ? [c.x, 0, c.z] : TARGET);

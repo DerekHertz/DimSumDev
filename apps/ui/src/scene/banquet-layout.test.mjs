@@ -5,7 +5,7 @@
 // out; every literal below that moved was moved by exactly 0.6, not recomputed), Tea and Pantry stand at x +-5.2 (0.3
 // farther out; their literals moved by exactly 0.3), the dormant pads at (+-3.4, -7.65), the ring centre follows Bao
 // to z -3.3. Spec: handoffs/11-designer-spec.md and -2.md (the -2 file wins).
-// Ticket showcase-v1/01, ADR 0013: the pure placement module for the banquet market. Cell type and
+// Ticket showcase-v1/01, ADR 0013: the pure placement module for the banquet market. Role and
 // slot index in, world position out. Expected values are hand-worked literals from the anchor model
 // in the ADR (stall centres, spacing 0.75, Bao at [0,1.4,-2.4] scale 1.4), not recomputed.
 import { test } from "node:test";
@@ -16,30 +16,30 @@ const near = (actual, expected, msg) => {
   assert.equal(actual.length, expected.length, msg);
   actual.forEach((v, i) => assert.ok(Math.abs(v - expected[i]) < 1e-9, `${msg ?? ""} [${i}] ${v} != ${expected[i]}`));
 };
-const at = async (cellType, slot, count) => {
-  const p = (await load()).placeCell(cellType, slot, count);
+const at = async (role, slot, count) => {
+  const p = (await load()).placeRole(role, slot, count);
   return [p.x, p.y, p.z];
 };
 
-test("stationOf maps every cell type to its station", async () => {
-  const { stationOf } = await load();
+test("teamOf maps every placement type to its team", async () => {
+  const { teamOf } = await load();
   const table = {
     orchestrator: "orchestrator", product: "product", architect: "architect",
     developer: "steamers", scout: "steamers",
     qa: "tea", security: "pantry", designer: "front-of-house",
     mystery: "cubs",
   };
-  for (const [cell, station] of Object.entries(table)) assert.equal(stationOf(cell), station, cell);
+  for (const [placement, team] of Object.entries(table)) assert.equal(teamOf(placement), team, placement);
 });
 
-test("parsePerch splits station and slot", async () => {
+test("parsePerch splits team and slot", async () => {
   const { parsePerch } = await load();
-  assert.deepEqual(parsePerch("front-of-house#2"), { station: "front-of-house", slot: 2 });
+  assert.deepEqual(parsePerch("front-of-house#2"), { team: "front-of-house", slot: 2 });
 });
 
 // den-scene-v1/11 T9 (rest seats). The literals are the designer's measurements of the posed mesh (handoffs/11-designer-spec.md
 // section 3: world numbers at scale 2.1, feet at y -1 in model units), not derived from BAO. Tolerance 0.03 model units = 0.063 world.
-// Slots follow parsePerch: the orchestrator's extra cells step -0.4 world x along the rail (away from the bell), product and
+// Slots follow parsePerch: the orchestrator's extra placements step -0.4 world x along the rail (away from the bell), product and
 // architect step -0.4 world z along the arm top. Their y comes from the posed mesh (a ray at that column), so the pure layout is
 // checked only in x and z there; the mesh test in bao-seats.test.mjs pins the height.
 const SEAT_TOL = 0.063;
@@ -53,7 +53,7 @@ test("Pass perches at rest: orchestrator on the crown, product and architect on 
   seatNear(await at("architect", 0), [1.722, 2.289, -3.384], "architect (world +x)");
 });
 
-test("Pass perches: extra orchestrators step -0.4 x along the rail, extra product and architect cells step -0.4 z along the arm", async () => {
+test("Pass perches: extra orchestrators step -0.4 x along the rail, extra product and architect placements step -0.4 z along the arm", async () => {
   seatNear(await at("orchestrator", 1), [-0.4, 4.2714, -3.6885], "orchestrator#1");
   seatNear(await at("orchestrator", 2), [-0.8, 4.2714, -3.6885], "orchestrator#2");
   seatNear(await at("product", 1), [-1.722, 0, -3.784], "product#1", [0, 2]);
@@ -87,20 +87,20 @@ test("a stall's three slots are fixed anchors whatever the head count up to thre
   }
 });
 
-test("overflow: a stall with five cells widens outward along the front", async () => {
+test("overflow: a stall with five placements widens outward along the front", async () => {
   near(await at("security", 0, 5), [4.648271230483526, 0.6, 1.2546797932343948]);
   near(await at("security", 2, 5), [5.95, 0.6, 2]);
   near(await at("security", 4, 5), [7.251728769516474, 0.6, 2.745320206765605]);
 });
 
-test("stallWidth is 2.25 up to three cells, then 0.75 per cell", async () => {
+test("stallWidth is 2.25 up to three placements, then 0.75 per placement", async () => {
   const { stallWidth } = await load();
   assert.equal(stallWidth(0), 2.25);
   assert.equal(stallWidth(3), 2.25);
   assert.equal(stallWidth(6), 4.5);
 });
 
-test("cubs (unknown cell types) queue in a row at the cub basket, front centre", async () => {
+test("cubs (unknown placement types) queue in a row at the cub basket, front centre", async () => {
   near(await at("mystery", 1), [0, 0, 4.6]);
   near(await at("mystery", 0), [-0.75, 0, 4.6]);
 });
@@ -132,7 +132,7 @@ test("lazy susan: none for an empty frontier, capped at eight", async () => {
 
 // den-scene-v1/01 supersedes the old unrotated 1.0 shoulder-gap rule with the
 // unchanged default-camera projection acceptance in horseshoe-layout.test.mjs.
-test("cub row stands clear of the cub basket (radius 0.55) by a cell's half width", async () => {
+test("cub row stands clear of the cub basket (radius 0.55) by a placement's half width", async () => {
   const { CUB_BASKET, CUB_BASKET_RADIUS } = await load();
   const cub = await at("mystery", 1);
   assert.equal(CUB_BASKET_RADIUS, 0.55);
@@ -141,21 +141,21 @@ test("cub row stands clear of the cub basket (radius 0.55) by a cell's half widt
 
 test("overflow widens outward: every stall's inner edge stays fixed, on both sides", async () => {
   const { STALL_CENTERS, stallCenterX, stallWidth } = await load();
-  for (const station of Object.keys(STALL_CENTERS)) {
-    const sign = Math.sign(STALL_CENTERS[station].x);
-    const inner = (count) => stallCenterX(station, count) - sign * stallWidth(count) / 2;
-    for (const count of [3, 5, 8]) assert.ok(Math.abs(inner(count) - inner(3)) < 1e-9, `${station} ${count}`);
+  for (const team of Object.keys(STALL_CENTERS)) {
+    const sign = Math.sign(STALL_CENTERS[team].x);
+    const inner = (count) => stallCenterX(team, count) - sign * stallWidth(count) / 2;
+    for (const count of [3, 5, 8]) assert.ok(Math.abs(inner(count) - inner(3)) < 1e-9, `${team} ${count}`);
   }
 });
 
-test("overflow, worked: Steamers with five cells grows left with rotated slots", async () => {
+test("overflow, worked: Steamers with five placements grows left with rotated slots", async () => {
   near([(await at("developer", 0, 5))[0]], [-5.651728769516475]);
   near([(await at("developer", 4, 5))[0]], [-3.048271230483525]);
 });
 
 // showcase-v1/04 (user browser check): the front stalls must not hide the back row from the default
-// camera at (0, 4.2, 11.5). The sight line to each back cell's feet has to clear the front roof.
-test("front-row roofs stay below the sight line from the default camera to every back-row cell", async () => {
+// camera at (0, 4.2, 11.5). The sight line to each back placement's feet has to clear the front roof.
+test("front-row roofs stay below the sight line from the default camera to every back-row placement", async () => {
   const { STALL_CENTERS, stallCenterX, stallWidth, counterTop, stallRoof } = await load();
   const cam = { x: 0, y: 4.2, z: 11.5 };
   const roof = stallRoof("tea");
@@ -184,10 +184,10 @@ test("the front stalls stand farther outward than the back kiosks, forming the h
   assert.ok(Math.abs(STALL_CENTERS.pantry.x) > Math.abs(STALL_CENTERS["front-of-house"].x));
 });
 
-test("a front stall's cells still fit under its low roof eave", async () => {
+test("a front stall's placements still fit under its low roof eave", async () => {
   const { stallRoof, counterTop } = await load();
-  const cellHeight = 0.6; // plush scale 0.3 on a 2-unit panda
-  assert.ok(stallRoof("tea").eave - counterTop("tea") >= cellHeight + 0.15);
+  const plushHeight = 0.6; // plush scale 0.3 on a 2-unit panda
+  assert.ok(stallRoof("tea").eave - counterTop("tea") >= plushHeight + 0.15);
   assert.equal(stallRoof("steamers"), undefined);
 });
 
@@ -240,8 +240,8 @@ test("every placed stone lies on the ellipse at one of 48 even steps of 7.5 degr
 // platforms (counter width + 0.15 each side, 0.65 deep, turned by stallYaw), the table, the hamper and the Tally.
 const footprintTests = async (margin = 0) => {
   const L = await load();
-  const rects = Object.keys(L.STALL_CENTERS).map((station) => ({
-    cx: L.stallCenterX(station, 3), cz: L.STALL_CENTERS[station].z, yaw: L.stallYaw(station),
+  const rects = Object.keys(L.STALL_CENTERS).map((team) => ({
+    cx: L.stallCenterX(team, 3), cz: L.STALL_CENTERS[team].z, yaw: L.stallYaw(team),
     hx: (L.stallWidth(3) + 0.3) / 2 + margin, hz: 0.65 + margin,
   }));
   rects.push({ cx: L.TALLY.x, cz: L.TALLY.z, yaw: 0, hx: L.TALLY.frame.width / 2 + margin, hz: L.TALLY.frame.depth / 2 + margin });
@@ -365,11 +365,11 @@ test("bamboo stalks are 0.13 across and 0.27 apart, centred on their cluster, an
   }
 });
 
-test("pandas still never stand on open grass: no cell perch lands on a dormant pad or in a bamboo cluster", async () => {
-  const { placeCell, DORMANT_PADS, bambooStalks } = await load();
-  const cellTypes = ["orchestrator", "product", "architect", "developer", "scout", "qa", "security", "designer", "mystery"];
-  for (const type of cellTypes) for (let slot = 0; slot < 13; slot++) {
-    const p = await placeCell(type, slot, 13);
+test("pandas still never stand on open grass: no placement perch lands on a dormant pad or in a bamboo cluster", async () => {
+  const { placeRole, DORMANT_PADS, bambooStalks } = await load();
+  const roles = ["orchestrator", "product", "architect", "developer", "scout", "qa", "security", "designer", "mystery"];
+  for (const type of roles) for (let slot = 0; slot < 13; slot++) {
+    const p = await placeRole(type, slot, 13);
     for (const pad of DORMANT_PADS) assert.ok(Math.hypot(p.x - pad.x, p.z - pad.z) > pad.radius, `${type}#${slot} on the ${pad.id} pad`);
     for (const s of bambooStalks()) assert.ok(Math.hypot(p.x - s.x, p.z - s.z) > s.width, `${type}#${slot} in bamboo`);
   }

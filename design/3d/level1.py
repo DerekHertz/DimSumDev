@@ -4,8 +4,8 @@ Run inside Blender after panda_build.py, role_types.py and toon.py:
     exec(open(r"D:/claude_sessions/agent_office/design/3d/level1.py").read())
     build_bao_lying()
 
-Bao is sculpted in "panda units" (a sitting cell panda is ~2.2 tall) and scaled
-by BAO_SCALE so Bao is ~10x a cell. Its head uses a local frame (R, U, F):
+Bao is sculpted in "panda units" (a sitting agent panda is ~2.2 tall) and scaled
+by BAO_SCALE so Bao is ~10x a agent. Its head uses a local frame (R, U, F):
 R = Bao's left-right, U = toward the top of the head, F = the way the face points.
 """
 import bpy, math
@@ -62,7 +62,7 @@ def build_bao_meta():
         e.radius = length / f(s); e.size_x, e.size_y, e.size_z = 1.0, width / length, width / length
         e.rotation = Vector((1, 0, 0)).rotation_difference(d)
 
-    # a wide, low body with a flat-topped belly the cells can walk on
+    # a wide, low body with a flat-topped belly the agents can walk on
     ell((0, -0.1, 0.55), 1.12, 1.2, 0.58, 3.0)        # torso, back on the ground
     ell((0, -0.15, 0.8), 1.0, 1.02, 0.38, 3.0)        # belly plateau
     # a thick, chubby neck: nearly head-wide, so head and body read as one fat panda

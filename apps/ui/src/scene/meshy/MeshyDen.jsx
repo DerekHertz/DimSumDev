@@ -9,9 +9,9 @@ import {TABLE,seatSpots,seated,tableMeeting} from './meeting-table.mjs';
 import {sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 
 // Native R3F scene. App remains the sole owner of live state, actions and panels.
-export function MeshyDen({snapshot,cells,frontier,tally,selected,onSelect,onOpenTally,stage,onReady,onNearby,picked=null,onPick,zoneView=null,onZoneClick=null,onLoadState,bindings=null,onOpenMeeting=null}){
+export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,stage,onReady,onNearby,picked=null,onPick,zoneView=null,onZoneClick=null,onLoadState,bindings=null,onOpenMeeting=null}){
  const [den,setDen]=useState(null);
- const live=useRef(null),inputs=useRef({});inputs.current={snapshot,cells,frontier,tally,selected,onSelect,onOpenTally,onNearby,picked,onPick,zoneView,onZoneClick,onLoadState,bindings,onOpenMeeting};
+ const live=useRef(null),inputs=useRef({});inputs.current={snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,onNearby,picked,onPick,zoneView,onZoneClick,onLoadState,bindings,onOpenMeeting};
  const {scene,gl}=useThree();
  useEffect(()=>{
   const abort=new AbortController();let mounted=true,world=null;
@@ -55,8 +55,8 @@ export function MeshyDen({snapshot,cells,frontier,tally,selected,onSelect,onOpen
    const pandas=[...l.agents.actors].map(([id,a])=>{
     const identity={role:a.role,runtime:a.runtime,projectId:a.live?.projectId,agentId:a.live?.agentId,ref:a.live?.ref};
     const position=a.panda.model.getWorldPosition(new THREE.Vector3()),agent=agentFor(identity,snap?.agents,boundRefs);
-    const cell=a.live?(snap?.cells||[]).filter(row=>row.ref===a.live.ref&&sameResident({...row,role:row.cellType||a.role},identity)).reduce((last,row)=>!last||Date.parse(row.lastEventAt)>Date.parse(last.lastEventAt)?row:last,null):null;
-    return {id,name:a.name,...identity,dispatchable:!a.concept,station:a.station,position:{x:position.x,z:position.z},ref:a.live?.ref,state:a.live?.state||'resident',tool:cell?.tool??null,agent};
+    const placement=a.live?(snap?.placements||[]).filter(row=>row.ref===a.live.ref&&sameResident({...row,role:row.role||a.role},identity)).reduce((last,row)=>!last||Date.parse(row.lastEventAt)>Date.parse(last.lastEventAt)?row:last,null):null;
+    return {id,name:a.name,...identity,dispatchable:!a.concept,team:a.team,position:{x:position.x,z:position.z},ref:a.live?.ref,state:a.live?.state||'resident',tool:placement?.tool??null,agent};
    });
    const camera=walking?stage.explorer.camera:null;
    card=camera?cardFor(pandas,snap?.approvals||[],{x:camera.position.x,z:camera.position.z,yaw:camera.rotation.y}):pickedCard(pandas,snap?.approvals||[],pick);

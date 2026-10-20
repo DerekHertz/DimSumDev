@@ -1,4 +1,4 @@
-const base={seq:0,tickets:[],agents:[],cells:[],approvals:[],deliveries:[],frontier:[],requests:[],sessions:[],usage:null,libraryRev:0};
+const base={seq:0,tickets:[],agents:[],placements:[],approvals:[],deliveries:[],frontier:[],requests:[],sessions:[],usage:null,libraryRev:0};
 const ticket={ref:'mockup/repair-dumpling',title:'Repair the dumpling counter',type:'bug',status:'claimed',holder: { role:'developer',since:'2026-10-13T16:00:00Z'}};
 const agent={id:'preview-maker',role:'developer',ref:ticket.ref,state:'working',capabilities:{approve:true,message:true,stop:true}};
 const library={connections:[{name:'preview-repo',title:'Recipe repository',purpose:'Mock connection for visual testing',status:{state:'connected'},roles:[{role:'developer',usable:true}],tools:[],uses:{count:0}}],skills:[{name:'preview-recipe',description:'Mock recipe for the expansion gallery',roles:['developer','qa']}]};

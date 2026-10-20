@@ -4,7 +4,7 @@ const ticket = (n, title, over = {}) => ({
   ref: `demo/${String(n).padStart(2, "0")}-${title}`, feature: "demo", title, type: "feature", status: "ready-for-agent",
   ready: true, holder: null, lastRole: null, gate: null, blockedBy: [], ...over,
 });
-const held = (cell) => ({ role: cell, since: "2026-09-29T05:00:00.000Z" });
+const held = (placement) => ({ role: placement, since: "2026-09-29T05:00:00.000Z" });
 const snap = (tickets, frontier = []) => ({ schema: 1, seq: 1, tickets, frontier, usage: null, requests: [] });
 
 const queued = ticket(3, "queued-idea");

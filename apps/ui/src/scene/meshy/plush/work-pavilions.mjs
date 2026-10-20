@@ -3,9 +3,9 @@ import * as T from 'three';
 import { gardenKit, COLORS } from './garden-kit.mjs';
 
 export const PAIRS={
- pass:{name:'The idea garden',station:'PASS',roles:['Product','Architect'],colors:['coral','blue'],vests:['#c58e86','#7b95b0'],hats:[null,'architect'],tag:'Small ideas. Room to grow.',features:[['Product’s little planning corner','A story board, paper idea cards, a journal, and a tiny wish jar.'],['Architect’s model-making desk','A paper blueprint, rolled drawings, and a miniature timber pavilion.'],['A place to think together','Two personal bays, a shared tea shelf, and a tiny bridge between ideas.']]},
- pantry:{name:'A little peace of mind',station:'TEA & PANTRY',roles:['QA','Security'],colors:['jade','lilac'],vests:['#7b9c88','#9b8aaa'],hats:[null,null],tag:'Care in the small things.',features:[['QA’s playful test bench','A marble run, sample drawers, a magnifying lens, and a well-used check sheet.'],['Security’s quiet watch','A rounded bamboo lockbox, a brass key tray, and an inspection desk.'],['Comfort while taking care','Soft cushions, a biscuit tin, and a little guardian asleep beside the safe.']]},
- front:{name:'Good things, beautifully told',station:'FRONT OF HOUSE',roles:['Designer','Herald'],colors:['pink','gold'],vests:['#c595a0','#bd9c66'],hats:['designer',null],tag:'Make something. Tell its story.',features:[['Designer’s colorful studio','A garden easel, paint cups, fabric swatches, and a clay mascot in progress.'],['Herald’s writing corner','A chunky typewriter, drying story pages, envelopes, and a tiny announcement bell.'],['A shared wall of good things','Personal keepsakes, a paper garland, and room to sit and share a cup.']]},
+ pass:{name:'The idea garden',team:'PASS',roles:['Product','Architect'],colors:['coral','blue'],vests:['#c58e86','#7b95b0'],hats:[null,'architect'],tag:'Small ideas. Room to grow.',features:[['Product’s little planning corner','A story board, paper idea cards, a journal, and a tiny wish jar.'],['Architect’s model-making desk','A paper blueprint, rolled drawings, and a miniature timber pavilion.'],['A place to think together','Two personal bays, a shared tea shelf, and a tiny bridge between ideas.']]},
+ pantry:{name:'A little peace of mind',team:'TEA & PANTRY',roles:['QA','Security'],colors:['jade','lilac'],vests:['#7b9c88','#9b8aaa'],hats:[null,null],tag:'Care in the small things.',features:[['QA’s playful test bench','A marble run, sample drawers, a magnifying lens, and a well-used check sheet.'],['Security’s quiet watch','A rounded bamboo lockbox, a brass key tray, and an inspection desk.'],['Comfort while taking care','Soft cushions, a biscuit tin, and a little guardian asleep beside the safe.']]},
+ front:{name:'Good things, beautifully told',team:'FRONT OF HOUSE',roles:['Designer','Herald'],colors:['pink','gold'],vests:['#c595a0','#bd9c66'],hats:['designer',null],tag:'Make something. Tell its story.',features:[['Designer’s colorful studio','A garden easel, paint cups, fabric swatches, and a clay mascot in progress.'],['Herald’s writing corner','A chunky typewriter, drying story pages, envelopes, and a tiny announcement bell.'],['A shared wall of good things','Personal keepsakes, a paper garland, and room to sit and share a cup.']]},
 };
 
 export function createWorkPavilion(id){
@@ -39,7 +39,7 @@ export function createWorkPavilion(id){
  for(const x of[-5.4,5.4])tube(shade,[[x,4.28,-3.25],[x*.75,4.52,-2.0],[x*.52,4.9,0]],.075,'jadeDeep');
  for(const x of[-4.85,0,4.85])lantern(shade,[x,4.24,2.85],.72,x===0?'cream':spec.colors[x<0?0:1]);
  // Signs and lanterns belong to the removable roof so interior views stay open.
- sign(shade,spec.station,[0,4.12,3.22],3.1);
+ sign(shade,spec.team,[0,4.12,3.22],3.1);
  const bays=spec.roles.map((role,index)=>{
   const accent=spec.colors[index],bay=group(`${role} · personal workstation`,root,[index?3.05:-3.05,.315,0]);
   box(bay,[4.55,.025,5.6],[0,.01,-.05],accent,.025);

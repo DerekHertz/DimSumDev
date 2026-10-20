@@ -29,7 +29,7 @@ A living log of what works and what costs too much when the orchestrator runs in
 - **gitleaks is not installed:** security falls back to a pattern grep; CI still runs gitleaks. Install it in the environment's setup script to fix.
 - **Stale local `main`:** the cloud clone's local `main` can lag, so run `node scripts/risk-check.mjs origin/main...HEAD` rather than the `main...HEAD` default.
 - **Board commits from agents:** the worktree guard blocks an agent from running `git` in the main checkout, so agents can't commit board files there. The orchestrator commits what they leave behind. Until that's fixed, the stop hook flags the uncommitted files while an agent is running.
-- **board CLI:** `claim <ref> <cellType>` takes the role as a positional argument, not a flag. Every item in a handoff's `pending` list must be `{item, owner}`, or `release` refuses the handoff. qa hit the same State-block check (it was missing `mode`) and had to publish its handoff as `-2`.
+- **board CLI:** `claim <ref> <role>` takes the role as a positional argument, not a flag. Every item in a handoff's `pending` list must be `{item, owner}`, or `release` refuses the handoff. qa hit the same State-block check (it was missing `mode`) and had to publish its handoff as `-2`.
 - **Resuming a finished agent loses its worktree:** after an agent returns, its worktree is cleaned up, so a resumed agent (SendMessage) runs in the main checkout and `agent-start` refuses. Re-dispatch a fresh agent instead of resuming.
 
 ## Worth considering

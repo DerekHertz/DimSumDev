@@ -3,8 +3,8 @@
 //   apps/ui/src/demo/demo-replay.mjs   exports createDemoReplay({ fixture = DEMO_FIXTURE, now = Date.now }) ->
 //     { start(), stop(), tick(), getState(), subscribe(fn) -> unsubscribe, statusFor(card) }
 //   getState() -> { running, loops, snapshot, transcripts }
-//     snapshot    a live-store snapshot (tickets with holders, cells with tool calls, agents, approvals) that the den,
-//                 liveActorsFromSnapshot and cardFor already read; stamps (cells[].lastEventAt, approval expiresAt) are
+//     snapshot    a live-store snapshot (tickets with holders, placements with tool calls, agents, approvals) that the den,
+//                 liveActorsFromSnapshot and cardFor already read; stamps (placements[].lastEventAt, approval expiresAt) are
 //                 rebased onto now(), so a tool bubble is fresh when the recording says it is.
 //     transcripts { [agentId]: { entries, dropped } } (state/transcript-buffer.mjs shape), only lines recorded so far.
 //   start() begins at 0 (a fresh run each time); tick() recomputes from now() - origin (so a late tick catches up in

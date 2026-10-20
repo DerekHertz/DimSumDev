@@ -15,7 +15,7 @@ function row(t) {
     priorityLabel: t.bumped ? `${t.effectivePriority} ↑` : t.effectivePriority,
     bumped: Boolean(t.bumped),
     bumpLabel: t.bumped ? `Bumped from ${t.priority} after ${t.bumps} sessions` : null,
-    cellType: t.holder?.role ?? t.lastRole ?? null,
+    role: t.holder?.role ?? t.lastRole ?? null,
     status: t.status,
     blocked,
     blockedText,

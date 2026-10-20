@@ -20,7 +20,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { capacity as capacityOf } from "../../../bridge/agents/capacity.mjs";
-import { stationsModel } from "./overlay-model.mjs";
+import { teamsModel } from "./overlay-model.mjs";
 
 const model = await import("./run-model.mjs").catch(() => ({}));
 const need = (name) => {
@@ -258,9 +258,9 @@ describe("dispatchPrompt (the Needs you dispatch card)", () => {
 });
 
 describe("the ready list shows every frontier ticket", () => {
-  test("stationsModel's next list is not cut to three rows", () => {
+  test("teamsModel's next list is not cut to three rows", () => {
     const tickets = ["01", "02", "03", "04", "05"].map((n) => ({ ref: `f/${n}-x`, title: `T${n}`, status: "ready-for-agent", priority: "P1", effectivePriority: "P1", type: "feature" }));
-    const m = stationsModel({ tickets, frontier: tickets.map((t) => t.ref), agents: [] });
+    const m = teamsModel({ tickets, frontier: tickets.map((t) => t.ref), agents: [] });
     assert.deepEqual(m.next.map((r) => r.ref), tickets.map((t) => t.ref));
     assert.equal(m.summary, "5 open · 5 ready");
   });

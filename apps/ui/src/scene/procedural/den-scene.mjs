@@ -2,7 +2,7 @@
  * Dim Sum Dev: the v5 kit's assembled village (den-mvp/25).
  * Supply the same THREE instance and createBao function used by your app.
  *
- * The world is `createVillage({includeResidents:false})`: ground, the station assets, promenades, bamboo, lanterns and
+ * The world is `createVillage({includeResidents:false})`: ground, the team assets, promenades, bamboo, lanterns and
  * labels. This module adds what the live den needs on top of it: Bao at the Pass, the pandas the board creates for
  * tickets, the frontier baskets and the Tally's beads. Every other panda belongs to the actor controller.
  */
@@ -19,7 +19,7 @@ export function createDenScene(THREE, createBao) {
   const pandas = [], mixers = [], obstacles = [], tallyRows = [];
   const frontier = new Map();
   const byAsset = (id) => world.children.find((o) => o.userData.assetId === id);
-  // Index order is the station index the controller's placements name: steamers, front of house, tea, pantry.
+  // Index order is the team index the controller's placements name: steamers, front of house, tea, pantry.
   const stalls = SPARE_STALLS.map(byAsset);
 
   const matte = (color) => new THREE.MeshStandardMaterial({ color, roughness: 0.95 });
@@ -52,9 +52,9 @@ export function createDenScene(THREE, createBao) {
   world.traverse((o) => { if (o.userData.tally) tallyGroup = o; });
   if (tallyGroup) { tallyGroup.userData.tallyAbacus = true; tallyRows.push(...tallyGroup.userData.tally.rows); }
 
-  function createTicketPanda(cellType, placement) {
-    const p = addPanda(parentFor(placement), placement.position, placement.scale, { product: '#594681', architect: '#594681', qa: '#205c40', security: '#205c40' }[cellType] || '#1b6685');
-    p.model.userData.cellType = cellType;
+  function createTicketPanda(role, placement) {
+    const p = addPanda(parentFor(placement), placement.position, placement.scale, { product: '#594681', architect: '#594681', qa: '#205c40', security: '#205c40' }[role] || '#1b6685');
+    p.model.userData.role = role;
     return p;
   }
   function parentFor(placement) { return placement.parent.startsWith('stall:') ? stalls[Number(placement.parent.slice(6))] : world; }
@@ -88,7 +88,7 @@ export function createDenScene(THREE, createBao) {
     }
   }
   function setTally(rods) {
-    const colors = { qi: '#177d80', alarm: '#bd3826', 'station-steamers': '#2759a2' };
+    const colors = { qi: '#177d80', alarm: '#bd3826', 'team-steamers': '#2759a2' };
     for (let row = 0; row < tallyRows.length; row++) for (let j = 0; j < 10; j++) {
       const rod = rods?.[row], count = Math.max(0, Math.min(10, rod?.counted || 0)), on = j >= 10 - count, bead = tallyRows[row][j];
       bead.material.color.set(on ? (colors[rod.color] || '#177d80') : '#d3bc86');

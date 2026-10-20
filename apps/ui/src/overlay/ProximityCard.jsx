@@ -17,7 +17,7 @@ export function ProximityCard({ card, onTranscript, onAnswer, onMessage, onClose
       <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" /></svg>
     </button> : null}
     <header>
-      <p className="proximity-station">{card.station} · {card.role} · {card.runtime==='codex'?'Codex':'Claude'}</p>
+      <p className="proximity-team">{card.team} · {card.role} · {card.runtime==='codex'?'Codex':'Claude'}</p>
       <h2>{card.name || card.role}</h2>
       <p className="proximity-project">Current project · {card.projectId || 'Project identity unavailable'}</p>
       <p className="proximity-state">{STATE_LABELS[card.state] || card.state}</p>
