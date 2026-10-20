@@ -1,5 +1,7 @@
 # Jev use cases: ledger
 
+**Superseded (2026-10-20):** ADR 0010 Amendment 3 replaces the trial model below. Use cases are now proved by an eval through the bridge function and a unit test, then go live; floors, twins and impact numbers live in the `jev-live` spec on the board. The entries below are history, and their eval results (triage, claim-check, grade) still stand.
+
 One entry per use case. Terms come from ADR 0010 Amendment 1 and ADR 0015 Amendment 2 (2026-10-07, organism-infra/136); read those for the authority rules (Jev picks only among allowed options, may raise and never skip, never bypasses a gate, the user approves every ticket). Nothing below is live until the build tickets merge and append a `config` row per use case. The start date is that row's `ts`.
 
 ## The service (checked 2026-10-15)
