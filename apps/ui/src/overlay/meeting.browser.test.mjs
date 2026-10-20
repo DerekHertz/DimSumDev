@@ -61,19 +61,17 @@ async function open({ width = 1280 } = {}) {
   const close = async () => { await browser.close(); await server.close(); };
   return { page, errors, posts, close };
 }
-const shot = async (page, name) => { if (process.env.DEN_SHOTS) await page.locator('[data-overlay=meetings]').screenshot({ path: path.join(process.env.DEN_SHOTS, name) }); };
+const shot = async (page, name, selector = '[data-overlay=meetings]') => { if (process.env.DEN_SHOTS) await page.locator(selector).screenshot({ path: path.join(process.env.DEN_SHOTS, name) }); };
 
 test('the meetings card: progress for each seat, the brief as text, a choice and a follow-up', { timeout: 90000 }, async () => {
   const t = await open();
   try {
     const { page } = t;
-    const card = page.locator('[data-overlay=meetings]');
-    const toggle = card.locator('.card-toggle');
-    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
-    await toggle.focus();
+    await page.locator('[data-rail=meetings]').focus();
     await page.keyboard.press('Enter');
-    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
-    assert.match(await toggle.innerText(), /1 running/);
+    const card = page.locator('[data-overlay=meetings]');
+    assert.equal(await page.locator('#sheet-topic').getByRole('heading', { name: 'Meetings' }).count(), 1);
+    assert.match(await card.innerText(), /1 running/);
     const live = await card.locator('[data-meeting=running]').innerText();
     assert.match(live, /Security is giving its take[\s\S]*●\s*product gave its take[\s\S]*○\s*security giving its take now[\s\S]*○\s*developer not asked yet[\s\S]*○\s*Bao chairs: after the takes/i);
     const row = card.locator('[data-meeting=briefed]');
@@ -81,24 +79,25 @@ test('the meetings card: progress for each seat, the brief as text, a choice and
     await shot(page, 'meetings-progress-wide.png');
 
     await row.getByRole('button', { name: 'Open the brief' }).click();
-    await row.locator('[data-meeting-brief]').waitFor();
-    const brief = await row.locator('[data-meeting-brief]').innerText();
+    const meeting = page.locator('[data-sheet=side]');
+    await meeting.locator('[data-meeting-brief]').waitFor();
+    const brief = await meeting.locator('[data-meeting-brief]').innerText();
     assert.match(brief, /## Option B: One log per job[\s\S]*RECOMMENDED: A/);
     assert.match(brief, /<img src=x onerror=/, 'the chair\'s text is shown as text');
     assert.equal(await page.evaluate(() => window.__hit ?? 0), 0, 'nothing in the brief ran');
-    assert.equal(await row.locator('img').count(), 0);
-    assert.match(await row.innerText(), /I care most about restarts\.[\s\S]*A One log for all jobs · Bao recommends this[\s\S]*Nothing is built yet\.[\s\S]*You: What does option B cost at restart\?[\s\S]*Bao: One replay per job\./);
-    await row.locator('details', { hasText: 'architect' }).locator('summary').click();
-    assert.match(await row.locator('details', { hasText: 'architect' }).innerText(), /Claim: one log is enough/);
-    await shot(page, 'meetings-brief-wide.png');
+    assert.equal(await meeting.locator('img').count(), 0);
+    assert.match(await meeting.innerText(), /I care most about restarts\.[\s\S]*A One log for all jobs · Bao recommends this[\s\S]*Nothing is built yet\.[\s\S]*You: What does option B cost at restart\?[\s\S]*Bao: One replay per job\./);
+    await meeting.locator('details', { hasText: 'architect' }).locator('summary').click();
+    assert.match(await meeting.locator('details', { hasText: 'architect' }).innerText(), /Claim: one log is enough/);
+    await shot(page, 'meetings-brief-wide.png', '[data-sheet=side]');
 
-    await row.getByRole('button', { name: 'Choose option B: One log per job' }).click();
+    await meeting.getByRole('button', { name: 'Choose option B: One log per job' }).click();
     await page.waitForFunction(() => true);
-    await row.getByLabel('Ask a follow-up').fill('And with ten jobs?');
-    await row.getByLabel('Ask again first').selectOption('qa');
-    assert.match(await row.innerText(), /2 runs: qa gives a new take, then Bao answers\./);
-    await row.getByRole('button', { name: 'Ask', exact: true }).click();
-    await page.waitForFunction(() => document.querySelector('[data-meeting=briefed] textarea')?.value === '');
+    await meeting.getByLabel('Ask a follow-up').fill('And with ten jobs?');
+    await meeting.getByLabel('Ask again first').selectOption('qa');
+    assert.match(await meeting.innerText(), /2 runs: qa gives a new take, then Bao answers\./);
+    await meeting.getByRole('button', { name: 'Ask', exact: true }).click();
+    await page.waitForFunction(() => document.querySelector('[data-sheet=side] textarea')?.value === '');
     assert.deepEqual(t.posts.map((p) => [p[0], p[1]]), [
       [`/meetings/${briefed.id}/decide`, { option: 'B' }],
       [`/meetings/${briefed.id}/ask`, { text: 'And with ten jobs?', reask: 'qa' }],
@@ -114,8 +113,8 @@ test('the meetings card: setup sends the question and the roles picked, and says
   const t = await open();
   try {
     const { page } = t;
+    await page.locator('[data-rail=meetings]').click();
     const card = page.locator('[data-overlay=meetings]');
-    await card.locator('.card-toggle').click();
     const start = card.getByRole('button', { name: 'Start meeting' });
     assert.equal(await start.isDisabled(), true);
     assert.match(await card.locator('#meeting-reason').innerText(), /Write the question first\./);
@@ -138,14 +137,14 @@ test('the meetings card at 375px fits the screen, and Needs you opens a ready br
   const t = await open({ width: 375 });
   try {
     const { page } = t;
+    await page.locator('[data-rail=needs]').click();
     const needs = page.locator('[data-overlay=needs-you]');
-    await needs.locator('.card-toggle').click();
     assert.match(await needs.innerText(), /A meeting's brief is ready[\s\S]*The brief is ready: 2 options, A recommended/);
     await needs.getByRole('button', { name: 'Open the brief' }).click();
-    const card = page.locator('[data-overlay=meetings]');
-    await card.locator('[data-meeting-brief]').waitFor();
-    assert.equal(await card.locator('.card-toggle').getAttribute('aria-expanded'), 'true');
-    const box = await card.boundingBox();
+    const meeting = page.locator('[data-sheet=side]');
+    await meeting.waitFor();
+    await meeting.locator('[data-meeting-brief]').waitFor();
+    const box = await meeting.boundingBox();
     assert.ok(box.x >= 0 && box.x + box.width <= 375, `the card is inside the screen (${box.x} + ${box.width})`);
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'no sideways scroll');
     await shot(page, 'meetings-375.png');

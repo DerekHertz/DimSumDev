@@ -53,6 +53,7 @@ test('deliveries in the den: start one on a ticket or from text, see where each 
   try {
     const { page } = t;
     // The one that waits is in Needs you, with why, what to do next, the facts and the pull request.
+    await page.locator('[data-rail=needs]').click();
     const needs = page.locator('[data-overlay=needs-you]');
     await needs.getByText('05-panel delivery is waiting').waitFor();
     const said = await needs.innerText();
@@ -62,8 +63,8 @@ test('deliveries in the den: start one on a ticket or from text, see where each 
     await needs.getByRole('button', { name: 'Resume' }).click();
     await page.waitForFunction(() => true);
 
+    await page.locator('[data-rail=work]').click();
     const teams = page.locator('[data-overlay=teams]');
-    await teams.locator('.card-toggle').click();
     const list = teams.getByRole('region', { name: 'Deliveries' });
     const text = await list.innerText();
     assert.match(text, /1 running[\s\S]*04: Export as CSV[\s\S]*Qa is verifying the commit[\s\S]*05: Slot panel[\s\S]*Waiting: a required check failed: test[\s\S]*03: Old fix[\s\S]*Merged as #5/);
@@ -92,7 +93,7 @@ test('deliveries at 375px: the cards do not scroll sideways', { timeout: 90000 }
   const t = await open({ width: 375 });
   try {
     const { page } = t;
-    await page.locator('[data-overlay=teams] .card-toggle').click();
+    await page.locator('[data-rail=work]').click();
     await page.getByRole('region', { name: 'Deliveries' }).waitFor();
     assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true);
     await shot(page, '[data-overlay=teams]', 'delivery-teams-375.png');

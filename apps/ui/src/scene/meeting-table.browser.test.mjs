@@ -1,6 +1,6 @@
 // den-mvp/64: a meeting at Bao's table, in the real den with a mocked bridge. The seats wear their labels, Bao says
 // what the meeting is doing, a landed take shows its claim, the meeting's runs lose their generic chips, and the pill
-// opens the meeting in the Meetings card.
+// opens the meeting in the side sheet.
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'vite';
@@ -59,9 +59,13 @@ test('a running meeting: seat labels, Bao listening, the claim, no generic chip,
     assert.match(await seat('orchestrator').innerText(), /Bao · Listening/);
     assert.equal(await page.locator(`.chip[data-ref="${REF}"]`).count(), 0, 'the meeting run wears its seat label, not a chip');
     await pill.click();
+    const meeting = page.locator('[data-sheet=side]');
+    await meeting.waitFor();
+    await page.locator('[data-rail=meetings]').click();
     const card = page.locator('[data-overlay=meetings]');
-    await page.waitForFunction(() => document.querySelector('[data-overlay=meetings] .card-toggle')?.getAttribute('aria-expanded') === 'true');
-    await card.locator('.meeting-detail').waitFor();
+    await card.waitFor();
+    await card.locator('[data-meeting=running]').waitFor();
+    assert.equal(await meeting.count(), 1, 'opening the Meetings topic leaves the meeting side sheet open');
     assert.deepEqual(t.errors, []);
   } finally {
     await t.close();
@@ -77,8 +81,11 @@ test('a briefed meeting waits on the user, and a seat opens its own take', { tim
     assert.match(await pill.innerText(), /Meeting on 57 · waiting on you/);
     await page.waitForFunction(() => document.querySelector('[data-seat="orchestrator"]')?.style.visibility === 'visible', null, { timeout: 60000 });
     assert.match(await page.locator('[data-seat="orchestrator"]').innerText(), /Bao · Brief ready · your choice/);
-    await page.locator('[data-seat="product"]').click();
-    await page.locator('[data-overlay=meetings] details[data-take="product"][open]').waitFor();
+    await page.locator('[data-seat="product"]').focus();
+    await page.keyboard.press('Enter');
+    const meeting = page.locator('[data-sheet=side]');
+    await meeting.waitFor();
+    await meeting.locator('details[data-take="product"][open]').waitFor();
     assert.deepEqual(t.errors, []);
   } finally {
     await t.close();

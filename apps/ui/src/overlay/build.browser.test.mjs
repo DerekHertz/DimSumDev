@@ -46,6 +46,7 @@ async function open({ width = 1280, snapshot = snapshotOf(), frames = [], signed
   await page.route('**/deliveries/**', taken);
   await page.route('**/build/rollback', taken);
   await page.goto(server.resolvedUrls.local[0]);
+  await page.locator('[data-rail=build]').click();
   await page.locator('[data-overlay=build]').waitFor();
   const close = async () => { await browser.close(); await server.close(); };
   return { page, errors, posts, close };
@@ -64,6 +65,7 @@ test('the live build, a preview that waits for a verdict, and the way back', { t
     assert.equal(await status.getByText(/behind main/).count(), 0);
 
     // The waiting preview, in Needs you: what it is, the link, what Approve covers, and the two answers.
+    await page.locator('[data-rail=needs]').click();
     const needs = page.locator('[data-overlay=needs-you]');
     await needs.getByText('05-panel waits for your verdict on its preview').waitFor();
     const said = await needs.innerText();
@@ -84,6 +86,7 @@ test('the live build, a preview that waits for a verdict, and the way back', { t
     await needs.getByRole('button', { name: 'Approve: merge and go live' }).click();
 
     // The way back names both builds.
+    await page.locator('[data-rail=build]').click();
     const back = status.getByRole('button', { name: 'Go back from build b2b2b2b to the previous build a1a1a1a' });
     assert.equal(await back.innerText(), 'Go back to the previous build');
     assert.match(await status.innerText(), /Live: b2b2b2b\. Previous: a1a1a1a\./);
@@ -111,13 +114,15 @@ test('an open tab is told that a new version is ready, and reloads only on the b
     await status.getByText('A new version is ready.').waitFor();
     assert.match(await status.innerText(), /^Den main @ c3c3c3c, live since/);
     assert.match(await status.innerText(), /The live build is behind main: build a1a1a1a was rolled back\./);
-    // The next approval says what going live brings with it.
-    assert.match(await page.locator('[data-overlay=needs-you]').innerText(), /Going live will also bring back build a1a1a1a, which you rolled back\./);
     await shot(page, '[data-overlay=build]', 'build-new-version.png');
+    // The next approval says what going live brings with it.
+    await page.locator('[data-rail=needs]').click();
+    assert.match(await page.locator('[data-overlay=needs-you]').innerText(), /Going live will also bring back build a1a1a1a, which you rolled back\./);
     let loads = 0;
     page.on('load', () => (loads += 1));
     await page.waitForTimeout(1500);
     assert.equal(loads, 0, 'the page never reloads by itself');
+    await page.locator('[data-rail=build]').click();
     await status.getByRole('button', { name: 'Reload the den to the new version' }).click();
     await page.waitForEvent('load');
     assert.deepEqual(t.errors, []);
@@ -133,6 +138,7 @@ test('not signed in: the buttons are off and say why', { timeout: 120000 }, asyn
     const status = page.locator('[data-overlay=build]');
     assert.equal(await status.getByRole('button', { name: /Go back from build/ }).isDisabled(), true);
     assert.match(await status.innerText(), /Not signed in to steer/);
+    await page.locator('[data-rail=needs]').click();
     const needs = page.locator('[data-overlay=needs-you]');
     await needs.getByText('05-panel waits for your verdict on its preview').waitFor();
     assert.equal(await needs.getByRole('button', { name: 'Approve: merge and go live' }).isDisabled(), true);
@@ -155,11 +161,11 @@ test('at 375px: the build and the waiting preview fit, and the pauses after a me
   const t = await open({ width: 375, snapshot: snapshotOf({ deliveries: [waiting(), ...stuck] }) });
   try {
     const { page } = t;
+    await shot(page, '[data-overlay=build]', 'build-status-375.png');
+    await page.locator('[data-rail=needs]').click();
     const needs = page.locator('[data-overlay=needs-you]');
-    if (!(await needs.getByText('05-panel waits for your verdict on its preview').isVisible())) await needs.locator('.card-toggle').click(); // closed on a phone until asked
     await needs.getByText('05-panel waits for your verdict on its preview').waitFor();
     assert.equal(await sideways(page), false);
-    await shot(page, '[data-overlay=build]', 'build-status-375.png');
     await shot(page, '[data-overlay=needs-you]', 'build-needs-you-375.png');
     await needs.getByRole('button', { name: 'Approve: merge and go live' }).scrollIntoViewIfNeeded();
     await shot(page, '[data-overlay=needs-you]', 'build-needs-you-buttons-375.png');

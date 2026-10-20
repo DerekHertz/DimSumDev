@@ -1,4 +1,4 @@
-// den-mvp/62 (spec .scratch/den-mvp/handoffs/62-designer-spec.md), in a real page: the Queue button opens the drawer over the
+// den-mvp/62 (spec .scratch/den-mvp/handoffs/62-designer-spec.md), in a real page: the Queue rail entry opens the sheet over the
 // scene; it shows Needs you, then the goals with counts; the first goal with a ready ticket is open; a ticket row expands to
 // the den's own Run control and a Details button that opens the ticket card; Esc closes it and focus returns to the button.
 // The bridge is stubbed at the network. DEN_SHOTS=<dir> saves screenshots (wide and 375px) for the user's visual check.
@@ -55,12 +55,12 @@ test('the queue drawer: goals with counts, a ticket row opens Run and Details, E
   const t = await open();
   try {
     const { page } = t;
-    const button = page.locator('.queue-button');
+    const button = page.locator('[data-rail=queue]');
     const drawer = page.locator('#queue-drawer');
-    assert.equal(await drawer.getAttribute('data-open'), 'false');
     await button.click();
+    await drawer.waitFor({ state: 'visible' });
     assert.equal(await drawer.getAttribute('data-open'), 'true');
-    assert.equal(await button.getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('#sheet-topic').getByRole('heading', { name: 'Queue' }).count(), 1);
     const text = await drawer.innerText();
     assert.match(text, /4 open/);
     assert.match(text, /Needs you/i);
@@ -75,17 +75,14 @@ test('the queue drawer: goals with counts, a ticket row opens Run and Details, E
     await routing.getByRole('button', { name: 'Run den-mvp/57-routing-rewrite-architecture' }).waitFor();
     assert.equal(await routing.locator('.run-select').inputValue(), 'architect', 'a design ticket preselects the architect');
     await routing.getByRole('button', { name: 'Details' }).click();
-    assert.equal(await drawer.getAttribute('data-open'), 'false', 'Details closes the drawer');
     const details = page.getByRole('dialog', { name: 'Ticket details' });
     await details.waitFor();
+    assert.equal(await page.locator('#sheet-topic').isVisible(), true, 'opening ticket details leaves the Queue sheet open');
     assert.match(await details.innerText(), /den-mvp\/57-routing-rewrite-architecture/);
     await details.getByRole('button', { name: 'Close ticket details' }).click();
-    await button.waitFor({ state: 'visible' });
-
-    await button.click();
     await page.keyboard.press('Escape');
-    assert.equal(await drawer.getAttribute('data-open'), 'false');
-    assert.equal(await page.evaluate(() => document.activeElement?.classList.contains('queue-button')), true, 'focus returns to the Queue button');
+    await page.locator('#sheet-topic').waitFor({ state: 'hidden' });
+    assert.equal(await page.evaluate(() => document.activeElement?.matches('[data-rail=queue]')), true, 'focus returns to the Queue rail entry');
     assert.deepEqual(t.errors, []);
   } finally {
     await t.close();
@@ -95,7 +92,7 @@ test('the queue drawer: goals with counts, a ticket row opens Run and Details, E
 test('the queue drawer at 375px fits the screen', { timeout: 90000 }, async () => {
   const t = await open({ width: 375 });
   try {
-    await t.page.locator('.queue-button').click();
+    await t.page.locator('[data-rail=queue]').click();
     const box = await t.page.locator('#queue-drawer').boundingBox();
     assert.ok(box.x >= 0 && box.x + box.width <= 375.5, `the drawer is inside the screen (${box.x} + ${box.width})`);
     assert.equal(await t.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'no sideways scroll');

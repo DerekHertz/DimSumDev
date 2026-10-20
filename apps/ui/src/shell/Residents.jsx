@@ -1,9 +1,9 @@
 import { useId, useState } from 'react';
 import { deskResidents } from './desk-model.mjs';
 import { ROLE_PORTRAITS } from './role-portraits.mjs';
-import { RESIDENTS, RUNTIME_UNAVAILABLE } from './resident-inventory.mjs';
+import { RESIDENTS, RUNTIME_UNAVAILABLE, UNSEATED_ROLES } from './resident-inventory.mjs';
 
-const STATES = { resident: 'At home', working: 'Working', 'needs-you': 'Needs you', blocked: 'Blocked',idle:'Idle',throttled:'Throttled' };
+const STATES = { unseated: 'Not in the den yet', resident: 'At home', working: 'Working', 'needs-you': 'Needs you', blocked: 'Blocked',idle:'Idle',throttled:'Throttled' };
 const BADGES = {
   orchestrator: 'B', product: 'P', architect: 'A', developer: 'M', scout: 'S', runner:'R', debugger: 'D',
   qa: 'T', security: 'G', designer: 'S', herald: 'H', 'release-manager': 'D',
@@ -12,8 +12,8 @@ const BADGES = {
 
 function Portrait({ row, large = false }) {
   return <span className={`forest-portrait${large ? ' forest-portrait-large' : ''}`} data-role={row.role} aria-hidden="true">
-    <img src={ROLE_PORTRAITS[row.runtime==='codex'?`codex:${row.role}`:row.role]} alt="" width="512" height="512" />
-    <span className="forest-portrait-badge">{row.name==='Jiao'?'J':BADGES[row.role]}</span>
+    {row.unseated ? null : <img src={ROLE_PORTRAITS[row.runtime==='codex'?`codex:${row.role}`:row.role]} alt="" width="512" height="512" />}
+    <span className="forest-portrait-badge">{row.name==='Jiao'?'J':BADGES[row.role] ?? row.name[0]}</span>
   </span>;
 }
 
@@ -21,10 +21,11 @@ function Portrait({ row, large = false }) {
 export function Residents({ snapshot, now, bindings, onTalk, onViewWork, getTalkState }) {
   const [selectedId, setSelectedId] = useState('orchestrator');
   const profileId = useId();
-  const rows = deskResidents(snapshot, { now, bindings });
+  // team-and-den-ux/04: every role in the charter, the four not yet seated in the den last (team-and-den-ux/03 seats them).
+  const rows = [...deskResidents(snapshot, { now, bindings }), ...UNSEATED_ROLES.map((row) => ({ ...row, state: 'unseated', ref: null, visitor: false }))];
   const selected = rows.find(row => row.id === selectedId)
     ?? rows.find(row => row.id === selectedId.split('#')[0]) ?? rows[0];
-  const talkState = selected.runtime==='codex'?{enabled:false,reason:RUNTIME_UNAVAILABLE}:getTalkState?.(selected) ?? { enabled: !!onTalk, reason: onTalk ? null : 'Conversation unavailable.' };
+  const talkState = selected.unseated?{enabled:false,reason:'This role has no panda in the den yet.'}:selected.runtime==='codex'?{enabled:false,reason:RUNTIME_UNAVAILABLE}:getTalkState?.(selected) ?? { enabled: !!onTalk, reason: onTalk ? null : 'Conversation unavailable.' };
   const canTalk = !!onTalk && talkState.enabled;
   const canViewWork = selected.runtime==='claude' && !!onViewWork && !!selected.ref;
   const visitors = rows.filter(row => row.visitor).length;

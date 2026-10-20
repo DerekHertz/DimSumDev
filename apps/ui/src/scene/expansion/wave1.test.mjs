@@ -279,12 +279,13 @@ test("wiring: zones mount before the actors copy obstacles, state comes from the
   assert.match(app, /viewFromBridge\(/);
   assert.match(app, /liveActorsFromSnapshot\(snapshot/);
   assert.match(app, /useArchiveLibrary\(\{ rev: snapshot\?\.libraryRev/);
+  assert.match(app, /onOpenLibrary: \(\) => openTopic\(['"]library['"]/);
+  assert.doesNotMatch(app, /libraryRequest/);
   assert.doesNotMatch(app, /EventSource/);
   const lib = read("archive-library.js");
   assert.match(lib, /getLibrary\(\)/);
   assert.match(lib, /fetch: \(url, init\) => fetch\(url, init\)/, "the public read client: no session credential");
   assert.doesNotMatch(lib, /session|steering/);
   const cards = read("..", "..", "overlay", "Cards.jsx");
-  assert.match(cards, /libraryRequest/);
   for (const file of ["work-zones.mjs", "archive-library.js"]) assert.doesNotMatch(read(file), /deliver\(|startTask\(|decide\(|steerDelivery\(|converse\(|EventSource|XMLHttpRequest/);
 });

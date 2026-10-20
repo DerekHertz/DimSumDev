@@ -39,17 +39,19 @@ export function createDenExplorer(THREE,{canvas,orbitControls,den,onModeChange=(
   }
   listen(document,'pointerlockchange',()=>{
     const locked=document.pointerLockElement===canvas;
-    if(active&&locked){onCursorChange(false);onHint('WASD / arrows to walk · mouse to look · Tab to use cards · Esc to leave');}
-    if(wasLocked&&!locked&&active){
-      if(freeCursorRequested){onCursorChange(true);onHint('Cursor free · click cards · Look around to resume · Esc to leave');}
-      else exit();
-    }
+    if(active&&locked){onCursorChange(false);onHint('WASD to walk · mouse to look · Tab frees the cursor · Esc to leave');}
+    // team-and-den-ux/04 (spec 1.6): a lock the browser released (its own Escape) frees the cursor; the next Escape leaves.
+    if(wasLocked&&!locked&&active){onCursorChange(true);onHint('Cursor free · click cards · Look around to resume · Esc again to leave');}
     wasLocked=locked;
   });
   listen(document,'pointerlockerror',fallback);
   listen(document,'keydown',e=>{
     if(!active)return;
-    if(e.code==='Escape'){e.preventDefault();exit();return;}
+    if(e.code==='Escape'){
+      e.preventDefault();
+      if(document.pointerLockElement===canvas)freeCursor();else exit();
+      return;
+    }
     if(e.code==='Tab'&&document.pointerLockElement===canvas){
       e.preventDefault();freeCursor();return;
     }

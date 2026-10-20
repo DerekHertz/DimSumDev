@@ -15,7 +15,7 @@ export function QueueButton({ count, open, onToggle, buttonRef }) {
   );
 }
 
-export function QueueDrawer({ snapshot, now, open, onClose, onOpenNeeds, onOpenTicket, controls }) {
+export function QueueDrawer({ snapshot, now, open, onClose, onOpenNeeds, onOpenTicket, controls, inSheet = false }) {
   const model = useMemo(() => queueDrawerModel(snapshot, now), [snapshot, now]);
   const [shownGoal, setShownGoal] = useState(undefined); // undefined: follow the model's first goal with a ready ticket
   const [expanded, setExpanded] = useState(null);
@@ -23,12 +23,12 @@ export function QueueDrawer({ snapshot, now, open, onClose, onOpenNeeds, onOpenT
   const close = useRef(onClose);
   close.current = onClose;
   useEffect(() => {
-    if (!open) return undefined;
+    if (!open || inSheet) return undefined; // team-and-den-ux/04: in a rail sheet, the sheet owns focus and Escape
     heading.current?.focus({ preventScroll: true });
     const keys = (e) => { if (e.key === "Escape") { e.preventDefault(); close.current(); } };
     window.addEventListener("keydown", keys);
     return () => window.removeEventListener("keydown", keys);
-  }, [open]);
+  }, [open, inSheet]);
   const openGoals = new Set(shownGoal === undefined ? [model.openGoal] : shownGoal);
   const toggleGoal = (key) => {
     const next = new Set(openGoals);
@@ -38,11 +38,13 @@ export function QueueDrawer({ snapshot, now, open, onClose, onOpenNeeds, onOpenT
   };
   return (
     <section id="queue-drawer" className="queue-drawer" data-open={open} aria-label="Queue" aria-hidden={!open} inert={open ? undefined : ""}>
-      <header className="queue-head">
-        <h2 ref={heading} tabIndex={-1}>Queue</h2>
-        <span className="queue-meta">{model.openCount} open</span>
-        <button type="button" className="btn btn-outline queue-close" onClick={onClose} aria-label="Close the queue">Close</button>
-      </header>
+      {inSheet ? <p className="queue-meta card-sheet-summary">{model.openCount} open</p> : (
+        <header className="queue-head">
+          <h2 ref={heading} tabIndex={-1}>Queue</h2>
+          <span className="queue-meta">{model.openCount} open</span>
+          <button type="button" className="btn btn-outline queue-close" onClick={onClose} aria-label="Close the queue">Close</button>
+        </header>
+      )}
       <div className="queue-body">
         <section aria-label="Needs you">
           <p className="ov">Needs you</p>

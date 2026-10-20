@@ -21,7 +21,7 @@ import { demoRequested, useDemoSnapshot, useHandoffs } from "./handoff-state.js"
 import { useMetrics } from "./metrics-state.js";
 import { dashboardModel } from "./panel/dashboard-model.mjs";
 import { tallyRods } from "./scene/tally-face.mjs";
-import { TallyCard } from "./scene/TallyCard.jsx";
+import { TallyBody } from "./scene/TallyCard.jsx";
 import { useNow } from "./panel/Panel.jsx";
 import { answerCardFor, needsYouModel } from "./overlay/overlay-model.mjs";
 import { panelPlaceholder } from "./state/connection.mjs";
@@ -29,7 +29,7 @@ import { createCameraStore } from "./scene/camera-store.mjs";
 import { LogoPill, Cards } from "./overlay/Cards.jsx";
 import { useSession } from "./session/useSession.js";
 import { ZoomSwitcher } from "./overlay/Bottom.jsx";
-import { DemoAnnouncer, DemoButton, DemoStrip, useDemoMode } from "./demo/DemoControls.jsx";
+import { DemoAnnouncer, DemoStrip, useDemoMode } from "./demo/DemoControls.jsx";
 import { demoCard } from "./demo/demo-card.mjs";
 import { viewFromBridge } from "./scene/expansion/integration/bridge-adapter.mjs";
 import { routeWorkClick, unavailableReason } from "./scene/expansion/work-zones.mjs";
@@ -38,6 +38,9 @@ import { liveActorsFromSnapshot } from "./review/live-actors.mjs";
 import { agentFor, pickedCard } from "./overlay/proximity-card.mjs";
 import { DESK_THREAD } from "./overlay/transcript-panel.mjs";
 import { Residents } from "./shell/Residents.jsx";
+import { Rail } from "./shell/Rail.jsx";
+import { Sheet } from "./shell/Sheet.jsx";
+import { SHEET_HEADS, buildLabel, escapeAction, railBadges } from "./shell/rail-model.mjs";
 import { deskActivity } from "./shell/desk-model.mjs";
 import { actorBindings, NAVIGATION_TARGETS, MESHY_TEAM_LABELS } from "./scene/meshy/layout.mjs";
 import { MeetingLayer } from "./scene/MeetingLayer.jsx";
@@ -52,6 +55,8 @@ class SceneBoundary extends Component {
 
 const noSubscribe = () => () => {};
 const noSnapshot = () => null;
+const SCENE = 'main[aria-label="Den scene"]';
+const focusEl = (el) => { if (el?.isConnected) { el.focus({ preventScroll: true }); return true; } return false; };
 
 function activeCount(snapshot) {
   const active = new Set(["claimed", "in-review", "blocked", "ready-for-human"]);
@@ -60,6 +65,9 @@ function activeCount(snapshot) {
   return refs.size;
 }
 
+// team-and-den-ux/04 (design/04-spec.md): the den fills the window. A thin bar on top, the icon rail on the left, and the
+// live scene in the rest. Sheets dock over the scene: one topic by the rail, one conversation or meeting on the right.
+// Opening or closing a sheet never moves the camera, changes the level, leaves walk mode or deselects a panda.
 export function App() {
   const live = useLiveState();
   const steering = useSession();
@@ -68,7 +76,6 @@ export function App() {
   // den-v1/09: Demo mode replays recorded events into the den (demo/). It reads no session and makes no request.
   const onDemoChange = useRef(() => {});
   const [denDemo, denDemoMode] = useDemoMode((active) => onDemoChange.current(active));
-  const demoButton = useRef(null);
   const { connection, metricsRevision } = live;
   // Dev-only approval demo (den-v1/06, scene/approval-fixture.mjs): one pending approval answered by a stub bridge. Never in a production build.
   const [approvalDemo] = useState(() => {
@@ -91,9 +98,10 @@ export function App() {
   const [gardenLoad, setGardenLoad] = useState({ status: 'loading', message: 'Opening the garden…' });
   const [exploring,setExploring]=useState(false);
   const [cursorFree, setCursorFree] = useState(false);
+  const [walkPlace, setWalkPlace] = useState('Entrance');
   const [nearby, setNearby] = useState(null);
   // Overview (live den run, 2026-10-10): a clicked panda shows the card walk mode shows. `engaged` is walk mode or a
-  // picked panda: the transcript, the permission review and the message box stay open, and their keys act, in either.
+  // picked panda: the permission review and the message box stay open, and their keys act, in either.
   const [picked, setPicked] = useState(null);
   const engaged = exploring || picked != null;
   const now = useNow();
@@ -103,16 +111,51 @@ export function App() {
   const requests = useMemo(() => needsYouModel(snapshot, now).requests, [snapshot, now]);
   const onNearby = useCallback(card => setNearby(previous => JSON.stringify(previous) === JSON.stringify(card) ? previous : card), []);
   const releaseCursor = useCallback(() => stage.explorer?.freeCursor?.(), [stage]);
+
+  // The two sheet slots (spec 1.3). Each remembers when it opened (Escape closes the last one first) and what opened it
+  // (focus goes back there when it closes).
+  const [topic, setTopic] = useState(null);
+  const [meetingId, setMeetingId] = useState(null);
+  const [meetingRole, setMeetingRole] = useState(null);
+  const [left, setLeft] = useState(() => new Set());
+  const opened = useRef({ topic: 0, side: 0 });
+  const opener = useRef({ topic: null, side: null });
+  const stamp = (slot, from) => {
+    opened.current[slot] = performance.now();
+    opener.current[slot] = from ?? (document.activeElement instanceof HTMLElement && document.activeElement !== document.body ? document.activeElement : null);
+  };
+  // Focus back to what opened a sheet; if it is gone, the rail entry for the topic, then the selected panda's card, then the scene.
+  const focusBack = useCallback((slot, entry) => {
+    if (focusEl(opener.current[slot])) return true;
+    if (entry && focusEl(document.querySelector(`[data-rail="${entry}"]`))) return true;
+    if (focusEl(document.querySelector(".proximity-card button"))) return true;
+    return focusEl(document.querySelector(SCENE));
+  }, []);
+
   const reviewOpen = useRef(false);
   const approvalOpen = useRef(false);
-  const transcriptClose = useRef(null);
   const messageClose = useRef(null);
   // In Demo mode the card is routed through demoCard: T, E and Q greyed, R on only when a transcript line was recorded.
   const shownCard = useMemo(() => (denDemo.active ? demoCard(nearby, { transcripts: denDemo.transcripts }) : nearby), [nearby, denDemo.active, denDemo.transcripts]);
-  const transcript = useTranscript({ card: shownCard, exploring: engaged, onOpen: releaseCursor, blocked: reviewOpen });
+  const sideOwned = useRef(false);
+  const transcript = useTranscript({ card: shownCard, exploring: engaged, onOpen: () => {
+    setMeetingId(null);
+    if (!sideOwned.current) stamp('side');
+    releaseCursor();
+  }, blocked: reviewOpen, returnFocus: () => focusBack('side') });
+  const transcriptClose = useRef(null);
   transcriptClose.current = transcript.close;
+  const openConversation = useCallback((agentId, who, from) => {
+    if (!agentId) return;
+    releaseCursor();
+    stamp('side', from);
+    sideOwned.current = true;
+    setMeetingId(null);
+    transcript.openFor(agentId, who);
+    sideOwned.current = false;
+  }, [transcript.openFor, releaseCursor]);
   const bridge = useMemo(() => approvalDemo?.client ?? createBridgeClient({ fetch: steering.session.fetch }), [steering.session, approvalDemo]);
-  const onReviewOpen = useCallback(() => { transcriptClose.current?.(); messageClose.current?.(); releaseCursor(); }, [releaseCursor]);
+  const onReviewOpen = useCallback(() => { messageClose.current?.(); releaseCursor(); }, [releaseCursor]);
   // E and Q answer the panda card in view, or else the first waiting permission request (overlay-model.mjs answerCardFor).
   const answerCard = useMemo(() => answerCardFor(nearby, requests), [nearby, requests]);
   const approval = useApprovalReview({ client: bridge, card: answerCard, exploring: engaged, cursorFree, demo: inDemo, snapshot, onOpen: onReviewOpen });
@@ -120,33 +163,105 @@ export function App() {
   const asksQuestion = (card) => (snapshot?.approvals ?? []).some((a) => a.agentId === card.agentId && a.state === "pending" && Array.isArray(a.questions));
   const answerRequest = useCallback((card) => {
     if (!card) return;
-    if (asksQuestion(card)) transcript.openFor(card.agentId, { name: card.name, role: card.role, state: card.state });
+    if (asksQuestion(card)) openConversation(card.agentId, { name: card.name, role: card.role, state: card.state });
     else approval.review.open(card, { mode: "card", demo: inDemo });
-  }, [approval.review, inDemo, snapshot, transcript.openFor]);
+  }, [approval.review, inDemo, snapshot, openConversation]);
   const answerAgent = useCallback((agentId) => answerRequest(requests.find((r) => r.card?.agentId === agentId)?.card), [answerRequest, requests]);
   // organism-infra/230: "Open thread" on a Needs you card opens that agent's conversation, in or out of walk mode.
-  const openThread = useCallback((card) => { if (card?.agentId) transcript.openFor(card.agentId, { name: card.name, role: card.role, state: card.state }); }, [transcript.openFor]);
+  const openThread = useCallback((card) => { if (card?.agentId) openConversation(card.agentId, { name: card.name, role: card.role, state: card.state }); }, [openConversation]);
   // den-v1/07: T opens the message composer. A message the agent took shows on its transcript entry (den-v1 loop S5), which reaches the composer with each snapshot and frame.
   const message = useMessageComposer({ client: bridge, card: nearby, exploring: engaged, cursorFree, demo: inDemo, snapshot, transcripts: live.transcripts, onOpen: releaseCursor, blocked: approvalOpen });
   messageClose.current = message.composer.close;
   useEffect(() => approvalDemo?.onEvent((event) => message.composer.observe(event)), [approvalDemo, message.composer]); // dev-only demo acks (scene/approval-fixture.mjs)
   approvalOpen.current = approval.state.open;
   reviewOpen.current = approval.state.open || message.state.open; // the transcript keys stand down while either panel is open
-  // Entering or leaving Demo mode: walk mode exits, the panels close, the nearby card clears, and focus stays on the button.
-  onDemoChange.current = () => {
-    stage.explorer?.exit();
-    transcript.close(); message.composer.close(); approval.review.close();
-    setNearby(null); setSelected(null); setPicked(null);
-    setTimeout(() => demoButton.current?.focus({ preventScroll: true }), 0);
-  };
+
+  // The topic sheet: a rail entry opens it, the open entry closes it, another entry swaps it in place.
+  const openTopic = useCallback((id, from) => {
+    releaseCursor();
+    setTopic((current) => {
+      if (current === id) { queueMicrotask(() => focusBack('topic', id)); return null; }
+      stamp('topic', from);
+      return id;
+    });
+  }, [focusBack, releaseCursor]);
+  const closeTopic = useCallback(() => {
+    setTopic((current) => { if (current) queueMicrotask(() => focusBack('topic', current)); return null; });
+  }, [focusBack]);
+  // den-mvp/64: a seat, Bao or the table opens the meeting in the side sheet, on that seat's take when there is one.
+  const openMeeting = useCallback((meeting, role, from) => {
+    if (!meeting) return;
+    releaseCursor();
+    if (transcript.panel.agentId) transcriptClose.current?.();
+    stamp('side', from);
+    setMeetingId(meeting);
+    setMeetingRole(role ?? null);
+    setLeft((s) => (s.has(meeting) ? new Set([...s].filter((id) => id !== meeting)) : s));
+  }, [transcript.panel.agentId, releaseCursor]);
+  const closeMeeting = useCallback(() => { setMeetingId(null); queueMicrotask(() => focusBack('side', 'meetings')); }, [focusBack]);
+  const leaveMeeting = useCallback(() => {
+    setLeft((s) => new Set([...s, meetingId]));
+    closeMeeting();
+  }, [meetingId, closeMeeting]);
+  const closeSide = useCallback(() => {
+    if (meetingId) closeMeeting();
+    else transcript.close();
+  }, [meetingId, closeMeeting, transcript.close]);
+  const sideOpen = !!(transcript.panel.agentId || meetingId);
+
   const [exploreHint,setExploreHint]=useState('WASD / arrows to walk · drag to look · Esc to leave');
   const onDenReady=useCallback(value=>setDen(value),[]);
   const sceneEvents=useMemo(()=>state=>denEvents(defaultEvents(state),stage),[stage]);
   const selectTicket=useCallback(ref=>{stage.explorer?.exit();setPicked(null);setSelected(ref);},[stage]);
   const pickPanda=useCallback(id=>{setSelected(null);setPicked(id);},[]);
   const unpick=useCallback(()=>{setPicked(null);setNearby(null);},[]);
-  const closeTicket=useCallback(()=>{setSelected(null);document.querySelector('main[aria-label="Den scene"]')?.focus({preventScroll:true});},[]);
-  const onExploreChange=useCallback(active=>{setExploring(active);setNearby(null);setPicked(null);if(active){setSelected(null);setTallyOpen(false);}},[]);
+  const closeTicket=useCallback(()=>{setSelected(null);document.querySelector(SCENE)?.focus({preventScroll:true});},[]);
+  const onExploreChange=useCallback(active=>{setExploring(active);setNearby(null);setPicked(null);if(active)setSelected(null);},[]);
+
+  // Escape (spec 1.6): an open inline confirm, then the last sheet opened, then the selected card, then walk mode (left to
+  // the explorer). It runs first, in the capture phase on window, and a press that closes something is taken, so the
+  // explorer and the panels' own Escape never also act on it. The permission review and the message box keep their keys.
+  const escapeState = useRef({});
+  escapeState.current = { topic, sideOpen, meetingId, picked, selected, exploring, closeTopic, closeSide, closeTicket, unpick, transcript };
+  useEffect(() => {
+    const onKey = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey) return;
+      if (approvalOpen.current || reviewOpen.current) return;
+      const s = escapeState.current;
+      const layers = [s.topic ? { slot: "topic", at: opened.current.topic } : null, s.sideOpen ? { slot: "side", at: opened.current.side } : null].filter(Boolean).sort((a, b) => a.at - b.at);
+      const confirms = document.querySelectorAll('[data-confirm]');
+      const action = escapeAction({ layers, confirming: confirms.length > 0, picked: s.picked != null || s.selected != null, walking: s.exploring });
+      if (!action || action === "walk") return;
+      const take = () => { e.preventDefault(); e.stopImmediatePropagation(); };
+      if (action === "confirm") {
+        const keep = confirms[confirms.length - 1]?.querySelector('button:last-child');
+        take(); keep?.click(); return;
+      }
+      if (action === "sheet") {
+        const top = layers.at(-1).slot;
+        take();
+        // The thread's own use for Escape (its stop confirm) comes first.
+        if (top === "side" && !s.meetingId && s.transcript.intercept.current?.()) return;
+        if (top === "topic") s.closeTopic(); else s.closeSide();
+        return;
+      }
+      if (action === "deselect") {
+        take();
+        if (s.selected) s.closeTicket(); else { s.unpick(); document.querySelector(SCENE)?.focus({ preventScroll: true }); }
+      }
+    };
+    window.addEventListener("keydown", onKey, true);
+    return () => window.removeEventListener("keydown", onKey, true);
+  }, []);
+
+  // Entering or leaving Demo mode: walk mode exits, the sheets and panels close, the nearby card clears, and focus stays on the rail entry.
+  onDemoChange.current = () => {
+    stage.explorer?.exit();
+    transcript.close(); message.composer.close(); approval.review.close();
+    setTopic(null); setMeetingId(null);
+    setNearby(null); setSelected(null); setPicked(null);
+    setTimeout(() => document.querySelector('[data-rail="demo"]')?.focus({ preventScroll: true }), 0);
+  };
   const frontier=snapshot?.frontier ?? [];
   const placements = useMemo(() => (snapshot ? sceneFromState(snapshot) : []), [snapshot]);
   // Bao's crown always holds the Pass: an idle stand-in when no orchestrator work is active.
@@ -158,44 +273,18 @@ export function App() {
   const { metrics, failed: metricsFailed, retry: retryMetrics } = useMetrics(metricsRevision);
   const dashboard = useMemo(() => dashboardModel(metrics, { error: metricsFailed }), [metrics, metricsFailed]);
   const tally = useMemo(() => tallyRods(snapshot?.usage ?? null, dashboard, now), [snapshot?.usage, dashboard, now]);
-  // Tally expands into an in-place card over the scene (nothing scrolls). Esc, Close and the pill return
-  // focus to the pill; an outside pointerdown closes without moving focus.
-  const [tallyOpen, setTallyOpen] = useState(false);
+  // The abacus in the scene opens the Tally sheet, like the rail's Tally entry.
   const openTally = useCallback(() => {
-    stage.explorer?.exit();
-    transcriptClose.current?.(); messageClose.current?.(); approval.review.close();
-    setSelected(null); setPicked(null); setNearby(null); setTallyOpen(true);
-  }, [stage, approval.review]);
-  const closeTally = useCallback((restoreFocus = false) => {
-    setTallyOpen(false);
-    if (restoreFocus) document.querySelector(".chip-tally")?.focus({ preventScroll: true });
-  }, []);
-  const toggleTally = useCallback(() => {
-    if (tallyOpen) closeTally(true);
-    else openTally();
-  }, [tallyOpen, openTally, closeTally]);
+    if (topic !== 'tally') openTopic('tally', document.querySelector('[data-rail="tally"]'));
+  }, [topic, openTopic]);
   const hearts = useMemo(() => new Set(handoffs.map((h) => h.ref)), [handoffs]);
   // den-mvp/22 (v5 wave 1): the repair bench and the archive. Marks come from this one snapshot (no second event stream);
-  // a click only opens a card or a thread. Demo mode and a dropped bridge turn the work actions off and say why.
+  // a click only opens a sheet or a thread. Demo mode and a dropped bridge turn the work actions off and say why.
   const zonePhase = inDemo ? "offline" : connection.phase;
   const archiveLibrary = useArchiveLibrary({ rev: snapshot?.libraryRev ?? 0, enabled: zonePhase === "live" });
   const zoneView = useMemo(() => viewFromBridge({
     snapshot, actors: liveActorsFromSnapshot(snapshot, { now }), library: archiveLibrary, connection: { phase: zonePhase }, selectedRef: selected, now,
   }), [snapshot, archiveLibrary, zonePhase, selected, now]);
-  const [libraryRequest, setLibraryRequest] = useState(0);
-  const [deskSection, setDeskSection] = useState('home');
-  const [focusRequest, setFocusRequest] = useState(null);
-  const navigateDesk = useCallback((section) => {
-    stage.explorer?.exit();
-    transcript.close(); message.composer.close(); approval.review.close();
-    setSelected(null); unpick(); setTallyOpen(false); setDeskSection(section);
-    setFocusRequest(previous => ({ section, sequence: (previous?.sequence ?? 0) + 1 }));
-  }, [stage, transcript.close, message.composer, approval.review, unpick]);
-  // den-mvp/64: a seat, Bao or the table opens the meeting in the Meetings card, on that seat's take when there is one.
-  const openMeeting = useCallback((meeting, role) => {
-    navigateDesk('meetings');
-    setFocusRequest(previous => ({ section: 'meetings', meeting, role: role ?? null, sequence: (previous?.sequence ?? 0) + 1 }));
-  }, [navigateDesk]);
   const atTable = tableMeeting(snapshot?.meetings, now);
   const claimKey = atTable ? `${atTable.id}:${atTable.seats.map(s => `${s.status}${s.takes ?? 0}`).join(',')}` : '';
   const [claims, setClaims] = useState({});
@@ -225,18 +314,18 @@ export function App() {
       : {enabled:true};
     return {enabled:false,reason:'This resident does not have an agent runtime yet.'};
   },[inDemo,connection.phase,residentCard,steering.state]);
+  // A Team row's Talk opens the conversation beside Team (Team stays open), or the message box on the resident's card.
   const talkToResident = useCallback(row => {
     if(!residentTalkState(row).enabled)return;
-    const card=residentCard(row);stage.explorer?.exit();
-    approval.review.close();message.composer.close();transcript.close();
-    setSelected(null);setTallyOpen(false);unpick();
-    if(card.actions.R.enabled&&card.threadId)transcript.openFor(card.threadId,{name:row.name,role:row.role,state:card.state});
-    else {setPicked(row.id);setNearby(card);message.openFrom(card);}
-  },[residentTalkState,residentCard,stage,approval.review,message.composer,message.openFrom,transcript.close,transcript.openFor,unpick]);
+    const card=residentCard(row);
+    approval.review.close();message.composer.close();
+    if(card.actions.R.enabled&&card.threadId)openConversation(card.threadId,{name:row.name,role:row.role,state:card.state});
+    else {setSelected(null);setPicked(row.id);setNearby(card);message.openFrom(card);}
+  },[residentTalkState,residentCard,approval.review,message.composer,message.openFrom,openConversation]);
   const viewResidentWork = useCallback(row => {
     if(row.runtime==='codex'||!row.ref)return;
-    navigateDesk('pandas');selectTicket(row.ref);
-  },[navigateDesk,selectTicket]);
+    selectTicket(row.ref);
+  },[selectTicket]);
   const [zoneNotice, setZoneNotice] = useState(null);
   useEffect(() => {
     if (!zoneNotice) return undefined;
@@ -249,59 +338,64 @@ export function App() {
       onOpenTicket: (intent) => { if (intent.ref) selectTicket(intent.ref); },
       onOpenRole: (intent) => {
         const agent = agentFor({ role: intent.role }, snapshot?.agents);
-        if (agent) transcript.openFor(agent.id, { name: intent.role, role: intent.role, state: agent.state });
+        if (agent) openConversation(agent.id, { name: intent.role, role: intent.role, state: agent.state });
         else setZoneNotice(`No ${intent.role} conversation yet: nothing has run for that role.`);
       },
-      onOpenLibrary: () => { navigateDesk('library'); setLibraryRequest((n) => n + 1); },
+      onOpenLibrary: () => openTopic('library', document.querySelector('[data-rail="library"]')),
       onUnavailable: (intent) => setZoneNotice(`${intent.label}: ${unavailableReason(zonePhase)}`),
     });
-  }, [zoneView, zonePhase, snapshot?.agents, selectTicket, transcript.openFor, navigateDesk]);
-  const activity = useMemo(() => deskActivity(snapshot, { now }), [snapshot, now]);
-  const detailOpen = !!(selected || tallyOpen || approval.state.open || transcript.panel.agentId || message.state.open || (engaged && shownCard));
-  const deskPanel = useRef(null);
+  }, [zoneView, zonePhase, snapshot?.agents, selectTicket, openConversation, openTopic]);
+  const baoOpen = transcript.panel.agentId === DESK_THREAD;
+  const talkToBao = useCallback((from) => {
+    if (baoOpen) closeSide();
+    else openConversation(DESK_THREAD, { name: 'Bao', role: 'orchestrator' }, from);
+  }, [baoOpen, closeSide, openConversation]);
+  const [toast, setToast] = useState(null);
   useEffect(() => {
-    if (picked && !exploring && matchMedia('(max-width: 760px)').matches) deskPanel.current?.scrollIntoView({ block: 'start' });
-  }, [picked, exploring]);
-  const deskTitles = { home: 'Your desk.', work: 'Good work, in motion.', pandas: 'A home for every calling.', library: 'The shared library.' };
+    if (!toast) return undefined;
+    const timer = setTimeout(() => setToast(null), 2500);
+    return () => clearTimeout(timer);
+  }, [toast]);
+  const onRail = useCallback((id, from) => {
+    if (id === 'bao') talkToBao(from);
+    else if (id === 'demo') denDemoMode.toggle();
+    else if (id === 'reset') { camera.goToLevel(1); setToast('Back to the whole den'); }
+    else openTopic(id, from);
+  }, [talkToBao, denDemoMode, camera, openTopic]);
+  const activity = useMemo(() => deskActivity(snapshot, { now }), [snapshot, now]);
+  const badges = useMemo(() => railBadges({ snapshot, now, ownBuild: inDemo ? null : live.ownBuild }), [snapshot, now, inDemo, live.ownBuild]);
   const overflow = snapshot ? Math.max(0, activeCount(snapshot) - MAX_PLUSH) : 0;
+  const floatOpen = !!(selected || approval.state.open || message.state.open || (engaged && shownCard));
   return (
-    <div className={`shell procedural-den forest-shell${exploring ? " den-visiting" : ""}${cursorFree ? " den-cursor-free" : ""}${!exploring && picked != null ? " den-picked" : ""}`}>
-      <header className="forest-masthead">
+    <div className={`shell procedural-den forest-shell den-shell${exploring ? " den-visiting" : ""}${cursorFree ? " den-cursor-free" : ""}${!exploring && picked != null ? " den-picked" : ""}`}>
+      <header className="den-bar">
         <LogoPill connection={connection} demo={denDemo.active} />
-        <nav className="forest-navigation" aria-label="Workspace">
-          {[["home", "The Den"], ["work", "Work"], ["pandas", "Pandas"], ["library", "Library"]].map(([id, label]) =>
-            <button key={id} type="button" aria-current={deskSection === id ? "page" : undefined} onClick={() => navigateDesk(id)}>{label}</button>)}
-        </nav>
-        <DemoButton ref={demoButton} state={denDemo} onToggle={denDemoMode.toggle} />
+        <ZoomSwitcher camera={camera} />
+        <button type="button" className="btn btn-solid den-bar-talk" aria-pressed={baoOpen} onClick={(e) => talkToBao(e.currentTarget)}>Talk to Bao</button>
       </header>
-      <section className="forest-welcome" aria-label="Welcome">
-        <div><p className="forest-eyebrow">YOUR LITTLE WORLD AT WORK</p><h2>Welcome to the Den.</h2><p>Room to think. A table to come back to.</p></div>
-        <button type="button" className="btn btn-solid forest-talk" onClick={() => transcript.openFor(DESK_THREAD, { name: 'Bao', role: 'orchestrator' })}>Talk to Bao <span aria-hidden="true">↗</span></button>
-      </section>
-      <div className="forest-workspace">
+      <Rail topic={topic} baoOpen={baoOpen} badges={badges} onEntry={onRail} buildLabel={buildLabel(snapshot?.build)} demoActive={denDemo.active} offline={!inDemo && connection.phase !== 'live'} />
+      <div className="den-stage">
         <main aria-label="Den scene" aria-keyshortcuts="ArrowLeft ArrowRight + -" tabIndex={0} className="scene forest-garden">
-          <header className="forest-garden-toolbar">
-            <strong><span className="forest-dot" aria-hidden="true" /> Around the garden</strong>
-            <button type="button" className="forest-link" onClick={() => camera.goToLevel(1)}>Reset view ↗</button>
-          </header>
           <div className="forest-canvas">
             <SceneBoundary>
               <Canvas aria-hidden="true" orthographic shadows dpr={[1,1.5]} frameloop="demand"
                 camera={{ manual: true, zoom: 1, near: 0.1, far: 160 }}
                 gl={{antialias:true,powerPreference:'high-performance'}} events={sceneEvents} onPointerMissed={() => { setSelected(null); unpick(); }}>
                 <FrameCap />
-                <CameraRig store={camera} stage={stage} den={den} onModeChange={onExploreChange} onHint={setExploreHint} onCursorChange={setCursorFree} />
+                <CameraRig store={camera} stage={stage} den={den} onModeChange={onExploreChange} onHint={setExploreHint} onCursorChange={setCursorFree} onLocationChange={setWalkPlace} />
                 <Suspense fallback={null}>
                   <MeshyDen snapshot={snapshot} bindings={bindings} onLoadState={setGardenLoad} placements={scenePlacements} frontier={frontier} tally={tally} onOpenTally={openTally}
-                    selected={selected} onSelect={selectTicket} stage={stage} onReady={onDenReady} onNearby={onNearby} picked={picked} onPick={pickPanda} zoneView={zoneView} onZoneClick={zoneClick} onOpenMeeting={openMeeting} />
+                    selected={selected} onSelect={selectTicket} stage={stage} onReady={onDenReady} onNearby={onNearby} picked={picked} onPick={pickPanda} zoneView={zoneView} onZoneClick={zoneClick} onOpenMeeting={(meeting, role) => openMeeting(meeting, role)} />
                 </Suspense>
               </Canvas>
             </SceneBoundary>
-            <ChipLayer placements={sceneChips} labelsOverride={MESHY_TEAM_LABELS} hearts={hearts} onToggleTally={toggleTally} tallyOpen={tallyOpen} tally={tally} tickets={snapshot?.tickets} selected={selected} onSelect={selectTicket} stage={stage} />
-            <MeetingLayer snapshot={snapshot} stage={stage} claims={claims} onOpen={openMeeting} />
+            <ChipLayer placements={sceneChips} labelsOverride={MESHY_TEAM_LABELS} hearts={hearts} tally={tally} tallyOpen={topic === 'tally'} tickets={snapshot?.tickets} selected={selected} onSelect={selectTicket} stage={stage} />
+            <MeetingLayer snapshot={snapshot} stage={stage} claims={claims} onOpen={(meeting, role) => openMeeting(meeting, role)} />
             <div className="den-crosshair" aria-hidden="true" hidden={!exploring || cursorFree}>+</div>
-            {!den ? <p className="forest-loading" role={gardenLoad.status === 'error' ? 'alert' : 'status'}>{gardenLoad.message}<span>{gardenLoad.status === 'error' ? 'Your board controls are still available at the desk.' : 'Preparing Bao, the workspaces and their props.'}</span></p> : null}
+            {exploring ? <p className="den-location" role="status" aria-label="Current location">{walkPlace}</p> : null}
+            {!den ? <p className="forest-loading" role={gardenLoad.status === 'error' ? 'alert' : 'status'}>{gardenLoad.message}<span>{gardenLoad.status === 'error' ? 'Your board controls are still available on the rail.' : 'Preparing Bao, the workspaces and their props.'}</span></p> : null}
             {zoneNotice ? <p className="scene-caption scene-zone-notice" role="status">{zoneNotice}</p> : null}
+            {toast ? <p className="scene-caption den-toast" role="status">{toast}</p> : null}
             {overflow > 0 ? <p className="scene-caption scene-more">+{overflow} more in queue</p> : null}
             <nav className="den-walk-pad" aria-label="Walk around the den" hidden={!exploring}>
               <button type="button" data-den-walk="KeyW" aria-label="Walk forward">↑</button>
@@ -315,43 +409,46 @@ export function App() {
               {activity.blocked > 0 ? <span><i className="forest-dot state-blocked" />{activity.blocked} blocked</span> : null}
               <span><i className="forest-dot state-resident" />{activity.resting} resting</span>
             </div>
-          </div>
-          <footer className="forest-garden-footer">
-            <ZoomSwitcher camera={camera} />
             <div className="den-entry">
               <button type="button" className="btn btn-solid" aria-pressed={exploring} aria-disabled={!den || undefined}
                 onClick={()=>{if(stage.explorer?.active)stage.explorer.exit();else stage.explorer?.enter();}}>
-                {exploring?'Leave the den':'Enter the den'}
+                {exploring?'Back to the diorama · Esc':'Enter the den'}
               </button>
               {exploring && cursorFree ? <button type="button" className="btn btn-outline" onClick={()=>{
-                document.querySelector('main[aria-label="Den scene"]')?.focus({preventScroll:true});
+                document.querySelector(SCENE)?.focus({preventScroll:true});
                 stage.explorer?.capture();
               }}>Look around</button> : null}
             </div>
-          </footer>
-          <p className="forest-garden-hint">{exploring ? exploreHint : 'Drag to move around · scroll to zoom · select a panda to visit'}</p>
-        </main>
-        <aside ref={deskPanel} className={`forest-desk${detailOpen ? ' has-detail' : ''}`} aria-label="Your desk">
-          <div className="forest-desk-home" hidden={detailOpen}>
-            <header className="forest-desk-heading"><p className="forest-eyebrow">A LITTLE SPACE TO FOCUS</p><h2>{deskTitles[deskSection] ?? 'Your desk.'}</h2></header>
-            <div hidden={deskSection === 'pandas'}>
-              <Cards snapshot={snapshot} ownBuild={inDemo ? null : live.ownBuild} now={now} connection={connection} placeholder={placeholder} camera={camera} steering={steering} onAnswer={inDemo ? null : answerRequest} onOpenThread={inDemo ? null : openThread} onOpenTicket={selectTicket} demo={inDemo} libraryRequest={libraryRequest} focusRequest={focusRequest} />
-            </div>
-            {deskSection === 'pandas' ? <Residents snapshot={snapshot} now={now} bindings={bindings} onTalk={talkToResident} onViewWork={viewResidentWork} getTalkState={residentTalkState} /> : null}
+            <p className="forest-garden-hint">{exploring ? exploreHint : 'Drag to move around · scroll to zoom · select a panda to visit'}</p>
           </div>
-          {tallyOpen ? <TallyCard tally={tally} metrics={metrics} failed={metricsFailed} onRetry={retryMetrics} onClose={closeTally} stage={stage} /> : null}
+        </main>
+        <Cards snapshot={snapshot} ownBuild={inDemo ? null : live.ownBuild} now={now} connection={connection} placeholder={placeholder} camera={camera} steering={steering}
+          onAnswer={inDemo ? null : answerRequest} onOpenThread={inDemo ? null : openThread} onOpenTicket={selectTicket} demo={inDemo}
+          topic={topic} onCloseTopic={closeTopic} onTopic={(id) => openTopic(id)} meetingId={meetingId} meetingRole={meetingRole}
+          onShowMeeting={(id, from) => openMeeting(id, null, from)} onCloseMeeting={closeMeeting} onLeaveMeeting={leaveMeeting} left={left} />
+        {topic === 'team' ? (
+          <Sheet id="sheet-topic" slot="topic" eyebrow={SHEET_HEADS.team[0]} title={SHEET_HEADS.team[1]} closeLabel="Close panel" onClose={closeTopic} focusKey="team">
+            <Residents snapshot={snapshot} now={now} bindings={bindings} onTalk={talkToResident} onViewWork={viewResidentWork} getTalkState={residentTalkState} />
+            <p className="forest-muted">{RESIDENTS.length} residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}</p>
+          </Sheet>
+        ) : null}
+        {topic === 'tally' ? (
+          <Sheet id="sheet-topic" slot="topic" eyebrow={SHEET_HEADS.tally[0]} title={SHEET_HEADS.tally[1]} closeLabel="Close panel" onClose={closeTopic} focusKey="tally">
+            <TallyBody tally={tally} metrics={metrics} failed={metricsFailed} onRetry={retryMetrics} />
+          </Sheet>
+        ) : null}
+        <TranscriptPanel tx={transcript} transcripts={denDemo.transcripts ?? live.transcripts} agents={snapshot?.agents} approvals={inDemo ? null : snapshot?.approvals} onAnswer={answerAgent} connection={denDemo.active ? { phase: "live" } : connection}
+          client={bridge} signedIn={steering.state !== "none"} demo={inDemo} />
+        <aside className="den-float" aria-label="Selected" hidden={!floatOpen}>
           {selected?<PandaCard snapshot={snapshot} selected={selected} onClose={closeTicket} />:null}
-          <div className="proximity-dock" hidden={!!(selected || tallyOpen || approval.state.open || transcript.panel.agentId)}>
+          <div className="proximity-dock" hidden={!!(selected || approval.state.open)}>
             {engaged ? <ProximityCard card={shownCard} onClose={exploring ? null : unpick} onTranscript={(c) => { if (!reviewOpen.current) transcript.toggle(c); }} onAnswer={approval.openFrom}
               onMessage={(c) => { if (!approvalOpen.current) message.openFrom(c); }} status={denDemo.active ? denDemoMode.statusFor(nearby) : message.composer.statusFor(nearby)} demo={inDemo} transcriptOpen={!!transcript.panel.agentId} /> : null}
             <MessageComposer composer={message.composer} state={message.state} />
           </div>
           <ApprovalPanel review={approval.review} state={approval.state} />
-          <TranscriptPanel tx={transcript} transcripts={denDemo.transcripts ?? live.transcripts} agents={snapshot?.agents} approvals={inDemo ? null : snapshot?.approvals} onAnswer={answerAgent} connection={denDemo.active ? { phase: "live" } : connection}
-            client={bridge} signedIn={steering.state !== "none"} demo={inDemo} />
         </aside>
       </div>
-      <footer className="forest-page-footer"><span>DIM SUM DEV <span aria-hidden="true">·</span> A place for good work.</span><span>{RESIDENTS.length} residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}</span></footer>
       {denDemo.active ? <DemoStrip loops={denDemo.loops} /> : null}
       <DemoAnnouncer text={denDemo.announcement} />
     </div>

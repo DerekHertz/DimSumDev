@@ -109,7 +109,8 @@ async function main() {
     const requested = [];
     page.on("request", (r) => requested.push(r.url()));
     await page.goto(`${bridge.url}/#code=${launchCode}`, { waitUntil: "load" });
-    await page.waitForSelector("[data-overlay=teams] .queue-row", { timeout: 15000 }).catch(() => {});
+    await page.locator("[data-rail=work]").click();
+    await page.waitForSelector("[data-overlay=teams] .queue-row", { timeout: 15000 });
 
     await check("font: Long Cang is self-hosted, no Google Fonts request", async () => {
       const loaded = await page.evaluate(async () => {
@@ -136,11 +137,11 @@ async function main() {
     });
 
     await check("chart: the Tally card opens in place and its pipeline charts render with an accessible title", async () => {
-      await page.locator(".chip-tally").click({ timeout: 10000 });
-      await page.waitForSelector(".tally-card figure.chart svg[role=img]", { timeout: 10000 });
-      const n = await page.locator(".tally-card figure.chart svg[role=img]").count();
+      await page.locator("[data-rail=tally]").click({ timeout: 10000 });
+      await page.waitForSelector("[data-sheet=topic] figure.chart svg[role=img]", { timeout: 10000 });
+      const n = await page.locator("[data-sheet=topic] figure.chart svg[role=img]").count();
       if (n < 1) throw new Error("no chart rendered");
-      const title = (await page.locator(".tally-card figure.chart figcaption").first().textContent())?.trim();
+      const title = (await page.locator("[data-sheet=topic] figure.chart figcaption").first().textContent())?.trim();
       if (!title) throw new Error("chart has no title");
       await page.keyboard.press("Escape");
       return `${n} charts`;
@@ -148,6 +149,7 @@ async function main() {
 
     await check("approve: round trip writes a merge-approve request and the card shows it pending", async () => {
       // den-scene-v1/07: the Needs you card shows one request at a time; pick the merge ticket's if another leads.
+      await page.locator("[data-rail=needs]").click();
       const card = page.locator("[data-overlay=needs-you]");
       const short = MERGE_REF.slice(MERGE_REF.indexOf("/") + 1);
       if (!(await card.locator(".needs-title", { hasText: short }).count())) await card.locator(".request-row", { hasText: short }).click();
@@ -156,6 +158,7 @@ async function main() {
       const rows = (await readFile(reqFile, "utf8")).split("\n").filter(Boolean).map((l) => JSON.parse(l));
       const req = rows.find((r) => r.ref === MERGE_REF && r.id !== HANDLED_ID);
       expectEqual(req?.kind, "merge-approve", "request kind");
+      await page.keyboard.press("Escape");
     });
 
     // den-iso-v1/02: the orthographic camera. Observables are the four team signs (`.team-label`, placed by
@@ -179,8 +182,7 @@ async function main() {
         for (const el of document.querySelectorAll(".chip-layer .chip[data-ref]")) {
           if (getComputedStyle(el).visibility === "visible") chips[el.dataset.ref] = rel(el);
         }
-        const tally = document.querySelector(".chip-layer .chip-tally");
-        return { width: scene.width, height: scene.height, signs, projected, chips, tally: tally ? rel(tally) : null };
+        return { width: scene.width, height: scene.height, signs, projected, chips };
       });
     const settle = async (predicate, what) => {
       const deadline = Date.now() + 6000;
@@ -195,27 +197,26 @@ async function main() {
     const fits = (p) => {
       const names = ["The Pass", "Steamers", "Front of House", "Tea & Pantry", "Library"];
       if (!names.every((n) => p.signs[n])) return false;
-      const all = [...names.map((n) => p.signs[n]), ...(p.tally ? [p.tally] : [])];
+      const all = names.map((n) => p.signs[n]);
       return all.every((r) => r.left >= 0 && r.right <= p.width && r.top >= 0 && r.bottom <= p.height);
     };
 
-    await check("camera fit: every kiosk sign and the Tally are in the scene at 1440x900", async () => {
+    await check("camera fit: every kiosk sign is in the scene at 1440x900", async () => {
       await page.setViewportSize({ width: 1440, height: 900 });
       const p = await settle(fits, "1440x900 fit");
       return `${Object.keys(p.signs).length} signs inside ${Math.round(p.width)}x${Math.round(p.height)}`;
     });
 
-    // Garden & Desk stacks on phones. Both panels fit without overlap or
-    // horizontal scrolling; the garden retains its own camera viewport.
-    await check("camera fit: every kiosk sign and the Tally are in the scene at 375x667", async () => {
+    // The phone shell keeps its rail beside the scene without horizontal scrolling.
+    await check("camera fit: every kiosk sign is in the scene at 375x667", async () => {
       await page.setViewportSize({ width: 375, height: 667 });
       const p = await settle((q) => q.width <= 375 && q.height <= 667 && fits(q), "375x667 fit");
       const layout = await page.evaluate(() => {
         const garden=document.querySelector('main.scene').getBoundingClientRect();
-        const desk=document.querySelector('aside[aria-label="Your desk"]').getBoundingClientRect();
-        return {gardenBottom:garden.bottom,deskTop:desk.top,width:document.body.scrollWidth};
+        const rail=document.querySelector('.den-rail').getBoundingClientRect();
+        return {gardenLeft:garden.left,railRight:rail.right,width:document.body.scrollWidth};
       });
-      if(layout.deskTop<layout.gardenBottom||layout.width>375)throw new Error('Phone garden and desk overlap or overflow: '+JSON.stringify(layout));
+      if(layout.gardenLeft<layout.railRight||layout.width>375)throw new Error('Phone scene and rail overlap or overflow: '+JSON.stringify(layout));
       return `${Object.keys(p.signs).length} signs inside ${Math.round(p.width)}x${Math.round(p.height)}`;
     });
 

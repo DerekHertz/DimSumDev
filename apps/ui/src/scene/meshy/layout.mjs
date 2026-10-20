@@ -29,3 +29,16 @@ export const MESHY_TEAM_LABELS = Object.freeze([
  {id:'tea',text:'Tea & Pantry',x:20.2,y:6.8,z:-11.9},
  {id:'library',text:'Library',x:-21,y:6.8,z:6},
 ]);
+
+const WALK_PLACES = [
+ ...MESHY_TEAM_LABELS.map(p => ({ label: p.text, x: p.x, z: p.z })),
+ ...[['gate', 'Entrance'], ['training', 'Practice garden'], ['dining', 'Dining garden'], ['pavilion', 'Tea pavilion'], ['festival', 'Festival lawn']].map(([id, label]) => ({ label, x: NAVIGATION_TARGETS[id][0], z: NAVIGATION_TARGETS[id][2] })),
+];
+export function walkLocation({ x, z }) {
+ let label = 'Garden paths', distance = 6;
+ for (const place of WALK_PLACES) {
+  const next = Math.hypot(x - place.x, z - place.z);
+  if (next < distance) { label = place.label; distance = next; }
+ }
+ return label;
+}

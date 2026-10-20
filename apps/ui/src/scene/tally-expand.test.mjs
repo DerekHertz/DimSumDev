@@ -1,19 +1,17 @@
-// den-scene-v1/05: the Tally expands into an in-place card (user, 2026-10-01). Real browser test of the
-// mounted App (Vite dev server, headless Chromium) with /state, /metrics and the event stream stubbed.
+// team-and-den-ux/04: Tally opens as a nonmodal topic sheet from the rail. Real mounted-App
+// browser checks keep its metrics, charts, keyboard and scroll behavior covered.
 // Spec: handoffs/05-designer-spec-2.md (section 11 lists the criteria; section numbers are cited below).
 //
 // Markup contract the developer must meet (everything else is free):
-//   pill      button.chip-tally, aria-label "Tally: open the dashboard", aria-expanded, aria-controls=<dialog id>,
-//             aria-haspopup="dialog"
-//   card      role="dialog" aria-modal="false" labelled by its "Tally" heading, class "tally-card", inside the focused desk
+//   rail      [data-rail="tally"], aria-expanded, aria-controls=<sheet id>
+//   sheet     role="dialog" aria-modal="false" labelled by its "Tally" heading, docked over the scene
 //   heading   the "Tally" heading takes focus on open (an h1-h6 inside the dialog)
-//   close     a button named "Close Tally"
+//   close     a button named "Close panel"
 //   body      role="region" aria-label="Tally metrics", tabindex 0, overflow-y auto
 //   rows      one element per rod with data-rod = five-hour|week|served|tokens|spills, in that order, carrying
 //             data-counted="<0..10>"; the 5 h and Week rows contain an element with data-mark="80"
 //   sections  h3 "The rods" and h3 "Pipeline" (the existing <Dashboard> renders under the second)
-//   meters    exactly two role="meter" in the app at any time: hidden twins when closed, the card's
-//             5 h and Week rows when open (the sidebar's own usage meter is outside the scene)
+//   meters    the topic sheet carries two role="meter" rows while open, none while closed
 import { test, before, after, describe } from "node:test";
 import assert from "node:assert/strict";
 import { createServer } from "vite";
@@ -25,7 +23,7 @@ import { DEN_TARGET } from "./procedural/bindings.mjs";
 
 const TALLY_RODS_CAPTION = "Tally rods: Served 1 bead = 1 ticket this window; Tokens 1 bead = 20k per ticket; Spills 1 bead = 0.1 per ticket.";
 const VIEW = { width: 1280, height: 800 };
-const PILL = 'button.chip-tally';
+const PILL = '[data-rail="tally"]';
 const metricsOk = () => ({
   throughput: { windows: [{ start: "2026-09-30T00:00:00Z", resolved: 3 }, { start: "2026-09-30T05:00:00Z", resolved: 6 }] },
   tokensByRole: { developer: { perTicket: 120000 }, qa: { perTicket: 48000 } },
@@ -109,12 +107,11 @@ function screenOf(sceneBox, x, y, z, target = DEN_TARGET) {
   };
 }
 
-test("click on the pill opens the card in place: dialog shown, aria-expanded true, focus on the Tally heading, nothing scrolls (criterion 1)", { timeout: 90000 }, async () => {
+test("click on the Tally rail entry opens its nonmodal sheet and focuses the heading without scrolling the page (criterion 1)", { timeout: 90000 }, async () => {
   const { page, pill, context, errors } = await openApp();
   try {
-    assert.equal(await pill.getAttribute("aria-label"), "Tally: open the dashboard");
+    assert.equal(await pill.getAttribute("aria-label"), "Tally");
     assert.equal(await pill.getAttribute("aria-expanded"), "false");
-    assert.equal(await pill.getAttribute("aria-haspopup"), "dialog");
     assert.equal(await dialogOf(page).count(), 0, "closed: no dialog");
     const before = await scrollState(page);
     await pill.click();
@@ -123,7 +120,7 @@ test("click on the pill opens the card in place: dialog shown, aria-expanded tru
     assert.equal(await pill.getAttribute("aria-expanded"), "true");
     assert.equal(await pill.getAttribute("aria-controls"), await dialog.getAttribute("id"));
     assert.equal(await dialog.getAttribute("aria-modal"), "false");
-    assert.ok(await dialog.evaluate((el) => !!el.closest('aside[aria-label="Your desk"]')), "Tally occupies the focused desk");
+    assert.ok(await dialog.evaluate((el) => !!el.closest('.forest-shell')), "Tally is mounted in the shell");
     const f = await focusInfo(page);
     assert.match(f.tag, /^H[1-6]$/, "focus moves to a heading");
     assert.equal(f.text, "Tally");
@@ -136,7 +133,7 @@ test("click on the pill opens the card in place: dialog shown, aria-expanded tru
 });
 
 for (const key of ["Enter", "Space"]) {
-  test(`${key} on the focused pill opens the card without scrolling the page (criterion 1)`, { timeout: 90000 }, async () => {
+  test(`${key} on the focused rail entry opens Tally without scrolling the page`, { timeout: 90000 }, async () => {
     const { page, pill, context } = await openApp();
     try {
       await pill.focus();
@@ -152,7 +149,7 @@ for (const key of ["Enter", "Space"]) {
   });
 }
 
-test("a quiet den with twenty-five resting residents does not block the pill: it still opens the card", { timeout: 90000 }, async () => {
+test("a quiet den with twenty-five resting residents does not block Tally from opening", { timeout: 90000 }, async () => {
   const { page, pill, context } = await openApp({ quiet: true });
   try {
     assert.match(await page.getByLabel("Garden activity").innerText(), /0 working[\s\S]*25 resting/, "quiet state retains the resident activity legend");
@@ -163,10 +160,17 @@ test("a quiet den with twenty-five resting residents does not block the pill: it
   }
 });
 
-test("a click on the abacus in the scene opens the card, and clicking it again leaves it open (criterion 2)", { timeout: 90000 }, async () => {
+test("a click on the abacus in the scene opens the Tally sheet, and another click leaves it open", { timeout: 90000 }, async () => {
   const { page, pill, scene, context } = await openApp();
   try {
     await page.waitForFunction(() => document.querySelector('.den-entry button') && document.querySelector('.den-entry button').getAttribute('aria-disabled') !== 'true', null, { timeout: 60000 });
+    await page.waitForFunction(async () => {
+      const url = performance.getEntriesByType('resource').find(r => r.name.includes('@react-three_fiber'))?.name;
+      if (!url) return false;
+      const { _roots } = await import(url);
+      const state = _roots.get(document.querySelector('canvas'))?.store.getState();
+      return state?.gl.info.render.frame > 1 && !!state.camera.userData.viewport;
+    });
     const box = await page.locator('.forest-canvas').boundingBox();
     // Hit the solid right frame of the garden court abacus.
     const mid = screenOf(box, 5.05, 1.41, 13);
@@ -184,7 +188,7 @@ test("a click on the abacus in the scene opens the card, and clicking it again l
   }
 });
 
-test("Esc, the Close button and the pill each close the card and return focus to the pill (criterion 3)", { timeout: 90000 }, async () => {
+test("Escape, Close panel and the rail entry each close Tally and return focus to the opener", { timeout: 90000 }, async () => {
   const { page, pill, context } = await openApp();
   try {
     const dialog = dialogOf(page);
@@ -194,27 +198,27 @@ test("Esc, the Close button and the pill each close the card and return focus to
     await page.keyboard.press("Escape");
     await dialog.waitFor({ state: "hidden" });
     assert.equal(await pill.getAttribute("aria-expanded"), "false");
-    assert.ok((await focusInfo(page)).cls.includes("chip-tally"), "Esc returns focus to the pill");
+    assert.ok((await focusInfo(page)).cls.includes("den-rail-entry"), "Esc returns focus to the rail entry");
     // Close button
     await pill.click();
     await dialog.waitFor({ state: "visible" });
-    await dialog.getByRole("button", { name: "Close Tally" }).click();
+    await dialog.getByRole("button", { name: "Close panel" }).click();
     await dialog.waitFor({ state: "hidden" });
     assert.equal(await pill.getAttribute("aria-expanded"), "false");
-    assert.ok((await focusInfo(page)).cls.includes("chip-tally"), "Close returns focus to the pill");
-    // The pill again toggles it shut
+    assert.ok((await focusInfo(page)).cls.includes("den-rail-entry"), "Close returns focus to the rail entry");
+    // The rail entry again toggles it shut.
     await pill.click();
     await dialog.waitFor({ state: "visible" });
     await pill.click();
     await dialog.waitFor({ state: "hidden" });
     assert.equal(await pill.getAttribute("aria-expanded"), "false");
-    assert.ok((await focusInfo(page)).cls.includes("chip-tally"));
+    assert.ok((await focusInfo(page)).cls.includes("den-rail-entry"));
   } finally {
     await context.close();
   }
 });
 
-test("document-level Esc closes the card even when focus is elsewhere (criterion 3)", { timeout: 90000 }, async () => {
+test("Escape closes the nonmodal topic sheet even when focus is on the scene", { timeout: 90000 }, async () => {
   const { page, pill, context } = await openApp();
   try {
     await pill.click();
@@ -228,24 +232,24 @@ test("document-level Esc closes the card even when focus is elsewhere (criterion
   }
 });
 
-test("an outside pointerdown (the scene canvas) closes the card and does not move focus to the pill (criterion 3)", { timeout: 90000 }, async () => {
+test("the live scene remains usable beside the nonmodal Tally sheet", { timeout: 90000 }, async () => {
   const { page, pill, context } = await openApp();
   try {
     await pill.click();
     await dialogOf(page).waitFor({ state: "visible" });
     await settle(page);
-    await page.mouse.move(700, 500); // den-mvp/25: the card opens bottom left above the pill; press the scene beside it
+    await page.mouse.move(1000, 500);
     await page.mouse.down();
     await page.mouse.up();
-    await dialogOf(page).waitFor({ state: "hidden" });
-    assert.equal(await pill.getAttribute("aria-expanded"), "false");
-    assert.ok(!(await focusInfo(page)).cls.includes("chip-tally"), "focus is not forced to the pill");
+    assert.equal(await dialogOf(page).isVisible(), true, "an outside pointer does not dismiss the sheet");
+    assert.equal(await pill.getAttribute("aria-expanded"), "true");
+    assert.equal(await dialogOf(page).getAttribute("aria-modal"), "false");
   } finally {
     await context.close();
   }
 });
 
-test("exactly two role=meter across garden and desk, closed and open, with the exact percent in the name (criterion 4)", { timeout: 90000 }, async () => {
+test("the scene's accessible usage meters move into the Tally sheet without duplicates", { timeout: 90000 }, async () => {
   const { page, pill, scene, context } = await openApp({ usage: usageAt(79, 41) });
   try {
     const read = (loc) =>
@@ -260,16 +264,18 @@ test("exactly two role=meter across garden and desk, closed and open, with the e
       { label: "5-hour window 79%", min: "0", max: "100", now: "79", tabindex: null },
       { label: "Week 41%", min: "0", max: "100", now: "41", tabindex: null },
     ];
-    assert.deepEqual(await read(page.getByRole("meter")), want, "closed: the hidden twins");
-    assert.equal(await page.locator(".card").getByRole("meter").count(), 0, "the floating cards carry no usage meter (07 removed it)");
+    assert.deepEqual(await read(page.getByRole("meter")), want, "closed: the abacus has two accessible meter twins");
+    assert.equal(await page.locator('[data-sheet] [data-rod]').count(), 0, "the closed topic has no rod rows");
     await pill.click();
     const dialog = dialogOf(page);
     await dialog.waitFor({ state: "visible" });
     const open = await read(page.getByRole("meter"));
-    assert.equal(open.length, 2, "open: still exactly two across garden and desk");
+    assert.equal(open.length, 2, "open: exactly the two usage rows");
     assert.deepEqual(open.map((m) => [m.label, m.now]), [["5-hour window 79%", "79"], ["Week 41%", "41"]]);
-    assert.equal(await dialog.getByRole("meter").count(), 2, "open: they are the card's rows");
+    assert.equal(await dialog.getByRole("meter").count(), 2, "open: they are the sheet's rows");
     for (const m of open) assert.deepEqual([m.min, m.max], ["0", "100"]);
+    await page.keyboard.press('Escape');
+    assert.deepEqual(await read(page.getByRole('meter')), want, 'closing restores the scene meter twins');
   } finally {
     await context.close();
   }
@@ -305,7 +311,10 @@ test("card rows: five in order with the counted-bead counts and the 80% mark on 
     assert.equal(await dialog.locator("figure.chart").count(), 3, "the three Dashboard charts are in the card");
     const region = dialog.getByRole("region", { name: "Tally metrics" });
     assert.equal(await region.getAttribute("tabindex"), "0");
-    assert.equal(await page.getByRole("complementary", { name: "Your desk" }).evaluate((el) => getComputedStyle(el).overflowY), "auto", "the desk supplies a single scroll area for all metrics");
+    const sheetBody = dialog.locator('.den-sheet-body');
+    assert.equal(await sheetBody.evaluate((el) => getComputedStyle(el).overflowY), "auto", "the sheet body owns vertical scrolling");
+    const scroll = await sheetBody.evaluate((el) => { el.scrollTop = 120; return { top: el.scrollTop, max: el.scrollHeight - el.clientHeight }; });
+    if (scroll.max > 0) assert.ok(scroll.top > 0, "metrics scroll inside the sheet body");
   } finally {
     await context.close();
   }
@@ -400,7 +409,7 @@ test("arrow keys, + and - pressed inside the card do not reach the camera rig (c
         return ev.defaultPrevented;
       }, [selector, key]);
     for (const key of ["ArrowLeft", "ArrowRight", "+", "-"]) {
-      assert.equal(await prevented('[role="dialog"] button[aria-label="Close Tally"]', key), false, `${key} on Close`);
+      assert.equal(await prevented('[role="dialog"] button[aria-label="Close panel"]', key), false, `${key} on Close`);
       assert.equal(await prevented('[role="dialog"] [role="region"]', key), false, `${key} on the scroll region`);
     }
     // Control: the same key on the scene itself does move the camera (so the probe is valid).
@@ -410,7 +419,7 @@ test("arrow keys, + and - pressed inside the card do not reach the camera rig (c
   }
 });
 
-test("placement: the Tally fits the focused desk and leaves the garden available", { timeout: 90000 }, async () => {
+test("placement: the Tally sheet stays within the shell and overlays the live scene", { timeout: 90000 }, async () => {
   const { page, pill, scene, context } = await openApp();
   try {
     await pill.click();
@@ -418,12 +427,12 @@ test("placement: the Tally fits the focused desk and leaves the garden available
     await dialog.waitFor({ state: "visible" });
     await settle(page);
     const d = await dialog.boundingBox();
-    const desk = await page.getByRole("complementary", { name: "Your desk" }).boundingBox();
+    const rail = await page.getByRole('navigation', { name: 'Den' }).boundingBox();
+    const shell = await page.locator('.forest-shell').boundingBox();
     const garden = await scene.boundingBox();
-    assert.ok(d.x >= desk.x && d.x + d.width <= desk.x + desk.width, "all metrics fit inside the desk width");
-    assert.ok(d.y >= desk.y && d.y < desk.y + desk.height, "dialog starts within the desk");
-    assert.ok(desk.x >= garden.x + garden.width, "the desk does not cover the garden");
-    assert.equal(await page.locator('.forest-desk-home').isVisible(), false, "home cards give the detail panel their space");
+    assert.ok(d.x >= rail.x + rail.width && d.x + d.width <= shell.x + shell.width, "sheet is bounded after the rail");
+    assert.ok(d.y >= shell.y && d.y + d.height <= shell.y + shell.height, "sheet is bounded vertically");
+    assert.ok(d.x < garden.x + garden.width, "the sheet overlays rather than resizes the scene");
   } finally {
     await context.close();
   }

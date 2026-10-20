@@ -10,15 +10,16 @@ const app = read("../App.jsx");
 const css = read("../styles.css");
 const chips = read("./ChipLayer.jsx");
 
-test("App no longer scrolls to the removed dashboard sidebar slot", () => {
+test("the removed dashboard sidebar slot is replaced by a Tally rail topic", () => {
   assert.doesNotMatch(app, /openDashboard/, "replaced by open/close/toggle Tally state");
   assert.doesNotMatch(app, /dashboardOpens/);
   assert.doesNotMatch(app, /h-dashboard/, "the Pipeline heading is no longer a sidebar slot");
   assert.doesNotMatch(app, /h-dashboard.*scrollIntoView|dashboard.*scrollTop/, "Tally no longer jumps to an old dashboard sidebar slot");
   assert.doesNotMatch(app, /\["dashboard", "Pipeline"\]/, "the sidebar Pipeline slot is gone");
-  assert.match(app, /tallyOpen/);
-  assert.match(app, /toggleTally|openTally/);
-  assert.match(app, /closeTally/);
+  const rail = read("../shell/rail-model.mjs");
+  assert.match(rail, /id: "tally", label: "Tally", icon: "bars", slot: "topic"/);
+  assert.match(read("../shell/Rail.jsx"), /data-rail=\{entry\.id\}/);
+  assert.match(read("../shell/Sheet.jsx"), /data-sheet=\{slot\}/);
 });
 
 test("the usage meter is off the cards (07 removed it); it lives on the Tally", () => {
@@ -28,16 +29,13 @@ test("the usage meter is off the cards (07 removed it); it lives on the Tally", 
   assert.match(read("./tally-face.mjs"), /usage-meter-model/, "the Tally face still reads the usage model");
 });
 
-test("the Dashboard component is mounted once across the UI sources, and the scene still wires the pill and the abacus click", () => {
+test("the Dashboard remains mounted once and the rail owns the Tally destination", () => {
   const jsx = (dir) => readdirSync(new URL(dir, import.meta.url)).filter((f) => f.endsWith(".jsx")).map((f) => read(dir + f));
   const all = [...jsx("./"), ...jsx("../panel/"), app].join("\n");
   assert.equal((all.match(/<Dashboard\b/g) ?? []).length, 1, "Dashboard mounted exactly once");
   assert.match(app, /useMetrics/);
-  assert.match(chips, /TALLY_ARIA_LABEL/);
-  assert.match(chips, /aria-expanded/);
-  assert.match(chips, /aria-haspopup/);
-  assert.match(chips, /aria-controls/);
-  assert.match(chips, /role="meter"/, "hidden meter twins stay in ChipLayer");
+  assert.match(read("../shell/rail-model.mjs"), /id: "tally", label: "Tally"/);
+  assert.match(read("./TallyCard.jsx"), /role="region" aria-label="Tally metrics"/);
   assert.doesNotMatch(app + chips, /Today's board/);
 });
 
@@ -56,35 +54,18 @@ test("design tokens the card and the bead slide need are in styles.css: --dur-ba
   assert.match(css, /--team-steamers:/);
 });
 
-test("the card reads --scene-bottom-inset with a 0 fallback so 07's overlays can keep it clear", () => {
+test("the full-window Tally is hosted inside a non-modal topic sheet", () => {
   const all = css + app + chips + readdirSync(new URL(".", import.meta.url)).filter((f) => f.endsWith(".jsx")).map((f) => read(`./${f}`)).join("\n");
-  assert.match(all, /var\(--scene-bottom-inset,\s*0px\)/);
+  assert.match(read("../shell/Sheet.jsx"), /role="dialog" aria-modal="false"/);
+  assert.match(all, /TallyBody/);
+  assert.doesNotMatch(app, /Your desk/);
 });
 
-test("isolated Tally fixtures retain their 640px bottom-sheet rule", () => {
-  const media = [...css.matchAll(/@media\s*\(max-width:\s*640px\)\s*\{/g)];
-  assert.ok(media.length > 0, "a 640px media query exists");
-  const blocks = media.map((m) => {
-    let depth = 1;
-    let i = m.index + m[0].length;
-    const start = i;
-    while (i < css.length && depth > 0) {
-      if (css[i] === "{") depth++;
-      else if (css[i] === "}") depth--;
-      i++;
-    }
-    return css.slice(start, i);
-  });
-  const card = blocks.find((b) => /\.tally-card/.test(b));
-  assert.ok(card, "a 640px block styles .tally-card");
-  assert.match(card, /max-height:\s*85(%|dvh)/);
-  assert.match(card, /bottom:/);
+test("the full-window Tally no longer has the deferred phone bottom-sheet layout", () => {
+  assert.doesNotMatch(read("../shell/forest.css"), /\.tally-card[^}]*max-height:\s*85%/);
 });
 
-test("isolated Tally fixtures retain the shared positioned-panel rule; the connected app scopes its desk override", () => {
-  const rule = css.match(/\.tally-card\s*\{[^}]*\}/)?.[0] ?? "";
-  assert.ok(rule, ".tally-card rule exists");
-  assert.match(rule, /position:\s*absolute/);
-  assert.match(rule, /z-index:/);
-  assert.match(rule, /shadow-panel/);
+test("the shell sheet supplies the Tally surface instead of positioning a separate floating card", () => {
+  assert.match(read("../shell/Sheet.jsx"), /className=\{`den-sheet den-sheet-\$\{slot\}/);
+  assert.match(read("../shell/forest.css"), /\.den-sheet/);
 });

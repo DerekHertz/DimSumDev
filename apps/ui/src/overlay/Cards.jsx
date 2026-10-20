@@ -1,8 +1,10 @@
 // The floating cards over the scene (den-scene-v1/07, digest 2026-10-01-iso-den.md section 4): the logo pill top-left,
 // and on the right a Needs you card and a Teams & queue card, each collapsible from its header.
 // Agent text (ticket titles) is untrusted: everything renders as React text nodes, never as HTML.
-import { QueueButton, QueueDrawer } from "./QueueDrawer.jsx";
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { QueueDrawer } from "./QueueDrawer.jsx";
+import { Sheet } from "../shell/Sheet.jsx";
+import { SHEET_HEADS } from "../shell/rail-model.mjs";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { noteCounter, submitGate } from "../panel/gates-model.mjs";
 import { DemoBadge } from "../demo/DemoControls.jsx";
 import { createBridgeClient } from "../state/bridge-client.mjs";
@@ -11,10 +13,10 @@ import { deliverState, deliveryRows } from "./delivery-model.mjs";
 import { behindLine, buildLine, newVersionReady, rollbackState } from "./build-model.mjs";
 import { Card } from "./Card.jsx";
 import { LibraryCard } from "./Library.jsx";
-import { MeetingsCard, useMeetings } from "./Meetings.jsx";
+import { MeetingSheet, MeetingsCard, useMeetings } from "./Meetings.jsx";
+import { meetingRows } from "./meeting-model.mjs";
 import { ROLE_OPTIONS, capacityFromSnapshot, defaultRole, dispatchPrompt, runState, slotRows } from "./run-model.mjs";
 
-const isPhone = () => typeof matchMedia === "function" && matchMedia("(max-width: 599px)").matches;
 const isTextField = (el) => el instanceof Element && (el.closest("input, textarea, select, [contenteditable]") !== null);
 
 function PandaFace() {
@@ -524,6 +526,14 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
   const [shown, setShown] = useState(null);
   const current = requests.find((r) => r.key === shown) ?? requests[0] ?? null;
   const decision = useRef(null);
+  const cardRoot = useRef(null);
+  const restoreRequestFocus = useRef(false);
+  useLayoutEffect(() => {
+    if (restoreRequestFocus.current) {
+      cardRoot.current?.focus({ preventScroll: true });
+      restoreRequestFocus.current = false;
+    }
+  }, [current?.key]);
   // 228: a dispatch gate also gets Run, and at room 0 its prompt (note, Approve, Deny) is replaced by one line.
   const isDispatch = current?.kind === "gate" && current.gate === "dispatch";
   const prompt = isDispatch ? dispatchPrompt(capacity) : { show: true, line: null };
@@ -537,15 +547,17 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
     if (e.key === "a") decision.current?.approve();
     else if (e.key === "d") decision.current?.deny();
     else if (e.key === "m") decision.current?.focusNote();
-    else if (e.key === "j") setShown(stepRequest(requests, current.key, 1));
-    else if (e.key === "k") setShown(stepRequest(requests, current.key, -1));
+    else if (e.key === "j" || e.key === "k") {
+      restoreRequestFocus.current = true;
+      setShown(stepRequest(requests, current.key, e.key === "j" ? 1 : -1));
+    }
     else return;
     e.preventDefault();
   };
 
   const others = current ? requests.filter((r) => r.key !== current.key) : [];
   return (
-    <div onKeyDown={onKeyDown} className="card-wrap">
+    <div ref={cardRoot} onKeyDown={onKeyDown} tabIndex={-1} className="card-wrap">
       <Card
         id="needs-you"
         overlay="needs-you"
@@ -668,15 +680,14 @@ export function TeamsCard({ snapshot, open, onToggle, busy, placeholder, onZoomT
  * The right-hand column. Needs you opens by itself while something waits, until the user toggles it; Teams & queue,
  * Meetings and Library start closed. Under 600 px all start closed and opening one closes the others.
  */
-export function Cards({ snapshot, ownBuild = null, now, connection, placeholder, camera, steering, onAnswer, onOpenThread = null, onOpenTicket = null, demo = false, libraryRequest = 0, focusRequest = null }) {
-  const [needsOpen, setNeedsOpen] = useState(null); // null: follow the data
-  const [teamsOpen, setTeamsOpen] = useState(false);
-  const [libraryOpen, setLibraryOpen] = useState(false);
-  const [meetingsOpen, setMeetingsOpen] = useState(false);
-  const [shownMeeting, setShownMeeting] = useState(null); // the meeting whose brief is open in the Meetings card
-  const [shownRole, setShownRole] = useState(null); // the seat whose take opens with it (den-mvp/64)
-  const waiting = needsYouModel(snapshot, now).count;
-  const needs = needsOpen ?? (!isPhone() && waiting > 0);
+/**
+ * team-and-den-ux/04: the desk's cards, one at a time in the rail's topic sheet, and a meeting in the side sheet. It stays
+ * mounted with nothing open, so the runner, the deliveries and the meetings keep their state across topics.
+ *   topic: needs | queue | work | meetings | library | build | anything else (not this component's: renders no topic)
+ *   meetingId: the meeting in the side sheet, or null; left: the meetings you left (their rows offer Rejoin)
+ */
+export function Cards({ snapshot, ownBuild = null, now, connection, placeholder, camera, steering, onAnswer, onOpenThread = null, onOpenTicket = null, demo = false,
+  topic = null, onCloseTopic, onTopic, meetingId = null, meetingRole = null, onShowMeeting, onCloseMeeting, onLeaveMeeting, left = null }) {
   const busy = connection.phase !== "live";
   // 228: capacity is recomputed from the snapshot's agents and locks each render (the hub sends no capacity change frame).
   const client = useMemo(() => createBridgeClient({ fetch: steering.session.fetch }), [steering.session]);
@@ -687,71 +698,37 @@ export function Cards({ snapshot, ownBuild = null, now, connection, placeholder,
   const meetings = useMeetings(client);
   const capacity = capacityFromSnapshot(snapshot);
   const steer = { state: steering.state, demo };
-
-  // The garden shell opens the existing controllers; it never creates another runner or reader.
-  useEffect(() => {
-    if (!focusRequest) return;
-    setNeedsOpen(focusRequest.section === 'home');
-    setTeamsOpen(focusRequest.section === 'work');
-    setLibraryOpen(focusRequest.section === 'library');
-    setMeetingsOpen(focusRequest.section === 'meetings');
-    // den-mvp/64: from the table, the meeting opens on the seat's take.
-    if (focusRequest.meeting) { setShownMeeting(focusRequest.meeting); setShownRole(focusRequest.role ?? null); }
-  }, [focusRequest]);
-
-  // den-mvp/62: the Queue drawer, over the scene and this column. A ticket row uses the same Run and Deliver controls as
-  // Teams & queue; a Needs-you row opens the Needs you card, where acting stays.
-  const [queueOpen, setQueueOpen] = useState(false);
-  const queueButton = useRef(null);
-  const closeQueue = () => { setQueueOpen(false); queueButton.current?.focus({ preventScroll: true }); };
+  // den-mvp/62: a queue row uses the same Run and Deliver controls as Work; a Needs-you row opens Needs you, where acting stays.
   const queueControls = (ticket) => (
     <>
       {run ? <RunControl scope="queue" ticket={ticket} capacity={capacity} steer={steer} run={run} /> : null}
       {deliveries ? <DeliverControl scope="queue" ticket={ticket} snapshot={snapshot} steer={steer} deliveries={deliveries} /> : null}
     </>
   );
-  const toggleNeeds = () => {
-    setNeedsOpen(!needs);
-    if (!needs && isPhone()) { setTeamsOpen(false); setLibraryOpen(false); setMeetingsOpen(false); }
-  };
-  const toggleTeams = () => {
-    setTeamsOpen(!teamsOpen);
-    if (!teamsOpen && isPhone()) { setNeedsOpen(false); setLibraryOpen(false); setMeetingsOpen(false); }
-  };
-  const toggleLibrary = () => {
-    setLibraryOpen(!libraryOpen);
-    if (!libraryOpen && isPhone()) { setNeedsOpen(false); setTeamsOpen(false); setMeetingsOpen(false); }
-  };
-  // den-mvp/22: a click on the archive's chest in the scene opens this same Library card (one card, no duplicate).
-  useEffect(() => {
-    if (!libraryRequest) return;
-    setLibraryOpen(true);
-    if (isPhone()) { setNeedsOpen(false); setTeamsOpen(false); setMeetingsOpen(false); }
-  }, [libraryRequest]);
-  const toggleMeetings = () => {
-    setMeetingsOpen(!meetingsOpen);
-    if (!meetingsOpen && isPhone()) { setNeedsOpen(false); setTeamsOpen(false); setLibraryOpen(false); }
-  };
-  // From Needs you: the Meetings card opens with that meeting's brief shown.
-  const openMeeting = (id) => {
-    setShownMeeting(id);
-    setMeetingsOpen(true);
-    if (isPhone()) { setNeedsOpen(false); setTeamsOpen(false); setLibraryOpen(false); }
-  };
+  const head = SHEET_HEADS[topic];
+  const meetingRow = meetingId ? meetingRows(snapshot).find((r) => r.id === meetingId) ?? null : null;
+  const body = {
+    needs: <NeedsYouCard snapshot={snapshot} now={now} open busy={busy} placeholder={placeholder} session={steering.session} onAnswer={onAnswer} onOpenThread={onOpenThread} capacity={capacity} steer={steer} run={run} deliveries={deliveries} meetings={meetings} onOpenMeeting={(id) => onShowMeeting?.(id, null)} />,
+    queue: <QueueDrawer snapshot={snapshot} now={now} open inSheet onClose={onCloseTopic} onOpenNeeds={() => onTopic?.("needs")}
+      onOpenTicket={onOpenTicket} controls={queueControls} />,
+    work: <TeamsCard snapshot={snapshot} open busy={busy} placeholder={placeholder} onZoomTeam={(id) => camera.goToTeam(id)} capacity={capacity} steer={steer} run={run} deliveries={deliveries} />,
+    meetings: <MeetingsCard client={client} snapshot={snapshot} open busy={busy} steer={steer} meetings={meetings} shown={meetingId} onShow={onShowMeeting} left={left} />,
+    library: <LibraryCard client={reader} rev={snapshot?.libraryRev ?? 0} now={now} open busy={busy} demo={demo} />,
+    build: buildLine(snapshot?.build ?? null) ? <BuildStatus snapshot={snapshot} ownBuild={ownBuild} steer={steer} client={client} /> : <p className="small muted">The bridge has not reported a build yet.</p>,
+  }[topic];
   return (
     <>
-    <QueueButton count={waiting} open={queueOpen} onToggle={() => (queueOpen ? closeQueue() : setQueueOpen(true))} buttonRef={queueButton} />
-    <div className="cards">
-      {steering.message ? <p className="small muted session-none" data-session="none" role="status">{steering.message}</p> : null}
-      <BuildStatus snapshot={snapshot} ownBuild={ownBuild} steer={steer} client={client} />
-      <NeedsYouCard snapshot={snapshot} now={now} open={needs} onToggle={toggleNeeds} busy={busy} placeholder={placeholder} session={steering.session} onAnswer={onAnswer} onOpenThread={onOpenThread} capacity={capacity} steer={steer} run={run} deliveries={deliveries} meetings={meetings} onOpenMeeting={openMeeting} />
-      <TeamsCard snapshot={snapshot} open={teamsOpen} onToggle={toggleTeams} busy={busy} placeholder={placeholder} onZoomTeam={(id) => camera.goToTeam(id)} capacity={capacity} steer={steer} run={run} deliveries={deliveries} />
-      <MeetingsCard client={client} snapshot={snapshot} open={meetingsOpen} onToggle={toggleMeetings} busy={busy} steer={steer} meetings={meetings} shown={shownMeeting} shownRole={shownRole} onShow={setShownMeeting} />
-      <LibraryCard client={reader} rev={snapshot?.libraryRev ?? 0} now={now} open={libraryOpen} onToggle={toggleLibrary} busy={busy} demo={demo} />
-    </div>
-    <QueueDrawer snapshot={snapshot} now={now} open={queueOpen} onClose={closeQueue}
-      onOpenNeeds={() => { setQueueOpen(false); setNeedsOpen(true); }}
-      onOpenTicket={onOpenTicket ? (ref) => { setQueueOpen(false); onOpenTicket(ref); } : null} controls={queueControls} />
+      {body ? (
+        <Sheet id="sheet-topic" slot="topic" eyebrow={head[0]} title={head[1]} closeLabel="Close panel" onClose={onCloseTopic} wide={topic === "queue"} focusKey={topic}>
+          {steering.message ? <p className="small muted session-none" data-session="none" role="status">{steering.message}</p> : null}
+          {body}
+        </Sheet>
+      ) : null}
+      {meetingRow ? (
+        <Sheet id="sheet-side" slot="side" eyebrow="Meeting" title={meetingRow.title} closeLabel="Close panel (the meeting keeps running)" onClose={onCloseMeeting} focusKey={meetingRow.id}>
+          <MeetingSheet row={meetingRow} client={client} steer={steer} meetings={meetings} openRole={meetingRole} onLeave={onLeaveMeeting} />
+        </Sheet>
+      ) : null}
     </>
   );
 }

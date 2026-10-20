@@ -1,4 +1,4 @@
-// The connected Garden & Desk mounts its native Meshy scene and local model package.
+// The full-window shell mounts its live rail, sheets, native Meshy scene and local model package.
 // Retain the previous standalone-build removal checks and legacy pure scene regressions.
 // Browser checks use real compressed models; only bridge responses and WebGL drawing are stubbed.
 import { test, before, after } from "node:test";
@@ -197,36 +197,41 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
   } finally { await context.close(); }
 });
 
-test("phone garden and desk remain separate and all twenty-five permanent residents can be browsed without horizontal overflow", { timeout: 90000 }, async () => {
+test("phone shell keeps the scene and Team sheet within the viewport and lists all twenty-nine charter roles", { timeout: 90000 }, async () => {
   const { context, page, errors } = await openGarden({ viewport: { width: 390, height: 844 } });
   try {
     await ready(page);
-    await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Pandas', exact: true }).click();
+    await page.locator('[data-rail="team"]').click();
     const residents = page.getByRole('list', { name: 'Residents and visitors' });
     await residents.waitFor({ state: 'visible' });
-    assert.equal(await residents.getByRole('button').count(), 25, 'quiet snapshots keep every runtime resident at home');
+    assert.equal(await residents.getByRole('button').count(), 29, '25 seated residents and four unseated charter roles');
+    for (const role of ['Code reviewer, code-reviewer', 'Release manager, release-manager', 'SRE, sre', 'Technical writer, technical-writer']) {
+      assert.equal(await residents.getByRole('button', { name: new RegExp(`^${role}`) }).count(), 1, `${role} is listed`);
+    }
     const layout = await page.evaluate(() => {
-      const garden = document.querySelector('main.scene').getBoundingClientRect();
-      const desk = document.querySelector('aside[aria-label="Your desk"]').getBoundingClientRect();
-      return { garden: { bottom: garden.bottom, width: garden.width }, desk: { top: desk.top, width: desk.width }, viewport: innerWidth, bodyWidth: document.body.scrollWidth, shellWidth: document.querySelector('.forest-shell').scrollWidth };
+      const scene = document.querySelector('main[aria-label="Den scene"]').getBoundingClientRect();
+      const sheet = document.querySelector('[data-sheet="topic"]').getBoundingClientRect();
+      const rail = document.querySelector('.den-rail').getBoundingClientRect();
+      return { scene: { left: scene.left, right: scene.right }, sheet: { left: sheet.left, right: sheet.right }, rail: { left: rail.left, right: rail.right }, viewport: innerWidth, bodyWidth: document.body.scrollWidth, shellWidth: document.querySelector('.forest-shell').scrollWidth };
     });
-    assert.ok(layout.desk.top >= layout.garden.bottom, 'desk starts below the garden');
-    assert.ok(layout.garden.width <= layout.viewport && layout.desk.width <= layout.viewport);
+    assert.ok(layout.sheet.left >= layout.rail.right, 'topic sheet starts after the rail');
+    assert.ok(layout.scene.left >= layout.rail.right && layout.scene.right <= layout.viewport);
+    assert.ok(layout.sheet.right <= layout.viewport);
     assert.ok(layout.bodyWidth <= layout.viewport && layout.shellWidth <= layout.viewport, JSON.stringify(layout));
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
 });
 
-test("a failed model load explains the garden failure and leaves live desk navigation available", { timeout: 60000 }, async () => {
+test("a failed model load explains the garden failure and leaves the Team rail entry available", { timeout: 60000 }, async () => {
   const { context, page, errors } = await openGarden({ failModels: true });
   try {
     const alert = page.getByRole('alert').filter({ hasText: 'garden models could not load' });
     await alert.waitFor({ state: 'visible' });
-    assert.match(await alert.innerText(), /Your board controls are still available at the desk/);
+    assert.match(await alert.innerText(), /Your board controls are still available on the rail/);
     assert.equal(await page.locator('.den-entry button').getAttribute('aria-disabled'), 'true');
-    await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Pandas', exact: true }).click();
-    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 25);
+    await page.locator('[data-rail="team"]').click();
+    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 29);
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
@@ -238,51 +243,48 @@ function screenPoint(box, x, y, z) {
   return { x: box.x + box.width / 2 + scale * (x - DEN_TARGET[0]), y: box.y + box.height / 2 + scale * ((z - DEN_TARGET[2]) * Math.sin(pitch) - (y - DEN_TARGET[1]) * Math.cos(pitch)) };
 }
 
-test("desk navigation exits walking and keeps the requested Work panel available", { timeout: 90000 }, async () => {
+test("opening Work from walk mode keeps walk mode active", { timeout: 90000 }, async () => {
   const { context, page, errors } = await openGarden({ frameDelayMs: 500 });
   try {
     await ready(page);
     const enter = page.locator('.den-entry button').first();
     await enter.click();
     await page.waitForFunction(() => document.querySelector('.den-entry button').getAttribute('aria-pressed') === 'true');
-    // Release pointer capture through the public keyboard control so header controls can be used.
-    await page.keyboard.press('Tab');
-    await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Work', exact: true }).click();
-    const stations = page.locator('[data-overlay="teams"]');
-    await stations.waitFor({ state: 'visible' });
-    // Cards applies the requested section in an effect after the shell exits walk mode.
-    await stations.locator('.card-toggle[aria-expanded="true"]').waitFor({ state: 'visible' });
-    assert.equal(await enter.getAttribute('aria-pressed'), 'false', 'desk navigation leaves walking mode');
-    assert.equal(await stations.locator('.card-toggle').getAttribute('aria-expanded'), 'true');
-    // Let proximity refresh on subsequent frames, even when the renderer is slow.
+    await page.keyboard.press('Tab'); // free the cursor while staying in walk mode so the rail can be used
+    await page.locator('[data-rail="work"]').click();
+    const work = page.locator('[data-sheet="topic"]');
+    await work.getByRole('heading', { name: 'Work', exact: true }).waitFor({ state: 'visible' });
+    assert.equal(await enter.getAttribute('aria-pressed'), 'true', 'opening a sheet does not leave walk mode');
+    assert.equal(await page.locator('.den-shell').evaluate(el => el.classList.contains('den-visiting')), true);
     await page.evaluate(() => new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve))));
-    assert.equal(await stations.isVisible(), true);
-    assert.equal(await stations.locator('.card-toggle').getAttribute('aria-expanded'), 'true');
-    assert.equal(await page.locator('.forest-desk-home').isVisible(), true);
+    assert.equal(await work.isVisible(), true);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
 });
 
-test("clicking the physical Library replaces portrait profiles and an open Bao thread with the real Library panel", { timeout: 90000 }, async () => {
+test("the physical Library opens its sheet and preserves Bao's side conversation", { timeout: 90000 }, async () => {
   const { context, page, errors } = await openGarden();
   try {
     await ready(page);
-    await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Pandas', exact: true }).click();
+    await page.locator('[data-rail="team"]').click();
     await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
     await page.getByRole('region', { name: 'Panda profiles' }).getByRole('heading', { name: 'The Maker', exact: true }).waitFor({ state: 'visible' });
     assert.equal(await page.getByRole('region', { name: 'Selected panda' }).count(), 0, 'portrait selection stays in its profile');
-    await page.getByRole('region', { name: 'Welcome' }).getByRole('button', { name: /Talk to Bao/ }).click();
-    await page.locator('.transcript-panel').waitFor({ state: 'visible' });
+    await page.locator('.den-bar').getByRole('button', { name: /Talk to Bao/ }).click();
+    await page.locator('[data-sheet="side"]').waitFor({ state: 'visible' });
+    await page.locator('[data-rail="team"]').click(); // uncover the Library roof before clicking it
     // Click the actual roof at the authored Library position, using the same camera projection as the garden.
     const box = await page.locator('.forest-canvas').boundingBox();
     const roof = screenPoint(box, -21, 5.5, 6);
     await page.mouse.click(roof.x, roof.y);
-    const library = page.locator('[data-overlay="library"]');
+    const library = page.locator('[data-sheet="topic"]');
     await library.getByText('garden-qa-marker', { exact: true }).waitFor({ state: 'visible' });
-    assert.equal(await library.locator('.card-toggle').getAttribute('aria-expanded'), 'true');
-    assert.equal(await page.locator('.transcript-panel').count(), 0, 'the previous thread closes');
-    assert.equal(await page.getByRole('region', { name: 'Panda profiles' }).count(), 0, 'Library replaces the portrait profiles');
-    assert.equal(await page.locator('.forest-desk-home').isVisible(), true);
+    assert.equal(await library.getAttribute('aria-modal'), 'false');
+    assert.equal(await library.getByRole('heading', { name: 'Library', exact: true }).count(), 1);
+    assert.equal(await page.locator('[data-sheet="side"]').count(), 1, 'Bao conversation stays open');
+    assert.equal(await page.locator('[data-sheet="side"]').getAttribute('aria-modal'), 'false');
+    assert.equal(await page.locator('[data-rail="library"]').getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('[data-rail="team"]').getAttribute('aria-expanded'), 'false', 'Library replaces Team in the topic slot');
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
 });
@@ -294,8 +296,8 @@ test("a failed required wardrobe cannot report the garden ready with incomplete 
     await alert.waitFor({ state: 'visible', timeout: 60000 });
     assert.equal(await page.locator('.den-entry button').getAttribute('aria-disabled'), 'true', 'an incomplete required model set cannot enable walking');
     assert.match(await alert.innerText(), /board controls are still available/);
-    await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Pandas', exact: true }).click();
-    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 25);
+    await page.locator('[data-rail="team"]').click();
+    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 29);
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
@@ -314,7 +316,8 @@ const profileLive = (seq = 2, ended = false) => {
   };
 };
 const openProfiles = async page => {
-  await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Pandas', exact: true }).click();
+  const entry = page.locator('[data-rail="team"]');
+  if (await entry.getAttribute('aria-expanded') !== 'true') await entry.click();
   const profiles = page.getByRole('region', { name: 'Panda profiles' });
   await profiles.waitFor({ state: 'visible' });
   return profiles;
@@ -325,8 +328,11 @@ test("portrait profiles keep real work and visitor identities, and route explici
   try {
     let profiles = await openProfiles(page);
     const portraits = profiles.getByRole('list', { name: 'Residents and visitors' });
-    assert.equal(await portraits.getByRole('button').count(), 25);
+    assert.equal(await portraits.getByRole('button').count(), 29, '25 seated residents plus four unseated charter roles');
     assert.equal(await portraits.locator('img').count(), 25, 'each resident has a portrait image');
+    for (const name of ['Code reviewer', 'Release manager', 'SRE', 'Technical writer']) {
+      assert.equal(await portraits.getByRole('button', { name: new RegExp(`^${name},`) }).count(), 1, `${name} appears in the charter roster`);
+    }
     await page.waitForFunction(() => [...document.querySelectorAll('.forest-portrait-choice img')].every(image => image.complete && image.naturalWidth > 0));
     const roleIds = ['orchestrator', 'product', 'architect', 'developer', 'scout', 'debugger', 'qa', 'security', 'designer', 'herald', 'release-manager', 'knowledge-keeper', 'docs-writer', 'stem-cub'];
     const codexPortraitPaths = ['/den/portraits/codex-orchestrator.webp', '/den/portraits/codex-product.webp', '/den/portraits/codex-architect.webp', '/den/portraits/codex-developer.webp', '/den/portraits/codex-scout.webp', '/den/portraits/codex-runner.webp', '/den/portraits/codex-qa.webp', '/den/portraits/codex-security.webp', '/den/portraits/codex-designer.webp', '/den/portraits/codex-herald.webp'];
@@ -360,7 +366,7 @@ test("portrait profiles keep real work and visitor identities, and route explici
     await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button', { name: /^The Maker, developer, Claude, current project identity unavailable, Working$/ }).click();
     await profiles.getByText(/Read: work\/02-maker tool details/).waitFor({ state: 'visible' });
     assert.match(await profiles.locator('.forest-profile-task').innerText(), /work\/02-maker[\s\S]*Maker-specific task/);
-    assert.equal(await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 26, 'a second live role gets a distinct visitor portrait');
+    assert.equal(await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 30, 'a second live role gets a distinct visitor portrait');
     await profiles.getByRole('button', { name: 'Talk to Maker', exact: true }).click();
     await page.locator('.transcript-meta code').filter({ hasText: /^c-maker-current$/ }).waitFor({ state: 'visible' });
     assert.match(await page.locator('.transcript-log').innerText(), /Conversation for c-maker-current/);
@@ -379,7 +385,7 @@ test("portrait profiles keep real work and visitor identities, and route explici
     const endedResidents = profiles.getByRole('list', { name: 'Residents and visitors' });
     await endedResidents.getByRole('button', { name: /^The Maker, developer, Claude, .*visitor on work\/03-visitor, Working$/ }).waitFor({ state: 'hidden' });
     await endedResidents.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
-    assert.equal(await endedResidents.getByRole('button').count(), 25, 'the ended visitor is removed before opening the resident’s past conversation');
+    assert.equal(await endedResidents.getByRole('button').count(), 29, 'the ended visitor is removed before opening the resident’s past conversation');
     await profiles.getByRole('button', { name: 'Talk to Maker', exact: true }).click();
     await page.locator('.transcript-meta code').filter({ hasText: /^c-maker-past$/ }).waitFor({ state: 'visible' });
     assert.match(await page.locator('.transcript-log').innerText(), /Conversation for c-maker-past/);

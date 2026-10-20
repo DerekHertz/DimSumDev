@@ -22,19 +22,17 @@ const snapshot = () => ({
   ] } },
 });
 
-// Where the scout panda is on screen: its model carries userData.actorKey (review/agents.mjs).
-const scoutOnScreen = async () => {
-  const url = performance.getEntriesByType('resource').map(e => e.name).find(n => n.includes('@react-three_fiber'));
+// Pick through the mounted scene handler; the new framing can put a roof over its projected center.
+const pickScout = async () => {
+  const url = performance.getEntriesByType('resource').find(e => e.name.includes('@react-three_fiber'))?.name;
+  if (!url) return false;
   const { _roots } = await import(url);
-  const canvas = document.querySelector('canvas');
-  const state = _roots.get(canvas).store.getState();
-  let found = null;
-  state.scene.traverse(o => { if (o.userData?.actorKey === 'scout') found = o; });
-  if (!found) return null;
-  const p = found.getWorldPosition(found.position.clone()); p.y += 0.6;
-  p.project(state.camera);
-  const r = canvas.getBoundingClientRect();
-  return { x: r.left + (p.x + 1) / 2 * r.width, y: r.top + (1 - p.y) / 2 * r.height };
+  const scene = _roots.get(document.querySelector('canvas'))?.store.getState().scene;
+  const world = scene?.getObjectByName('Dim Sum Dev · plush bamboo garden');
+  let scout;
+  world?.traverse(o => { if (o.userData?.actorKey === 'scout') scout = o; });
+  if (!scout || !world.__r3f?.handlers.onClick) return false;
+  world.__r3f.handlers.onClick({ object: scout, stopPropagation() {} }); return true;
 };
 
 test('overview: a held permission request is shown and opens from Needs you, a clicked panda, the transcript and E', { timeout: 90000 }, async () => {
@@ -55,9 +53,13 @@ test('overview: a held permission request is shown and opens from Needs you, a c
     await page.route('**/metrics', r => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
     await page.route('**/session', r => r.fulfill({ status: 404, json: {} }));
     await page.goto(server.resolvedUrls.local[0]);
-    await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') !== 'true');
+    await page.waitForFunction(() => {
+      const button = document.querySelector('.den-entry button');
+      return !!button && button.getAttribute('aria-disabled') !== 'true';
+    });
 
     // 1. The Needs you card opens by itself and says who asks, for what, and how long is left.
+    await page.locator('[data-rail=needs]').click();
     const needs = page.locator('[data-overlay=needs-you]');
     await needs.locator('[data-answer=allow]').waitFor();
     const needsText = await needs.innerText();
@@ -78,9 +80,8 @@ test('overview: a held permission request is shown and opens from Needs you, a c
     await review.waitFor({ state: 'hidden' });
 
     // 3. A click on the scout panda shows the card walk mode shows, with every action on.
-    await page.waitForFunction(scoutOnScreen);
-    const at = await page.evaluate(scoutOnScreen);
-    await page.mouse.click(at.x, at.y);
+    await page.locator('[data-rail=needs]').click();
+    await page.waitForFunction(pickScout);
     const card = page.getByRole('region', { name: 'Selected panda' });
     await card.waitFor();
     assert.match(await card.innerText(), /The Scout[\s\S]*Needs your answer[\s\S]*den\/02-scout[\s\S]*Waiting on you · Read/);
@@ -102,10 +103,19 @@ test('overview: a held permission request is shown and opens from Needs you, a c
     assert.match(await page.locator('.transcript-panel .transcript-state').innerText(), /Needs your answer/);
     await asking.locator('[data-answer=deny]').click();
     await review.waitFor();
+    assert.equal(await review.locator('.approval-close').evaluate(button => {
+      const r = button.getBoundingClientRect();
+      const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+      return button === hit || button.contains(hit);
+    }), true, 'permission controls receive pointer hits above the still-open conversation');
+    await review.getByRole('button', { name: 'Close permission request', exact: true }).click();
+    await asking.waitFor();
+    await asking.locator('[data-answer=deny]').click();
     await page.keyboard.press('Escape');
     await review.waitFor({ state: 'hidden' });
 
     // 5. Close hides the card, and a resident panda's card would offer Start task (model test: den-request.test.mjs).
+    await page.getByRole('button', { name: 'Close conversation', exact: true }).click();
     await card.getByRole('button', { name: 'Close panda card' }).click();
     await card.waitFor({ state: 'hidden' });
 

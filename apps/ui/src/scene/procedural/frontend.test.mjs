@@ -113,6 +113,8 @@ test('Tab frees the cursor without leaving first person, clears movement, and mo
     assert.equal(doc.pointerLockElement,canvas);
     doc.emit('mousemove',{movementX:100,movementY:0});explorer.update(0.1);
     assert.ok(explorer.camera.rotation.y<0);
+    key('Escape');assert.equal(explorer.active,true);
+    assert.equal(doc.pointerLockElement,null,'first Escape releases capture');
     key('Escape');assert.equal(explorer.active,false);
     assert.deepEqual(modes,[true,false]);
   }finally{explorer?.dispose();globalThis.document=previousDoc;globalThis.window=previousWin;}

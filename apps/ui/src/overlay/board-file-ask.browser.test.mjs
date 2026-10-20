@@ -48,6 +48,7 @@ test("Bao's board_file ask shows the tickets, not escaped JSON", { timeout: 9000
     await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') !== 'true');
 
 
+    await page.locator('[data-rail=needs]').click();
     const needs = page.locator('[data-overlay=needs-you]');
     await needs.locator('[data-answer=allow]').waitFor();
     await needs.locator('[data-answer=allow]').click();

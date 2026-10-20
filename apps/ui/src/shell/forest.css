@@ -5,86 +5,124 @@
   --line-strong: #a4b296; --ink: #344b35; --ink-muted: #64745f; --ink-faint: #72806a;
   --qi: #486d3e; --qi-fill: #486d3e; --on-qi: #fffef9; --focus-ring: #486d3e;
   --font-sans: "Segoe UI", system-ui, sans-serif; --font-display: Georgia, "Times New Roman", serif;
-  display: flex; flex-direction: column; gap: 0; height: 100dvh; padding: 0 36px;
+  height: 100dvh;
   background: var(--surface-100); color: var(--ink); font-family: var(--font-sans);
 }
-.forest-masthead { min-height: 78px; display: flex; align-items: center; gap: 24px; border-bottom: 1px solid var(--line); }
-.forest-shell .logo-pill { position: static; height: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none; flex-wrap: wrap; }
-.forest-shell .logo-face { width: 32px; height: 32px; }
-.forest-shell .logo-face svg { width: 32px; height: 32px; }
-.forest-shell .logo-pill h1 { font: 600 12px/1.5 var(--font-sans); letter-spacing: .14em; text-transform: uppercase; }
-.forest-shell .live-badge { margin-left: 8px; }
-.forest-navigation { display: flex; gap: 8px; margin: 0 auto; }
-.forest-navigation button, .forest-link { font: inherit; border: 0; background: none; color: var(--ink-muted); cursor: pointer; }
-.forest-navigation button { min-height: 44px; padding: 10px 18px; border-radius: 8px; font-size: 13px; }
-.forest-navigation button[aria-current] { color: var(--qi); background: var(--surface-000); }
-.forest-navigation button:hover, .forest-link:hover { color: var(--ink); background: var(--surface-300); }
-.forest-shell .demo-button { position: static; border: 1px solid var(--line); box-shadow: none; font-size: 12px; min-height: 40px; flex-shrink: 0; }
-.forest-welcome { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 20px; padding: 26px 0; }
 .forest-eyebrow { font-size: 10px; line-height: 16px; letter-spacing: .14em; font-weight: 600; margin: 0 0 8px; color: var(--ink-muted); }
-.forest-welcome h2 { font: 400 34px/1.2 var(--font-display); letter-spacing: -.8px; margin: 0; }
-.forest-welcome p:last-child { color: var(--ink-muted); margin: 9px 0 0; font-size: 13px; }
-.forest-talk { display: flex; flex: 0 0 auto; width: auto; gap: 24px; align-items: center; padding: 11px 17px; min-height: 44px; }
-.forest-workspace { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0,1fr) 360px; gap: 26px; }
-.forest-shell .forest-garden { position: relative; inset: auto; display: flex; flex-direction: column; min-height: 0; border: 1px solid var(--line); border-radius: 12px; touch-action: auto; background: var(--surface-000); }
-.forest-garden-toolbar { flex: none; min-height: 52px; padding: 8px 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--surface-200); border-bottom: 1px solid var(--line); }
-.forest-garden-toolbar strong { display: flex; gap: 9px; align-items: center; font-size: 12px; font-weight: 500; }
-.forest-link { min-height: 36px; padding: 6px; font-size: 12px; }
-.forest-canvas { position: relative; flex: 1; min-height: 0; overflow: hidden; touch-action: none; background: #dce6d2; }
+/* team-and-den-ux/04 (design/04-spec.md sections 2 to 4): the full-window den. A 44px bar, a 56px icon rail (200px with
+   labels), and the live scene in the rest; sheets dock over the scene. Opening a sheet never resizes the scene. */
+.den-shell {
+  --rail-w: 56px; --rail-w-open: 200px; --bar-h: 44px; --sheet-w: 440px;
+  display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: var(--bar-h) minmax(0, 1fr);
+  height: 100dvh; padding: 0; overflow: hidden;
+}
+.den-bar { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-4); padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); background: var(--surface-200); min-width: 0; }
+.den-bar .logo-pill { margin-right: auto; min-width: 0; }
+.den-bar .zoom-switcher { position: static; display: flex; flex-direction: row; align-items: center; gap: 6px; padding: 0; background: none; border: 0; box-shadow: none; }
+.den-bar .zoom-levels { display: flex; flex-direction: row; gap: 2px; }
+.den-bar .zoom-level { font-size: 11px; padding: 4px 7px; }
+.den-bar-talk { min-height: 32px; padding: 4px 14px; font-size: 12px; box-shadow: none; flex-shrink: 0; }
+.forest-shell .logo-pill { position: static; height: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none; }
+.forest-shell .logo-face, .forest-shell .logo-face svg { width: 26px; height: 26px; }
+.forest-shell .logo-pill h1 { font: 600 12px/1.5 var(--font-sans); letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
+.forest-shell .live-badge { margin-left: 8px; }
+
+/* The rail. It scrolls when the window is shorter than its entries; it never hides one. */
+.den-rail { width: var(--rail-w); display: flex; flex-direction: column; justify-content: space-between; gap: var(--space-3); padding: var(--space-2) 0; border-right: 1px solid var(--line); background: var(--surface-200); overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; }
+.den-rail.is-expanded { width: var(--rail-w-open); }
+.den-rail-list { list-style: none; margin: 0; padding: 0 6px; display: flex; flex-direction: column; gap: 2px; }
+.den-rail-entry { position: relative; width: 100%; min-height: 44px; display: flex; align-items: center; gap: 10px; padding: 0 12px; border: 0; border-radius: var(--radius-m); background: none; color: var(--ink-muted); font: 500 13px/1.2 var(--font-sans); cursor: pointer; text-align: left; }
+.den-rail-entry:hover { background: var(--surface-300); color: var(--ink); }
+.den-rail-entry.is-open { background: var(--surface-300); color: var(--ink); box-shadow: inset 0 0 0 1px var(--line-strong); }
+.den-rail-entry:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: -2px; }
+.den-rail-icon { flex: none; }
+.den-rail-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.den-rail:not(.is-expanded) .den-rail-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+.den-rail-badge { position: absolute; top: 5px; left: 26px; min-width: 16px; height: 16px; padding: 0 4px; border-radius: var(--radius-full); background: var(--lantern-fill); color: var(--panda-ink); font: 600 10px/16px var(--font-sans); font-variant-numeric: tabular-nums; text-align: center; }
+.den-rail.is-expanded .den-rail-badge { position: static; margin-left: auto; }
+.den-rail-dot { position: absolute; top: 9px; left: 30px; width: 8px; height: 8px; border-radius: 50%; background: var(--qi); box-shadow: 0 0 0 2px var(--surface-200); }
+.den-rail.is-expanded .den-rail-dot { position: static; margin-left: auto; }
+/* The tooltip: on hover, and on keyboard focus, while the rail is collapsed. */
+.den-rail:not(.is-expanded) .den-rail-entry::after { content: attr(data-tip); position: fixed; left: calc(var(--rail-w) + 6px); margin-top: 0; padding: 4px 8px; border-radius: var(--radius-s); background: var(--ink); color: var(--surface-200); font-size: 12px; white-space: nowrap; pointer-events: none; opacity: 0; z-index: 40; transition: opacity var(--dur-fast) var(--ease-soft); }
+.den-rail:not(.is-expanded) .den-rail-entry:hover::after, .den-rail:not(.is-expanded) .den-rail-entry:focus-visible::after { opacity: 1; }
+.den-rail[data-offline] .den-rail-entry { color: var(--ink-faint); }
+
+/* The scene fills its cell; the chips, legend and buttons are anchored to it. */
+.den-stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.forest-shell .forest-garden { position: absolute; inset: 0; display: block; border: 0; border-radius: 0; background: var(--surface-000); touch-action: auto; }
+.forest-canvas { position: absolute; inset: 0; overflow: hidden; touch-action: none; background: #dce6d2; }
 .forest-dot { display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #547d46; flex-shrink: 0; }
-.forest-dot.state-needs-you { background: #b18531; border-radius: 1px; }
-.forest-dot.state-blocked { background: #b94a38; border-radius: 0; }
-.forest-dot.state-resident { background: #99a38e; }
-.forest-legend { position: absolute; left: 16px; bottom: 16px; display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 11px; background: var(--surface-glass); border: 1px solid var(--line); border-radius: 6px; font-size: 11px; pointer-events: none; }
-.forest-legend span { display: flex; gap: 6px; align-items: center; }
-.forest-shell .chip-tally { left: auto; right: 16px; bottom: 16px; font: 500 13px/20px var(--font-sans); padding: 6px 12px; min-height: 36px; }
+.forest-legend { position: absolute; left: 16px; top: 16px; display: flex; flex-wrap: wrap; gap: 14px; padding: 8px 11px; background: var(--surface-glass); border: 1px solid var(--line); border-radius: 6px; font-size: 11px; pointer-events: none; }
+.den-location { position: absolute; top: 16px; left: 50%; transform: translateX(-50%); margin: 0; padding: 8px 12px; background: var(--surface-glass); border: 1px solid var(--line); border-radius: var(--radius-full); font-size: 12px; pointer-events: none; }
 .forest-loading { position: absolute; top: 38%; left: 16px; right: 16px; text-align: center; font-size: 20px; font-family: var(--font-display); color: #344b35; pointer-events: none; }
-.forest-loading span { display: block; font: 12px/1.6 var(--font-sans); margin-top: 9px; }
-.forest-garden-footer { background: var(--surface-200); padding: 10px 16px; min-height: 66px; display: flex; justify-content: space-between; align-items: center; gap: 12px; }
-.forest-shell .zoom-switcher { position: static; display: flex; flex-direction: row; align-items: center; gap: 8px; padding: 0; background: none; border: 0; box-shadow: none; }
-.forest-shell .zoom-levels { display: flex; flex-direction: row; gap: 2px; }
-.forest-shell .zoom-level { font-size: 11px; padding: 5px 7px; }
-.forest-shell .den-entry { position: static; max-width: none; display: flex; flex-wrap: wrap; gap: 6px; }
-.forest-shell .den-entry .btn { min-height: 40px; margin: 0; box-shadow: none; font-size: 12px; }
-.forest-garden-hint { margin: 0; padding: 0 16px 10px; font-size: 11px; color: var(--ink-muted); background: var(--surface-200); }
+.forest-loading span { display: block; font: 12px/1.5 var(--font-sans); margin-top: 6px; }
+.forest-shell .den-entry { position: absolute; left: auto; top: auto; right: 16px; bottom: 36px; max-width: none; display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.forest-shell .den-entry .btn { flex: none; min-height: 40px; margin: 0; font-size: 12px; }
+.den-visiting .den-entry { top: 16px; bottom: auto; }
+.forest-garden-hint { position: absolute; right: 16px; bottom: 10px; margin: 0; font-size: 11px; color: var(--ink-muted); pointer-events: none; }
 .forest-shell .den-walk-pad { bottom: 70px; }
 .forest-shell .den-error { inset: 20px; max-width: none; bottom: auto; }
-.forest-shell .scene-zone-notice { bottom: 65px; background: var(--surface-glass); margin: 0 20px; padding: 8px; border-radius: 6px; }
-.forest-desk { min-height: 0; min-width: 0; position: relative; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-200); overflow: auto; padding: 24px 20px; scrollbar-width: thin; touch-action: auto; }
-.forest-desk-heading { margin-bottom: 24px; }
-.forest-desk-heading h2 { font: 400 28px/1.2 var(--font-display); margin: 0; letter-spacing: -.5px; }
-.forest-shell .cards { position: static; width: 100%; max-height: none; gap: 16px; pointer-events: auto; }
-.forest-shell .queue-button { position: static; margin-bottom: 16px; box-shadow: none; }
-.forest-shell .queue-drawer { width: 100%; border-radius: 12px; }
-.forest-shell .queue-drawer[data-open="false"] { display: none; }
-.forest-shell .cards .card { flex-shrink: 0; border: 0; border-bottom: 1px solid var(--line); border-top: 0; box-shadow: none; border-radius: 0; background: transparent; }
-.forest-shell .cards [data-overlay="needs-you"] { max-height: none; }
-.forest-shell .card-toggle { padding: 12px 0; min-height: 44px; font-weight: 600; }
-.forest-shell .card-body { padding: 6px 0 20px; overflow: visible; }
-.forest-shell .card-summary { font-size: 11px; }
-.forest-shell .build-status { border-radius: 6px; padding: 12px; background: var(--surface-100); font-size: 12px; }
-.forest-shell .proximity-dock { position: static; width: auto; pointer-events: auto; }
-.forest-shell .proximity-card, .forest-shell .message-composer, .forest-shell .panda-detail,
-.forest-shell .approval-panel, .forest-shell .transcript-panel, .forest-shell .tally-card {
-  position: relative; inset: auto; width: 100%; max-height: none; border: 0; border-radius: 0;
-  background: transparent; box-shadow: none; animation: none; pointer-events: auto; flex-shrink: 0;
+.forest-shell .scene-zone-notice, .den-toast { position: absolute; left: 50%; transform: translateX(-50%); bottom: 90px; margin: 0; padding: 8px 12px; background: var(--surface-glass); border: 1px solid var(--line); border-radius: 6px; font-size: 12px; }
+
+/* Sheets (spec section 4): glass, docked by the rail (topic) or at the right edge (side), full height under the bar. */
+.den-sheet, .forest-shell .transcript-panel {
+  position: absolute; top: var(--space-3); bottom: var(--space-3); z-index: 20; width: min(var(--sheet-w), calc(100% - 2 * var(--space-3)));
+  display: flex; flex-direction: column; min-height: 0; overflow: hidden;
+  background: var(--surface-glass); border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: var(--shadow-panel);
+  animation: den-sheet-in var(--dur-base) var(--ease-soft);
 }
-.forest-shell .proximity-card { margin: 0; padding: 6px 0 20px; overflow: visible; }
-.forest-shell .message-composer { padding: 16px 0; }
-.forest-shell .panda-detail { margin: 0; overflow: visible; }
-.forest-shell .transcript-panel, .forest-shell .approval-panel { height: 100%; min-height: 440px; }
-.forest-desk:has(> .transcript-panel), .forest-desk:has(> .approval-panel) { padding: 0; overflow: hidden; }
-.forest-shell .transcript-head, .forest-shell .approval-head { padding: 20px; }
-.forest-shell .transcript-log, .forest-shell .approval-body, .forest-shell .thread-foot { padding: 16px 20px; }
-.forest-shell .tally-card { padding: 0; min-height: 0; overflow: visible; }
-.forest-shell .tally-card-body { overflow: visible; flex-shrink: 0; }
-.forest-shell .proximity-actions { gap: 16px 12px; }
-.forest-shell .proximity-actions button { min-height: 44px; }
-.forest-shell .forest-desk-home[hidden], .forest-shell .proximity-dock[hidden] { display: none; }
+.den-sheet-topic { left: var(--space-3); --slide: -12px; }
+.den-sheet-wide { width: min(70%, calc(100% - 2 * var(--space-3))); }
+.den-sheet-side, .forest-shell .transcript-panel { right: var(--space-3); width: min(400px, calc(100% - 2 * var(--space-3))); --slide: 12px; z-index: 21; }
+@keyframes den-sheet-in { from { opacity: 0; transform: translateX(var(--slide, 0)); } }
+@media (prefers-reduced-motion: reduce) { .den-sheet, .forest-shell .transcript-panel { animation: none; } .den-rail-entry::after { transition: none; } }
+.den-sheet-head, .forest-shell .transcript-head { flex: none; display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 18px 12px; border-bottom: 1px solid var(--line); }
+.den-sheet-eyebrow, .forest-shell .transcript-overline { margin: 0 0 4px; font-size: 10px; letter-spacing: .14em; text-transform: uppercase; font-weight: 600; color: var(--ink-faint); }
+.den-sheet-head h2 { margin: 0; font: 400 22px/1.2 var(--font-display); text-wrap: balance; }
+.den-sheet-head h2:focus { outline: none; }
+.den-sheet-close { flex: none; width: 32px; height: 32px; display: grid; place-items: center; border: 0; border-radius: var(--radius-m); background: none; color: var(--ink-muted); cursor: pointer; }
+.den-sheet-close:hover { background: var(--surface-300); color: var(--ink); }
+.den-sheet-close:focus-visible { outline: 2px solid var(--focus-ring); }
+.den-sheet-body { flex: 1; min-height: 0; overflow-y: auto; padding: 14px 18px 18px; scrollbar-width: thin; }
+.den-sheet-actions { margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--line); }
+.card-in-sheet { border: 0; background: none; box-shadow: none; padding: 0; }
+.den-sheet .card-wrap { display: block; }
+.card-in-sheet .card-body { padding: 0; overflow: visible; }
+.card-sheet-summary { margin: 0 0 12px; font-size: 12px; color: var(--ink-muted); }
+.forest-shell .den-sheet .queue-drawer { position: static; width: auto; max-height: none; border: 0; box-shadow: none; background: none; padding: 0; transform: none; }
+.forest-shell .den-sheet .build-status { border-radius: 6px; padding: 12px; background: var(--surface-100); font-size: 12px; }
+.forest-shell .den-sheet .tally-card-body { overflow: visible; }
+.meeting-confirm { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.forest-shell .transcript-panel { height: auto; min-height: 0; }
+.forest-shell .transcript-log, .forest-shell .thread-foot { padding: 14px 18px; }
+
+/* The selected panda's card, the ticket card and the permission review float over the scene, bottom right. */
+.den-float { position: absolute; right: var(--space-3); bottom: 90px; z-index: 15; width: min(360px, calc(100% - 2 * var(--space-3))); max-height: calc(100% - 120px); overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+.den-float[hidden] { display: none; }
+.den-float:has(.approval-panel, .message-composer) { z-index: 25; }
+.forest-shell .proximity-dock { position: static; width: auto; pointer-events: auto; }
+.forest-shell .proximity-dock[hidden] { display: none; }
 .forest-shell .proximity-dock:has(.message-composer) .proximity-card { display: none; }
-.forest-desk:has(> .transcript-panel) > .panda-detail,
-.forest-desk:has(> .approval-panel) > .panda-detail,
-.forest-desk:has(> .proximity-dock .message-composer) > .panda-detail { display: none; }
+.forest-shell .proximity-card, .forest-shell .message-composer, .forest-shell .panda-detail, .forest-shell .approval-panel {
+  position: static; inset: auto; width: auto; max-height: none; margin: 0; background: var(--surface-glass); border: 1px solid var(--line); border-radius: var(--radius-l); box-shadow: var(--shadow-panel);
+}
+.forest-shell .proximity-card { padding: 14px 16px; }
+.forest-shell .proximity-actions { gap: 10px; }
+.forest-shell .proximity-actions button { min-height: 40px; }
+.den-shell .demo-strip { position: absolute; top: calc(var(--bar-h) + 8px); left: 50%; transform: translateX(-50%); z-index: 30; }
+
+/* Phone width (spec 1.8): usable with no horizontal scroll. The rail stays, icons only; a sheet takes the scene's width. */
+@media (max-width: 640px) {
+  .den-bar { gap: 8px; }
+  .den-bar .zoom-levels { display: none; }
+  .forest-shell .logo-pill h1 { font-size: 11px; }
+  .forest-shell .live-badge { margin-left: 4px; font-size: 10px; }
+  .den-rail.is-expanded { width: var(--rail-w); }
+  .den-rail.is-expanded .den-rail-label { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .den-sheet, .den-sheet-wide, .den-sheet-side, .forest-shell .transcript-panel { left: var(--space-2); right: var(--space-2); width: auto; }
+  .forest-legend { gap: 8px; font-size: 10px; padding: 6px; }
+  .forest-garden-hint { display: none; }
+}
 .forest-residents-intro { margin: 0 0 14px; }
 .forest-profile { border: 1px solid var(--line); border-radius: 10px; padding: 16px; background: var(--surface-100); margin-bottom: 20px; }
 .forest-profile-heading { display: flex; align-items: center; gap: 13px; }
@@ -122,43 +160,6 @@
 .forest-portrait-caption { display: flex; gap: 4px; align-items: center; color: var(--ink-muted); font-size: 9px; line-height: 1.3; }
 .forest-portrait-caption .forest-dot { width: 4px; height: 4px; }
 .forest-muted { color: var(--ink-muted); font-size: 12px; line-height: 1.7; }
-.forest-page-footer { min-height: 42px; display: flex; align-items: center; justify-content: space-between; gap: 20px; font-size: 10px; color: var(--ink-muted); }
-.forest-shell .demo-strip { position: static; transform: none; align-self: center; flex-shrink: 0; margin-bottom: 10px; }
-@media (min-width: 1800px) { .forest-shell { padding: 0 60px; } .forest-workspace { grid-template-columns: minmax(0,1fr) 400px; gap: 32px; } }
-@media (max-width: 1100px) { .forest-shell { padding: 0 20px; } .forest-masthead { gap: 14px; } .forest-workspace { grid-template-columns: minmax(0,1fr) 320px; gap: 18px; } .forest-navigation button { padding: 10px 12px; } .forest-shell .live-badge { margin-left: 0; font-size: 10px; } .forest-shell .zoom-levels { display: none; } .forest-desk { padding: 22px 17px; } }
-@media (max-width: 760px) {
-  .forest-shell { padding: 0 16px; overflow-y: auto; height: 100dvh; }
-  .forest-masthead { flex-wrap: wrap; padding-top: 14px; gap: 10px; min-height: 112px; flex-shrink: 0; }
-  .forest-shell .logo-pill { flex: 1; gap: 6px; }
-  .forest-shell .logo-pill h1 { font-size: 11px; }
-  .forest-shell .live-badge { margin-left: 4px; }
-  .forest-shell .demo-button { font-size: 11px; padding: 0 8px; min-height: 44px; }
-  .forest-navigation { order: 3; width: 100%; justify-content: space-between; gap: 4px; }
-  .forest-navigation button { flex: 1; padding: 9px 6px; border-radius: 6px 6px 0 0; }
-  .forest-welcome { padding: 23px 0; gap: 12px; }
-  .forest-welcome h2 { font-size: 28px; }
-  .forest-welcome p:last-child { font-size: 12px; }
-  .forest-eyebrow { font-size: 9px; letter-spacing: .1em; }
-  .forest-talk { padding: 10px 12px; font-size: 12px; gap: 8px; flex-shrink: 0; }
-  .forest-workspace { display: flex; flex-direction: column; min-height: auto; flex: none; gap: 20px; }
-  .forest-shell .forest-garden { height: 520px; flex-shrink: 0; }
-  .forest-garden-toolbar { padding: 8px 12px; }
-  .forest-garden-footer { padding: 10px 12px; }
-  .forest-shell .zoom-switcher { display: flex; }
-  .forest-shell .zoom-steps { display: flex; }
-  .forest-shell .zoom-step { min-height: 44px; width: 40px; }
-  .forest-shell .den-entry .btn { min-height: 44px; }
-  .forest-legend { left: 10px; bottom: 12px; gap: 9px; font-size: 10px; padding: 7px; }
-  .forest-shell .chip-tally { bottom: 12px; right: 10px; min-height: 36px; padding: 5px 9px; }
-  .forest-garden-hint { font-size: 10px; padding-left: 12px; padding-right: 12px; }
-  .forest-desk { padding: 24px 20px; min-height: 260px; overflow: visible; }
-  .forest-shell .transcript-panel, .forest-shell .approval-panel { height: min(680px,85dvh); min-height: 400px; }
-  .forest-shell .panda-detail { top: auto; bottom: auto; max-height: none; }
-  .forest-shell .proximity-card { width: 100%; max-height: none; }
-  .forest-shell .message-composer { position: static; }
-  .forest-page-footer { padding: 18px 0; font-size: 9px; min-height: 60px; }
-}
-@media (max-width: 380px) { .forest-welcome { flex-wrap: wrap; } .forest-shell .logo-pill { flex-wrap: wrap; } }
 @media (prefers-color-scheme: dark) {
   .forest-shell { --surface-000: #28362b; --surface-100: #18231d; --surface-200: #202d24; --surface-300: #304034; --surface-glass: #202d24f5; --line: #3f5042; --line-strong: #7b947d; --ink: #e0e9d9; --ink-muted: #b1bfaa; --ink-faint: #9cad94; --qi: #b4d69d; --qi-fill: #b4d69d; --on-qi: #18231d; --focus-ring: #b4d69d; }
 }

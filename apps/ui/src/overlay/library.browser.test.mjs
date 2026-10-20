@@ -1,4 +1,4 @@
-// den-mvp outcome 4, in a real page: the Library card opens from the keyboard, loads GET /library, and says for each
+// den-mvp outcome 4, in a real page: the Library rail entry opens the sheet, loads GET /library, and says for each
 // connection how it stood, which roles get it, why one cannot use it yet, and what each tool does; skills are listed
 // as their own kind. A bridge that cannot answer shows a reason. The bridge is stubbed at the network.
 // DEN_SHOTS=<dir> also saves screenshots of the card (wide and 375px) for the user's visual check.
@@ -60,18 +60,17 @@ async function open({ width = 1280, answer = () => ({ json: library }) } = {}) {
 }
 const shot = async (page, name) => { if (process.env.DEN_SHOTS) await page.locator('[data-overlay=library]').screenshot({ path: path.join(process.env.DEN_SHOTS, name) }); };
 
-test('the library card: opened from the keyboard, it shows each connection and each skill with the bridge\'s own facts', { timeout: 90000 }, async () => {
+test('the Library rail entry opens the sheet and shows each connection and skill with the bridge\'s own facts', { timeout: 90000 }, async () => {
   const t = await open();
   try {
     const { page } = t;
-    const card = page.locator('[data-overlay=library]');
-    const toggle = card.locator('.card-toggle');
-    assert.equal(await toggle.getAttribute('aria-expanded'), 'false');
+    assert.equal(await page.locator('[data-overlay=library]').count(), 0);
     assert.equal(t.reads(), 0, 'nothing is loaded while the card is closed');
-    await toggle.focus();
+    await page.locator('[data-rail=library]').focus();
     await page.keyboard.press('Enter');
+    const card = page.locator('[data-overlay=library]');
     await card.getByText('Docs lookup').waitFor();
-    assert.equal(await toggle.getAttribute('aria-expanded'), 'true');
+    assert.equal(await page.locator('#sheet-topic').getByRole('heading', { name: 'Library' }).count(), 1);
     const text = await card.innerText();
     assert.match(text, /2 connections · 2 skills/);
     const docs = await card.locator('[data-connection=context7]').innerText();
@@ -93,8 +92,8 @@ test('the library card: opened from the keyboard, it shows each connection and e
 test('the library card at 375px: it fits the screen, and a bridge that cannot answer shows a reason', { timeout: 90000 }, async () => {
   const narrow = await open({ width: 375 });
   try {
+    await narrow.page.locator('[data-rail=library]').click();
     const card = narrow.page.locator('[data-overlay=library]');
-    await card.locator('.card-toggle').click();
     await card.getByText('Docs lookup').waitFor();
     const box = await card.boundingBox();
     assert.ok(box.x >= 0 && box.x + box.width <= 375, `the card is inside the screen (${box.x} + ${box.width})`);
@@ -105,8 +104,8 @@ test('the library card at 375px: it fits the screen, and a bridge that cannot an
   }
   const down = await open({ answer: () => ({ status: 500, json: { error: 'the library could not be read' } }) });
   try {
+    await down.page.locator('[data-rail=library]').click();
     const card = down.page.locator('[data-overlay=library]');
-    await card.locator('.card-toggle').click();
     await card.getByRole('alert').waitFor();
     assert.match(await card.getByRole('alert').innerText(), /the library could not be read/);
   } finally {
