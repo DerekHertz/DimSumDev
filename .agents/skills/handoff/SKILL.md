@@ -10,7 +10,24 @@ Save it on the board, not in the OS temp dir: `.scratch/<feature-slug>/handoffs/
 
 Before you write an orchestrator session handoff (`.scratch/_handoffs/<YYYY-MM-DD>-orchestrator-<N>.md`), run `npm run -s session-check` in the main checkout and fix every item it prints: local `main` ahead of `origin/main`, uncommitted board files under `.scratch/`, and in-flight tickets whose handoff branch is missing from or behind `origin`. Each item carries its fix command. An agent in a worktree skips this: `board release` pushes its branch.
 
-Keep it under 60 lines. Start the file with a fenced `json` State block (ADR 0009 decision 4). `board release --status in-review|resolved` parses the `json` State block of the ticket's handoffs and refuses the release if none is valid. The block must name its author: `"role"` (your role; `"cell"` before ADR 0028) and, for moded agents, `"mode"` (e.g. qa `specify` or `verify`). A handoff whose `role`/`mode` differ from your claim, or that was written before your claim, doesn't count (ADR 0008 decision 11). Write the handoff after claiming and before releasing. `npm run -s board -- handoff <feature>/<NN-slug> --template` prints this block with the ticket, agent and mode filled in:
+A developer's handoff opens with a `## What changes` section, before the State block (the board finds the State block anywhere in the file). The den copies it into the pull request, so write it for a reader who has not seen the code:
+
+~~~markdown
+## What changes
+
+Two to four sentences on behavior: what the user or the system now does differently.
+
+```diff
+- before: <the old behavior, one line>
++ after: <the new behavior, one line>
+```
+
+**Door:** two-way. <one sentence: why, and the undo step>
+~~~
+
+The door is `one-way` or `two-way`, with its reason on the same line. A change that reverting the merge cannot undo (data written, a published release) is one-way. Describe behavior, not code: function names and file names belong in the sections below. Other roles' handoffs skip this section. The `pr-writing` skill explains the format.
+
+Keep the rest under 60 lines. The file has a fenced `json` State block (ADR 0009 decision 4). `board release --status in-review|resolved` parses the `json` State block of the ticket's handoffs and refuses the release if none is valid. The block must name its author: `"role"` (your role; `"cell"` before ADR 0028) and, for moded agents, `"mode"` (e.g. qa `specify` or `verify`). A handoff whose `role`/`mode` differ from your claim, or that was written before your claim, doesn't count (ADR 0008 decision 11). Write the handoff after claiming and before releasing. `npm run -s board -- handoff <feature>/<NN-slug> --template` prints this block with the ticket, agent and mode filled in:
 
 ```json
 {"ticket": "<feature>/<NN>", "role": "<your role>", "mode": "<mode, if any>", "current_step": "one line: where the work stands",
