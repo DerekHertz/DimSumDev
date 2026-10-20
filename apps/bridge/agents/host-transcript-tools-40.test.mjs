@@ -136,7 +136,7 @@ test('40 disclosure: sanitize before persistence, wire, preview extraction and r
   const b = await setup(t);
   // Put a complete token across both existing clipping boundaries. Checking its full value alone is insufficient.
   const preview = 'p'.repeat(190) + secret + ' preview-safe';
-  const output = unsafeText() + '\n' + 'r'.repeat(TRANSCRIPT_RESULT_MAX - unsafeText().length - 10) + secret + ' tail';
+  const output = unsafeText() + '\n' + 'r'.repeat(TRANSCRIPT_RESULT_MAX - unsafeText().length - 11) + secret + ' tail' + ' safe-tail'.repeat(100);
   await b.emit(start('safe-call', preview, { input: { command: 'echo visible-input', nested: { note: unsafeText() } } }), result('safe-call', output));
   const state = await b.state();
   const page = await b.history();
