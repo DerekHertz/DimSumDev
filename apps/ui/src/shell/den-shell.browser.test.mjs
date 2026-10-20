@@ -51,7 +51,7 @@ async function open({ width = 1440, inventory = false } = {}) {
     const ticket = (ref, title, extra = {}) => ({ ref, feature: 'den', title, type: 'feature', status: 'ready-for-agent', ready: true, priority: 'P2', effectivePriority: 'P2', blockedBy: [], holder: null, gate: null, ...extra });
     snapshot.tickets = [ticket('den/01-ready', '01: Ready work'), ticket('den/02-active', '02: Active work', { status: 'claimed', ready: false }), ticket('den/04-gate', '04: Merge gate', { status: 'in-review', gate: 'merge', ready: false })];
     snapshot.frontier = ['den/01-ready'];
-    snapshot.agents[0].ref = 'den/02-active';
+    snapshot.agents.push({ id: 'c-bf592f417c598394', role: 'developer', ref: 'den/02-active', runtime: 'claude', state: 'working', capabilities: { send: true, stop: true } });
     snapshot.agents[0].capabilities.approve = true;
     snapshot.capacity = { max: 2, cap: 8, load: 1, live: 1, room: 1, refs: ['den/02-active'] };
     snapshot.deliveries = [{ id: 'd-0123456789abcdef', ref: 'den/03-delivery', title: '03: Delivery review', state: 'paused', step: 'ci', pause: { kind: 'ci-red', reason: 'Review the failed check', next: 'Resume after fixing it.' }, live: null, evidence: {}, runs: [] }];
