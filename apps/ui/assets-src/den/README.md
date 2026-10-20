@@ -1,8 +1,8 @@
 # Approved forest Den asset pack
 
-The 22 active models use lossless gzip storage (about 25.18 MiB). Buildings and furniture use lightweight Three.js geometry at explicit walking-world scale. The complete UI fits the unchanged 100 MiB release limit. Browser-native `DecompressionStream` restores the exact audited GLB before Three loads it; no worker, downloaded decoder, dependency or CSP exception is needed.
+The 24 active models use lossless gzip storage (about 25.80 MiB). Buildings and furniture use lightweight Three.js geometry at explicit walking-world scale. The complete UI fits the unchanged 100 MiB release limit. Browser-native `DecompressionStream` restores the exact audited GLB before Three loads it; no worker, downloaded decoder, dependency or CSP exception is needed.
 
-The 22 GLBs under `apps/ui/public/den/models/` are regular self-contained `.glb.gz` files.
+The 24 GLBs under `apps/ui/public/den/models/` are regular self-contained `.glb.gz` files.
 The frontend loads them through `/den/manifest.json`; it does not depend on the
 original prototype server, mounted Windows folders, credentials, or generation
 receipts. The manifest lists public URLs, canonical role IDs, source basenames,
@@ -43,6 +43,24 @@ python3 -m unittest discover -s apps/ui/assets-src/den -p 'test_*.py'
 The original folder contains `bao-customizer/` and `frontend-layout-mockup/`.
 Python 3 and Pillow are needed only for this offline authoring step. Normal UI
 builds use the checked-in files and require no Python dependency.
+
+## Species characters (team-and-den-ux/23)
+
+`characters.developer` (red panda engineer) and `characters.technical-writer` (cloud
+dragon writer) come from Meshy image-to-3D and remesh tasks, not the original
+artifact folder; their catalog entries name `sourceRoot: meshy_output` and the task
+IDs. The packager reads those two from `--meshy-output` (default: `meshy_output` at the
+repo root) and everything else from the artifact folder, so a full repack needs both.
+Repack just these two without touching the rest:
+
+```sh
+python3 apps/ui/assets-src/den/pack-assets.py /path/to/artifacts --meshy-output /path/to/meshy_output --only characters.developer --only characters.technical-writer
+```
+
+`colorOnly` keeps a single base colour map (at most `maxTextureSize`, 512 here),
+drops normal, roughness, occlusion and emissive maps and makes the material matte;
+geometry is still copied and audited exactly. The rig, weights, poses and envelopes
+for both live in `src/scene/meshy/character-profiles.mjs`.
 
 The packager preserves every vertex, normal, UV, node transform, material map,
 and triangle index value. Where indices fit in 16 bits, it narrows their storage

@@ -227,6 +227,26 @@
       "source": "bao-customizer/wardrobe_output/models/qa-scarf-refine.glb",
       "kind": "wardrobe",
       "roleId": "qa"
+    },
+    {
+      "key": "characters.developer",
+      "source": "20261019_183130_48-engineer-red-panda-2_01a156ef/remesh-8k.glb",
+      "sourceRoot": "meshy_output",
+      "kind": "character",
+      "roleId": "developer",
+      "maxTextureSize": 512,
+      "colorOnly": true,
+      "provenance": "Meshy image-to-3d 01a156ef-3069-771f-a5a1-852fee51f17b (A-pose) remeshed 01a156fb-e557-77e5-8da4-8ffcca33f4cf, ticket team-and-den-ux/23"
+    },
+    {
+      "key": "characters.technical-writer",
+      "source": "20261019_183134_48-writer-cloud-dragon-1_01a156ef/remesh-8k.glb",
+      "sourceRoot": "meshy_output",
+      "kind": "character",
+      "roleId": "technical-writer",
+      "maxTextureSize": 512,
+      "colorOnly": true,
+      "provenance": "Meshy image-to-3d 01a156ef-3af8-7363-93ac-2f664804be86 remeshed 01a156fb-eada-7398-82a8-5cb569b9ed9d, ticket team-and-den-ux/23"
     }
   ]
 }

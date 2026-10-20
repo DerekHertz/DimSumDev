@@ -4,6 +4,8 @@ import * as T from 'three';
 import {createMeshyActors} from './actors.mjs';
 import {createBalancedPandaRig, WADDLE} from './panda-rig.mjs';
 import {RESIDENTS as definitions,boundAgentKey} from '../../shell/resident-inventory.mjs';
+import {RED_PANDA} from './character-profiles.mjs';
+import {walk} from '../procedural/walk.mjs';
 function fixture(){
  const body=new T.Mesh(new T.BoxGeometry(2,3,1),new T.MeshStandardMaterial());body.position.y=1.5;
  const den={residents:new T.Group(),pandaRigs:new Map(),propManifest:definitions,roleWorkspaces:{workspaces:new Map()},walkWorld:{floorRadius:70,obstacles:[],navigation:{groundAt:()=>.26}}};
@@ -165,5 +167,15 @@ test('busy residents keep working while independent meeting guests walk, sit and
   actors.applyMeeting({id:'meeting/2',ref:'work/next',state:'running',seats:[{role:'developer'}]});
   assert.equal(actors.actors.get('meeting:developer'),guest,'a returning guest joins the next meeting without leaking a copy');assert.equal(den.pandaRigs.size,33);
   actors.applyMeeting(null);actors.update(.1,true);assert.equal(actors.actors.has('meeting:developer'),false);assert.equal(den.pandaRigs.size,32);
+ }finally{f.dispose();}
+});
+test('team-and-den-ux/23: a first-person walker beside a species resident can still walk away from it',()=>{
+ const f=fixture();try{
+  const {actors,den}=f,engineer=actors.actors.get('developer');engineer.panda.rig.profile=RED_PANDA;
+  const at=engineer.panda.model.position,avoid=den.walkAvoid();
+  assert.ok(avoid.every(a=>a.r<=.65),'the walker keeps a body width from every resident');
+  const world={...den.walkWorld,avoid},start={x:at.x+1.5,z:at.z,groundY:.26,yaw:-Math.PI/2,pitch:0,walkTime:0};
+  const next=walk(start,{forward:1},1,world);
+  assert.ok(next.x-start.x>.5,`moved ${(next.x-start.x).toFixed(2)} away from the red panda`);
  }finally{f.dispose();}
 });

@@ -26,7 +26,13 @@ export async function createMeshyWorld(renderer,{signal,onProgress=()=>{}}={}){
   const ids=['bao','wardrobe.developer-vest','wardrobe.qa-scarf','wardrobe.developer-headphones'];
   const sources=[];for(const id of ids){const source=await loadModel(den.assets[id].url);resources.add(source);sources.push(source);active(signal);}
   const [body,vestSource,scarfSource,headphonesSource]=sources,vest=fitRoleAsset(vestSource,'developer-vest'),scarf=fitRoleAsset(scarfSource,'qa-scarf'),headphones=fitRoleAsset(headphonesSource,'developer-headphones'),securityVest=fitRoleAsset(vestSource,'security-vest');resources.add(vest,scarf,headphones,securityVest);
-  appearances=createPandaAppearanceFactory({body,vest,scarf,headphones,securityVest});resources.add(appearances.outfits);den.pandaRigs=appearances.instances;
+  // team-and-den-ux/23: species replacements; a failed load keeps that role's panda (old assets stay for rollback).
+  const characters={};den.characterLoad={loaded:[],failed:[]};
+  for(const [key,asset]of Object.entries(den.assets))if(key.startsWith('characters.')&&asset.roleId){
+   try{const source=await loadModel(asset.url);resources.add(source);active(signal);characters[asset.roleId]=source;den.characterLoad.loaded.push(asset.roleId);}
+   catch(error){if(error?.name==='AbortError')throw error;den.characterLoad.failed.push({role:asset.roleId,message:error.message});}
+  }
+  appearances=createPandaAppearanceFactory({body,vest,scarf,headphones,securityVest,characters});resources.add(appearances.outfits);den.pandaRigs=appearances.instances;
   den.createPanda=appearances.createPanda;
   den.destroyPanda=appearances.destroyPanda;
   const workspaces=new Map(),records=[];

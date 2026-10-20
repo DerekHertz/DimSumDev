@@ -150,12 +150,13 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
     assert.ok(!loaded.includes('/src/scene/procedural/RestaurantDen.jsx'), 'old procedural scene is not mounted');
     assert.equal(await page.locator('iframe').count(), 0, 'no embedded preview server');
     assert.equal(await page.locator('.forest-canvas canvas').count(), 1);
-    assert.equal(Object.keys(assets).length, 22, 'only retained character, prop, wardrobe and vegetation models are shipped');
+    assert.equal(Object.keys(assets).length, 24, 'only retained character, prop, wardrobe and vegetation models are shipped (team-and-den-ux/23 adds two species)');
     assert.deepEqual(Object.keys(assets).filter(key => key.startsWith('scenery.')), [], 'buildings and furniture use procedural geometry');
     assert.equal(loaded.some(path => path.startsWith('/den/models/scenery/')), false, 'no removed scenery download');
     const required = ['bao','wardrobe.developer-vest','wardrobe.qa-scarf','wardrobe.developer-headphones'];
     assert.deepEqual(required.filter(id=>!loaded.includes(assets[id].url)), [], 'the approved body and shared wardrobe load locally');
-    assert.equal(modelResponses.length, 4, 'authored scenery and tools need only four model downloads');
+    assert.equal(modelResponses.length, 6, 'authored scenery and tools need only the four shared models plus the two species (team-and-den-ux/23)');
+    assert.deepEqual(['characters.developer','characters.technical-writer'].filter(id=>!loaded.includes(assets[id].url)), [], 'both species load locally');
     const scene = await page.evaluate(async()=>{
       const url=performance.getEntriesByType('resource').find(e=>e.name.includes('react-three_fiber.js')).name;
       const {_roots}=await import(url);
@@ -164,7 +165,7 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
       const world=_roots.get(document.querySelector('canvas')).store.getState().scene.getObjectByName('Dim Sum Dev · plush bamboo garden');
       const roles=[],actorKeys=[],skeletons=new Set(),tools=[],claudeTools=[],assets={};let landscape;
       world.traverse(n=>{
-        if(n.userData.actorKey){roles.push(n);actorKeys.push(n.userData.actorKey);if(n.userData.runtime==='claude')n.traverse(child=>{if(child.userData.tool)claudeTools.push(child.userData.tool);});}
+        if(n.userData.actorKey){roles.push(n);actorKeys.push(n.userData.actorKey);if(n.userData.runtime==='claude'){const tools=[];n.traverse(child=>{if(child.userData.tool)tools.push(child.userData.tool);});claudeTools.push({role:n.userData.roleId,species:n.userData.species||null,tools});}}
         if(n.isSkinnedMesh)skeletons.add(n.skeleton);
         if(n.userData.tool)tools.push(n.userData.tool);
         if(n.userData.placeId==='grove')landscape={root:n};else if(n.userData.placeId)assets[n.userData.placeId]={root:n};
@@ -177,8 +178,14 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
     });
     assert.equal(new Set(scene.roles).size,18);
     assert.equal(new Set(scene.actorKeys).size,32,'each permanent runtime resident has a distinct actor key');
-    assert.equal(new Set(scene.claudeTools).size,18,'each Claude permanent role has a distinct paw tool');
-    assert.equal(new Set(scene.tools).size,19,'Jiao adds her distinct approved coordinator tool');
+    // team-and-den-ux/23: a species carries its props in its mesh (the pouch, the book and brush) instead of a paw tool.
+    assert.deepEqual(scene.claudeTools.filter(t=>t.species).map(t=>[t.role,t.species,t.tools.length]).toSorted(),[['developer','red-panda',0],['technical-writer','cloud-dragon',0]]);
+    const pandas=scene.claudeTools.filter(t=>!t.species);
+    // A placeholder kit nests the borrowed kit's name, so compare each role's own (root) tool.
+    assert.ok(pandas.every(t=>t.tools.length>0),'every other Claude permanent role holds a paw tool');
+    assert.equal(new Set(pandas.map(t=>t.tools[0])).size,pandas.length,'each other Claude permanent role has a distinct paw tool');
+    // 19 before team-and-den-ux/23: the writer's own scroll left with the cloud dragon; the developer's tablet stays in the code reviewer's placeholder kit.
+    assert.equal(new Set(scene.tools).size,18,'Jiao adds her distinct approved coordinator tool');
     assert.ok(scene.tools.includes('Order notebook'));
     assert.deepEqual(scene.coordinatorTools,{orchestrator:['Bamboo fan'],'codex:orchestrator':['Order notebook']},'Bao and Jiao keep their distinct approved tools');
     assert.equal(scene.skeletons,47,'32 residents and 15 scenery pandas have independent skeletons');
@@ -337,8 +344,11 @@ test("portrait profiles keep real work and visitor identities, and route explici
     const roleIds = ['orchestrator', 'product', 'architect', 'developer', 'scout', 'debugger', 'qa', 'security', 'designer', 'herald', 'release-manager', 'code-reviewer', 'sre', 'technical-writer', 'knowledge-keeper', 'docs-writer', 'stem-cub'];
     const codexPortraitPaths = ['/den/portraits/codex-orchestrator.webp', '/den/portraits/codex-product.webp', '/den/portraits/codex-architect.webp', '/den/portraits/codex-developer.webp', '/den/portraits/codex-scout.webp', '/den/portraits/codex-runner.webp', '/den/portraits/codex-qa.webp', '/den/portraits/codex-security.webp', '/den/portraits/codex-designer.webp', '/den/portraits/codex-herald.webp', '/den/portraits/codex-code-reviewer.webp', '/den/portraits/codex-release-manager.webp', '/den/portraits/codex-sre.webp', '/den/portraits/codex-technical-writer.webp'];
     const portraitPaths = await portraits.locator('img').evaluateAll(images => images.map(image => new URL(image.currentSrc).pathname));
-    assert.equal(new Set(portraitPaths).size, 32, 'each runtime resident uses its own cached portrait');
-    assert.deepEqual(portraitPaths.toSorted(), [...roleIds.map(role => `/den/portraits/${role}.webp`), '/den/portraits/runner.webp', ...codexPortraitPaths].toSorted());
+    // team-and-den-ux/23: a species keeps one body for both runtimes, so its two residents share one portrait.
+    const species = { developer: '/den/portraits/developer-red-panda.webp', 'technical-writer': '/den/portraits/technical-writer-cloud-dragon.webp' };
+    assert.equal(new Set(portraitPaths).size, 32 - Object.keys(species).length, 'each runtime resident uses its own cached portrait, except a species shared by both runtimes');
+    const expected = [...roleIds.map(role => species[role] || `/den/portraits/${role}.webp`), '/den/portraits/runner.webp', ...codexPortraitPaths.map(path => Object.entries(species).find(([role]) => path === `/den/portraits/codex-${role}.webp`)?.[1] || path)];
+    assert.deepEqual(portraitPaths.toSorted(), expected.toSorted());
     assert.ok(portraitPaths.includes('/den/portraits/release-manager.webp'), 'the corrected Release Manager wrap has its own portrait');
     await portraits.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
     assert.equal(await profiles.getByRole('heading', { name: 'The Maker', exact: true }).isVisible(), true);

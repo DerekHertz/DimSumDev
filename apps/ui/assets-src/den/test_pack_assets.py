@@ -80,12 +80,53 @@ class PackAssetsTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "UV"):
                 PACK.audit_pair(doc, binary, copy.deepcopy(doc), changed)
 
+    def test_color_only_keeps_one_matte_color_map_and_exact_geometry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            fixture(root / "plain.glb")
+            doc, binary, _ = PACK.read_glb(root / "plain.glb")
+            views = [PACK.view_bytes(doc, binary, i) for i in range(len(doc["bufferViews"]))]
+            normal = io.BytesIO()
+            Image.new("RGB", (8, 4), (128, 128, 255)).save(normal, "PNG")
+            views.insert(0, normal.getvalue())
+            doc["bufferViews"].insert(0, {"buffer": 0, "byteLength": len(views[0])})
+            for item in doc["accessors"] + doc["images"]:
+                item["bufferView"] += 1
+            doc["images"].append({"bufferView": 0, "mimeType": "image/png"})
+            doc["textures"].append({"source": 1})
+            doc["materials"][0]["normalTexture"] = {"index": 1}
+            doc["materials"][0]["pbrMetallicRoughness"].update(metallicRoughnessTexture={"index": 1}, metallicFactor=1)
+            PACK.write_glb(root / "source.glb", doc, views)
+            record, receipt = PACK.pack_asset({"key": "characters.developer", "source": "source.glb", "kind": "character", "roleId": "developer", "maxTextureSize": 4, "colorOnly": True}, root, root / "out")
+            self.assertEqual(record["url"], "/den/models/characters/developer.glb.gz")
+            self.assertEqual(len(record["textures"]), 1)
+            self.assertEqual(receipt["droppedImages"], 1)
+            out, out_binary, _ = PACK.read_glb(root / "out/models/characters/developer.glb.gz")
+            material = out["materials"][0]
+            self.assertNotIn("normalTexture", material)
+            self.assertEqual(material["pbrMetallicRoughness"]["metallicFactor"], 0)
+            self.assertEqual(material["pbrMetallicRoughness"]["roughnessFactor"], 1)
+            self.assertNotIn("metallicRoughnessTexture", material["pbrMetallicRoughness"])
+            self.assertEqual(len(out["images"]), 1)
+            self.assertEqual(PACK.accessor_bytes(out, out_binary, 0), PACK.accessor_bytes(doc, PACK.read_glb(root / "source.glb")[1], 0))
+
+    def test_entries_naming_a_source_root_are_read_from_that_folder(self):
+        catalog = json.loads(Path(__file__).with_name("sources.json").read_text())["assets"]
+        artifacts, meshy = Path("/artifacts"), Path("/meshy")
+        named = [a for a in catalog if "sourceRoot" in a]
+        self.assertEqual({a["key"] for a in named}, {"characters.developer", "characters.technical-writer"})
+        for asset in catalog:
+            expected = meshy if "sourceRoot" in asset else artifacts
+            self.assertEqual(PACK.source_root_for(asset, artifacts, {"meshy_output": meshy}), expected)
+        with self.assertRaises(SystemExit):
+            PACK.source_root_for({"key": "x", "sourceRoot": "elsewhere"}, artifacts, {"meshy_output": meshy})
+
     def test_catalog_contains_approved_unique_assets_and_all_role_tools(self):
         catalog = json.loads(Path(__file__).with_name("sources.json").read_text())["assets"]
-        self.assertEqual(len(catalog), 36)
-        self.assertEqual(len({a["key"] for a in catalog}), 36)
+        self.assertEqual(len(catalog), 38)
+        self.assertEqual(len({a["key"] for a in catalog}), 38)
         active = [a for a in catalog if a.get("runtime") is not False]
-        self.assertEqual(len(active), 22)
+        self.assertEqual(len(active), 24)
         self.assertFalse(any(a["key"].startswith("scenery.") for a in active))
         roles = {a["roleId"] for a in catalog if a["kind"] == "prop"}
         self.assertEqual(roles, {"orchestrator", "product", "architect", "developer", "scout", "debugger", "qa", "security", "designer", "herald", "release-manager", "knowledge-keeper", "docs-writer", "stem-cub"})
