@@ -248,7 +248,7 @@ test("desk navigation exits walking and keeps the requested Work panel available
     // Release pointer capture through the public keyboard control so header controls can be used.
     await page.keyboard.press('Tab');
     await page.getByRole('navigation', { name: 'Workspace' }).getByRole('button', { name: 'Work', exact: true }).click();
-    const stations = page.locator('[data-overlay="stations"]');
+    const stations = page.locator('[data-overlay="teams"]');
     await stations.waitFor({ state: 'visible' });
     // Cards applies the requested section in an effect after the shell exits walk mode.
     await stations.locator('.card-toggle[aria-expanded="true"]').waitFor({ state: 'visible' });
