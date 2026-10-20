@@ -1,0 +1,89 @@
+{
+  "kind": "Preregistered same-context A/A completed; paired repeatability fails; no asset acceptance",
+  "sourceCommit": "824569be785bf270137381c603188691f3007497",
+  "productionRuntime": "efbb225f9569abeb269cd052236dac426c4d9af4",
+  "root": "/mnt/c/Users/Derek/.codex/visualizations/2026/10/19/01a15689-f776-7ab1-8ca6-13d1dbc49206/ticket24-same-context-calibration",
+  "files": [
+    {
+      "name": "calibration-plan.json",
+      "bytes": 1985,
+      "sha256": "943fd0140fb719ec64475b11de11ae8cf7996566fb836b97f2f914e44297f814"
+    },
+    {
+      "name": "calibration-raw.json",
+      "bytes": 1564123,
+      "sha256": "84f17997b179e5cfee3599baa550b4777327133e7d241cf9d56907eaa7ba9b69"
+    },
+    {
+      "name": "capture-review.cjs",
+      "bytes": 14184,
+      "sha256": "c515ba0c9f420460c0adc76159ccff6a2a1b5d56751e222702ebcb02d3bfd315"
+    },
+    {
+      "name": "native-performance.cjs",
+      "bytes": 8991,
+      "sha256": "359390e90d3780db8692be24207f89494ad6c88846bad68ea4fc6a49984cb0c2"
+    },
+    {
+      "name": "performance-resume.cjs",
+      "bytes": 4299,
+      "sha256": "266c5e8767154a8383e22a8a09b3a1a4ec92b086853f6cae6d4def881683e195"
+    },
+    {
+      "name": "same-context-calibration.cjs",
+      "bytes": 11081,
+      "sha256": "fa9202d985e492b8ee384b1773f7920881312cc8a7df4e94f59945b835e741a3"
+    }
+  ],
+  "statistics": {
+    "name": "same-context-calibration-statistics.json",
+    "bytes": 140024,
+    "sha256": "3cde5aaa96e8a0fdc8ae2fafd0759048094c5944d6e66e01667c64a94d53336d"
+  },
+  "immutableVerified": [
+    {
+      "name": "performance-paused-45-runs.json",
+      "bytes": 11492605,
+      "sha256": "9f4bdcfd468b39c3e8264df670f4859aee181e5d88853f6e9ef15f01bd9af734"
+    },
+    {
+      "name": "resumed/performance-assembled-60.json",
+      "bytes": 15326918,
+      "sha256": "d3a5ca47a75a7bef4f586d560fed68039dc37d3b67ad72d56470d2e357221b1d"
+    },
+    {
+      "name": "quiet-diagnostic/performance-raw.json",
+      "bytes": 1550630,
+      "sha256": "692e851fa7894d92855e5b0db0f4ee419bac6bbd0f32739b5748d072ea87b699"
+    },
+    {
+      "name": "identical-control/performance-raw.json",
+      "bytes": 1537643,
+      "sha256": "1865d756b291bfbd760ceef6c003113eefcbd91578b6658f17bb3a0e514f438d"
+    },
+    {
+      "name": "native-trace-retry/trace-A.json",
+      "bytes": 173809893,
+      "sha256": "8452c16d74cb7f5996866e14e26ad0fe104d6a4b2f8af7f83c0d1924754d2cd5"
+    },
+    {
+      "name": "native-trace-retry/trace-B.json",
+      "bytes": 94371840,
+      "sha256": "84c5a48c1e80596ae2854120b70b891c5e85825ff3a12df9ceac2475a4877b56"
+    }
+  ],
+  "retainedBuildVerified": {
+    "path": "/tmp/den-cast-24-same-context",
+    "files": 62,
+    "allHashesMatch": true
+  },
+  "allSixRowsRetained": true,
+  "noFurtherCaptures": true,
+  "cleanup": {
+    "browserClosed": true,
+    "serverPid": 71338,
+    "serverStopped": true,
+    "quietReleased": true
+  },
+  "next": "Review next-measurement-method-draft.md; no profiling/study/capture authorized by this receipt."
+}

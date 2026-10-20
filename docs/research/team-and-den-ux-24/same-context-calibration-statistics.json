@@ -1,0 +1,6248 @@
+{
+  "rawSha256": "84f17997b179e5cfee3599baa550b4777327133e7d241cf9d56907eaa7ba9b69",
+  "startedAt": "2026-10-20T22:12:39.812Z",
+  "finishedAt": "2026-10-20T22:16:52.031Z",
+  "browser": "155.0.8059.85",
+  "nativeNode": "v22.20.0",
+  "meta": {
+    "commit": "5d704cad25bf406736257f1ab99ea7720b95295e",
+    "kind": "Temporary same-context feasibility observer; not normal resource acceptance",
+    "hooks": [
+      "/home/dhertzell/dimsumden/.worktrees/bao-24/apps/ui/src/main.jsx",
+      "/home/dhertzell/dimsumden/.worktrees/bao-24/apps/ui/src/App.jsx",
+      "/home/dhertzell/dimsumden/.worktrees/bao-24/apps/ui/src/scene/meshy/MeshyDen.jsx",
+      "/home/dhertzell/dimsumden/.worktrees/bao-24/apps/ui/src/scene/meshy/actors.mjs",
+      "/home/dhertzell/dimsumden/.worktrees/bao-24/apps/ui/src/scene/meshy/world.mjs"
+    ],
+    "out": "/tmp/den-cast-24-same-context",
+    "port": 4425
+  },
+  "metrics": "Unchanged elapsed and render+timestamp-aligned named animation CPU; nearest-rank quantiles, no outlier removal",
+  "summary": {
+    "kind": "A/A calibration only",
+    "runs": [
+      {
+        "label": "A",
+        "rep": 1,
+        "gpu": 15.890432,
+        "combinedCpu": 19.80000000447035
+      },
+      {
+        "label": "B",
+        "rep": 1,
+        "gpu": 16.041984,
+        "combinedCpu": 19
+      },
+      {
+        "label": "B",
+        "rep": 2,
+        "gpu": 18.510848,
+        "combinedCpu": 22.099999994039536
+      },
+      {
+        "label": "A",
+        "rep": 2,
+        "gpu": 15.536128,
+        "combinedCpu": 19.700000010430813
+      },
+      {
+        "label": "A",
+        "rep": 3,
+        "gpu": 16.09216,
+        "combinedCpu": 20.200000002980232
+      },
+      {
+        "label": "B",
+        "rep": 3,
+        "gpu": 16.073728,
+        "combinedCpu": 19.69999999552965
+      }
+    ],
+    "medianOfThree": {
+      "gpu": {
+        "A": 15.890432,
+        "B": 16.073728,
+        "percent": 1.1534991622631718,
+        "absoluteWithinFivePercent": true
+      },
+      "combinedCpu": {
+        "A": 19.80000000447035,
+        "B": 19.69999999552965,
+        "percent": -0.5050505500915126,
+        "absoluteWithinFivePercent": true
+      }
+    },
+    "pairs": [
+      {
+        "rep": 1,
+        "order": [
+          "A",
+          "B"
+        ],
+        "gpu": {
+          "A": 15.890432,
+          "B": 16.041984,
+          "percent": 0.9537311509214996,
+          "absoluteWithinFivePercent": true
+        },
+        "combinedCpu": {
+          "A": 19.80000000447035,
+          "B": 19,
+          "percent": -4.040404062069336,
+          "absoluteWithinFivePercent": true
+        }
+      },
+      {
+        "rep": 2,
+        "order": [
+          "B",
+          "A"
+        ],
+        "gpu": {
+          "A": 15.536128,
+          "B": 18.510848,
+          "percent": 19.147113103084635,
+          "absoluteWithinFivePercent": false
+        },
+        "combinedCpu": {
+          "A": 19.700000010430813,
+          "B": 22.099999994039536,
+          "percent": 12.182741027096267,
+          "absoluteWithinFivePercent": false
+        }
+      },
+      {
+        "rep": 3,
+        "order": [
+          "A",
+          "B"
+        ],
+        "gpu": {
+          "A": 16.09216,
+          "B": 16.073728,
+          "percent": -0.11454024817054709,
+          "absoluteWithinFivePercent": true
+        },
+        "combinedCpu": {
+          "A": 20.200000002980232,
+          "B": 19.69999999552965,
+          "percent": -2.4752475612713543,
+          "absoluteWithinFivePercent": true
+        }
+      }
+    ],
+    "allMedianWithinFivePercent": true,
+    "allPairedRepeatabilityWithinFivePercent": false,
+    "pairedGuardIsDiagnosticOnly": true,
+    "calibrationPass": false,
+    "acceptanceVerdict": "Original failed60 remains failed; this calibration cannot accept Bao"
+  },
+  "runs": [
+    {
+      "rep": 1,
+      "label": "A",
+      "gpu": {
+        "n": 300,
+        "min": 8.715264,
+        "p50": 11.131904,
+        "p95": 15.890432,
+        "max": 21.886976
+      },
+      "renderCpu": {
+        "n": 900,
+        "min": 9.300000004470348,
+        "p50": 12.300000004470348,
+        "p95": 17.200000002980232,
+        "max": 23.600000001490116
+      },
+      "animationCpu": {
+        "n": 900,
+        "min": 1.6000000014901161,
+        "p50": 2.100000001490116,
+        "p95": 2.899999998509884,
+        "max": 5.5
+      },
+      "combinedCpu": {
+        "n": 900,
+        "min": 11.299999997019768,
+        "p50": 14.50000000745058,
+        "p95": 19.80000000447035,
+        "max": 26.399999998509884
+      },
+      "frames": 900,
+      "frameIntervals": {
+        "n": 899,
+        "min": 30.399999998509884,
+        "p50": 33.29999999701977,
+        "p95": 34.399999998509884,
+        "max": 36.5
+      },
+      "callbacks": 2700,
+      "queryCount": 300,
+      "disjoint": 0,
+      "pending": 0,
+      "logicalClock": {
+        "beforeWarmup": 1.3000000000000003,
+        "afterSample": 41.9893999999982
+      },
+      "hostUpdateDelta": {
+        "pose": 1213,
+        "gesture": 1213,
+        "skeleton": 3640
+      },
+      "drawCalls": {
+        "n": 900,
+        "min": 1537,
+        "p50": 1537,
+        "p95": 1537,
+        "max": 1537
+      },
+      "frameTriangles": {
+        "n": 900,
+        "min": 3407580,
+        "p50": 3407580,
+        "p95": 3407580,
+        "max": 3407580
+      },
+      "geometries": {
+        "n": 900,
+        "min": 1526,
+        "p50": 1526,
+        "p95": 1526,
+        "max": 1526
+      },
+      "textures": {
+        "n": 900,
+        "min": 127,
+        "p50": 127,
+        "p95": 127,
+        "max": 127
+      },
+      "scene": {
+        "triangles": 3412220,
+        "shadowTriangles": 2111307,
+        "meshes": 1615,
+        "skinnedMeshes": 573,
+        "uniqueGeometries": 1600,
+        "uniqueMaterials": 1087,
+        "geometryBufferBytes": 303017250,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      },
+      "garden": {
+        "triangles": 2193265,
+        "shadowTriangles": 897040,
+        "meshes": 822,
+        "skinnedMeshes": 44,
+        "uniqueGeometries": 807,
+        "uniqueMaterials": 307,
+        "geometryBufferBytes": 197927360,
+        "uniqueMaterialTextures": 62,
+        "estimatedRgbaTextureBytes": 66895872.00000003,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          }
+        ]
+      },
+      "clocks": [
+        {
+          "timestamp": "2026/10/20 15:12:57.364",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.72,
+          "temperatureC": 44,
+          "gpuPercent": 18,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:13:02.502",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.3,
+          "temperatureC": 44,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:13:07.507",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.43,
+          "temperatureC": 44,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:13:12.479",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.33,
+          "temperatureC": 44,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:13:17.482",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.62,
+          "temperatureC": 44,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:13:22.510",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.8,
+          "temperatureC": 44,
+          "gpuPercent": 18,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:13:27.488",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.64,
+          "temperatureC": 44,
+          "gpuPercent": 16,
+          "memoryPercent": 4
+        }
+      ],
+      "clockRanges": {
+        "graphicsMHz": {
+          "n": 7,
+          "min": 1755,
+          "p50": 1755,
+          "p95": 1755,
+          "max": 1755
+        },
+        "memoryMHz": {
+          "n": 7,
+          "min": 9701,
+          "p50": 9701,
+          "p95": 9701,
+          "max": 9701
+        },
+        "powerW": {
+          "n": 7,
+          "min": 83.3,
+          "p50": 83.62,
+          "p95": 83.8,
+          "max": 83.8
+        },
+        "temperatureC": {
+          "n": 7,
+          "min": 44,
+          "p50": 44,
+          "p95": 44,
+          "max": 44
+        },
+        "gpuPercent": {
+          "n": 7,
+          "min": 16,
+          "p50": 17,
+          "p95": 19,
+          "max": 19
+        },
+        "memoryPercent": {
+          "n": 7,
+          "min": 4,
+          "p50": 4,
+          "p95": 4,
+          "max": 4
+        }
+      },
+      "heap": {
+        "used": 392542902,
+        "total": 396693598
+      }
+    },
+    {
+      "rep": 1,
+      "label": "B",
+      "gpu": {
+        "n": 300,
+        "min": 8.721408,
+        "p50": 11.60192,
+        "p95": 16.041984,
+        "max": 20.077568
+      },
+      "renderCpu": {
+        "n": 898,
+        "min": 9.399999998509884,
+        "p50": 12.300000004470348,
+        "p95": 16.5,
+        "max": 23.399999998509884
+      },
+      "animationCpu": {
+        "n": 898,
+        "min": 1.5999999940395355,
+        "p50": 2,
+        "p95": 2.600000001490116,
+        "max": 50.5
+      },
+      "combinedCpu": {
+        "n": 898,
+        "min": 11.099999994039536,
+        "p50": 14.399999998509884,
+        "p95": 19,
+        "max": 64.39999999850988
+      },
+      "frames": 898,
+      "frameIntervals": {
+        "n": 897,
+        "min": 17.299999997019768,
+        "p50": 33.30000000447035,
+        "p95": 34.29999999701977,
+        "max": 82.10000000149012
+      },
+      "callbacks": 2694,
+      "queryCount": 300,
+      "disjoint": 0,
+      "pending": 0,
+      "logicalClock": {
+        "beforeWarmup": 42.29889999999819,
+        "afterSample": 82.88539999999728
+      },
+      "hostUpdateDelta": {
+        "pose": 1214,
+        "gesture": 1214,
+        "skeleton": 3642
+      },
+      "drawCalls": {
+        "n": 898,
+        "min": 1537,
+        "p50": 1537,
+        "p95": 1544,
+        "max": 1544
+      },
+      "frameTriangles": {
+        "n": 898,
+        "min": 3407580,
+        "p50": 3407580,
+        "p95": 3408268,
+        "max": 3408268
+      },
+      "geometries": {
+        "n": 898,
+        "min": 1526,
+        "p50": 1530,
+        "p95": 1530,
+        "max": 1530
+      },
+      "textures": {
+        "n": 898,
+        "min": 127,
+        "p50": 127,
+        "p95": 127,
+        "max": 127
+      },
+      "scene": {
+        "triangles": 3412220,
+        "shadowTriangles": 2111307,
+        "meshes": 1615,
+        "skinnedMeshes": 573,
+        "uniqueGeometries": 1600,
+        "uniqueMaterials": 1087,
+        "geometryBufferBytes": 303017250,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      },
+      "garden": {
+        "triangles": 2193265,
+        "shadowTriangles": 897040,
+        "meshes": 822,
+        "skinnedMeshes": 44,
+        "uniqueGeometries": 807,
+        "uniqueMaterials": 307,
+        "geometryBufferBytes": 197927360,
+        "uniqueMaterialTextures": 62,
+        "estimatedRgbaTextureBytes": 66895872.00000003,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          }
+        ]
+      },
+      "clocks": [
+        {
+          "timestamp": "2026/10/20 15:13:38.263",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.72,
+          "temperatureC": 44,
+          "gpuPercent": 18,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:13:43.377",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.57,
+          "temperatureC": 45,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:13:48.366",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.6,
+          "temperatureC": 45,
+          "gpuPercent": 18,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:13:53.374",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.84,
+          "temperatureC": 45,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:13:58.378",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.42,
+          "temperatureC": 44,
+          "gpuPercent": 16,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:14:03.382",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.56,
+          "temperatureC": 45,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:14:08.387",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 84.44,
+          "temperatureC": 45,
+          "gpuPercent": 20,
+          "memoryPercent": 4
+        }
+      ],
+      "clockRanges": {
+        "graphicsMHz": {
+          "n": 7,
+          "min": 1755,
+          "p50": 1755,
+          "p95": 1755,
+          "max": 1755
+        },
+        "memoryMHz": {
+          "n": 7,
+          "min": 9701,
+          "p50": 9701,
+          "p95": 9701,
+          "max": 9701
+        },
+        "powerW": {
+          "n": 7,
+          "min": 83.42,
+          "p50": 83.6,
+          "p95": 84.44,
+          "max": 84.44
+        },
+        "temperatureC": {
+          "n": 7,
+          "min": 44,
+          "p50": 45,
+          "p95": 45,
+          "max": 45
+        },
+        "gpuPercent": {
+          "n": 7,
+          "min": 16,
+          "p50": 17,
+          "p95": 20,
+          "max": 20
+        },
+        "memoryPercent": {
+          "n": 7,
+          "min": 4,
+          "p50": 4,
+          "p95": 4,
+          "max": 4
+        }
+      },
+      "heap": {
+        "used": 392560130,
+        "total": 397480030
+      }
+    },
+    {
+      "rep": 2,
+      "label": "B",
+      "gpu": {
+        "n": 299,
+        "min": 9.67472,
+        "p50": 12.899328,
+        "p95": 18.510848,
+        "max": 21.482496
+      },
+      "renderCpu": {
+        "n": 899,
+        "min": 9.299999997019768,
+        "p50": 13,
+        "p95": 19.5,
+        "max": 25.30000000447035
+      },
+      "animationCpu": {
+        "n": 899,
+        "min": 1.5,
+        "p50": 2,
+        "p95": 2.7000000029802322,
+        "max": 39.69999999552965
+      },
+      "combinedCpu": {
+        "n": 899,
+        "min": 11.00000000745058,
+        "p50": 15,
+        "p95": 22.099999994039536,
+        "max": 52.899999998509884
+      },
+      "frames": 899,
+      "frameIntervals": {
+        "n": 898,
+        "min": 17,
+        "p50": 33.30000000447035,
+        "p95": 34.30000000447035,
+        "max": 70.89999999850988
+      },
+      "callbacks": 2697,
+      "queryCount": 299,
+      "disjoint": 0,
+      "pending": 0,
+      "logicalClock": {
+        "beforeWarmup": 83.0645999999928,
+        "afterSample": 123.65049999999788
+      },
+      "hostUpdateDelta": {
+        "pose": 1215,
+        "gesture": 1215,
+        "skeleton": 3645
+      },
+      "drawCalls": {
+        "n": 899,
+        "min": 1537,
+        "p50": 1537,
+        "p95": 1537,
+        "max": 1537
+      },
+      "frameTriangles": {
+        "n": 899,
+        "min": 3407580,
+        "p50": 3407580,
+        "p95": 3407580,
+        "max": 3407580
+      },
+      "geometries": {
+        "n": 899,
+        "min": 1530,
+        "p50": 1530,
+        "p95": 1530,
+        "max": 1530
+      },
+      "textures": {
+        "n": 899,
+        "min": 127,
+        "p50": 127,
+        "p95": 127,
+        "max": 127
+      },
+      "scene": {
+        "triangles": 3412220,
+        "shadowTriangles": 2111307,
+        "meshes": 1615,
+        "skinnedMeshes": 573,
+        "uniqueGeometries": 1600,
+        "uniqueMaterials": 1087,
+        "geometryBufferBytes": 303017250,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      },
+      "garden": {
+        "triangles": 2193265,
+        "shadowTriangles": 897040,
+        "meshes": 822,
+        "skinnedMeshes": 44,
+        "uniqueGeometries": 807,
+        "uniqueMaterials": 307,
+        "geometryBufferBytes": 197927360,
+        "uniqueMaterialTextures": 62,
+        "estimatedRgbaTextureBytes": 66895872.00000003,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          }
+        ]
+      },
+      "clocks": [
+        {
+          "timestamp": "2026/10/20 15:14:19.024",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.92,
+          "temperatureC": 45,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:14:24.146",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 84.5,
+          "temperatureC": 45,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:14:29.143",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 84.24,
+          "temperatureC": 45,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:14:34.159",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.79,
+          "temperatureC": 45,
+          "gpuPercent": 18,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:14:39.189",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 84.74,
+          "temperatureC": 45,
+          "gpuPercent": 21,
+          "memoryPercent": 5
+        },
+        {
+          "timestamp": "2026/10/20 15:14:44.179",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 84.01,
+          "temperatureC": 45,
+          "gpuPercent": 18,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:14:49.156",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.51,
+          "temperatureC": 45,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        }
+      ],
+      "clockRanges": {
+        "graphicsMHz": {
+          "n": 7,
+          "min": 1755,
+          "p50": 1755,
+          "p95": 1755,
+          "max": 1755
+        },
+        "memoryMHz": {
+          "n": 7,
+          "min": 9701,
+          "p50": 9701,
+          "p95": 9701,
+          "max": 9701
+        },
+        "powerW": {
+          "n": 7,
+          "min": 83.51,
+          "p50": 84.01,
+          "p95": 84.74,
+          "max": 84.74
+        },
+        "temperatureC": {
+          "n": 7,
+          "min": 45,
+          "p50": 45,
+          "p95": 45,
+          "max": 45
+        },
+        "gpuPercent": {
+          "n": 7,
+          "min": 17,
+          "p50": 19,
+          "p95": 21,
+          "max": 21
+        },
+        "memoryPercent": {
+          "n": 7,
+          "min": 4,
+          "p50": 4,
+          "p95": 5,
+          "max": 5
+        }
+      },
+      "heap": {
+        "used": 392705990,
+        "total": 397480030
+      }
+    },
+    {
+      "rep": 2,
+      "label": "A",
+      "gpu": {
+        "n": 301,
+        "min": 8.630272,
+        "p50": 11.019264,
+        "p95": 15.536128,
+        "max": 21.001216
+      },
+      "renderCpu": {
+        "n": 901,
+        "min": 9.199999995529652,
+        "p50": 12,
+        "p95": 17.299999997019768,
+        "max": 21.799999997019768
+      },
+      "animationCpu": {
+        "n": 901,
+        "min": 1.6000000014901161,
+        "p50": 2,
+        "p95": 2.600000001490116,
+        "max": 3.7999999970197678
+      },
+      "combinedCpu": {
+        "n": 901,
+        "min": 11.199999995529652,
+        "p50": 14,
+        "p95": 19.700000010430813,
+        "max": 24.5
+      },
+      "frames": 901,
+      "frameIntervals": {
+        "n": 900,
+        "min": 29.799999997019768,
+        "p50": 33.30000000447035,
+        "p95": 34.29999999701977,
+        "max": 36.29999999701977
+      },
+      "callbacks": 2703,
+      "queryCount": 301,
+      "disjoint": 0,
+      "pending": 0,
+      "logicalClock": {
+        "beforeWarmup": 123.8302999999949,
+        "afterSample": 164.3914999999981
+      },
+      "hostUpdateDelta": {
+        "pose": 1213,
+        "gesture": 1213,
+        "skeleton": 3639
+      },
+      "drawCalls": {
+        "n": 901,
+        "min": 1537,
+        "p50": 1537,
+        "p95": 1537,
+        "max": 1537
+      },
+      "frameTriangles": {
+        "n": 901,
+        "min": 3407580,
+        "p50": 3407580,
+        "p95": 3407580,
+        "max": 3407580
+      },
+      "geometries": {
+        "n": 901,
+        "min": 1530,
+        "p50": 1530,
+        "p95": 1530,
+        "max": 1530
+      },
+      "textures": {
+        "n": 901,
+        "min": 127,
+        "p50": 127,
+        "p95": 127,
+        "max": 127
+      },
+      "scene": {
+        "triangles": 3412220,
+        "shadowTriangles": 2111307,
+        "meshes": 1615,
+        "skinnedMeshes": 573,
+        "uniqueGeometries": 1600,
+        "uniqueMaterials": 1087,
+        "geometryBufferBytes": 303017250,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      },
+      "garden": {
+        "triangles": 2193265,
+        "shadowTriangles": 897040,
+        "meshes": 822,
+        "skinnedMeshes": 44,
+        "uniqueGeometries": 807,
+        "uniqueMaterials": 307,
+        "geometryBufferBytes": 197927360,
+        "uniqueMaterialTextures": 62,
+        "estimatedRgbaTextureBytes": 66895872.00000003,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          }
+        ]
+      },
+      "clocks": [
+        {
+          "timestamp": "2026/10/20 15:14:59.797",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.59,
+          "temperatureC": 45,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:15:04.899",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 82.99,
+          "temperatureC": 45,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:15:09.906",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.75,
+          "temperatureC": 45,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:15:14.907",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.35,
+          "temperatureC": 45,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:15:19.932",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.63,
+          "temperatureC": 45,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:15:24.926",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 84.1,
+          "temperatureC": 45,
+          "gpuPercent": 16,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:15:29.905",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.55,
+          "temperatureC": 45,
+          "gpuPercent": 18,
+          "memoryPercent": 4
+        }
+      ],
+      "clockRanges": {
+        "graphicsMHz": {
+          "n": 7,
+          "min": 1755,
+          "p50": 1755,
+          "p95": 1755,
+          "max": 1755
+        },
+        "memoryMHz": {
+          "n": 7,
+          "min": 9701,
+          "p50": 9701,
+          "p95": 9701,
+          "max": 9701
+        },
+        "powerW": {
+          "n": 7,
+          "min": 82.99,
+          "p50": 83.59,
+          "p95": 84.1,
+          "max": 84.1
+        },
+        "temperatureC": {
+          "n": 7,
+          "min": 45,
+          "p50": 45,
+          "p95": 45,
+          "max": 45
+        },
+        "gpuPercent": {
+          "n": 7,
+          "min": 16,
+          "p50": 18,
+          "p95": 19,
+          "max": 19
+        },
+        "memoryPercent": {
+          "n": 7,
+          "min": 4,
+          "p50": 4,
+          "p95": 4,
+          "max": 4
+        }
+      },
+      "heap": {
+        "used": 392820186,
+        "total": 398790750
+      }
+    },
+    {
+      "rep": 3,
+      "label": "A",
+      "gpu": {
+        "n": 299,
+        "min": 8.426496,
+        "p50": 11.590656,
+        "p95": 16.09216,
+        "max": 22.25152
+      },
+      "renderCpu": {
+        "n": 897,
+        "min": 9.399999998509884,
+        "p50": 12.300000004470348,
+        "p95": 17.700000002980232,
+        "max": 24.100000001490116
+      },
+      "animationCpu": {
+        "n": 897,
+        "min": 1.6000000014901161,
+        "p50": 2.0999999940395355,
+        "p95": 2.7000000029802322,
+        "max": 62.599999994039536
+      },
+      "combinedCpu": {
+        "n": 897,
+        "min": 11.200000002980232,
+        "p50": 14.399999998509884,
+        "p95": 20.200000002980232,
+        "max": 74.69999998807907
+      },
+      "frames": 897,
+      "frameIntervals": {
+        "n": 896,
+        "min": 23.399999998509884,
+        "p50": 33.30000000447035,
+        "p95": 34.20000000298023,
+        "max": 92.20000000298023
+      },
+      "callbacks": 2691,
+      "queryCount": 299,
+      "disjoint": 0,
+      "pending": 0,
+      "logicalClock": {
+        "beforeWarmup": 164.57909999999214,
+        "afterSample": 205.12979999999564
+      },
+      "hostUpdateDelta": {
+        "pose": 1212,
+        "gesture": 1212,
+        "skeleton": 3636
+      },
+      "drawCalls": {
+        "n": 897,
+        "min": 1537,
+        "p50": 1537,
+        "p95": 1542,
+        "max": 1542
+      },
+      "frameTriangles": {
+        "n": 897,
+        "min": 3407580,
+        "p50": 3407580,
+        "p95": 3408188,
+        "max": 3408188
+      },
+      "geometries": {
+        "n": 897,
+        "min": 1532,
+        "p50": 1532,
+        "p95": 1532,
+        "max": 1532
+      },
+      "textures": {
+        "n": 897,
+        "min": 127,
+        "p50": 127,
+        "p95": 127,
+        "max": 127
+      },
+      "scene": {
+        "triangles": 3412220,
+        "shadowTriangles": 2111307,
+        "meshes": 1615,
+        "skinnedMeshes": 573,
+        "uniqueGeometries": 1600,
+        "uniqueMaterials": 1087,
+        "geometryBufferBytes": 303017250,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      },
+      "garden": {
+        "triangles": 2193265,
+        "shadowTriangles": 897040,
+        "meshes": 822,
+        "skinnedMeshes": 44,
+        "uniqueGeometries": 807,
+        "uniqueMaterials": 307,
+        "geometryBufferBytes": 197927360,
+        "uniqueMaterialTextures": 62,
+        "estimatedRgbaTextureBytes": 66895872.00000003,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          }
+        ]
+      },
+      "clocks": [
+        {
+          "timestamp": "2026/10/20 15:15:40.534",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.58,
+          "temperatureC": 45,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:15:45.636",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.69,
+          "temperatureC": 45,
+          "gpuPercent": 18,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:15:50.643",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.39,
+          "temperatureC": 45,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:15:55.654",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 84.35,
+          "temperatureC": 45,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:16:00.661",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.45,
+          "temperatureC": 45,
+          "gpuPercent": 18,
+          "memoryPercent": 5
+        },
+        {
+          "timestamp": "2026/10/20 15:16:05.667",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.91,
+          "temperatureC": 45,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:16:10.641",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.91,
+          "temperatureC": 45,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        }
+      ],
+      "clockRanges": {
+        "graphicsMHz": {
+          "n": 7,
+          "min": 1755,
+          "p50": 1755,
+          "p95": 1755,
+          "max": 1755
+        },
+        "memoryMHz": {
+          "n": 7,
+          "min": 9701,
+          "p50": 9701,
+          "p95": 9701,
+          "max": 9701
+        },
+        "powerW": {
+          "n": 7,
+          "min": 83.39,
+          "p50": 83.69,
+          "p95": 84.35,
+          "max": 84.35
+        },
+        "temperatureC": {
+          "n": 7,
+          "min": 45,
+          "p50": 45,
+          "p95": 45,
+          "max": 45
+        },
+        "gpuPercent": {
+          "n": 7,
+          "min": 17,
+          "p50": 18,
+          "p95": 19,
+          "max": 19
+        },
+        "memoryPercent": {
+          "n": 7,
+          "min": 4,
+          "p50": 4,
+          "p95": 5,
+          "max": 5
+        }
+      },
+      "heap": {
+        "used": 392879066,
+        "total": 398528606
+      }
+    },
+    {
+      "rep": 3,
+      "label": "B",
+      "gpu": {
+        "n": 300,
+        "min": 8.740864,
+        "p50": 11.430912,
+        "p95": 16.073728,
+        "max": 20.887552
+      },
+      "renderCpu": {
+        "n": 900,
+        "min": 9.099999994039536,
+        "p50": 12.100000001490116,
+        "p95": 17.299999997019768,
+        "max": 24.100000001490116
+      },
+      "animationCpu": {
+        "n": 900,
+        "min": 1.6000000014901161,
+        "p50": 2,
+        "p95": 2.6999999955296516,
+        "max": 44.19999999552965
+      },
+      "combinedCpu": {
+        "n": 900,
+        "min": 10.899999991059303,
+        "p50": 14.100000001490116,
+        "p95": 19.69999999552965,
+        "max": 58.5
+      },
+      "frames": 900,
+      "frameIntervals": {
+        "n": 899,
+        "min": 24.100000001490116,
+        "p50": 33.30000000447035,
+        "p95": 34.20000000298023,
+        "max": 75.89999999850988
+      },
+      "callbacks": 2700,
+      "queryCount": 300,
+      "disjoint": 0,
+      "pending": 0,
+      "logicalClock": {
+        "beforeWarmup": 205.29469999999412,
+        "afterSample": 245.98419999999467
+      },
+      "hostUpdateDelta": {
+        "pose": 1219,
+        "gesture": 1219,
+        "skeleton": 3657
+      },
+      "drawCalls": {
+        "n": 900,
+        "min": 1537,
+        "p50": 1537,
+        "p95": 1537,
+        "max": 1537
+      },
+      "frameTriangles": {
+        "n": 900,
+        "min": 3407580,
+        "p50": 3407580,
+        "p95": 3407580,
+        "max": 3407580
+      },
+      "geometries": {
+        "n": 900,
+        "min": 1532,
+        "p50": 1532,
+        "p95": 1532,
+        "max": 1532
+      },
+      "textures": {
+        "n": 900,
+        "min": 127,
+        "p50": 127,
+        "p95": 127,
+        "max": 127
+      },
+      "scene": {
+        "triangles": 3412220,
+        "shadowTriangles": 2111307,
+        "meshes": 1615,
+        "skinnedMeshes": 573,
+        "uniqueGeometries": 1600,
+        "uniqueMaterials": 1087,
+        "geometryBufferBytes": 303017250,
+        "uniqueMaterialTextures": 67,
+        "estimatedRgbaTextureBytes": 70740650.66666667,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          }
+        ]
+      },
+      "garden": {
+        "triangles": 2193265,
+        "shadowTriangles": 897040,
+        "meshes": 822,
+        "skinnedMeshes": 44,
+        "uniqueGeometries": 807,
+        "uniqueMaterials": 307,
+        "geometryBufferBytes": 197927360,
+        "uniqueMaterialTextures": 62,
+        "estimatedRgbaTextureBytes": 66895872.00000003,
+        "textureImages": [
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 143,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 104,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 171,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 94,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 453,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 125,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 360,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 128,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 352,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 276,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 87,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 86,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 466,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 74,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 489,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 370,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 118,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 515,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 834,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 149,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 93,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 109,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "texture_0_metallic_roughness",
+            "width": 1024,
+            "height": 1024,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 85,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 512,
+            "height": 512,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 140,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 100,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 72,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 256,
+            "height": 256,
+            "mipmaps": true
+          },
+          {
+            "name": "",
+            "width": 768,
+            "height": 115,
+            "mipmaps": true
+          }
+        ]
+      },
+      "clocks": [
+        {
+          "timestamp": "2026/10/20 15:16:21.269",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 83.58,
+          "temperatureC": 45,
+          "gpuPercent": 17,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:16:26.371",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 85.83,
+          "temperatureC": 45,
+          "gpuPercent": 18,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:16:31.375",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 85.68,
+          "temperatureC": 46,
+          "gpuPercent": 19,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:16:36.379",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 85.78,
+          "temperatureC": 45,
+          "gpuPercent": 20,
+          "memoryPercent": 5
+        },
+        {
+          "timestamp": "2026/10/20 15:16:41.383",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 85.57,
+          "temperatureC": 45,
+          "gpuPercent": 21,
+          "memoryPercent": 5
+        },
+        {
+          "timestamp": "2026/10/20 15:16:46.399",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 85.63,
+          "temperatureC": 46,
+          "gpuPercent": 18,
+          "memoryPercent": 4
+        },
+        {
+          "timestamp": "2026/10/20 15:16:51.401",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 85.14,
+          "temperatureC": 45,
+          "gpuPercent": 21,
+          "memoryPercent": 5
+        },
+        {
+          "timestamp": "2026/10/20 15:16:51.479",
+          "pstate": "P0",
+          "graphicsMHz": 1755,
+          "memoryMHz": 9701,
+          "powerW": 85.14,
+          "temperatureC": 45,
+          "gpuPercent": 21,
+          "memoryPercent": 5
+        }
+      ],
+      "clockRanges": {
+        "graphicsMHz": {
+          "n": 8,
+          "min": 1755,
+          "p50": 1755,
+          "p95": 1755,
+          "max": 1755
+        },
+        "memoryMHz": {
+          "n": 8,
+          "min": 9701,
+          "p50": 9701,
+          "p95": 9701,
+          "max": 9701
+        },
+        "powerW": {
+          "n": 8,
+          "min": 83.58,
+          "p50": 85.57,
+          "p95": 85.83,
+          "max": 85.83
+        },
+        "temperatureC": {
+          "n": 8,
+          "min": 45,
+          "p50": 45,
+          "p95": 46,
+          "max": 46
+        },
+        "gpuPercent": {
+          "n": 8,
+          "min": 17,
+          "p50": 19,
+          "p95": 21,
+          "max": 21
+        },
+        "memoryPercent": {
+          "n": 8,
+          "min": 4,
+          "p50": 4,
+          "p95": 5,
+          "max": 5
+        }
+      },
+      "heap": {
+        "used": 392615627,
+        "total": 397217243
+      }
+    }
+  ],
+  "camera": {
+    "type": "OrthographicCamera",
+    "position": [
+      0,
+      65.50852961085883,
+      89.81462390204986
+    ],
+    "matrixWorld": [
+      1,
+      0,
+      0,
+      0,
+      0,
+      0.816496580927726,
+      -0.5773502691896258,
+      0,
+      0,
+      0.5773502691896258,
+      0.816496580927726,
+      0,
+      0,
+      65.50852961085883,
+      89.81462390204986,
+      1
+    ],
+    "projection": [
+      0.019230769230769232,
+      0,
+      0,
+      0,
+      0,
+      0.03109273903666427,
+      0,
+      0,
+      0,
+      0,
+      -0.0066688896298766264,
+      0,
+      0,
+      0,
+      -1.000666888962988,
+      1
+    ],
+    "target": [
+      0,
+      2,
+      0
+    ],
+    "zoom": 1,
+    "drawingBuffer": {
+      "width": 1384,
+      "height": 856
+    }
+  },
+  "counts": {
+    "actors": 42,
+    "visitors": 4,
+    "meetingGuests": 6,
+    "claudeBao": [
+      {
+        "id": "orchestrator",
+        "visitor": false,
+        "guest": false,
+        "species": null,
+        "switched": true
+      }
+    ]
+  },
+  "sameCameraAllRows": true,
+  "sameSceneCountsAllRows": true,
+  "sameGardenAllRows": true,
+  "medianGpuHeadroom": {
+    "A": 0.8095679999999987,
+    "B": 0.6262720000000002,
+    "eachUnder16_7": true
+  },
+  "limitations": [
+    "Final query backlog/disjoint are recorded; per-query availability lag is not recorded by this unchanged collector.",
+    "Full camera world/projection matrices and host root transform recorded; bone/pose matrices are not. Logical clock before warmup and after sample is recorded, not every frame.",
+    "Matched callback tags/counts do not prove identical branch work for all moving actors/garden routines across the continuous clock.",
+    "GPU utilization is total-device telemetry, not per-frame/device busy or process attribution.",
+    "Calibration median pass cannot accept Bao or waive the existing paired stop or failed60."
+  ],
+  "independentVerification": "Runner independently recomputed all six GPU/combinedCPU p95s, median3 and pair differences, query/frame/callback/context/parked guards and frozen hashes; all match.",
+  "cleanup": {
+    "ownedBrowserClosed": true,
+    "ownedServerPid": 71338,
+    "ownedServerStopped": true,
+    "quietReleasedByRoot": true
+  }
+}
