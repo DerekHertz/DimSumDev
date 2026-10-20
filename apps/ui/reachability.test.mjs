@@ -91,7 +91,7 @@ test("live-App recognition accepts UI dev and production browser sources and rej
   `;
   const development = `
     import { createServer } from 'vite';
-    const server = await createServer({ configFile: 'apps/ui/vite.config.mjs' });
+    const server = await createServer({ configFile: 'apps/ui/vite.config.mjs', configLoader: 'native' });
     await server.listen();
     ${browserSetup}
     await page.goto(server.resolvedUrls.local[0]);
