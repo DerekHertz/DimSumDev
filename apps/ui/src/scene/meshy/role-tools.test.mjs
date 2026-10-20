@@ -6,7 +6,7 @@ import {ROLE_OUTFITS} from './role-outfits.mjs';
 import {disposeWorld} from './assets.mjs';
 test('every permanent role has its own finite paw-sized tool and independent resources',()=>{
  assert.deepEqual(Object.keys(ROLE_TOOLS).sort(),ROLE_OUTFITS.map(o=>o.id).sort());
- assert.equal(new Set(Object.values(ROLE_TOOLS)).size,15);
+ assert.equal(new Set(Object.values(ROLE_TOOLS)).size,ROLE_OUTFITS.length);
  const geometries=new Set(),materials=new Set();
  for(const role of Object.keys(ROLE_TOOLS)){
   const tool=createRoleTool(role),size=new T.Box3().setFromObject(tool).getSize(new T.Vector3());
