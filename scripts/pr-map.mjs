@@ -93,8 +93,8 @@ export function prMap({ map, files, imports, changed }) {
   const areaId = (id) => `a_${id.replace(/\W/g, "_")}`;
   const links = map.links.map((l) => `  ${areaId(l.from)} -.->|${label(l.label)}| ${areaId(l.to)}`);
   const restOf = (id) => [...modules.get(id)].filter((m) => !edited.has(m) && !rippled.has(m)).length;
-  const nodeCount = shown.length + map.areas.filter((a) => !opened.has(a.id) || restOf(a.id) > 0).length;
-  const collapsed = nodeCount > MAX_NODES;
+  // The area boxes show on every map, so the limit counts only the parts this change edits or ripples.
+  const collapsed = shown.length > MAX_NODES;
 
   const lines = ["flowchart LR"];
   if (collapsed) {
@@ -114,7 +114,8 @@ export function prMap({ map, files, imports, changed }) {
       // Group the area's shown modules by folder, relative to where the area's paths start.
       const groups = new Map();
       for (const m of shown.filter((m) => areaOfModule.get(m) === a.id)) {
-        const rel = m.slice((a.paths.map(literalDir).find((d) => d && m.startsWith(d)) ?? "").length);
+        const root = literalDir(a.paths[0]); // only the first path's folder is trimmed, so a mirror keeps its own
+        const rel = root && m.startsWith(root) ? m.slice(root.length) : m;
         const dir = path.posix.dirname(rel);
         if (!groups.has(dir)) groups.set(dir, []);
         groups.get(dir).push([m, path.posix.basename(rel)]);
@@ -147,7 +148,7 @@ export function renderBlock({ mermaid, blastRadius, unmapped, collapsed, legend 
     "```",
     "",
     legend,
-    ...(collapsed ? [`Collapsed to areas: the change touches more than ${MAX_NODES} parts, so each area shows its count of edited modules.`] : []),
+    ...(collapsed ? [`Collapsed to areas: the change edits or ripples more than ${MAX_NODES} modules, so each area shows its count of edited modules.`] : []),
     ...(unmapped.length ? [`Unmapped: ${unmapped.map((p) => `\`${p}\``).join(", ")} (no area in docs/system-map.json claims these).`] : []),
     "",
     `**Blast radius:** ${blastRadius.length ? blastRadius.join(", ") : "none"}`,

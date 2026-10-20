@@ -115,6 +115,21 @@ test("past the node limit the map collapses to areas labelled with edited counts
   assert.equal(run(["ui/app.mjs"]).collapsed, false);
 });
 
+test("a mirror under an area's second path stays in its own labelled folder", () => {
+  const map = { areas: [{ id: "roles", paths: [".claude/agents/**", ".codex/agents/**"] }], links: [] };
+  const files = [".claude/agents/dev.md", ".codex/agents/dev.toml"];
+  const { mermaid } = prMap({ map, files, imports: [], changed: files });
+  assert.match(mermaid, /subgraph \w+\["\.codex\/agents"\]\n\s+m\d+\["dev"\]/);
+  assert.equal(mermaid.match(/subgraph d/g).length, 1, "the first path's modules sit at the area's top");
+});
+
+test("the node limit counts edited and rippled parts, not the area boxes every map shows", () => {
+  const areas = Array.from({ length: MAX_NODES }, (_, i) => ({ id: `area${i}`, paths: [`area${i}/**`] }));
+  const files = areas.flatMap((a) => [`${a.id}/x.mjs`, `${a.id}/y.mjs`]);
+  const changed = areas.slice(0, 5).map((a) => `${a.id}/x.mjs`);
+  assert.equal(prMap({ map: { areas, links: [] }, files, imports: [], changed }).collapsed, false);
+});
+
 test("a changed path with no area is reported, not dropped", () => {
   const result = run(["stray/file.txt", "ui/app.mjs"]);
   assert.deepEqual(result.unmapped, ["stray/file.txt"]);
