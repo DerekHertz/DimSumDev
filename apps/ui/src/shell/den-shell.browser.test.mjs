@@ -240,7 +240,11 @@ test('all former destinations survive, every charter role is listed, and 20 cycl
         const text = await sheet.innerText();
         for (const part of ['Open thread', 'Allow', '03-delivery', '04-gate', 'router stop']) assert.ok(text.includes(part), `Needs retains ${part}`);
       }
-      if (cycle === 0 && id === 'queue') assert.match(await sheet.innerText(), /01: Ready work/);
+      if (cycle === 0 && id === 'queue') {
+        const ready = sheet.locator('.queue-ticket-row').filter({ has: page.getByText('Ready work', { exact: true }) });
+        assert.equal(await ready.count(), 1);
+        assert.equal(await ready.locator('.queue-ticket-ref').innerText(), '01');
+      }
       if (cycle === 0 && id === 'work') {
         assert.ok(await sheet.locator('[data-team-pill=steamers]').count());
         assert.match(await sheet.locator('.slots').innerText(), /02-active/);
