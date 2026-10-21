@@ -68,7 +68,7 @@ export function createTeaGarden(){
   bamboo(root,[-4.0,.21,1.7],.85);bamboo(root,[3.7,.21,-2.45],1.0,false);flowers(root,[.4,.21,-2.7],'pink',1.1);bao(root,[-.1,.35,2.25],.7);
   k.finish();
   const koi=createKoi(k,pond);
-  return{root,shade,pond,koi,dispose:k.dispose,setShadeVisible(v){shade.visible=v;},
+  return{root,shade,pond,waterSurface:pond.children.find(m=>m.material===waterMaterial),koi,dispose:k.dispose,setShadeVisible(v){shade.visible=v;},
     residents:[{id:'tea-host',position:[-1.45,.445,-1.5],yaw:.18,color:'#709b86',pose:'standing'},{id:'tea-guest',position:[-.42,.445,1.12],yaw:-.5,color:'#c68f7d',pose:'seated'}],
     views:{overview:{position:[10.5,8.9,13.8],target:[0,1.7,.15],shade:true},detail:{position:[6.5,6.0,7.4],target:[1.6,.65,.65],shade:false},approach:{position:[-5.6,3.5,6.7],target:[-1.5,1.2,-.2],shade:true}}};
 }
