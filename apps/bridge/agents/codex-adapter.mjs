@@ -2,13 +2,13 @@
 // module launches no process, loads no login/config and registers no CellRuntime.
 // The eventual protected compiler/launcher integration must supply the execution
 // authorizer; fixture injection proves protocol behavior, never confinement.
-import { TextDecoder } from "node:util";
+import { TextDecoder, isDeepStrictEqual } from "node:util";
 import { hasSecret } from "../../../scripts/exposure.mjs";
 
 export const CODEX_PRODUCTION_ENABLED = false;
 export const MAX_FRAME_BYTES = 1_000_000;
 const DEFAULTS = Object.freeze({ frameBytes: MAX_FRAME_BYTES, pending: 32, events: 256, serverRequests: 1000,
-  messages: 200, pages: 32, models: 1000, requestTimeoutMs: 10000, questionTimeoutMs: 600000 });
+  messages: 200, turns: 1000, pages: 32, models: 1000, requestTimeoutMs: 10000, questionTimeoutMs: 600000 });
 const BODY_MAX = 16000;
 const object = (value) => value !== null && typeof value === "object" && !Array.isArray(value);
 const id = (value) => (typeof value === "string" && /^[A-Za-z0-9_.:-]{1,256}$/.test(value)) || (Number.isSafeInteger(value) && value >= 0);
@@ -46,6 +46,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
   let loadingCatalog;
   const pending = new Map();
   const serverIds = new Set();
+  const seenTurns = new Set(); // Never evict: an old native identity must never become current again.
   const questions = new Map();
   const messages = new Map();
   const earlyEvents = [];
@@ -143,7 +144,10 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     const eventTurn = method.startsWith("turn/") ? params?.turn?.id : params?.turnId;
     if (method === "thread/tokenUsage/updated") return; // usage translation is a separate adapter step; never infer totals
     if (!thread || params?.threadId !== thread.id || !nativeId(eventTurn)) return fail("foreign thread or invalid event identity");
-    if (!turnId && eventTurn === endedTurn && method === "turn/completed") return;
+    if (!turnId && eventTurn === endedTurn?.id && method === "turn/completed") {
+      if (params.turn.status !== endedTurn.status || !isDeepStrictEqual(params.turn.error ?? null, endedTurn.error)) return fail("contradictory turn completion");
+      return;
+    }
     if (eventTurn !== turnId) return fail("foreign or stale turn notification");
     if (method === "turn/started") return;
     if (method === "turn/completed") {
@@ -151,7 +155,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       if (!["completed", "interrupted", "failed"].includes(status)) return fail("invalid turn completion");
       discardQuestions("Turn ended");
       messages.clear();
-      endedTurn = turnId;
+      endedTurn = { id: turnId, status, error: params.turn.error ?? null };
       turnId = null;
       interrupting = false;
       emit({ type: "done", ok: status === "completed" });
@@ -288,6 +292,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     ensureOpen();
     if (!thread || turnId || startingTurn) throw new CodexProtocolError("no prepared idle thread");
     if (!text(input) || !input.trim()) throw new CodexProtocolError("invalid turn input");
+    if (seenTurns.size >= limits.turns) throw fail("turn identity limit reached; a fresh protocol session is required");
     startingTurn = true;
     try {
       const policy = await authorize({ phase: "turn", ...thread });
@@ -295,11 +300,13 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       const response = await rpc("turn/start", { threadId: thread.id, input: [{ type: "text", text: input }], model: thread.model, effort: thread.effort,
         cwd: thread.cwd, permissions: thread.profileId, approvalPolicy: "never", approvalsReviewer: "user", multiAgentMode: "explicitRequestOnly" });
       if (!object(response) || !nativeId(response.turn?.id) || !["inProgress", "completed", "failed", "interrupted"].includes(response.turn.status)) throw fail("invalid turn acknowledgement");
+      if (seenTurns.has(response.turn.id)) throw fail("reused turn identity");
+      seenTurns.add(response.turn.id);
       turnId = response.turn.id;
       endedTurn = null;
       startingTurn = false;
       for (const event of earlyEvents.splice(0)) notification(event.method, event.params);
-      if (turnId && response.turn.status !== "inProgress") notification("turn/completed", { threadId: thread.id, turn: response.turn });
+      if (response.turn.status !== "inProgress") notification("turn/completed", { threadId: thread.id, turn: response.turn });
       ensureOpen();
       return response.turn.id;
     } finally { startingTurn = false; }

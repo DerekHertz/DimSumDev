@@ -356,3 +356,62 @@ test("secret-pattern question IDs, headers, prompts and option text are refused 
   for await (const event of fx.protocol.events) received.push(event);
   assert.ok(!received.some((event) => event.type === "permission-request"));
 });
+
+test("a reused completed native turn ID cannot admit delayed old output as a new turn", async () => {
+  let starts = 0;
+  const fx = fixture({ handler(message, respond, protocol) {
+    if (message.method === "initialize") return respond(message.id, { userAgent: "fixture" });
+    if (message.method === "model/list") return respond(message.id, models());
+    if (message.method === "thread/start") return respond(message.id, { thread: { id: "thread-1" }, model: MODEL, cwd: "/fixture", activePermissionProfile: { id: PROFILE } });
+    if (++starts === 2) protocol.feed(JSON.stringify({ method: "item/agentMessage/delta", params: {
+      threadId: "thread-1", turnId: "turn-1", itemId: "old-item", delta: "stale-output" } }) + "\n");
+    respond(message.id, { turn: { id: "turn-1", status: "inProgress" } });
+  } });
+  await started(fx);
+  fx.notify("turn/completed", { threadId: "thread-1", turn: { id: "turn-1", status: "completed" } });
+  await assert.rejects(fx.protocol.startTurn("Fresh work"), /reused turn identity/);
+  assert.equal(fx.closed, 1);
+  const received = [];
+  for await (const event of fx.protocol.events) received.push(event);
+  assert.ok(!received.some((event) => event.type === "text"));
+  assert.equal(received.filter((event) => event.type === "done").length, 1);
+});
+
+test("only identical terminal status and error duplicates are ignored", async () => {
+  for (const change of ["status", "error"]) {
+    const fx = fixture();
+    await started(fx);
+    const terminal = { id: "turn-1", status: "failed", error: { message: "fixture failure", codexErrorInfo: "other" } };
+    fx.notify("turn/completed", { threadId: "thread-1", turn: terminal });
+    // Object key order is irrelevant, while a changed error or verdict is not.
+    fx.notify("turn/completed", { threadId: "thread-1", turn: { ...terminal, error: { codexErrorInfo: "other", message: "fixture failure" } } });
+    assert.equal(fx.closed, 0);
+    fx.notify("turn/completed", { threadId: "thread-1", turn: change === "status" ? { ...terminal, status: "completed" }
+      : { ...terminal, error: { message: "different failure", codexErrorInfo: "other" } } });
+    assert.equal(fx.closed, 1);
+    const received = [];
+    for await (const event of fx.protocol.events) received.push(event);
+    assert.deepEqual(received.filter((event) => event.type === "done"), [{ type: "done", ok: false }]);
+  }
+});
+
+test("a terminal start acknowledgement must agree with an earlier completion", async () => {
+  const fx = fixture({ handler(message, respond, protocol) {
+    if (message.method === "initialize") return respond(message.id, { userAgent: "fixture" });
+    if (message.method === "model/list") return respond(message.id, models());
+    if (message.method === "thread/start") return respond(message.id, { thread: { id: "thread-1" }, model: MODEL, cwd: "/fixture", activePermissionProfile: { id: PROFILE } });
+    protocol.feed(JSON.stringify({ method: "turn/completed", params: { threadId: "thread-1", turn: { id: "turn-1", status: "completed" } } }) + "\n");
+    respond(message.id, { turn: { id: "turn-1", status: "failed", error: { message: "late contradiction" } } });
+  } });
+  await assert.rejects(started(fx), /contradictory turn completion/);
+  assert.equal(fx.closed, 1);
+});
+
+test("the bounded native turn identity history closes before any further native start", async () => {
+  const fx = fixture({ limits: { turns: 1 } });
+  await started(fx);
+  fx.notify("turn/completed", { threadId: "thread-1", turn: { id: "turn-1", status: "completed" } });
+  await assert.rejects(fx.protocol.startTurn("Cannot evict history"), /turn identity limit/);
+  assert.equal(fx.sent.filter((message) => message.method === "turn/start").length, 1);
+  assert.equal(fx.closed, 1);
+});
