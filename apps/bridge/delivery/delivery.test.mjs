@@ -1163,3 +1163,139 @@ describe("the pull request body carries the four sections", () => {
     assert.match(section(body, "Risk"), /two-way/);
   });
 });
+
+// team-and-den-ux/17 (ADR 0029 decision 3): the floor in a delivery. The scripted check runs first and stores the floor; the
+// steps that follow are the roles of the floor plus the owner's additions (start's `roles`), never fewer.
+describe("delivery reads its steps from the floor", () => {
+  const DOC = `${FEATURE}/11-notes`;
+  const ticket = (type) => (root) => writeFile(path.join(root, ".scratch", FEATURE, "issues", "11-notes.md"), `# 11: Notes\n\n**Type:** ${type}\n\n**Blocked by:** None\n\n**Status:** ready-for-agent\n\n## Comments\n\n`);
+  const docsTicket = () => setup({ preWrite: ticket("docs") });
+  const roleOf = (rec) => rec.args.role;
+  const prBody = (t) => t.git.calls.find((c) => c[0] === "openPr")[1].body;
+
+  test("a docs ticket is written by the technical writer, runs no qa and no code reviewer, and merges on green", async () => {
+    const t = await docsTicket();
+    t.git.files = ["docs/notes.md"];
+    let guarded = false;
+    t.git.guard = async () => { guarded = true; return { hits: [] }; };
+    await t.start({ ref: DOC });
+    const writer = await t.spawn(0);
+    assert.equal(roleOf(writer), "technical-writer");
+    assert.match(writer.args.prompt, /technical-writer agent for ticket/);
+    t.work(writer, { commit: "notes.txt", say: "Wrote the notes." });
+    const done = await t.when((j) => j.state === "merged", "the delivery to merge");
+    assert.equal(t.fake.spawns.length, 1, "no other agent ran");
+    assert.deepEqual(done.runs.map((r) => r.role), ["technical-writer"]);
+    assert.equal(guarded, false, "the test guard is for qa, and qa did not run");
+    assert.deepEqual(t.sideEffects(), ["push", "openPr", "waitChecks", "merge"]);
+    assert.deepEqual(done.roles, ["technical-writer"]);
+    assert.deepEqual(done.floor.roles, ["technical-writer"]);
+    assert.match(prBody(t), /Floor:.*technical-writer/);
+    assert.doesNotMatch(prBody(t), /qa verify:/, "the Evidence does not assume qa ran");
+  });
+
+  test("a code ticket with no UI path runs no writer and no preview; the job shows its roles and why", async () => {
+    const t = await setup();
+    await t.start();
+    t.work(await t.spawn(0), { commit: "feature.txt", say: "Added." });
+    t.work(await t.spawn(1), { say: "VERDICT: pass" });
+    const done = await t.when((j) => j.state === "merged", "the delivery to merge");
+    assert.deepEqual(done.runs.map((r) => r.role), ["developer", "code-reviewer", "qa"]);
+    assert.deepEqual(done.roles, ["code-reviewer", "qa"]);
+    assert.deepEqual(done.floor.roles, ["code-reviewer", "qa"]);
+    assert.equal(typeof done.floor.why.qa, "string");
+    assert.match(prBody(t), /Floor:.*code-reviewer.*qa/);
+  });
+
+  test("the writer runs after the developer, its commit is a new candidate, and the reviews read that commit", async () => {
+    const t = await setup();
+    t.git.files = ["tools/x.mjs", "docs/a.md"];
+    await t.start();
+    const first = t.work(await t.spawn(0), { commit: "feature.txt", say: "Added." });
+    const writer = await t.spawn(1);
+    assert.equal(roleOf(writer), "technical-writer");
+    assert.equal(git(writer.args.cwd, "rev-parse", "HEAD"), first);
+    assert.match(writer.args.prompt, new RegExp(`git diff ${git(t.root, "rev-parse", "HEAD")}\\.\\.HEAD`), "it reads the candidate's diff");
+    const second = t.work(writer, { commit: "docs-note.txt", say: "Updated the docs." });
+    assert.notEqual(second, first);
+    const reviewer = await t.spawn(2);
+    assert.equal(roleOf(reviewer), "code-reviewer");
+    assert.equal(git(reviewer.args.cwd, "rev-parse", "HEAD"), second, "the reviews read the writer's commit");
+    const qa = await t.spawn(3);
+    assert.equal(roleOf(qa), "qa");
+    assert.equal(git(qa.args.cwd, "rev-parse", "HEAD"), second);
+    t.work(qa, { say: "VERDICT: pass" });
+    const done = await t.when((j) => j.state === "merged", "the delivery to merge");
+    assert.equal(t.git.calls.find((c) => c[0] === "push")[1].sha, second);
+    assert.equal(done.bounces, 0, "a writer commit is not a bounce");
+  });
+
+  test("a writer run that commits nothing still counts: the reviews follow at the same commit", async () => {
+    const t = await setup();
+    t.git.files = ["tools/x.mjs", "docs/a.md"];
+    await t.start();
+    const sha = t.work(await t.spawn(0), { commit: "feature.txt", say: "Added." });
+    t.work(await t.spawn(1), { say: "The docs are already true." });
+    const reviewer = await t.spawn(2);
+    assert.deepEqual([roleOf(reviewer), git(reviewer.args.cwd, "rev-parse", "HEAD")], ["code-reviewer", sha]);
+    assert.equal((await t.job()).state, "running", "no pause for a writer that changed nothing");
+  });
+
+  test("the owner adds qa to a docs-only ticket: it runs", async () => {
+    const t = await docsTicket();
+    t.git.files = ["docs/notes.md"];
+    await t.start({ ref: DOC, roles: ["qa"] });
+    t.work(await t.spawn(0), { commit: "notes.txt", say: "Wrote the notes." });
+    const qa = await t.spawn(1);
+    assert.deepEqual([roleOf(qa), qa.args.mode], ["qa", "verify"]);
+    t.work(qa, { say: "VERDICT: pass" });
+    const done = await t.when((j) => j.state === "merged", "the delivery to merge");
+    assert.deepEqual(done.roles, ["technical-writer", "qa"]);
+  });
+
+  test("roles: [] drops nothing from the floor", async () => {
+    const t = await setup();
+    await t.start({ ref: REF, roles: [] });
+    t.work(await t.spawn(0), { commit: "feature.txt", say: "Added." });
+    assert.equal(roleOf(await t.spawn(1)), "qa");
+    assert.deepEqual((await t.job()).roles, ["code-reviewer", "qa"]);
+  });
+
+  test("a roles value that is not a list of the five role names is a 400, and nothing starts", async () => {
+    const t = await setup();
+    for (const roles of ["qa", { qa: true }, ["nope"], [1], ["qa", null], ["qa", "code-reviewer", "technical-writer", "security", "user-verdict", "qa"], ["developer"]]) {
+      const res = await t.post("/deliveries", { ref: REF, roles });
+      assert.equal(res.status, 400, JSON.stringify(roles));
+      assert.match(res.body.error, /roles/);
+    }
+    assert.equal(t.fake.spawns.length, 0);
+    assert.deepEqual((await t.state()).deliveries ?? [], []);
+  });
+
+  test("a docs ticket's fix round after red checks goes to the technical writer, with the findings", async () => {
+    const t = await docsTicket();
+    t.git.files = ["docs/notes.md"];
+    t.git.checks = [{ name: "test", done: true, ok: false, cancelled: false, jobId: "1", runId: "900" }];
+    t.git.logs["1"] = "test\tRun\t2026-10-14T20:00:00.0000000Z not ok 1 - the docs link check";
+    await t.start({ ref: DOC });
+    t.work(await t.spawn(0), { commit: "notes.txt", say: "Wrote the notes." });
+    const fix = await t.spawn(1);
+    assert.equal(roleOf(fix), "technical-writer");
+    assert.match(readFileSync(path.join(fix.args.cwd, ".den", "findings.md"), "utf8"), /pull request #7 failed/);
+  });
+
+  test("a hand-up that skips a floor role is refused: nothing is pushed, opened or merged", async () => {
+    // The bridge asks again, at the hand-up, which roles the commit needs and what is on record for them. Here the files the
+    // commit changes read as plain code while the reviews run, then as a user-merge path at the hand-up: security was required
+    // and never ran. (If the hand-up reads the floor it stored instead, qa and the developer pick another seam.)
+    const t = await setup();
+    let reads = 0;
+    t.git.changed = async () => (reads++ === 0 ? ["tools/x.mjs"] : ["apps/bridge/agents/host.mjs"]);
+    await t.start();
+    await t.toQaPass();
+    const waiting = await t.paused("floor-gap");
+    assert.match(waiting.pause.reason, /security/);
+    assert.deepEqual(t.sideEffects(), [], "no push, no pull request, no merge");
+    assert.equal(t.git.pr, null);
+  });
+});

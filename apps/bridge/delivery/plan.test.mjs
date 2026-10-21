@@ -515,3 +515,107 @@ describe("the git-host operations", () => {
     assert.equal(failed, 1, "a red check ends the wait; prState says what it showed");
   });
 });
+
+// team-and-den-ux/17 (ADR 0029 decision 3): the plan reads its steps from the floor. The scripted check runs first, because the
+// floor needs the changed paths; it stores the floor on evidence.risk ({ roles, why }). The owner's additions are job.roles.
+// A job of type "docs" is authored by the technical writer, and a writer run counts as evidence.writer at the sha it ended on.
+describe("the delivery plan reads its steps from the floor", () => {
+  const CODE = ["code-reviewer", "qa"];
+  const DOCS = ["technical-writer"];
+  const UI = ["technical-writer", "code-reviewer", "qa", "security", "user-verdict"];
+  const withFloor = (roles, more = {}) => riskOf({ floor: { roles, why: {} }, ...more });
+  const WRITTEN = { sha: SHA, runId: RUN };
+  const PASS = { sha: SHA, verdict: "pass" };
+  const j = (evidence = {}, more = {}) => ({ base: BASE, candidate: { sha: SHA }, bounces: 0, visual: false, type: "feature", evidence, ...more });
+  const step = (role, extra = {}) => ({ kind: "run", role, at: SHA, since: BASE, ...extra });
+
+  test("the scripted check runs before any review, because the floor needs the changed paths", () => {
+    assert.deepEqual(nextStep(j({})), { kind: "check" });
+    assert.deepEqual(nextStep(j({ review: PASS, qa: PASS })), { kind: "check" }, "a review does not stand in for the check");
+    assert.deepEqual(nextStep(j({ risk: riskOf({ sha: OLD }) })), { kind: "check" }, "a check of an older commit does not count");
+    assert.equal(nextStep(j({ risk: withFloor(CODE, { secret: true }) })).pause, "possible-secret", "the secret pause comes before any review");
+  });
+
+  test("a code ticket: the code reviewer, the test guard, qa, then on to the push, and no writer or preview", () => {
+    const risk = withFloor(CODE);
+    assert.deepEqual(nextStep(j({ risk })), step("code-reviewer"));
+    assert.deepEqual(nextStep(j({ risk, review: PASS }, { testGuard: true })), { kind: "guard" });
+    assert.deepEqual(nextStep(j({ risk, review: PASS })), step("qa", { mode: "verify" }));
+    assert.deepEqual(nextStep(j({ risk, review: PASS, qa: PASS, sync: synced() })), { kind: "publish" }, "no technical-writer step for a code change");
+  });
+
+  test("a docs ticket is authored by the technical writer, from the base, with no developer", () => {
+    assert.deepEqual(nextStep({ base: BASE, candidate: null, bounces: 0, type: "docs", evidence: {} }), { kind: "run", role: "technical-writer", at: BASE, since: BASE });
+    assert.deepEqual(nextStep({ base: BASE, candidate: null, bounces: 0, type: "feature", evidence: {} }), { kind: "run", role: "developer", at: BASE, since: BASE });
+  });
+
+  test("docs-only: the writer's own candidate is writer evidence; no review, no qa and no test guard, then on to the push", () => {
+    const risk = withFloor(DOCS);
+    assert.deepEqual(nextStep(j({ risk, writer: WRITTEN }, { type: "docs", testGuard: true })), { kind: "sync" });
+    assert.deepEqual(nextStep(j({ risk, writer: WRITTEN, sync: synced() }, { type: "docs", testGuard: true })), { kind: "publish" });
+    assert.deepEqual(nextStep(j({ risk, writer: WRITTEN, sync: synced(), pr: open.pr, ci: green.ci }, { type: "docs" })), { kind: "merge" }, "merge on green");
+  });
+
+  test("docs-only on a developer's candidate (type feature, every path docs): the writer runs after the author", () => {
+    assert.deepEqual(nextStep(j({ risk: withFloor(DOCS) })), step("technical-writer"));
+    assert.deepEqual(nextStep(j({ risk: withFloor(DOCS), writer: { ...WRITTEN, sha: OLD } })), step("technical-writer"), "a writer run on an older commit does not count");
+    assert.deepEqual(nextStep(j({ risk: withFloor(DOCS), writer: WRITTEN })), { kind: "sync" });
+  });
+
+  test("docs-only with a risk hit still goes to security", () => {
+    assert.deepEqual(nextStep(j({ risk: withFloor([...DOCS, "security"], { clean: false, hits: 1, security: true }), writer: WRITTEN, sync: synced() }, { type: "docs" })), step("security"));
+  });
+
+  test("the author takes every fix round: the writer for a docs ticket, the developer otherwise", () => {
+    const risk = withFloor(DOCS);
+    const redCi = { ...open, writer: WRITTEN, risk, ci: { sha: SHA, state: "red", failed: ["test"] } };
+    assert.deepEqual(nextStep(j(redCi, { type: "docs", bounces: 1 })), step("technical-writer", { fix: true }));
+    assert.deepEqual(nextStep(j({ ...redCi, risk: withFloor(CODE), review: PASS, qa: PASS }, { type: "feature", bounces: 1 })), step("developer", { fix: true }));
+    assert.deepEqual(nextStep(j({ risk, writer: WRITTEN, sync: synced({ conflicts: ["docs/a.md"] }) }, { type: "docs" })), step("technical-writer", { fix: true, sync: MAIN }));
+    assert.deepEqual(nextStep(j({ risk, writer: WRITTEN, verdict: { sha: SHA, ok: false } }, { type: "docs" })), step("technical-writer", { fix: true }));
+  });
+
+  test("a change to the UI: the writer after the author, then the reviews, security, the preview and the user's verdict", () => {
+    const risk = withFloor(UI, { ui: true, security: true });
+    assert.deepEqual(nextStep(j({ risk })), step("technical-writer"));
+    assert.deepEqual(nextStep(j({ risk, writer: WRITTEN })), step("code-reviewer"));
+    assert.deepEqual(nextStep(j({ risk, writer: WRITTEN, review: PASS })), step("qa", { mode: "verify" }));
+    assert.deepEqual(nextStep(j({ risk, writer: WRITTEN, review: PASS, qa: PASS })), step("security"));
+    const secured = { risk, writer: WRITTEN, review: PASS, qa: PASS, security: PASS };
+    assert.deepEqual(nextStep(j(secured)), { kind: "preview" });
+    assert.equal(nextStep(j({ ...secured, preview: { sha: SHA, ok: true } })).pause, "visual-verdict");
+    assert.deepEqual(nextStep(j({ ...secured, preview: { sha: SHA, ok: true }, verdict: { sha: SHA, ok: true } })), { kind: "sync" });
+  });
+
+  test("a writer's new commit is a new candidate: nothing counted for the old one carries over, and the check comes first", () => {
+    const old = { risk: withFloor(UI, { ui: true, sha: OLD }), writer: { sha: OLD, runId: RUN }, review: { sha: OLD, verdict: "pass" } };
+    assert.deepEqual(nextStep(j(old)), { kind: "check" });
+  });
+
+  test("the user's verdict comes from the roles: before the merge, on any ticket whose roles ask for it", () => {
+    const ci = { ...open, ci: green.ci, review: PASS, qa: PASS };
+    const risk = withFloor([...CODE, "user-verdict"]);
+    assert.equal(nextStep(j({ ...ci, risk })).pause, "visual-verdict");
+    assert.deepEqual(nextStep(j({ ...ci, risk, verdict: { sha: SHA, ok: true } })), { kind: "merge" });
+    assert.equal(nextStep(j({ ...ci, risk: withFloor(CODE) }, { roles: ["user-verdict"] })).pause, "visual-verdict", "an owner can add the verdict");
+  });
+
+  test("the owner adds roles: qa on a docs-only ticket, security on a clean one, the writer on a code ticket", () => {
+    const docs = { risk: withFloor(DOCS), writer: WRITTEN, sync: synced() };
+    assert.deepEqual(nextStep(j(docs, { type: "docs", roles: ["qa"] })), step("qa", { mode: "verify" }));
+    assert.deepEqual(nextStep(j({ ...docs, qa: PASS }, { type: "docs", roles: ["qa"] })), { kind: "publish" });
+    assert.deepEqual(nextStep(j(docs, { type: "docs", roles: ["code-reviewer"] })), step("code-reviewer"));
+    const code = { risk: withFloor(CODE), review: PASS, qa: PASS, sync: synced() };
+    assert.deepEqual(nextStep(j(code, { roles: ["security"] })), step("security"));
+    assert.deepEqual(nextStep(j(code, { roles: ["technical-writer"] })), step("technical-writer"));
+  });
+
+  test("the owner never drops a role: an empty list, or one that names a role already in the floor, changes nothing", () => {
+    const risk = withFloor(CODE);
+    for (const roles of [[], undefined, ["qa"], CODE]) {
+      assert.deepEqual(nextStep(j({ risk, review: PASS }, { roles })), step("qa", { mode: "verify" }), JSON.stringify(roles));
+    }
+    assert.deepEqual(nextStep(j({ risk }, { roles: [] })), step("code-reviewer"));
+  });
+
+});
