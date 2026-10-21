@@ -48,6 +48,10 @@ describe("a run from board rows", () => {
     assert.equal(dev.attempt, 2);
     assert.equal(dev.reworks, 0);
   });
+  test("a ticket whose name contains credential-like letters still exports to a run the viewer opens", () => {
+    const rows = ROWS.map((r) => ({ ...r, ticket: "55-risk-path-guardrail-tickets" }));
+    assert.equal(validateRun(fromBoardEvents({ ref: "f/55-risk-path-guardrail-tickets", rows })).run.complete, true);
+  });
   test("a park reason is copied with credential-like text removed", () => {
     const rows = [...ROWS.slice(0, 2), row(3, 2, "park", null, { reason: `waiting on ${"ghp"}_${"q7".repeat(12)} rotation` })];
     const blocked = fromBoardEvents({ ref: "f/07-thing", rows }).events.find((e) => e.kind === "blocked");

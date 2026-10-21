@@ -23,12 +23,13 @@ const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
 const TS_RE = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/;
 // Text that looks like a credential is replaced before anything can render or export it.
 // Best effort: common token shapes, not a guarantee; producers must redact before emitting (docs/agents/hierarchy-replay.md).
-const SECRET_RE = new RegExp([
+// Each prefix must start a token (no letter or digit before it), so slugs such as "risk-path-..." never match.
+const SECRET_RE = new RegExp("(?<![A-Za-z0-9])(?:" + [
   "gh[pousr]_[A-Za-z0-9]{20,}", "github_pat_[A-Za-z0-9_]{20,}", "sk[-_](?:live_|test_|ant-)?[A-Za-z0-9_-]{20,}", "AKIA[0-9A-Z]{16}", "xox[abprs]-[A-Za-z0-9-]{10,}",
   "AIza[0-9A-Za-z_-]{30,}", "npm_[A-Za-z0-9]{30,}", "glpat-[A-Za-z0-9_-]{20,}", "eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}",
   "hooks\\.slack\\.com/services/\\S+", "[a-z][a-z0-9+.-]*://[^\\s/:@]+:[^\\s/@]+@", "-----BEGIN [A-Z ]*PRIVATE KEY-----", "\\b[Bb]earer\\s+[A-Za-z0-9._~+/-]{16,}",
-  "\\b(?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)\\s*[:=]\\s*\\S{6,}",
-].join("|"), "gi");
+  "(?:[Pp]assword|[Pp]asswd|[Ss]ecret|[Aa]pi[_-]?[Kk]ey|[Aa]ccess[_-]?[Tt]oken|[Aa]uth[_-]?[Tt]oken)\\s*[:=]\\s*\\S{6,}",
+].join("|") + ")", "g");
 /** Text with credential-like runs replaced; shared with the exporter so a file never holds them either. */
 export const scrubSecrets = (v) => (typeof v === "string" ? v.replace(SECRET_RE, "[credential removed]") : v);
 
@@ -249,6 +250,7 @@ export function replay(run, count) {
   const events = run.events.slice(0, Math.max(0, Math.min(run.events.length, count)));
   const nodes = new Map(), segments = [];
   const accrue = (n, time, unknown = false) => {
+    if (TERMINAL.has(n.status)) { n.since = Math.max(n.since, time); return; }
     unknown ||= n.stale === true;
     // The owner has no parent to hand a result to, so its time after a result is simply not recorded.
     const key = unknown || (n.layer === "owner" && n.status === "result") ? "unknown" : bucketOf(n.status);

@@ -175,6 +175,14 @@ describe("what the viewer refuses", () => {
     const raw = small(); raw.events[0].eventId = `${"ghp"}_${"z9".repeat(12)}`;
     assert.throws(() => validateRun(raw), /looks like a credential/);
   });
+  test("ordinary slugs and snake_case words are not mistaken for credentials", () => {
+    const raw = small(); raw.runId = "board-team-55-risk-path-guardrail-tickets";
+    raw.events.forEach((e) => { e.runId = raw.runId; });
+    raw.events[0].taskSummary = "ask_the_user_about_the_thing_now before the risk-path task-sketch";
+    const { run, issues } = validateRun(raw);
+    assert.equal(run.events[0].taskSummary, raw.events[0].taskSummary);
+    assert.deepEqual(issues, []);
+  });
   test("credential-like text is replaced before it can render", () => {
     const raw = small(); raw.events[4].reason = `token ${"ghp"}_${"a1".repeat(15)} leaked`; // built here so secret scanners do not flag a fake
     const { run, issues } = validateRun(raw);
