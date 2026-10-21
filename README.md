@@ -35,14 +35,21 @@ npm ci && npm run ui    # then open http://127.0.0.1:4317/?demo=den
 
 ## What it is
 
-- **A team, not a swarm.** Nine roles (`product`, `architect`, `orchestrator`, `developer`, `scout`, `qa`, `security`, `designer`, `herald`), each a Claude Code session running one ticket in its own git worktree. A role is a markdown file in `.claude/agents/` that fixes its model, tools, skills and done criteria.
-- **A kitchen, roughly.** Roles sit at teams named for a dim sum kitchen. The Pass (orchestrator, product, architect) decides and sequences. Steamers (developer, scout) build and dig. Tea & Pantry (qa, security) test and guard. Front of House (designer, herald) keeps things looking right and drafts the public posts.
-- **Independent review on every code ticket.** A developer writes failing tests and then the change, a code reviewer reads the diff and qa checks the behaviour, a risk check decides whether security reviews, and the release manager's steps open the PR and merge on green CI ([ADR 0029](docs/adr/0029-team-charter-and-the-task-tree.md), [team charter](docs/agents/team-charter.md)).
-- **Gates you can't miss.** Agents stop before pushing, adding a dependency, or editing an ADR or their own role files. You approve a ticket once; the orchestrator runs its whole relay and only comes back for a visual check, a design question, a ticket that failed twice, or a red merge.
+- **A team, not a swarm.** Fourteen roles, each a Claude Code agent running one ticket in its own git worktree. A role is a markdown file in `.claude/agents/` that fixes its model, tools, skills and done criteria. Bao, the orchestrator, sits at the root; Sonnet managers do the work under it; Haiku runners (`runner`, `scout`) do checkable leaf work and start no agent.
+- **A kitchen, roughly.** Roles sit at teams named for a dim sum kitchen ([team charter](docs/agents/team-charter.md)):
+  - **The Pass** (`orchestrator`, `product`, `architect`, `release-manager`) decides, specs, designs and ships.
+  - **Steamers** (`developer`, `scout`, `runner`) build and dig.
+  - **Tea & Pantry** (`code-reviewer`, `qa`, `security`, `sre`) review, test, guard and watch the den's health.
+  - **Front of House** (`designer`, `technical-writer`, `herald`) keeps things looking right, keeps the docs true and drafts public posts for you to publish.
+
+  `orchestrator`, `herald` and `scout` are retiring into Bao and Jiao (a second executive, on Codex), the technical writer and the runner.
+- **Independent review on every code ticket.** The developer writes failing tests and then the change, and never reviews its own work. A code reviewer reads the diff while qa checks the behaviour at the same commit, a risk check decides whether security joins, and the release manager's steps open the PR and merge on green CI ([ADR 0029](docs/adr/0029-team-charter-and-the-task-tree.md)).
+- **Gates you can't miss.** Agents stop before adding a dependency, or editing an ADR, `CLAUDE.md` or their own role files, and a change to the bridge, a guardrail or CI is yours to merge. You approve a ticket once; the relay runs end to end and only comes back for a visual verdict, an open scope question, a ticket that failed twice, an environment problem, usage at 90%, or a red merge.
 - **A board you can diff.** Tickets are markdown under `.scratch/`, claimed with lock files and handed off through a `board` CLI ([ADR 0003](docs/adr/0003-local-file-board.md), [ADR 0008](docs/adr/0008-board-service.md)). No database, no hosted service.
 - **The den.** `apps/ui` is a React Three Fiber garden: Bao at the center, a pavilion per team, and plush pandas dressed for their role. Beside it, your desk holds the queue, what needs you, meetings and the library, with tabs for Work, Pandas and Library and a Talk to Bao button. Zoom from the whole den to a team, a panda or its workspace, or press Enter the den to walk around; walk up to an agent to read its transcript, message it, or approve or deny what it's waiting on.
 - **Demo mode.** Open `?demo=den` or press **Watch the demo** to replay a recorded session into the den. It makes no bridge calls and reads no tokens, and every action that would steer a real agent is greyed out.
-- **Cheap decisions, logged before trusted.** Routine relay choices (which model a developer needs, how deep qa verifies) go to Jev, a small typed-decision model, through `scripts/jev.mjs`. It runs in shadow mode: each pick is logged beside what the relay actually did, and any error or missing key falls back to the current rule ([ADR 0010](docs/adr/0010-jev-precheck-tier-and-verify-depth.md)).
+- **More than one project.** The den works for other repos too, like an agency: `npm run den:project -- add <slug> <path>` onboards one with its own board and queue, and you pick the active project in the den ([ADR 0021](docs/adr/0021-agent-wall-grants-and-the-bridge-as-kernel.md)).
+- **Cheap decisions, proved before used.** Small routine choices can go to Jev, a typed-decision model, from the bridge. A use case goes live only after a labelled eval of its real job passes, and every live call logs the rule-based decision beside it for comparison ([ADR 0010](docs/adr/0010-jev-precheck-tier-and-verify-depth.md), Amendment 3).
 
 ## Requirements
 
@@ -71,12 +78,12 @@ npm run den:install     # once: packages, first release, the service; the den th
 npm run den:update      # after merging a change to `main`: new release, links switched, service restarted
 ```
 
-The service runs from release folders under `~/.local/state/den/` (a copy of `main`, its UI built in a sandbox), not from the checkout, so editing the checkout does not change the running den ([ADR 0026](docs/adr/0026-the-den-serves-itself.md)). Both commands print each step and refuse before changing anything on a host without a systemd user manager or bubblewrap. `npm run bridge` is for development: run it with `PORT=4400 npm run bridge`, on another port than the service.
+The service runs from release folders under `~/.local/state/den/` (a copy of `main`, its UI built in a sandbox), not from the checkout, so editing the checkout does not change the running den ([ADR 0026](docs/adr/0026-the-den-serves-itself.md)). `den:install` also installs the router (`den-router.service`), a small process beside the bridge that starts approved tickets in the order you set ([ADR 0027](docs/adr/0027-a-router-beside-the-bridge.md)); a change to the router takes effect on the next `den:install`. Both commands print each step and refuse before changing anything on a host without a systemd user manager or bubblewrap. `npm run bridge` is for development: run it with `PORT=4400 npm run bridge`, on another port than the service.
 
 Run an agent as its own Claude Code session:
 
 ```sh
-claude --agent orchestrator     # proposes tickets and runs the relay
+claude --agent orchestrator     # plans tickets and runs a relay from the terminal
 claude --agent developer        # or any other role in .claude/agents/
 npm run next-session            # prints the command to resume from the latest handoff
 ```
@@ -116,12 +123,16 @@ npm run next-session            # prints the command to resume from the latest h
 ## How it works
 
 ```
- you ── approve ticket ──▶ orchestrator ──▶ qa specify ──▶ developer ──▶ qa verify ──▶ risk-check ──▶ PR ──▶ merge on green
+                                                         ┌─▶ code-reviewer ─┐
+ you ── approve ticket ──▶ router / Deliver ──▶ developer ┤                  ├─▶ risk-check ──▶ PR ──▶ merge on green
+                                │                        └─▶ qa verify ─────┘   (security on a hit)
                                 │                                                         │
                                 └──── board (.scratch/, locks, handoffs) ◀────────────────┘
                                                       │
                                       bridge (127.0.0.1:4317, /state, /events) ──▶ den UI
 ```
+
+The relay is sized to risk: a ticket on a risk path (the wall, CI, hooks, the service, auth, dependencies) has qa write failing tests before the developer starts, and its verify is light; anything else goes straight to the developer and gets a full verify. One fix round carries both reviews' findings.
 
 - **Bridge.** `apps/bridge` reads the board, streams changes over server-sent events at `/events`, and serves `/state` and `/metrics` ([ADR 0011](docs/adr/0011-ui-v0-seams-bridge-snapshot-scene.md)). What you do in the den (approvals, messages) goes back as requests that the orchestrator acts on.
 - **Mechanical checks.** The rules agents skip most are enforced by scripts, not by asking nicely: `npm run risk-check`, `npm run check:bom`, `npm run session-check`, and a release gate that won't let an agent drop a ticket without a handoff ([ADR 0009](docs/adr/0009-mechanical-checks-for-most-skipped-rules.md)).
@@ -133,19 +144,20 @@ npm run next-session            # prints the command to resume from the latest h
 
   *Demo mode in the running app, moving from the global view to a developer's card and conversation, then taking a first-person tour past the tea garden, Bao's courtyard and Steamers. The scout's events are from a recorded run; the developer and qa storylines are staged. Steering actions are disabled. [Download the MP4 with captions and an original soundtrack](docs/videos/dimsumdev-linkedin.mp4).*
 
-- **Delivery from the den.** Deliver on a ticket runs the developer, qa's verify, the scripted checks and, on a hit, security; then the bridge pushes, opens the PR and merges on green checks ([ADR 0024](docs/adr/0024-delivery-jobs.md)). A change to the bridge, a guardrail or CI is left for you to merge.
+- **The router.** The router follows the bridge's `/events` and starts deliveries for `ready-for-agent` tickets from the top of a work order file, two at a time when their files don't overlap. It keeps no state, starts nothing at 90% usage, and sends every stop to Needs you and to your phone ([ADR 0027](docs/adr/0027-a-router-beside-the-bridge.md)).
+- **Delivery from the den.** Deliver on a ticket runs the developer, the code reviewer and qa's verify, the scripted checks and, on a hit, security; then the bridge pushes, opens the PR and merges on green checks ([ADR 0024](docs/adr/0024-delivery-jobs.md)). A change to the bridge, a guardrail or CI is left for you to merge.
 - **Meetings.** Ask up to six specialists for one take each; Bao then writes a decision brief with two or three options, and choosing one writes a ticket for your approval ([ADR 0017](docs/adr/0017-meetings-and-decision-briefs.md)).
 
-Not built yet: runtimes other than Claude Code ([ADR 0004](docs/adr/0004-runtime-adapter.md) sketches the adapter).
+In progress: Codex as a second runtime, with Jiao as a second executive beside Bao, and task trees in place of the fixed relay ([ADR 0004](docs/adr/0004-runtime-adapter.md), [ADR 0029](docs/adr/0029-team-charter-and-the-task-tree.md)). The bridge already records each run's runtime; agents still run on Claude Code only.
 
 ## Numbers
 
-All of these can be re-run, as of `757dbda`.
+All of these can be re-run, as of `20a854a`.
 
-- **1,368 commits on `main`**, 255 of them merges: `git log --oneline 757dbda | wc -l`, then add `--merges`.
-- **342 test files**: `find apps packages scripts -name "*.test.mjs" -not -path "*/node_modules/*" | wc -l`.
-- **26 recorded decisions** in [`docs/adr/`](docs/adr/).
-- **791 logged agent runs across 169 tickets, about 127.8 million tokens**: the `kind:"agent"` rows (`kind:"cell"` before ADR 0028) of `.scratch/usage.jsonl`, summing `tokens` (17 early rows carry no token count).
+- **1,582 commits on `main`**, 328 of them merges: `git log --oneline 20a854a | wc -l`, then add `--merges`.
+- **418 test files**: `find apps packages scripts mods -name "*.test.mjs" -not -path "*/node_modules/*" | wc -l`.
+- **29 recorded decisions** in [`docs/adr/`](docs/adr/).
+- **850 logged agent runs across 180 tickets, about 170.3 million tokens**: the `kind:"agent"` rows (`kind:"cell"` before ADR 0028) of `.scratch/usage.jsonl`, summing `tokens` (17 early rows carry no token count).
 
 ## Development
 
@@ -159,7 +171,7 @@ npm run risk-check      # decides whether a branch needs a security review
 npm run board -- status <feature>/<NN-slug>
 ```
 
-Layout: `apps/ui` (React + React Three Fiber, built by Vite, the only build step), `apps/bridge` (localhost server), `apps/board` (the board CLI), `apps/ci-cd` (dev server and smoke checks), `scripts/` (relay tooling). Everything else is Node ESM run with `node --test`.
+Layout: `apps/ui` (React + React Three Fiber, built by Vite, the only build step), `apps/bridge` (localhost server), `apps/router` (the router), `apps/board` (the board CLI), `apps/ci-cd` (dev server and smoke checks), `packages/` (shared libraries), `mods/` (Claude Code mods), `scripts/` (relay tooling). Everything else is Node ESM run with `node --test`.
 
 ### Refresh the README media
 
