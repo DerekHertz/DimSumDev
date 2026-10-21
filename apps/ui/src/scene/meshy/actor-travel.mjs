@@ -26,17 +26,17 @@ export function createActorTravel(world,places,{speed=.65,getActors=()=>[]}={}){
  const owner=a=>a.identity??a.id;
  const relevantChange=t=>t.navigationRevision!==world.navigation.revision||t.placeRevision!==places.get(t.placeId)?.revision;
  const unavailable=a=>{const t=a.travel;t.status='unavailable';t.path=[];if(t.placeId!==a.homePlace)places.release(t.placeId,owner(a));t.navigationRevision=world.navigation.revision;t.placeRevision=places.get(t.placeId)?.revision;};
- function attempt(a){
+ function attempt(a,work=null){
   const t=a.travel,p=places.get(t.placeId);t.attempts++;t.retryAt=time+8;
-  if(!p||!places.reserve(p.id,owner(a),a.envelope)){t.path=[];t.status='waiting';}
-  else{const obstacles=[...(world.obstacles??[]),...getActors().filter(b=>b!==a&&b.panda?.model.visible!==false).map(b=>({...position(b),type:'circle',radius:b.envelope.radius+.03}))];t.path=gardenRoute({...world,obstacles},position(a),p.position,a.envelope);t.status=t.path.length?'moving':'waiting';}
+  if(!p||!places.reserve(p.id,owner(a),a.envelope,work)){t.path=[];t.status='waiting';}
+  else{const obstacles=[...(world.obstacles??[]),...getActors().filter(b=>b!==a&&b.panda?.model.visible!==false).map(b=>({...position(b),type:'circle',radius:b.envelope.radius+.03}))],navigation=work?{...world.navigation,groundAt:(...args)=>work.groundAt(world.navigation,...args)}:world.navigation;t.path=gardenRoute({...world,navigation,obstacles},position(a),p.position,a.envelope,work);t.status=t.path.length?'moving':'waiting';}
   if(t.status==='waiting'&&t.attempts>=3)unavailable(a);
  }
- function request(a,placeId){
+ function request(a,placeId,work=null){
   if(a.travel?.placeId===placeId&&a.travel.status==='unavailable'&&!relevantChange(a.travel))return a.travel;
   if(a.travel?.placeId===placeId&&!['arrived','unavailable'].includes(a.travel.status))return a.travel;
   if(a.travel&&a.travel.placeId!==a.homePlace)places.release(a.travel.placeId,owner(a));
-  a.travel={placeId,path:[],attempts:0,status:'waiting',retryAt:time};attempt(a);return a.travel;
+  a.travel={placeId,path:[],attempts:0,status:'waiting',retryAt:time};attempt(a,work);return a.travel;
  }
  function cancel(a){if(a.travel)places.release(a.travel.placeId,owner(a));a.travel=null;places.cancel(owner(a));}
  function update(actors,dt,reduced=false,held=null){

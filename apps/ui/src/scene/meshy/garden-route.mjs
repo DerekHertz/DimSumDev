@@ -11,7 +11,13 @@ export function routeSegment(world,from,to,envelope=DEFAULT_BODY){
  for(let i=0;i<=samples;i++){const t=i/samples;y=routeGround(world,from.x+(to.x-from.x)*t,from.z+(to.z-from.z)*t,y,envelope);if(y===null)return null;}
  return y;
 }
-export function gardenRoute(world,from,to,envelope=DEFAULT_BODY){
+export function gardenRoute(world,from,to,envelope=DEFAULT_BODY,work=null){
+ if(work){
+  if(!work.take('routes'))return [];
+  // Allocation often has a clear landing in sight. Prove that entire swept
+  // segment before paying for the grid; this uses the same physical checks.
+  const y=routeSegment(world,from,to,envelope);if(y!==null)return [{x:to.x,y,z:to.z}];
+ }
  const step=.4,key=(x,z)=>`${x},${z}`;
  const heap=[],seen=new Map(),end={x:to.x,z:to.z},ground=from.y??.26;
  const push=n=>{heap.push(n);let i=heap.length-1;while(i){const p=(i-1)>>1;if(heap[p].score<=n.score)break;heap[i]=heap[p];i=p;}heap[i]=n;};
@@ -20,7 +26,7 @@ export function gardenRoute(world,from,to,envelope=DEFAULT_BODY){
  if(clear(from.x,from.z,ground)===null||clear(to.x,to.z,to.y??ground)===null)return [];
  const start={ix:0,iz:0,x:from.x,z:from.z,y:ground,cost:0};start.score=Math.hypot(start.x-end.x,start.z-end.z);push(start);seen.set('0,0',start);
  for(let count=0;heap.length&&count<45000;count++){
-  const n=pop();if(n.closed)continue;n.closed=true;
+  const n=pop();if(n.closed)continue;if(work&&!work.take('nodes'))return [];n.closed=true;
   if(Math.hypot(n.x-end.x,n.z-end.z)<step){
    const y=routeSegment(world,n,{...end,y:to.y},envelope);if(y!==null){const route=[{...end,y}];for(let p=n;p.parent;p=p.parent)route.push({x:p.x,y:p.y,z:p.z});return route.reverse();}
   }
