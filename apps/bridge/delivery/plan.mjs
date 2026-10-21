@@ -5,7 +5,11 @@
 //   nextStep(job) -> { kind: "run", role, mode?, at, since, fix? }      start an agent at commit `at`
 //                  | { kind: "guard" | "check" | "tests" | "preview" | "sync" | "publish" | "ci" | "merge" | "go-live" | "resolve" }   a bridge operation
 //                  | { kind: "pause", pause, reason, next }             wait for the user
-//   job = { base, candidate: { sha } | null, bounces, visual, localChecks?, evidence: { review, qa, security, risk, tests, preview, verdict, pr, ci, live } }
+//   job = { base, type, roles?, candidate: { sha } | null, bounces, localChecks?, evidence: { review, qa, security, writer, risk, tests, preview, verdict, pr, ci, live } }
+// team-and-den-ux/17 (ADR 0029 decision 3): the steps come from the floor (floor.mjs), which the scripted check stores on
+// evidence.risk.floor once it has the changed paths, so that check runs before any review. A job runs the roles of its floor
+// plus job.roles (the owner's additions, never fewer). The author is the technical writer on a docs ticket and the developer
+// otherwise; the writer, when the floor asks for it and it is not the author, runs once after the author, before the reviews.
 // team-and-den-ux/02 (ADR 0029 decisions 2 and 6): the code reviewer reads every candidate's diff, then qa checks its behaviour,
 // whatever the reviewer said, so one fix round carries both reviews' findings. They run one after the other until
 // team-and-den-ux/18 lets two nodes of one ticket run at once.
@@ -58,36 +62,42 @@ export const isUiPath = (file) => typeof file === "string" && UI_PATHS.some((pre
 export const isUserMergePath = (file) => typeof file === "string" && USER_MERGE.some((m) => m(file));
 
 const pause = (kind, reason, next) => ({ kind: "pause", pause: kind, reason, next });
+/** Who writes the work and takes every fix round: the technical writer on a docs ticket, the developer otherwise. */
+export const authorOf = (job) => (job.type === "docs" ? "technical-writer" : "developer");
 
 export function nextStep(job) {
   const c = job.candidate;
-  if (!c) return { kind: "run", role: "developer", at: job.startAt ?? job.base, since: job.base };
+  const author = authorOf(job);
+  if (!c) return { kind: "run", role: author, at: job.startAt ?? job.base, since: job.base };
   const ev = job.evidence ?? {};
   const now = (e) => (e && e.sha === c.sha ? e : null);
-  const [review, qa, security, risk, pr, ci] = [now(ev.review), now(ev.qa), now(ev.security), now(ev.risk), now(ev.pr), now(ev.ci)];
+  const [review, qa, security, risk, pr, ci, writer] = [now(ev.review), now(ev.qa), now(ev.security), now(ev.risk), now(ev.pr), now(ev.ci), now(ev.writer)];
   const [preview, verdict, live, tests, sync, guard] = [now(ev.preview), now(ev.verdict), now(ev.live), now(ev.tests), now(ev.sync), now(ev.guard)];
 
   // The user declined this commit: the developer runs again with their note, however many times. Not a bounce.
-  if (verdict?.ok === false) return { kind: "run", role: "developer", at: c.sha, since: job.base, fix: true };
-  if (!review) return { kind: "run", role: "code-reviewer", at: c.sha, since: job.base };
+  if (verdict?.ok === false) return { kind: "run", role: author, at: c.sha, since: job.base, fix: true };
+  // The floor needs the changed paths, so the scripted check comes before any review. A record without a floor is checked again.
+  if (!risk?.floor) return { kind: "check" };
+  if (risk.secret) return pause("possible-secret", "the change adds a line or a file that looks like a secret; nothing was pushed", "Look at the commit yourself. Close the delivery if it holds a secret.");
+  const has = (role) => risk.floor.roles.includes(role) || Boolean(job.roles?.includes(role));
+  if (has("technical-writer") && !writer) return { kind: "run", role: "technical-writer", at: c.sha, since: job.base };
+  if (has("code-reviewer") && !review) return { kind: "run", role: "code-reviewer", at: c.sha, since: job.base };
   // den-mvp/70: the test guard hits go to the verifier, so it runs first. A hit blocks nothing by itself.
-  if (job.testGuard === true && !guard) return { kind: "guard" };
-  if (!qa) return { kind: "run", role: "qa", mode: "verify", at: c.sha, since: job.base };
+  if (has("qa") && job.testGuard === true && !guard) return { kind: "guard" };
+  if (has("qa") && !qa) return { kind: "run", role: "qa", mode: "verify", at: c.sha, since: job.base };
   // A preview that did not build is a failed check, like a reviewer's bounce.
   const bounced = [review, qa, security].find((e) => e?.verdict === "bounce") ?? (preview?.ok === false ? preview : undefined) ?? (tests?.state === "red" ? tests : undefined);
   if (bounced) {
     if (job.bounces >= MAX_BOUNCES) return pause("failed-twice", "the review sent the work back twice", "Read the findings on the ticket, then Resume for one more round or close the delivery.");
-    return { kind: "run", role: "developer", at: c.sha, since: job.base, fix: true };
+    return { kind: "run", role: author, at: c.sha, since: job.base, fix: true };
   }
-  if (!risk) return { kind: "check" };
-  if (risk.secret) return pause("possible-secret", "the change adds a line or a file that looks like a secret; nothing was pushed", "Look at the commit yourself. Close the delivery if it holds a secret.");
   if (job.localChecks === true) {
     if (!tests) return { kind: "tests" };
     if (tests.state === "error") return pause("checks-error", `the checks could not run here: ${tests.reason || "see the record"}`, "Resume to run them again once that has changed.");
   }
   // UI code runs in the den's page with the user's session, and a preview shows how it looks, not what it does: security
   // reviews every such change, whatever the scripted check said.
-  if ((risk.security || risk.ui) && !security) return { kind: "run", role: "security", at: c.sha, since: job.base };
+  if (has("security") && !security) return { kind: "run", role: "security", at: c.sha, since: job.base };
   if (risk.ui) {
     if (!preview) return { kind: "preview" };
     if (verdict?.ok !== true) return pause("visual-verdict", "a UI change waits for your verdict on its preview", "Open the preview. Approve it to merge it and put it live, or decline it with a note for the developer.");
@@ -95,7 +105,7 @@ export function nextStep(job) {
   if (!sync && pr?.state !== "MERGED") return { kind: "sync" };
   if (sync?.conflicts?.length && pr?.state !== "MERGED") {
     if ((job.syncRounds ?? 0) >= MAX_SYNC_ROUNDS) return pause("conflict", `the branch still conflicts with main after ${MAX_SYNC_ROUNDS} merge rounds: ${sync.conflicts.slice(0, 5).join(", ")}`, "Resume for one more merge round, or close the delivery.");
-    return { kind: "run", role: "developer", at: c.sha, since: job.base, fix: true, sync: sync.main };
+    return { kind: "run", role: author, at: c.sha, since: job.base, fix: true, sync: sync.main };
   }
   if (!pr) return { kind: "publish" }; // a change to CI configuration is stopped there, before the push
   if (pr.state === "MERGED") {
@@ -114,12 +124,12 @@ export function nextStep(job) {
   if (ci.state === "timeout") return { kind: "ci-rerun" };
   if (ci.state === "red") {
     if (job.bounces >= MAX_BOUNCES) return pause("failed-twice", `a required check failed, and the work has now been sent back twice: ${ci.failed?.join(", ") || "see the pull request"}`, "Read the findings on the ticket, then Resume for one more round or close the delivery.");
-    return { kind: "run", role: "developer", at: c.sha, since: job.base, fix: true };
+    return { kind: "run", role: author, at: c.sha, since: job.base, fix: true };
   }
   if (ci.state === "none") return pause("no-checks", "no check ran on the pull request, so nothing was merged", "Resume once the checks have run.");
   if (ci.state !== "green") return pause("ci-pending", "the checks have not finished", "Resume to watch them again.");
   if (risk.userMerge) return pause("guardrail", "the change touches the den's own guardrails, the bridge, its checks or a script that runs by itself: the review and the merge are yours", "Review and merge the pull request yourself, then Resume to close the ticket.");
-  if (job.visual && verdict?.ok !== true) return pause("visual-verdict", "a UI change waits for your visual verdict", "Look at the change, then approve it to merge.");
+  if (has("user-verdict") && verdict?.ok !== true) return pause("visual-verdict", "a UI change waits for your visual verdict", "Look at the change, then approve it to merge.");
   if (pr.mergeable !== "MERGEABLE") return pause("not-mergeable", "the git host has not said the pull request can merge", "Resume to ask again.");
   return { kind: "merge" };
 }
