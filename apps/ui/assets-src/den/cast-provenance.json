@@ -1,0 +1,480 @@
+{
+  "method": "User-picked Meshy candidate B (prop-holding), triangle remesh to 7500; colour-only 512px atlas packer; local shared-rig code skinning",
+  "totalCreditsIncludingReferences": 740,
+  "purchases": 0,
+  "characters": [
+    {
+      "ticket": "team-and-den-ux/25-jiao",
+      "characterId": "jiao",
+      "roleId": "orchestrator",
+      "runtime": "codex",
+      "sourceFilename": "25-jiao-7500.glb",
+      "sourceSha256": "288bb290fa811aeed9a4031ef5f1d20b719ee515b4fb61f51d4a737101d83fb2",
+      "selectedSourceTask": "01a15eef-b553-7657-8162-3c757a159bc2",
+      "remeshTask": "01a15f02-a6f5-7726-ac4c-e14f90cfbae0",
+      "credits": 35,
+      "output": {
+        "url": "/den/models/characters/jiao.glb.gz",
+        "kind": "character",
+        "sourceFilename": "25-jiao-7500.glb",
+        "triangles": 7746,
+        "bytes": 289857,
+        "sha256": "0c2d60bcab5405256f6ec8ddd6de7795d87d8ac274b891f449a60a1b59cc056a",
+        "compression": "gzip",
+        "decodedBytes": 404168,
+        "textures": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp"
+          }
+        ],
+        "roleId": "orchestrator",
+        "characterId": "jiao",
+        "runtime": "codex"
+      },
+      "audit": {
+        "source": "25-jiao-7500.glb",
+        "sourceBytes": 8208800,
+        "sourceSha256": "288bb290fa811aeed9a4031ef5f1d20b719ee515b4fb61f51d4a737101d83fb2",
+        "packedBytes": 404168,
+        "narrowedIndexAccessors": [],
+        "images": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp",
+            "sourceWidth": 2048,
+            "sourceHeight": 2048
+          }
+        ],
+        "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+        "droppedImages": 2
+      }
+    },
+    {
+      "ticket": "team-and-den-ux/26-fox",
+      "characterId": "fox",
+      "roleId": "product",
+      "sourceFilename": "26-fox-7500.glb",
+      "sourceSha256": "4a30d5432ded0ebae10f1f7c2e515e87f8ee9774d592d830cfd378965d69342a",
+      "selectedSourceTask": "01a15eef-d44c-7115-abf5-88190374b5ce",
+      "remeshTask": "01a15f02-ab52-77cb-ba8d-f3754b43100e",
+      "credits": 35,
+      "output": {
+        "url": "/den/models/characters/fox.glb.gz",
+        "kind": "character",
+        "sourceFilename": "26-fox-7500.glb",
+        "triangles": 7787,
+        "bytes": 313501,
+        "sha256": "dd797843671f997b0e28cd8914a40b8822f704c1d15358bc36ab9f826b71aaa0",
+        "compression": "gzip",
+        "decodedBytes": 442688,
+        "textures": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp"
+          }
+        ],
+        "roleId": "product",
+        "characterId": "fox"
+      },
+      "audit": {
+        "source": "26-fox-7500.glb",
+        "sourceBytes": 8789092,
+        "sourceSha256": "4a30d5432ded0ebae10f1f7c2e515e87f8ee9774d592d830cfd378965d69342a",
+        "packedBytes": 442688,
+        "narrowedIndexAccessors": [],
+        "images": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp",
+            "sourceWidth": 2048,
+            "sourceHeight": 2048
+          }
+        ],
+        "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+        "droppedImages": 2
+      }
+    },
+    {
+      "ticket": "team-and-den-ux/27-crane",
+      "characterId": "crane",
+      "roleId": "architect",
+      "sourceFilename": "27-crane-7500.glb",
+      "sourceSha256": "d6e0cc9ac9023a72e401266e7cf0c97c4371532ea5e171fa26bd01896f20d14e",
+      "selectedSourceTask": "01a15eef-f464-7069-93a4-afc8e0462bab",
+      "remeshTask": "01a15f02-af9e-7374-ba91-158bc0d66040",
+      "credits": 35,
+      "output": {
+        "url": "/den/models/characters/crane.glb.gz",
+        "kind": "character",
+        "sourceFilename": "27-crane-7500.glb",
+        "triangles": 7783,
+        "bytes": 322034,
+        "sha256": "82480354c31e80fd7d5cf8dfbeb25cc948c544c1d1e6adb210ecf5b2fb5de3ca",
+        "compression": "gzip",
+        "decodedBytes": 468640,
+        "textures": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp"
+          }
+        ],
+        "roleId": "architect",
+        "characterId": "crane"
+      },
+      "audit": {
+        "source": "27-crane-7500.glb",
+        "sourceBytes": 9263572,
+        "sourceSha256": "d6e0cc9ac9023a72e401266e7cf0c97c4371532ea5e171fa26bd01896f20d14e",
+        "packedBytes": 468640,
+        "narrowedIndexAccessors": [],
+        "images": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp",
+            "sourceWidth": 2048,
+            "sourceHeight": 2048
+          }
+        ],
+        "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+        "droppedImages": 2
+      }
+    },
+    {
+      "ticket": "team-and-den-ux/28-deer",
+      "characterId": "deer",
+      "roleId": "designer",
+      "sourceFilename": "28-deer-7500.glb",
+      "sourceSha256": "ab2517eeed1ab36a8c79fed0e92c9b77ca24ca96cd9ffd4903f56d4f0d7cb44a",
+      "selectedSourceTask": "01a15ef0-12d0-722b-934e-a5d05ab36eb5",
+      "remeshTask": "01a15f02-b3fa-70dd-b9f3-b413b359b010",
+      "credits": 35,
+      "output": {
+        "url": "/den/models/characters/deer.glb.gz",
+        "kind": "character",
+        "sourceFilename": "28-deer-7500.glb",
+        "triangles": 7805,
+        "bytes": 303706,
+        "sha256": "cc9baa11853a241d32c8bdf7b39c4e8eae3f18d466f0307dfeb8c1a49f72206a",
+        "compression": "gzip",
+        "decodedBytes": 420460,
+        "textures": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp"
+          }
+        ],
+        "roleId": "designer",
+        "characterId": "deer"
+      },
+      "audit": {
+        "source": "28-deer-7500.glb",
+        "sourceBytes": 9219036,
+        "sourceSha256": "ab2517eeed1ab36a8c79fed0e92c9b77ca24ca96cd9ffd4903f56d4f0d7cb44a",
+        "packedBytes": 420460,
+        "narrowedIndexAccessors": [],
+        "images": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp",
+            "sourceWidth": 2048,
+            "sourceHeight": 2048
+          }
+        ],
+        "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+        "droppedImages": 2
+      }
+    },
+    {
+      "ticket": "team-and-den-ux/29-lion",
+      "characterId": "lion",
+      "roleId": "code-reviewer",
+      "sourceFilename": "29-lion-7500.glb",
+      "sourceSha256": "c0f62138f9da4577c19b06c17370f122c879d0c032be4613dfb19c1cd5ed0e77",
+      "selectedSourceTask": "01a15ef0-330b-72be-b6e4-743c35be9ce9",
+      "remeshTask": "01a15f02-b83b-74a7-b46f-f55358fabbaf",
+      "credits": 35,
+      "output": {
+        "url": "/den/models/characters/lion.glb.gz",
+        "kind": "character",
+        "sourceFilename": "29-lion-7500.glb",
+        "triangles": 7786,
+        "bytes": 295399,
+        "sha256": "7d8d582db29a9ffbbb7876552337409dfa3557b29bbbb406572b5cc5fc45ec10",
+        "compression": "gzip",
+        "decodedBytes": 432976,
+        "textures": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp"
+          }
+        ],
+        "roleId": "code-reviewer",
+        "characterId": "lion"
+      },
+      "audit": {
+        "source": "29-lion-7500.glb",
+        "sourceBytes": 8878760,
+        "sourceSha256": "c0f62138f9da4577c19b06c17370f122c879d0c032be4613dfb19c1cd5ed0e77",
+        "packedBytes": 432976,
+        "narrowedIndexAccessors": [],
+        "images": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp",
+            "sourceWidth": 2048,
+            "sourceHeight": 2048
+          }
+        ],
+        "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+        "droppedImages": 2
+      }
+    },
+    {
+      "ticket": "team-and-den-ux/30-otter",
+      "characterId": "otter",
+      "roleId": "qa",
+      "sourceFilename": "30-otter-7500.glb",
+      "sourceSha256": "da8f94307eacff024b7ee34bc66d849723a869afce4e0f5fdd8405666ffadb33",
+      "selectedSourceTask": "01a15ef4-2fec-75fe-b398-886b5d9a07ac",
+      "remeshTask": "01a15f02-bc8c-7141-a1ae-a7c03db46d81",
+      "credits": 35,
+      "output": {
+        "url": "/den/models/characters/otter.glb.gz",
+        "kind": "character",
+        "sourceFilename": "30-otter-7500.glb",
+        "triangles": 7771,
+        "bytes": 303904,
+        "sha256": "56da3fa2d124739aaa0b0db64d97f59df5725ff0f9f9ff50b9da8efa5bdc6eab",
+        "compression": "gzip",
+        "decodedBytes": 434612,
+        "textures": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp"
+          }
+        ],
+        "roleId": "qa",
+        "characterId": "otter"
+      },
+      "audit": {
+        "source": "30-otter-7500.glb",
+        "sourceBytes": 8732248,
+        "sourceSha256": "da8f94307eacff024b7ee34bc66d849723a869afce4e0f5fdd8405666ffadb33",
+        "packedBytes": 434612,
+        "narrowedIndexAccessors": [],
+        "images": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp",
+            "sourceWidth": 2048,
+            "sourceHeight": 2048
+          }
+        ],
+        "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+        "droppedImages": 2
+      }
+    },
+    {
+      "ticket": "team-and-den-ux/31-pangolin",
+      "characterId": "pangolin",
+      "roleId": "security",
+      "sourceFilename": "31-pangolin-7500.glb",
+      "sourceSha256": "74cfa0e4f496801b42a3a4cd88a7fe9d7363ca913dbfe005561c3a18df63e3ee",
+      "selectedSourceTask": "01a15ef4-4b42-7748-8359-842b09afa4f2",
+      "remeshTask": "01a15f02-c0df-7102-a6d0-0191a0c52060",
+      "credits": 35,
+      "output": {
+        "url": "/den/models/characters/pangolin.glb.gz",
+        "kind": "character",
+        "sourceFilename": "31-pangolin-7500.glb",
+        "triangles": 7790,
+        "bytes": 322001,
+        "sha256": "c40faa116c5574da159ac198391f7f6512006a9665d5a6a552d1ee243233bd71",
+        "compression": "gzip",
+        "decodedBytes": 487044,
+        "textures": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp"
+          }
+        ],
+        "roleId": "security",
+        "characterId": "pangolin"
+      },
+      "audit": {
+        "source": "31-pangolin-7500.glb",
+        "sourceBytes": 9742980,
+        "sourceSha256": "74cfa0e4f496801b42a3a4cd88a7fe9d7363ca913dbfe005561c3a18df63e3ee",
+        "packedBytes": 487044,
+        "narrowedIndexAccessors": [],
+        "images": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp",
+            "sourceWidth": 2048,
+            "sourceHeight": 2048
+          }
+        ],
+        "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+        "droppedImages": 2
+      }
+    },
+    {
+      "ticket": "team-and-den-ux/32-lucky-cat",
+      "characterId": "lucky-cat",
+      "roleId": "release-manager",
+      "sourceFilename": "32-lucky-cat-7500.glb",
+      "sourceSha256": "2a46478364e085d776d10fe172d38796257344ac0bac7658732cd9b74a3b7239",
+      "selectedSourceTask": "01a15ef4-5aa6-758d-b43e-16ef310efa9d",
+      "remeshTask": "01a15f02-c506-7221-8e60-0caf9377a45b",
+      "credits": 35,
+      "output": {
+        "url": "/den/models/characters/lucky-cat.glb.gz",
+        "kind": "character",
+        "sourceFilename": "32-lucky-cat-7500.glb",
+        "triangles": 7746,
+        "bytes": 270609,
+        "sha256": "afa425776618ab653837ee686ad7650f8fc097c1a4839a0240d7cb93deb7ec43",
+        "compression": "gzip",
+        "decodedBytes": 355240,
+        "textures": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp"
+          }
+        ],
+        "roleId": "release-manager",
+        "characterId": "lucky-cat"
+      },
+      "audit": {
+        "source": "32-lucky-cat-7500.glb",
+        "sourceBytes": 7235476,
+        "sourceSha256": "2a46478364e085d776d10fe172d38796257344ac0bac7658732cd9b74a3b7239",
+        "packedBytes": 355240,
+        "narrowedIndexAccessors": [],
+        "images": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp",
+            "sourceWidth": 2048,
+            "sourceHeight": 2048
+          }
+        ],
+        "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+        "droppedImages": 2
+      }
+    },
+    {
+      "ticket": "team-and-den-ux/33-tortoise",
+      "characterId": "tortoise",
+      "roleId": "sre",
+      "sourceFilename": "33-tortoise-7500.glb",
+      "sourceSha256": "70b95779ae70f0df6d0bbdcb21b1d3b5ec92895c916adad03c07b06a0e2f9570",
+      "selectedSourceTask": "01a15ef4-748e-716e-b5e5-52cdda8622bd",
+      "remeshTask": "01a15f02-c966-770d-bb2e-53ebbd159ec4",
+      "credits": 35,
+      "output": {
+        "url": "/den/models/characters/tortoise.glb.gz",
+        "kind": "character",
+        "sourceFilename": "33-tortoise-7500.glb",
+        "triangles": 7756,
+        "bytes": 311145,
+        "sha256": "b061e20dce8df40b484274d78d430c23c82203d84ff78f836bbecc05528c7319",
+        "compression": "gzip",
+        "decodedBytes": 439492,
+        "textures": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp"
+          }
+        ],
+        "roleId": "sre",
+        "characterId": "tortoise"
+      },
+      "audit": {
+        "source": "33-tortoise-7500.glb",
+        "sourceBytes": 8971424,
+        "sourceSha256": "70b95779ae70f0df6d0bbdcb21b1d3b5ec92895c916adad03c07b06a0e2f9570",
+        "packedBytes": 439492,
+        "narrowedIndexAccessors": [],
+        "images": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp",
+            "sourceWidth": 2048,
+            "sourceHeight": 2048
+          }
+        ],
+        "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+        "droppedImages": 2
+      }
+    },
+    {
+      "ticket": "team-and-den-ux/34-golden-monkey",
+      "characterId": "golden-monkey",
+      "roleId": "runner",
+      "sourceFilename": "34-golden-monkey-7500.glb",
+      "sourceSha256": "66511b1a8a7f3359ba9423a615bd6a545399afe3c8114b54276e69345d29ed66",
+      "selectedSourceTask": "01a15ef4-a1a0-7200-ad88-4f867f00b977",
+      "remeshTask": "01a15f02-cd93-75c1-823b-a8c6bb94fce6",
+      "credits": 35,
+      "output": {
+        "url": "/den/models/characters/golden-monkey.glb.gz",
+        "kind": "character",
+        "sourceFilename": "34-golden-monkey-7500.glb",
+        "triangles": 7819,
+        "bytes": 305205,
+        "sha256": "15de186642eb2c9e6468a0af4f36e0bb4c8568e91ed7472de5e7e23e4a927c65",
+        "compression": "gzip",
+        "decodedBytes": 444412,
+        "textures": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp"
+          }
+        ],
+        "roleId": "runner",
+        "characterId": "golden-monkey"
+      },
+      "audit": {
+        "source": "34-golden-monkey-7500.glb",
+        "sourceBytes": 9426104,
+        "sourceSha256": "66511b1a8a7f3359ba9423a615bd6a545399afe3c8114b54276e69345d29ed66",
+        "packedBytes": 444412,
+        "narrowedIndexAccessors": [],
+        "images": [
+          {
+            "width": 512,
+            "height": 512,
+            "mimeType": "image/webp",
+            "sourceWidth": 2048,
+            "sourceHeight": 2048
+          }
+        ],
+        "audit": "exact vertex/normal/UV samples, transforms and triangle index values retained",
+        "droppedImages": 2
+      }
+    }
+  ],
+  "builder": "apps/ui/assets-src/den/build-cast.mjs"
+}

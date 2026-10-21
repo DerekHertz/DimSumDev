@@ -604,7 +604,198 @@
       "roleId": "orchestrator",
       "characterId": "bao",
       "runtime": "claude"
+    },
+    "characters.jiao": {
+      "url": "/den/models/characters/jiao.glb.gz",
+      "kind": "character",
+      "sourceFilename": "25-jiao-7500.glb",
+      "triangles": 7746,
+      "bytes": 289857,
+      "sha256": "0c2d60bcab5405256f6ec8ddd6de7795d87d8ac274b891f449a60a1b59cc056a",
+      "compression": "gzip",
+      "decodedBytes": 404168,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "orchestrator",
+      "characterId": "jiao",
+      "runtime": "codex"
+    },
+    "characters.fox": {
+      "url": "/den/models/characters/fox.glb.gz",
+      "kind": "character",
+      "sourceFilename": "26-fox-7500.glb",
+      "triangles": 7787,
+      "bytes": 313501,
+      "sha256": "dd797843671f997b0e28cd8914a40b8822f704c1d15358bc36ab9f826b71aaa0",
+      "compression": "gzip",
+      "decodedBytes": 442688,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "product",
+      "characterId": "fox"
+    },
+    "characters.crane": {
+      "url": "/den/models/characters/crane.glb.gz",
+      "kind": "character",
+      "sourceFilename": "27-crane-7500.glb",
+      "triangles": 7783,
+      "bytes": 322034,
+      "sha256": "82480354c31e80fd7d5cf8dfbeb25cc948c544c1d1e6adb210ecf5b2fb5de3ca",
+      "compression": "gzip",
+      "decodedBytes": 468640,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "architect",
+      "characterId": "crane"
+    },
+    "characters.deer": {
+      "url": "/den/models/characters/deer.glb.gz",
+      "kind": "character",
+      "sourceFilename": "28-deer-7500.glb",
+      "triangles": 7805,
+      "bytes": 303706,
+      "sha256": "cc9baa11853a241d32c8bdf7b39c4e8eae3f18d466f0307dfeb8c1a49f72206a",
+      "compression": "gzip",
+      "decodedBytes": 420460,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "designer",
+      "characterId": "deer"
+    },
+    "characters.lion": {
+      "url": "/den/models/characters/lion.glb.gz",
+      "kind": "character",
+      "sourceFilename": "29-lion-7500.glb",
+      "triangles": 7786,
+      "bytes": 295399,
+      "sha256": "7d8d582db29a9ffbbb7876552337409dfa3557b29bbbb406572b5cc5fc45ec10",
+      "compression": "gzip",
+      "decodedBytes": 432976,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "code-reviewer",
+      "characterId": "lion"
+    },
+    "characters.otter": {
+      "url": "/den/models/characters/otter.glb.gz",
+      "kind": "character",
+      "sourceFilename": "30-otter-7500.glb",
+      "triangles": 7771,
+      "bytes": 303904,
+      "sha256": "56da3fa2d124739aaa0b0db64d97f59df5725ff0f9f9ff50b9da8efa5bdc6eab",
+      "compression": "gzip",
+      "decodedBytes": 434612,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "qa",
+      "characterId": "otter"
+    },
+    "characters.pangolin": {
+      "url": "/den/models/characters/pangolin.glb.gz",
+      "kind": "character",
+      "sourceFilename": "31-pangolin-7500.glb",
+      "triangles": 7790,
+      "bytes": 322001,
+      "sha256": "c40faa116c5574da159ac198391f7f6512006a9665d5a6a552d1ee243233bd71",
+      "compression": "gzip",
+      "decodedBytes": 487044,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "security",
+      "characterId": "pangolin"
+    },
+    "characters.lucky-cat": {
+      "url": "/den/models/characters/lucky-cat.glb.gz",
+      "kind": "character",
+      "sourceFilename": "32-lucky-cat-7500.glb",
+      "triangles": 7746,
+      "bytes": 270609,
+      "sha256": "afa425776618ab653837ee686ad7650f8fc097c1a4839a0240d7cb93deb7ec43",
+      "compression": "gzip",
+      "decodedBytes": 355240,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "release-manager",
+      "characterId": "lucky-cat"
+    },
+    "characters.tortoise": {
+      "url": "/den/models/characters/tortoise.glb.gz",
+      "kind": "character",
+      "sourceFilename": "33-tortoise-7500.glb",
+      "triangles": 7756,
+      "bytes": 311145,
+      "sha256": "b061e20dce8df40b484274d78d430c23c82203d84ff78f836bbecc05528c7319",
+      "compression": "gzip",
+      "decodedBytes": 439492,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "sre",
+      "characterId": "tortoise"
+    },
+    "characters.golden-monkey": {
+      "url": "/den/models/characters/golden-monkey.glb.gz",
+      "kind": "character",
+      "sourceFilename": "34-golden-monkey-7500.glb",
+      "triangles": 7819,
+      "bytes": 305205,
+      "sha256": "15de186642eb2c9e6468a0af4f36e0bb4c8568e91ed7472de5e7e23e4a927c65",
+      "compression": "gzip",
+      "decodedBytes": 444412,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "runner",
+      "characterId": "golden-monkey"
     }
   },
-  "bytes": 27340588
+  "bytes": 30377949
 }
