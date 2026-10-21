@@ -22,7 +22,15 @@ const IDENTITY = ["parentId", "name", "role", "layer", "runtime", "model", "tier
 const ID_RE = /^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$/;
 const TS_RE = /^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{3})?Z$/;
 // Text that looks like a credential is replaced before anything can render or export it.
-const SECRET_RE = /(gh[pousr]_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|sk-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|xox[abprs]-[A-Za-z0-9-]{10,}|-----BEGIN [A-Z ]*PRIVATE KEY-----|\b[Bb]earer\s+[A-Za-z0-9._~+/-]{16,})/g;
+// Best effort: common token shapes, not a guarantee; producers must redact before emitting (docs/agents/hierarchy-replay.md).
+const SECRET_RE = new RegExp([
+  "gh[pousr]_[A-Za-z0-9]{20,}", "github_pat_[A-Za-z0-9_]{20,}", "sk[-_](?:live_|test_|ant-)?[A-Za-z0-9_-]{20,}", "AKIA[0-9A-Z]{16}", "xox[abprs]-[A-Za-z0-9-]{10,}",
+  "AIza[0-9A-Za-z_-]{30,}", "npm_[A-Za-z0-9]{30,}", "glpat-[A-Za-z0-9_-]{20,}", "eyJ[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}\\.[A-Za-z0-9_-]{8,}",
+  "hooks\\.slack\\.com/services/\\S+", "[a-z][a-z0-9+.-]*://[^\\s/:@]+:[^\\s/@]+@", "-----BEGIN [A-Z ]*PRIVATE KEY-----", "\\b[Bb]earer\\s+[A-Za-z0-9._~+/-]{16,}",
+  "\\b(?:password|passwd|secret|api[_-]?key|access[_-]?token|auth[_-]?token)\\s*[:=]\\s*\\S{6,}",
+].join("|"), "gi");
+/** Text with credential-like runs replaced; shared with the exporter so a file never holds them either. */
+export const scrubSecrets = (v) => (typeof v === "string" ? v.replace(SECRET_RE, "[credential removed]") : v);
 
 export class ReplayError extends Error {}
 const fail = (message) => { throw new ReplayError(message); };
@@ -32,13 +40,13 @@ function makeText(issues) {
   return (v, max, label, { nullable = false, at = null } = {}) => {
     if (nullable && v === null) return null;
     if (typeof v !== "string" || !v.trim() || v.length > max || /[\u0000-\u0008\u000b-\u001f\u007f]/.test(v)) fail(`${at ? `Event ${at}: ` : ""}invalid ${label} (text of at most ${max} characters).`);
-    if (!SECRET_RE.test(v)) return v;
-    SECRET_RE.lastIndex = 0;
+    if (!looksSecret(v)) return v;
     issues.push({ sequence: at, level: "warn", code: "credential", message: `${label} held credential-like text; it was replaced and is not shown.` });
     return v.replace(SECRET_RE, "[credential removed]");
   };
 }
-const id = (v, label, at) => (typeof v === "string" && ID_RE.test(v) ? v : fail(`${at ? `Event ${at}: ` : ""}invalid ${label}.`));
+const looksSecret = (v) => { const hit = SECRET_RE.test(v); SECRET_RE.lastIndex = 0; return hit; };
+const id = (v, label, at) => (typeof v === "string" && ID_RE.test(v) && !looksSecret(v) ? v : fail(`${at ? `Event ${at}: ` : ""}invalid ${label}${typeof v === "string" && looksSecret(v) ? " (looks like a credential)" : ""}.`));
 
 function safeRef(ref, at) {
   if (ref.startsWith("https://")) {
@@ -85,9 +93,10 @@ function checkEvent(e, runId, text) {
     }) : fail(`${where}at most eight evidence references.`),
     attempt: e.attempt === undefined ? 1 : Number.isInteger(e.attempt) && e.attempt >= 1 && e.attempt <= 99 ? e.attempt : fail(`${where}attempt must be 1-99.`),
     verdict: e.verdict === undefined || e.verdict === null ? null : ["pass", "bounce"].includes(e.verdict) ? e.verdict : fail(`${where}verdict must be pass, bounce or null.`),
-    sourceRef: e.sourceRef === undefined || e.sourceRef === null ? null : isRecord(e.sourceRef) && Object.keys(e.sourceRef).every((k) => k === "log" || k === "line")
-      ? { log: text(e.sourceRef.log, 80, "source log", { at }), line: Number.isInteger(e.sourceRef.line) && e.sourceRef.line >= 0 ? e.sourceRef.line : fail(`${where}sourceRef.line must be a whole number.`) }
-      : fail(`${where}sourceRef must be { log, line }.`),
+    // The producer's own identity for the record: a board row's seq, a runtime record's ID number.
+    sourceRef: e.sourceRef === undefined || e.sourceRef === null ? null : isRecord(e.sourceRef) && Object.keys(e.sourceRef).every((k) => k === "log" || k === "seq")
+      ? { log: text(e.sourceRef.log, 80, "source log", { at }), seq: Number.isInteger(e.sourceRef.seq) && e.sourceRef.seq >= 0 ? e.sourceRef.seq : fail(`${where}sourceRef.seq must be a whole number.`) }
+      : fail(`${where}sourceRef must be { log, seq }.`),
     flags: [],
   };
   if (e.layer === "owner" && out.name !== null && !["Bao", "Jiao"].includes(out.name)) fail(`${where}the owner is Bao, Jiao, or null when not recorded.`);
@@ -240,6 +249,7 @@ export function replay(run, count) {
   const events = run.events.slice(0, Math.max(0, Math.min(run.events.length, count)));
   const nodes = new Map(), segments = [];
   const accrue = (n, time, unknown = false) => {
+    unknown ||= n.stale === true;
     // The owner has no parent to hand a result to, so its time after a result is simply not recorded.
     const key = unknown || (n.layer === "owner" && n.status === "result") ? "unknown" : bucketOf(n.status);
     if (key && time > n.since) { n[`${key}Ms`] += time - n.since; segments.push({ agentId: n.agentId, from: n.since, to: time, status: unknown ? "unknown" : n.status, bucket: key }); }
@@ -248,6 +258,9 @@ export function replay(run, count) {
   for (const e of events) {
     if (e.flags.includes("skipped")) continue;
     const odd = e.flags.includes("gap") || e.flags.includes("clock");
+    // Missing events could have changed any agent's state: each open interval stays unknown until that agent's next
+    // recorded state event.
+    if (e.flags.includes("gap")) for (const other of nodes.values()) other.stale = true;
     let n = nodes.get(e.agentId);
     if (!n) {
       n = { agentId: e.agentId, name: e.name, role: e.role, layer: e.layer, parentId: e.parentId, runtime: e.runtime, model: e.model, tier: e.tier,
@@ -262,18 +275,18 @@ export function replay(run, count) {
     if (e.commit) n.commit = e.commit;
     if (e.pr) n.pr = e.pr;
     n.taskSummary = e.taskSummary;
-    if (e.kind === "started") { accrue(n, e.time, odd); if (n.status !== "queued") n.restarts++; n.attempt = e.attempt; n.status = "started"; n.reason = e.reason; n.blockedOn = e.blockedOn; continue; }
+    if (e.kind !== "delegated" && !(e.kind === "accepted" && e.relatedAgentId)) { accrue(n, e.time, odd); n.stale = false; }
+    if (e.kind === "started") { if (n.status !== "queued") n.restarts++; n.attempt = e.attempt; n.status = "started"; n.reason = e.reason; n.blockedOn = e.blockedOn; continue; }
     if (e.kind === "delegated") continue;
     if (e.kind === "accepted" && e.relatedAgentId) {
       const child = nodes.get(e.relatedAgentId);
-      if (child) { accrue(child, e.time, odd); child.status = "accepted"; child.reason = null; child.blockedOn = []; child.history.push(e.sequence); }
+      if (child) { accrue(child, e.time, odd); child.stale = false; child.status = "accepted"; child.reason = null; child.blockedOn = []; child.history.push(e.sequence); }
       continue;
     }
     if (e.kind === "review" && e.relatedAgentId) {
       const target = nodes.get(e.relatedAgentId);
       if (target) { target.reviews++; if (e.verdict === "bounce") target.bounces++; target.history.push(e.sequence); }
     }
-    accrue(n, e.time, odd);
     n.status = e.kind; n.reason = e.reason; n.blockedOn = e.blockedOn;
     if (e.kind === "rework") n.reworks++;
   }

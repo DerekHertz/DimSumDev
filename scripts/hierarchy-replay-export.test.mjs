@@ -42,6 +42,17 @@ describe("a run from board rows", () => {
     assert.equal(dev.model, "claude-sonnet-5-5");
     assert.equal(dev.workMs, (9 + 4) * 60000);
   });
+  test("a second developer turn with no bounce before it is working, not rework", () => {
+    const rows = ROWS.map((r) => (r.seq === 6 ? { ...r, verdict: "pass" } : r));
+    const dev = replay(validateRun(fromBoardEvents({ ref: "f/07-thing", rows })).run, 99).nodes.find((n) => n.agentId === "developer");
+    assert.equal(dev.attempt, 2);
+    assert.equal(dev.reworks, 0);
+  });
+  test("a park reason is copied with credential-like text removed", () => {
+    const rows = [...ROWS.slice(0, 2), row(3, 2, "park", null, { reason: `waiting on ${"ghp"}_${"q7".repeat(12)} rotation` })];
+    const blocked = fromBoardEvents({ ref: "f/07-thing", rows }).events.find((e) => e.kind === "blocked");
+    assert.equal(blocked.reason, "waiting on [credential removed] rotation");
+  });
   test("comment text is never copied; the cited commit and handoff path are", () => {
     const text = JSON.stringify(raw);
     assert.ok(!/ghp_|missing test|committed/.test(text));
@@ -51,7 +62,7 @@ describe("a run from board rows", () => {
   });
   test("the owner's name is not guessed and other tickets' rows are left out", () => {
     assert.equal(raw.events[0].name, null);
-    assert.ok(raw.events.every((e) => e.sourceRef.line <= 11));
+    assert.ok(raw.events.every((e) => e.sourceRef.seq <= 11));
     assert.equal(fromBoardEvents({ ref: "f/07-thing", rows: ROWS, owner: "Jiao" }).events[0].name, "Jiao");
   });
   test("the same rows always give the same run", () => {
@@ -69,8 +80,8 @@ describe("the bundled recorded run", { skip: existsSync(log) ? false : "no den b
     const rows = readFileSync(log, "utf8").split("\n").filter((l) => l.trim()).flatMap((l) => { try { return [JSON.parse(l)]; } catch { return []; } });
     const bySeq = new Map(rows.map((r) => [r.seq, r]));
     for (const e of bundled.events) {
-      const r = bySeq.get(e.sourceRef.line);
-      assert.ok(r, `line ${e.sourceRef.line}`);
+      const r = bySeq.get(e.sourceRef.seq);
+      assert.ok(r, `seq ${e.sourceRef.seq}`);
       assert.equal(e.timestamp, r.ts);
       assert.equal(`${r.feature}/${r.ticket}`, "team-and-den-ux/50-terrain-clearance-only");
       if (e.agentId !== "owner") assert.equal(e.role, r.role);

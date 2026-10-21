@@ -33,7 +33,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3853
+    "seq": 3853
    }
   },
   {
@@ -61,7 +61,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3858
+    "seq": 3858
    }
   },
   {
@@ -89,7 +89,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3858
+    "seq": 3858
    }
   },
   {
@@ -117,7 +117,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3858
+    "seq": 3858
    }
   },
   {
@@ -150,7 +150,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3862
+    "seq": 3862
    }
   },
   {
@@ -178,7 +178,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3863
+    "seq": 3863
    }
   },
   {
@@ -206,7 +206,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3863
+    "seq": 3863
    }
   },
   {
@@ -234,7 +234,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3863
+    "seq": 3863
    }
   },
   {
@@ -267,7 +267,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3865
+    "seq": 3865
    }
   },
   {
@@ -295,7 +295,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3866
+    "seq": 3866
    }
   },
   {
@@ -323,7 +323,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3866
+    "seq": 3866
    }
   },
   {
@@ -351,7 +351,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3866
+    "seq": 3866
    }
   },
   {
@@ -384,7 +384,7 @@
    "verdict": "pass",
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3867
+    "seq": 3867
    }
   },
   {
@@ -412,7 +412,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3868
+    "seq": 3868
    }
   },
   {
@@ -440,7 +440,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3869
+    "seq": 3869
    }
   },
   {
@@ -468,7 +468,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3869
+    "seq": 3869
    }
   },
   {
@@ -496,7 +496,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3869
+    "seq": 3869
    }
   },
   {
@@ -529,7 +529,7 @@
    "verdict": "pass",
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3870
+    "seq": 3870
    }
   },
   {
@@ -557,7 +557,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3871
+    "seq": 3871
    }
   },
   {
@@ -585,7 +585,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3872
+    "seq": 3872
    }
   },
   {
@@ -613,7 +613,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3872
+    "seq": 3872
    }
   },
   {
@@ -641,7 +641,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3872
+    "seq": 3872
    }
   },
   {
@@ -674,7 +674,7 @@
    "verdict": "pass",
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3873
+    "seq": 3873
    }
   },
   {
@@ -702,7 +702,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3874
+    "seq": 3874
    }
   },
   {
@@ -730,7 +730,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3875
+    "seq": 3875
    }
   },
   {
@@ -746,10 +746,10 @@
    "runtime": null,
    "model": null,
    "tier": null,
-   "kind": "awaiting",
+   "kind": "result",
    "taskSummary": "team-and-den-ux/50-terrain-clearance-only",
    "relatedAgentId": null,
-   "reason": "Board status in-review after the owner released it (a review or approval gate)",
+   "reason": "Board status in-review",
    "blockedOn": [],
    "commit": null,
    "pr": null,
@@ -758,41 +758,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3877
+    "seq": 3877
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
    "eventId": "b3879-27",
    "sequence": 27,
-   "timestamp": "2026-10-21T15:53:08.851Z",
-   "agentId": "owner",
-   "parentId": null,
-   "name": null,
-   "role": "orchestrator",
-   "layer": "owner",
-   "runtime": null,
-   "model": null,
-   "tier": null,
-   "kind": "result",
-   "taskSummary": "team-and-den-ux/50-terrain-clearance-only",
-   "relatedAgentId": null,
-   "reason": "release-manager claimed the ticket; the owner's state is not recorded after this",
-   "blockedOn": [],
-   "commit": null,
-   "pr": null,
-   "evidenceRefs": [],
-   "attempt": 1,
-   "verdict": null,
-   "sourceRef": {
-    "log": ".scratch/events.jsonl",
-    "line": 3879
-   }
-  },
-  {
-   "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3879-28",
-   "sequence": 28,
    "timestamp": "2026-10-21T15:53:08.851Z",
    "agentId": "release-manager",
    "parentId": "owner",
@@ -814,13 +786,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3879
+    "seq": 3879
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3879-29",
-   "sequence": 29,
+   "eventId": "b3879-28",
+   "sequence": 28,
    "timestamp": "2026-10-21T15:53:08.851Z",
    "agentId": "owner",
    "parentId": null,
@@ -842,13 +814,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3879
+    "seq": 3879
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3879-30",
-   "sequence": 30,
+   "eventId": "b3879-29",
+   "sequence": 29,
    "timestamp": "2026-10-21T15:53:08.851Z",
    "agentId": "release-manager",
    "parentId": "owner",
@@ -870,13 +842,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3879
+    "seq": 3879
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3881-31",
-   "sequence": 31,
+   "eventId": "b3881-30",
+   "sequence": 30,
    "timestamp": "2026-10-21T15:54:12.707Z",
    "agentId": "release-manager",
    "parentId": "owner",
@@ -903,13 +875,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3881
+    "seq": 3881
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3882-32",
-   "sequence": 32,
+   "eventId": "b3882-31",
+   "sequence": 31,
    "timestamp": "2026-10-21T15:57:33.589Z",
    "agentId": "developer",
    "parentId": "owner",
@@ -931,13 +903,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3882
+    "seq": 3882
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3882-33",
-   "sequence": 33,
+   "eventId": "b3882-32",
+   "sequence": 32,
    "timestamp": "2026-10-21T15:57:33.589Z",
    "agentId": "developer",
    "parentId": "owner",
@@ -947,7 +919,7 @@
    "runtime": null,
    "model": null,
    "tier": null,
-   "kind": "rework",
+   "kind": "working",
    "taskSummary": "developer on 50-terrain-clearance-only",
    "relatedAgentId": null,
    "reason": null,
@@ -959,13 +931,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3882
+    "seq": 3882
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3884-34",
-   "sequence": 34,
+   "eventId": "b3884-33",
+   "sequence": 33,
    "timestamp": "2026-10-21T16:05:13.268Z",
    "agentId": "developer",
    "parentId": "owner",
@@ -992,13 +964,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3884
+    "seq": 3884
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3885-35",
-   "sequence": 35,
+   "eventId": "b3885-34",
+   "sequence": 34,
    "timestamp": "2026-10-21T16:06:54.634Z",
    "agentId": "technical-writer",
    "parentId": "owner",
@@ -1020,13 +992,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3885
+    "seq": 3885
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3885-36",
-   "sequence": 36,
+   "eventId": "b3885-35",
+   "sequence": 35,
    "timestamp": "2026-10-21T16:06:54.634Z",
    "agentId": "technical-writer",
    "parentId": "owner",
@@ -1048,13 +1020,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3885
+    "seq": 3885
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3887-37",
-   "sequence": 37,
+   "eventId": "b3887-36",
+   "sequence": 36,
    "timestamp": "2026-10-21T16:07:45.303Z",
    "agentId": "technical-writer",
    "parentId": "owner",
@@ -1081,13 +1053,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3887
+    "seq": 3887
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3888-38",
-   "sequence": 38,
+   "eventId": "b3888-37",
+   "sequence": 37,
    "timestamp": "2026-10-21T16:08:20.996Z",
    "agentId": "code-reviewer",
    "parentId": "owner",
@@ -1109,13 +1081,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3888
+    "seq": 3888
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3888-39",
-   "sequence": 39,
+   "eventId": "b3888-38",
+   "sequence": 38,
    "timestamp": "2026-10-21T16:08:20.996Z",
    "agentId": "code-reviewer",
    "parentId": "owner",
@@ -1137,13 +1109,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3888
+    "seq": 3888
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3889-40",
-   "sequence": 40,
+   "eventId": "b3889-39",
+   "sequence": 39,
    "timestamp": "2026-10-21T16:09:21.925Z",
    "agentId": "code-reviewer",
    "parentId": "owner",
@@ -1170,13 +1142,13 @@
    "verdict": "pass",
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3889
+    "seq": 3889
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3890-41",
-   "sequence": 41,
+   "eventId": "b3890-40",
+   "sequence": 40,
    "timestamp": "2026-10-21T16:09:27.527Z",
    "agentId": "code-reviewer",
    "parentId": "owner",
@@ -1198,13 +1170,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3890
+    "seq": 3890
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3891-42",
-   "sequence": 42,
+   "eventId": "b3891-41",
+   "sequence": 41,
    "timestamp": "2026-10-21T16:09:56.575Z",
    "agentId": "qa",
    "parentId": "owner",
@@ -1226,13 +1198,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3891
+    "seq": 3891
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3891-43",
-   "sequence": 43,
+   "eventId": "b3891-42",
+   "sequence": 42,
    "timestamp": "2026-10-21T16:09:56.575Z",
    "agentId": "qa",
    "parentId": "owner",
@@ -1254,13 +1226,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3891
+    "seq": 3891
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3892-44",
-   "sequence": 44,
+   "eventId": "b3892-43",
+   "sequence": 43,
    "timestamp": "2026-10-21T16:11:03.566Z",
    "agentId": "qa",
    "parentId": "owner",
@@ -1287,13 +1259,13 @@
    "verdict": "pass",
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3892
+    "seq": 3892
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3893-45",
-   "sequence": 45,
+   "eventId": "b3893-44",
+   "sequence": 44,
    "timestamp": "2026-10-21T16:11:06.954Z",
    "agentId": "qa",
    "parentId": "owner",
@@ -1315,13 +1287,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3893
+    "seq": 3893
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3894-46",
-   "sequence": 46,
+   "eventId": "b3894-45",
+   "sequence": 45,
    "timestamp": "2026-10-21T16:11:55.925Z",
    "agentId": "security",
    "parentId": "owner",
@@ -1343,13 +1315,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3894
+    "seq": 3894
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3894-47",
-   "sequence": 47,
+   "eventId": "b3894-46",
+   "sequence": 46,
    "timestamp": "2026-10-21T16:11:55.925Z",
    "agentId": "security",
    "parentId": "owner",
@@ -1371,13 +1343,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3894
+    "seq": 3894
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3895-48",
-   "sequence": 48,
+   "eventId": "b3895-47",
+   "sequence": 47,
    "timestamp": "2026-10-21T16:12:34.197Z",
    "agentId": "security",
    "parentId": "owner",
@@ -1404,13 +1376,13 @@
    "verdict": "pass",
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3895
+    "seq": 3895
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3896-49",
-   "sequence": 49,
+   "eventId": "b3896-48",
+   "sequence": 48,
    "timestamp": "2026-10-21T16:12:54.035Z",
    "agentId": "security",
    "parentId": "owner",
@@ -1432,13 +1404,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3896
+    "seq": 3896
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3897-50",
-   "sequence": 50,
+   "eventId": "b3897-49",
+   "sequence": 49,
    "timestamp": "2026-10-21T16:13:32.513Z",
    "agentId": "owner",
    "parentId": null,
@@ -1460,13 +1432,13 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3897
+    "seq": 3897
    }
   },
   {
    "runId": "board-team-and-den-ux-50-terrain-clearance-only",
-   "eventId": "b3898-51",
-   "sequence": 51,
+   "eventId": "b3898-50",
+   "sequence": 50,
    "timestamp": "2026-10-21T16:13:32.544Z",
    "agentId": "owner",
    "parentId": null,
@@ -1488,7 +1460,7 @@
    "verdict": null,
    "sourceRef": {
     "log": ".scratch/events.jsonl",
-    "line": 3898
+    "seq": 3898
    }
   }
  ]

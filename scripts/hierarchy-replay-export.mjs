@@ -1,16 +1,19 @@
 // Hierarchy audit replay: a recorded run from the board's own log. Until the runtime emits tree events (the Codex
 // track's owner -> manager -> runner runtime; docs/agents/hierarchy-replay.md), the closest real record of a run is
 // .scratch/events.jsonl: every claim, release, verdict, park and close, in one serialized sequence. This turns one
-// ticket's rows into a schema-1 replay. It reads only; every event carries the board line it came from (sourceRef).
+// ticket's rows into a schema-1 replay. It reads only; every event carries the board row it came from (sourceRef.seq).
 // What the board does not record stays unknown: the owner's name, wait reasons, runner leaves, and any model the
 // usage ledger has no row for. Comment text is never copied; only a verdict, a cited commit and handoff paths are.
+// A park reason (a short field the user writes) is copied, credential-like text removed.
 //   node scripts/hierarchy-replay-export.mjs <feature/ticket> [--owner Bao|Jiao] [--pr URL] [--out file]
 import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { scrubSecrets } from "../apps/ui/src/audit/replay-core.mjs";
 
 const REVIEWERS = new Set(["code-reviewer", "qa", "security"]);
-const SHA_RE = /\b([0-9a-f]{7,40})\b/;
+// A short (7-12) or full (40) commit ID, the first cited; a longer or odd-length hex run is not taken as a commit.
+const SHA_RE = /\b([0-9a-f]{40}|[0-9a-f]{7,12})\b/;
 const HANDOFF_RE = /\bhandoffs\/([A-Za-z0-9_.-]+\.md)\b/g;
 const PR_RE = /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/pull\/[1-9]\d{0,8}$/;
 const clean = (v, max) => (typeof v === "string" && v.trim() ? v.replace(/[\u0000-\u001f\u007f]/g, " ").slice(0, max) : null);
@@ -50,7 +53,7 @@ export function fromBoardEvents({ ref, rows, usageRows = [], owner = null, pr = 
       agentId, parentId: n.parentId, name: n.name, role: n.role, layer: n.layer, runtime: n.runtime, model: n.model, tier: null,
       kind, taskSummary: extra.task ?? n.task, relatedAgentId: extra.related ?? null, reason: extra.reason ?? null, blockedOn: [],
       commit: extra.commit ?? null, pr: extra.pr ?? null, evidenceRefs: extra.evidence ?? [], attempt: n.attempt, verdict: extra.verdict ?? null,
-      sourceRef: { log: ".scratch/events.jsonl", line: row.seq },
+      sourceRef: { log: ".scratch/events.jsonl", seq: row.seq },
     });
   };
   const evidenceOf = (text) => [...new Set([...(typeof text === "string" ? text.matchAll(HANDOFF_RE) : [])].map((m) => m[1]))].slice(0, 8)
@@ -59,17 +62,14 @@ export function fromBoardEvents({ ref, rows, usageRows = [], owner = null, pr = 
   nodes.set("owner", { parentId: null, name: owner, role: ownerRole, layer: "owner", runtime: null, model: model(ownerRole), task: ref, attempt: 1 });
   push(mine[0], "owner", "started", { task: ref });
   const pending = new Map(); // role -> { commit, evidence } cited in its comments, attached to its next release
-  let ownerKind = "started";
-  const ownerPush = (row, kind, extra) => { ownerKind = kind; push(row, "owner", kind, extra); };
+  const ownerPush = (row, kind, extra) => push(row, "owner", kind, extra);
+  let bounced = false; // a bounce verdict since the developer's last turn: only then is its next turn rework
   for (const row of mine) {
     const role = typeof row.role === "string" ? row.role : null;
     const isOwner = role === "orchestrator";
     if (row.op === "claim" || row.op === "reclaim") {
       if (!role) { unmapped++; continue; }
       if (isOwner) { ownerPush(row, "working"); continue; }
-      // The board reuses in-review for the next role's turn, so an owner's gate is only known to last until the
-      // next claim; after that the owner's state is not recorded (a result: handed on, nothing claimed for it).
-      if (ownerKind === "awaiting") ownerPush(row, "result", { reason: `${role} claimed the ticket; the owner's state is not recorded after this` });
       const existing = nodes.get(role);
       if (!existing) {
         nodes.set(role, { parentId: "owner", name: role, role, layer: "manager", runtime: null, model: model(role), task: `${role}${row.mode ? ` (${row.mode})` : ""} on ${ticket}`, attempt: 1 });
@@ -80,7 +80,8 @@ export function fromBoardEvents({ ref, rows, usageRows = [], owner = null, pr = 
         push(row, role, "started", { reason: row.op === "reclaim" ? "Reclaimed on the board" : null });
       }
       const n = nodes.get(role);
-      push(row, role, role === "developer" && n.attempt > 1 ? "rework" : "working");
+      push(row, role, role === "developer" && n.attempt > 1 && bounced ? "rework" : "working");
+      if (role === "developer") bounced = false;
     } else if (row.op === "comment") {
       if (!role || isOwner) { unmapped++; continue; }
       const p = pending.get(role) ?? { commit: null, evidence: [] };
@@ -88,6 +89,7 @@ export function fromBoardEvents({ ref, rows, usageRows = [], owner = null, pr = 
       p.evidence = [...p.evidence, ...evidenceOf(row.text)].slice(0, 8);
       pending.set(role, p);
       if ((row.verdict === "pass" || row.verdict === "bounce") && nodes.has(role)) {
+        if (row.verdict === "bounce") bounced = true;
         push(row, role, "review", { related: nodes.has("developer") && role !== "developer" ? "developer" : null, verdict: row.verdict, commit: p.commit, evidence: p.evidence, task: `${role} verdict: ${row.verdict}` });
         pending.delete(role);
       } else if (!nodes.has(role)) unmapped++;
@@ -96,16 +98,16 @@ export function fromBoardEvents({ ref, rows, usageRows = [], owner = null, pr = 
       const status = clean(row.to_status, 40) ?? "unknown";
       if (isOwner) {
         if (status === "resolved") ownerPush(row, "completed", { reason: "Board status resolved", pr });
-        else if (status === "in-review") ownerPush(row, "awaiting", { reason: "Board status in-review after the owner released it (a review or approval gate)" });
         else ownerPush(row, "result", { reason: `Board status ${status}` });
         continue;
       }
       if (!nodes.has(role)) { unmapped++; continue; }
       const p = pending.get(role) ?? { commit: null, evidence: [] };
       pending.delete(role);
-      push(row, role, "result", { related: "owner", reason: `Board status ${status}`, commit: p.commit, evidence: p.evidence });
+      if (status === "blocked") push(row, role, "blocked", { reason: "Released as blocked on the board", commit: p.commit, evidence: p.evidence });
+      else push(row, role, "result", { related: "owner", reason: `Board status ${status}`, commit: p.commit, evidence: p.evidence });
     } else if (row.op === "park") {
-      ownerPush(row, "blocked", { reason: clean(row.reason, 200) ?? "Parked on the board (no reason recorded)" });
+      ownerPush(row, "blocked", { reason: clean(scrubSecrets(row.reason), 200) ?? "Parked on the board (no reason recorded)" });
     } else if (row.op === "unpark") {
       ownerPush(row, "waiting", { reason: "Unparked; ready for an agent" });
     } else if (row.op === "close") {

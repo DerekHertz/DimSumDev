@@ -145,7 +145,7 @@ function Inspector({ run, state, agentId, event }) {
         <section>
           <p className="audit-eyebrow">Selected event</p>
           <h3>#{event.sequence} {event.kind}{event.verdict ? ` (${event.verdict})` : ""}</h3>
-          <p className="audit-note">{event.timestamp} · {event.sourceRef ? `source ${event.sourceRef.log} line ${event.sourceRef.line}` : "no source line recorded"}{event.flags.length ? ` · ${event.flags.join(", ")}` : ""}</p>
+          <p className="audit-note">{event.timestamp} · {event.sourceRef ? `source ${event.sourceRef.log}, seq ${event.sourceRef.seq}` : "no source line recorded"}{event.flags.length ? ` · ${event.flags.join(", ")}` : ""}</p>
           <Evidence refs={event.evidenceRefs} />
           <details className="audit-raw"><summary>Raw event</summary><pre>{JSON.stringify(rawOf(event), null, 2)}</pre></details>
         </section>
@@ -164,7 +164,14 @@ export function AuditReplay({ initialId = null }) {
   const [agent, setAgent] = useState(null);
   const [eventSeq, setEventSeq] = useState(null);
   const [filter, setFilter] = useState("all");
-  const [motion] = useState(() => !reducedMotion());
+  const [motion, setMotion] = useState(() => !reducedMotion());
+  useEffect(() => {
+    let mq;
+    try { mq = window.matchMedia("(prefers-reduced-motion: reduce)"); } catch { return undefined; }
+    const on = () => setMotion(!mq.matches);
+    mq.addEventListener?.("change", on);
+    return () => mq.removeEventListener?.("change", on);
+  }, []);
   const [importError, setImportError] = useState(null);
   const loadToken = useRef(0);
   const fileInput = useRef(null);

@@ -85,6 +85,15 @@ describe("work and wait", () => {
     assert.equal(run.complete, false);
     assert.deepEqual(times(replay(run, run.events.length), "dev"), { work: 0, wait: 0, back: 10, unknown: 90 });
   });
+  test("a gap makes every agent's open interval unknown, not just the next event's agent", () => {
+    // Owner and manager both working; event 4 is missing; the owner's event 5 is the only one flagged.
+    const raw = { ...small(), events: [ev(1, 0, "own", "started"), ev(2, 0, "own", "working"), ev(3, 0, "dev", "started"), ev(4, 0, "dev", "working"),
+      ev(6, 30, "own", "working"), ev(7, 50, "dev", "result", { related: "own" })] };
+    const end = replay(validateRun(raw).run, 6);
+    assert.deepEqual(times(end, "dev"), { work: 0, wait: 0, back: 0, unknown: 30 + 20 });
+    assert.deepEqual(times(end, "own"), { work: 20, wait: 0, back: 0, unknown: 30 });
+    assert.equal(end.task.workingMs, 20000);
+  });
   test("a timestamp that steps backwards makes its interval unknown, never negative", () => {
     const raw = small(); raw.events[5].timestamp = "2026-10-21T09:00:30.000Z";
     const { run, issues } = validateRun(raw);
@@ -162,6 +171,10 @@ describe("what the viewer refuses", () => {
     raw.events[5].evidenceRefs = [{ label: "x", ref: "../../etc/passwd" }];
     assert.throws(() => validateRun(raw), /relative artifact path/);
   });
+  test("an ID shaped like a credential is refused", () => {
+    const raw = small(); raw.events[0].eventId = `${"ghp"}_${"z9".repeat(12)}`;
+    assert.throws(() => validateRun(raw), /looks like a credential/);
+  });
   test("credential-like text is replaced before it can render", () => {
     const raw = small(); raw.events[4].reason = `token ${"ghp"}_${"a1".repeat(15)} leaked`; // built here so secret scanners do not flag a fake
     const { run, issues } = validateRun(raw);
@@ -202,13 +215,14 @@ describe("the recorded run bundled with the den", () => {
   test("is not illustrative, completes, and every event names its board line", () => {
     assert.equal(recorded.run.illustrative, false);
     assert.equal(recorded.run.complete, true);
-    assert.ok(recorded.run.events.every((e) => e.sourceRef?.log === ".scratch/events.jsonl" && e.sourceRef.line > 0));
+    assert.ok(recorded.run.events.every((e) => e.sourceRef?.log === ".scratch/events.jsonl" && e.sourceRef.seq > 0));
   });
-  test("replays the developer's rework and the second review round", () => {
+  test("replays the developer's second turn (after a CI diagnosis, not a bounce) and the second review round", () => {
     const end = replay(recorded.run, recorded.run.events.length);
     const dev = node(end, "developer");
     assert.equal(dev.attempt, 2);
-    assert.equal(dev.reworks, 1);
+    assert.equal(dev.reworks, 0, "no bounce was recorded, so the second turn is not called rework");
+    assert.equal(dev.bounces, 0);
     assert.equal(dev.reviews, 6);
     assert.equal(end.outcome, "completed");
     assert.ok(recorded.issues.every((i) => i.code === "limit"), "a flat relay uses more than four managers");

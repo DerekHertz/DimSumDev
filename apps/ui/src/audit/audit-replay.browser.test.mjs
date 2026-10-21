@@ -69,6 +69,8 @@ test("opens from Work over the scene, plays, seeks and closes with the scene unt
     await page.locator(".audit-play").click(); // Replay from the end restarts
     await page.waitForFunction(() => /event [0-9]\//.test(document.querySelector(".audit-cursor").textContent));
     await page.locator(".audit-play").click();
+    await page.locator(".audit-seek").fill("17");
+    const before = await page.locator(".audit-cursor").textContent();
     await page.getByRole("button", { name: "Close panel" }).click();
     await sheet(page).waitFor({ state: "detached" });
     assert.ok(await canvas.evaluate((c) => c.isConnected), "the scene canvas was never remounted");
@@ -76,12 +78,13 @@ test("opens from Work over the scene, plays, seeks and closes with the scene unt
     await page.locator('[data-rail="work"]').click();
     await page.locator('[data-open="replay"]').click();
     await sheet(page).locator(".audit-cursor").waitFor();
+    assert.equal(await page.locator(".audit-cursor").textContent(), before, "reopening returns to the same cursor");
     assert.deepEqual(writes, [], "replay makes no bridge writes");
     assert.deepEqual(errors, []);
   } finally { await close(); }
 });
 
-test("a recorded run opens by name; the inspected event names its board line", { timeout: 180000 }, async () => {
+test("a recorded run opens by name; the inspected event names its board row", { timeout: 180000 }, async () => {
   const { page, errors, close } = await open({ query: "?replay=team-and-den-ux-50" });
   try {
     await sheet(page).locator(".audit-banner-recorded").waitFor();
@@ -90,7 +93,7 @@ test("a recorded run opens by name; the inspected event names its board line", {
     await page.locator(".audit-raw summary").click();
     const raw = JSON.parse(await page.locator(".audit-raw pre").textContent());
     assert.equal(raw.sequence, 13);
-    assert.deepEqual(raw.sourceRef, { log: ".scratch/events.jsonl", line: 3867 });
+    assert.deepEqual(raw.sourceRef, { log: ".scratch/events.jsonl", seq: 3867 });
     assert.equal(raw.verdict, "pass");
     assert.match(await page.locator(".audit-issues summary").textContent(), /2 warnings/);
     await evidence(page, "recorded-ticket-50");
@@ -110,6 +113,20 @@ test("an interrupted load says so and offers the sample; a bad import keeps the 
     assert.ok(await page.locator(".audit-banner-sample").isVisible());
     await page.locator('.audit input[type="file"]').setInputFiles({ name: "x.json", mimeType: "application/json", buffer: Buffer.from("<img src=x onerror=alert(1)>") });
     assert.match(await page.locator(".audit-error").textContent(), /not JSON/);
+  } finally { await close(); }
+});
+
+test("a slow load that is overtaken by another choice never replaces it", { timeout: 180000 }, async () => {
+  const { page, close } = await open({ query: "?replay=sample" });
+  try {
+    await page.route((url) => url.pathname.includes("team-and-den-ux-50"), async (r) => { await new Promise((ok) => setTimeout(ok, 2500)); await r.continue(); });
+    await sheet(page).locator(".audit-banner-sample").waitFor();
+    const picker = page.locator(".audit-toolbar select");
+    await picker.selectOption("team-and-den-ux-50");
+    await picker.selectOption("sample");
+    await page.waitForTimeout(3500);
+    assert.ok(await page.locator(".audit-banner-sample").isVisible());
+    assert.equal(await page.locator(".audit-banner-recorded").count(), 0);
   } finally { await close(); }
 });
 
