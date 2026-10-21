@@ -20,7 +20,7 @@ test('36 an unplaceable visitor remains accessible in the mounted Team profile w
    await route.fulfill({response,body:source+'\nconst unavailableOriginal=createMeshyActors;createMeshyActors=function(den){const c=unavailableOriginal(den);den.walkWorld.navigation.groundAt=()=>null;return c;};\n'});
   });
   await page.route('**/state',r=>r.fulfill({json:snapshot}));await page.route('**/metrics',r=>r.fulfill({json:{throughput:{windows:[]},tokensByRole:{},incidentsByTool:{}}}));await page.route('**/session',r=>r.fulfill({status:404,json:{}}));
-  await page.route('**/meetings/**',r=>r.fulfill({json:{takes:[]}}));
+  await page.route(url=>url.pathname.startsWith('/meetings/'),r=>r.fulfill({json:{takes:[]}}));
   await page.goto(server.resolvedUrls.local[0]);
   await page.locator('[data-rail=team]').click();
   const choice=page.getByRole('button',{name:/, developer, Claude,.*visitor on work\/two/});await choice.click();
