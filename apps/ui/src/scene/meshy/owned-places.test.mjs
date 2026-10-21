@@ -53,12 +53,37 @@ test('failed routes hold with bounded three attempts, release destination and ne
  for(let i=0;i<300;i++)travel.update([a],.1,true);
  assert.equal(calls,last);assert.deepEqual(a.position,{x:0,y:0,z:0});assert.equal(a.travel.status,'unavailable');
 });
-test('two nearby moving actors yield deterministically without overlap and both eventually arrive',()=>{
+for(const reverse of [false,true])test(`two nearby moving actors yield without overlap and both arrive (reverse=${reverse})`,()=>{
  const places=createPlaceRegistry(flat),travel=createActorTravel(flat,places,{speed:2});
  const a=actor('a',-3,0),b=actor('b',0,-3);
  places.define({id:'left',kind:'leisure',position:{x:0,y:0,z:3}});places.define({id:'right',kind:'leisure',position:{x:3,y:0,z:0}});
  travel.request(a,'right');travel.request(b,'left');let yielded=false;
- for(let i=0;i<200;i++){travel.update([b,a],.1,false);yielded ||= [a,b].some(a=>a.travel?.status==='yielding');assert.ok(Math.hypot(a.position.x-b.position.x,a.position.z-b.position.z)>=body.radius*2-.001);}
+ for(let i=0;i<200;i++){travel.update(reverse?[b,a]:[a,b],.1,false);yielded ||= [a,b].some(a=>a.travel?.status==='yielding');assert.ok(Math.hypot(a.position.x-b.position.x,a.position.z-b.position.z)>=body.radius*2-.001);}
  assert.equal(a.travel.status,'arrived');assert.equal(b.travel.status,'arrived');
  assert.equal(yielded,true);
+});
+for(const end of ['cancel','dispose'])test(`a retained waiter resumes when the winner ${end}s`,()=>{
+ const places=createPlaceRegistry(flat),travel=createActorTravel(flat,places,{speed:2});
+ const a=actor('a',-3,0),b=actor('b',0,-3);
+ places.define({id:'left',kind:'leisure',position:{x:0,y:0,z:3}});places.define({id:'right',kind:'leisure',position:{x:3,y:0,z:0}});
+ travel.request(a,'right');travel.request(b,'left');
+ for(let i=0;i<13;i++)travel.update([a,b],.1);
+ assert.equal(b.travel.status,'yielding');assert.equal(b.travel.yieldTo,a.identity);
+ if(end==='cancel')travel.cancel(a);else places.disposeActor(a.identity);
+ // A cancelled actor leaves the conflict; disposal removes it entirely.
+ if(end==='cancel')a.position={x:-10,y:0,z:-10};
+ for(let i=0;i<200;i++)travel.update(end==='cancel'?[a,b]:[b],.1);
+ assert.equal(b.travel.status,'arrived');assert.equal(b.travel.yieldTo,undefined);
+});
+test('a blocked narrow corridor holds actors apart without pretending either arrived',()=>{
+ const world={navigation:{groundAt:(x,z,y,r)=>Math.abs(z)+r>.5?null:0}};
+ const places=createPlaceRegistry(world),travel=createActorTravel(world,places,{speed:2});
+ const a=actor('a',-3),b=actor('b',3);
+ places.define({id:'left',kind:'leisure',position:{x:-3,y:0,z:0}});places.define({id:'right',kind:'leisure',position:{x:3,y:0,z:0}});
+ travel.request(a,'right');travel.request(b,'left');let yielded=false;
+ for(let i=0;i<200;i++){
+  travel.update([b,a],.1);yielded ||= [a,b].some(a=>a.travel.status==='yielding');
+  assert.ok(Math.hypot(a.position.x-b.position.x,a.position.z-b.position.z)>=body.radius*2-.001);
+ }
+ assert.equal(yielded,true);assert.equal(a.travel.status,'yielding');assert.equal(b.travel.status,'yielding');
 });
