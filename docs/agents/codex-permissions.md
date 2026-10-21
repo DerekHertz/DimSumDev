@@ -36,7 +36,21 @@ The original receipt did not capture the random fixture basename/port; its owned
 
 The prepared correction requires the installed helper and grants only that executable read access, never its package/home parent directory. Before creating a fixture, listener or launcher, execution admission resolves **all three** supplied binary paths (Node, Codex CLI wrapper and native helper), requires regular files and checks execute access. Wrapper symlinks are resolved to the checked file; the exact resolved path is then used. Directories, directory aliases and non-executable files refuse admission. The pure plan validates representation only and claims no filesystem proof; separate disposable filesystem fixtures cover execution admission without running their dummy executables.
 
-This correction has **not been rerun**; first-failure hold applies until the revised frozen source/plan is reviewed and a new run is explicitly authorized. Default production registration and live model/account/auth calls remain disabled.
+After code, QA and security review passed candidate `741bf56d95d5a70818b86d4fdd63b090d9b9f950`, exactly one corrected offline run was authorized. It also failed without probe results:
+
+```text
+resolved CLI: /home/dhertzell/.nvm/versions/node/v22.23.3/lib/node_modules/@openai/codex/bin/codex.js
+argv: sandbox --permission-profile bridge-offline-canary --cd /tmp/den-codex-profile-task2-NSrB7z/worktree -- /home/dhertzell/.nvm/versions/node/v22.23.3/bin/node /tmp/den-codex-profile-task2-NSrB7z/worktree/probe.mjs /tmp/den-codex-profile-task2-NSrB7z 51309
+cwd: /tmp/den-codex-profile-task2-NSrB7z/worktree
+unit: den-run-codex-profile-0511c85018fbb048.scope
+slice: den-agents-codex-task2
+status: code 1, signal null
+settled: true; outputDrained: true; overflow: false
+localhost connections: 0; dummy markers preserved: true
+probe results: null; native diagnostics: empty; verdict: FAIL
+```
+
+The full bounded receipt is `native-shell-canary-741bf56.receipt.json` in this isolated worktree's private Git metadata. The owned fixture was removed after confirmed group cleanup. The native failure stage/cause remains uncertain because the CLI emitted no diagnostic; this is not an 18-check pass or a claim that the kernel lacks the required features. No retry followed. Further native execution remains on first-failure hold pending diagnosis/review and explicit authorization. Default production registration and live model/account/auth calls remain disabled.
 
 ## Remaining integration gates
 
