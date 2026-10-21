@@ -3,12 +3,40 @@ import assert from 'node:assert/strict';
 import * as T from 'three';
 import {createActorPlaces} from './actor-places.mjs';
 import {createSurfaceNavigation} from './navigation.mjs';
+import {WALK,startWalk,walk} from '../procedural/walk.mjs';
 
 function fixture(groundAt,walkX=10){
- const actors=new Map(),meshes=[],navigation={revision:0,groundAt},transport=createActorPlaces({walkWorld:{navigation},walkStart:{x:walkX,z:0,groundY:0}},actors,2);
+ const actors=new Map(),meshes=[],navigation={revision:0,groundAt},den={walkWorld:{navigation},actorStaging:{x:walkX,z:0,groundY:0}},transport=createActorPlaces(den,actors,2);
  const actor=(id,x=-10)=>{const model=new T.Group(),mesh=new T.Mesh(new T.BoxGeometry(.6,1,.6));mesh.position.y=.5;model.add(mesh);meshes.push(mesh);return{id,projectId:'landing',runtime:id==='two'?'codex':'claude',role:'developer',home:new T.Vector3(x,0,0),panda:{model,rig:{profile:{},poseIdle(){},poseWaddle(){}}}};};
- return{actors,transport,actor,navigation,dispose(){transport.dispose();for(const mesh of meshes){mesh.geometry.dispose();mesh.material.dispose();}}};
+ return{actors,transport,actor,navigation,den,dispose(){transport.dispose();for(const mesh of meshes){mesh.geometry.dispose();mesh.material.dispose();}}};
 }
+
+for(const kind of ['home','staging','arrival'])test(`36 ${kind} allocation keeps the declared walker entry clear`,()=>{
+ const f=fixture(kind==='staging'?x=>x>=5?0:null:()=>0);
+ try{
+  const entry={x:kind==='staging'?10:0,z:0,yaw:0,groundY:0};f.den.walkStart=entry;
+  const a=f.actor('entry-'+kind,kind==='staging'?-10:0);
+  assert.equal(f.transport.prepare(a,'visitor',a.home,{arrival:kind==='arrival'}),true);f.actors.set(a.id,a);
+  const home=f.transport.places.get(a.homePlace),clear=p=>Math.hypot(p.x-entry.x,p.z-entry.z)>=a.envelope.radius+WALK.radius+.05;
+  assert.equal(home.owner,a.identity);assert.equal(a.panda.model.visible,true);
+  assert.ok(clear(home.position),'owned home does not occupy the player entry');
+  assert.ok(clear(a.panda.model.position),'published arrival body also clears the entry');
+  f.transport.update(.1,true);assert.ok(clear(a.panda.model.position));
+  const avoid=[{x:a.panda.model.position.x,z:a.panda.model.position.z,r:.65}],start=startWalk(entry);
+  const moved=walk(start,{forward:1},.1,{...f.den.walkWorld,avoid});
+  assert.ok(Math.hypot(moved.x-start.x,moved.z-start.z)>.1,'real walking can leave its authored entry');
+ }finally{f.dispose();}
+});
+
+test('36 a destination cannot reserve the declared player entry',()=>{
+ const f=fixture(()=>0);try{
+  f.den.walkStart={x:10,z:0,groundY:0};const a=f.actor('entry-destination');
+  assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);
+  const destination=f.transport.destination(a,{id:'entry-seat',kind:'meeting',position:{x:10,y:0,z:0},overflow:false});
+  assert.notEqual(destination?.owner,a.identity,'entry is not leased to a meeting body');
+  assert.equal(f.transport.go(a,destination),false);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);
+ }finally{f.dispose();}
+});
 
 for(const reduced of [false,true])test(`36 stationary authored lift retains exact owned home after a physical return (reduced=${reduced})`,()=>{
  const f=fixture(()=>0);
@@ -131,7 +159,7 @@ for(const reduced of [false,true])test(`36 fitting boxed landing has no physical
 
 test('36 dense no-approach allocation exhausts truthfully within a total query budget and valid movement still succeeds',()=>{
  let queries=0,blocked=true;
- const actors=new Map(),world={navigation:{groundAt:(x,z)=>{assert.ok(++queries<=250000,'one allocation never exceeds 250000 external navigation calls');return blocked&&Math.abs(x)<7?null:0;}}},den={walkWorld:world,walkStart:{x:0,z:0,groundY:0}};
+ const actors=new Map(),world={navigation:{groundAt:(x,z)=>{assert.ok(++queries<=250000,'one allocation never exceeds 250000 external navigation calls');return blocked&&Math.abs(x)<7?null:0;}}},den={walkWorld:world,actorStaging:{x:0,z:0,groundY:0}};
  const transport=createActorPlaces(den,actors,2),meshes=[];
  const make=(id,x,z=0)=>{const model=new T.Group(),mesh=new T.Mesh(new T.BoxGeometry(.6,1,.6));mesh.position.y=.5;model.add(mesh);model.position.set(x,0,z);meshes.push(mesh);return{id,role:'developer',home:new T.Vector3(x,0,z),panda:{model,rig:{profile:{},poseIdle(){},poseWaddle(){}}}};};
  try{
@@ -156,7 +184,7 @@ test('36 primary home search preserves staging and arrival work',()=>{
  // reversible local exit. Staging must retain work for a real arrival.
  const disks=[{x:-10,z:0}];for(let i=0;i<10;i++)disks.push({x:-10+Math.sin(i*Math.PI/8)*.8,z:Math.cos(i*Math.PI/8)*.8});
  const actors=new Map(),world={navigation:{groundAt:(x,z,y,r)=>{assert.ok(++queries<=250000,'primary, staging and arrival share one external query ceiling');return x>=5||disks.some(p=>Math.hypot(x-p.x,z-p.z)+r<=.45+1e-6)?0:null;}}};
- const transport=createActorPlaces({walkWorld:world,walkStart:{x:10,z:0,groundY:0}},actors,2);
+ const transport=createActorPlaces({walkWorld:world,actorStaging:{x:10,z:0,groundY:0}},actors,2);
  const model=new T.Group(),mesh=new T.Mesh(new T.BoxGeometry(.6,1,.6));mesh.position.y=.5;model.add(mesh);
  const actor={id:'fallback',role:'developer',home:new T.Vector3(-10,0,0),panda:{model,rig:{profile:{},poseIdle(){},poseWaddle(){}}}};
  try{
@@ -171,7 +199,7 @@ test('36 primary home search preserves staging and arrival work',()=>{
 });
 
 test('36 later allocation cannot seal an existing resident only body-width exit',()=>{
- const actors=new Map(),world={navigation:{groundAt:(x,z,y,r)=>Math.abs(z)+r>1.25||Math.abs(x)+r>12?null:0}},den={walkWorld:world,walkStart:{x:10,z:0,groundY:0}};
+ const actors=new Map(),world={navigation:{groundAt:(x,z,y,r)=>Math.abs(z)+r>1.25||Math.abs(x)+r>12?null:0}},den={walkWorld:world,actorStaging:{x:10,z:0,groundY:0}};
  const transport=createActorPlaces(den,actors,2),meshes=[];
  function actor(id,x){const model=new T.Group(),mesh=new T.Mesh(new T.BoxGeometry(1.5,2,1.5));mesh.position.y=1;model.add(mesh);model.position.x=x;meshes.push(mesh);return{id,role:'developer',runtime:'claude',home:new T.Vector3(x,0,0),panda:{model,rig:{profile:{},poseIdle(){},poseWaddle(){}}}};}
  try{

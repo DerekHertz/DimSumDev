@@ -4,6 +4,7 @@ import {actorIdentity,createPlaceRegistry} from './places.mjs';
 import {createActorTravel} from './actor-travel.mjs';
 import {gardenRoute,routeSegment} from './garden-route.mjs';
 import {createAllocationWork} from './allocation-work.mjs';
+import {WALK} from '../procedural/walk.mjs';
 
 // The scene adapter owns allocation; the existing common traveller owns motion.
 export function createActorPlaces(den,actors,speed){
@@ -15,11 +16,14 @@ export function createActorPlaces(den,actors,speed){
  let time=0;
  const point=p=>({x:p.x,y:p.y,z:p.z});
  const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
+ // A body at the authored player entry traps every incremental walking step.
+ // Keep both the measured footprint and the existing .65 walk-avoid disc clear.
+ const clearsEntry=(position,envelope)=>!den.walkStart||distance(position,den.walkStart)>=Math.max(.65,envelope.radius+WALK.radius+.05);
  const reverse=(from,path)=>[...path.slice(0,-1).reverse(),from];
  function protectedPaths(a){
   return [...exits].filter(([b])=>b!==a&&b.panda.model.visible).flatMap(([b,e])=>[e,...e.active].map(p=>({owner:b.identity,from:point(p.from),path:p.path.map(point),radius:e.radius})));
  }
- function preservesProtected(a,position,work){return protectedPaths(a).every(e=>!crosses(position,e.path,e.from,a.envelope.radius+e.radius+.05,work));}
+ function preservesProtected(a,position,work){return clearsEntry(position,a.envelope)&&protectedPaths(a).every(e=>!crosses(position,e.path,e.from,a.envelope.radius+e.radius+.05,work));}
  function snapshot(a,destination){
   const bodies=[...actors.values()].filter(b=>b!==a&&b.panda.model.visible).map(b=>({owner:b.identity,position:point(b.panda.model.position),envelope:{...b.envelope}}));
   const leases=[...places.values()].filter(p=>p.owner&&p.owner!==a.identity).map(p=>({owner:p.owner,id:p.id,position:point(p.position),envelope:{...p.envelope},occupied:p.occupied,departing:p.departing,revision:p.revision}));
@@ -46,7 +50,7 @@ export function createActorPlaces(den,actors,speed){
  function releaseNew(a,ids){for(const id of ids){const p=places.get(id);if(p?.owner===a.identity&&!p.occupied)places.release(id,a.identity);}}
  function proveTrip(a,destination,sharedWork=null,arrivalStart=null){
   const work=sharedWork??createAllocationWork(),local=exits.get(a),home=places.get(a.homePlace);
-  if(!local||home?.owner!==a.identity||!destination)return null;
+  if(!local||home?.owner!==a.identity||!destination||!clearsEntry(destination.position,a.envelope))return null;
   const acquired=destination.owner!==a.identity;
   if(!places.reserve(destination.id,a.identity,a.envelope,work))return null;
   let physical=snapshot(a,destination);
@@ -119,7 +123,8 @@ export function createActorPlaces(den,actors,speed){
   releaseNew(a,pending.get(a)?.acquired??[]);pending.delete(a);rejections.delete(a);
   a.homePlace=null;a.travel=null;a.path=null;a.arriving=false;a.presentation=null;
   a.envelope=actorEnvelope(a.panda,a.gesture);bind(a,a.live);
-  const staging={x:den.walkStart?.x??0,y:den.walkStart?.groundY??.26,z:den.walkStart?.z??30};
+  const stagingOrigin=den.actorStaging??den.walkStart;
+  const staging={x:stagingOrigin?.x??0,y:stagingOrigin?.groundY??.26,z:stagingOrigin?.z??30};
   const allocation=createAllocationWork();
   // Primary search gets 3/4 of the shared work. Staging retains 3/16 and
   // arrival the last 1/16; unused earlier work stays available to later phases.
@@ -136,7 +141,7 @@ export function createActorPlaces(den,actors,speed){
   let physical=snapshot();
   const same=s=>s.fingerprint===physical.fingerprint&&s.navigation.groundAt===physical.navigation.groundAt;
   const world=()=>({...den.walkWorld,obstacles:[...physical.obstacles,...physical.bodies.filter(b=>b.visible).map(b=>({...b.position,type:'circle',radius:b.envelope.radius+.03})),...physical.leases.map(p=>({...p.position,type:'circle',radius:p.envelope.radius+.05}))],navigation:{...physical.navigation,groundAt:(...args)=>work.groundAt(physical.navigation,...args)}});
-  const preservesExits=position=>physical.prior.every(old=>!crosses(position,old.path,old.from,a.envelope.radius+old.radius+.05,work));
+  const preservesExits=position=>clearsEntry(position,a.envelope)&&physical.prior.every(old=>!crosses(position,old.path,old.from,a.envelope.radius+old.radius+.05,work));
   function sweep(from,path){
    if(!work.take('routes'))return false;
    const w=world();let at=from;

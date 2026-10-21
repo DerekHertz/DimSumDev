@@ -90,6 +90,9 @@ test('42 production App: real observations, exact/count keyboard inspection, lif
    [busy.id]:snapshot.transcripts[busy.id],
    [guestRun]:{entries:[tool(7,{source:guestSource,invocationId:'guest-own-call42',summary:'Guest42 own source'})],dropped:0},
   }};
+  // Owned admission may leave the guest at its fitting home while its seat
+  // route is unavailable. Inspect its actual anchor in the garden overview.
+  await page.getByRole('button',{name:'1 · Den',exact:true}).click();
   await page.evaluate(s=>window.tool42emit('snapshot',s),guestSnapshot);
   const guestBubble=page.getByRole('button',{name:'Inspect 1 active tool call for developer: Read · Guest42 own source',exact:true});
   await guestBubble.waitFor({state:'visible'});

@@ -169,3 +169,13 @@ The animation-frame heartbeat is a separate browser callback, not rendered-frame
 The current authorization stops before merge or installed update.
 
 No installed update is included. The implementation changes no service/router code, dependencies, office layout or outing scheduler contract; Jev/TypeSafe calls, purchases and waving remain outside its scope.
+## Player-entry compatibility follow-up
+
+CI on `857c135` exposed a real walking regression: the visible Codex developer's owned staging was exactly `[0,.26,34]`, the declared player entry. The existing `.65` walking avoidance disc rejected every incremental step from inside that body. Increasing timeouts, changing the expected resident or scripting a detour would not repair the trap.
+
+Allocation now excludes the declared player entry from owned homes, staging, outgoing/arrival anchors and destinations, using the measured actor radius plus the existing walker radius and clearance. The final envelope remeasurement and direct trip path retain that check. Actor staging can be specified independently with `actorStaging`; existing actor-only unit fixtures now use that field instead of accidentally declaring a player entry. Every original assertion remains. The actual garden still uses its existing staging search origin and candidate order; invalid entry-overlapping candidates are rejected.
+
+Four new home/staging/arrival/destination regressions failed against the old production code on the actual entry-safety assertions. The original Cub browser route and expectations are restored without modification. Both previously failing browser scenarios passed on the local correction: physical Cub approach/return, and exact guest tool inspection. The latter selects the existing Den overview before observing the guest's actual anchor rather than assuming its owned home is in the close Panda view; source identity, keyboard focus, transcript location, redaction and lifecycle assertions are unchanged. No test timeout, collision rule, ownership requirement or allocation ceiling was relaxed.
+
+Final committed-source checks and hosted CI results are recorded in the PR description. Earlier native placement/timing evidence below predates this entry correction and must not be relabeled as current-source acceptance. The responsiveness and homes-first design decision remains unresolved; test-green does not waive it.
+
