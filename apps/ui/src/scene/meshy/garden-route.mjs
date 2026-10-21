@@ -12,9 +12,13 @@ export function routeSegment(world,from,to,envelope=DEFAULT_BODY){
  return y;
 }
 export function gardenRoute(world,from,to,envelope=DEFAULT_BODY,work=null){
- const atDestinationHeight=y=>to.y===undefined||Math.abs(y-to.y)<.05;
+ if(work&&!work.take('routes'))return [];
+ // Explicit heights are navigation references: resolve their safe supporting
+ // floor first, then require the swept approach to reach that same floor.
+ const targetGround=to.y===undefined?undefined:routeGround(world,to.x,to.z,to.y,envelope);
+ if(targetGround===null)return [];
+ const atDestinationHeight=y=>targetGround===undefined||Math.abs(y-targetGround)<.05;
  if(work){
-  if(!work.take('routes'))return [];
   // Allocation often has a clear landing in sight. Prove that entire swept
   // segment before paying for the grid; this uses the same physical checks.
   const y=routeSegment(world,from,to,envelope);if(y!==null&&atDestinationHeight(y))return [{x:to.x,y,z:to.z}];
@@ -26,8 +30,7 @@ export function gardenRoute(world,from,to,envelope=DEFAULT_BODY,work=null){
  const clear=(x,z,y)=>routeGround(world,x,z,y,envelope);
  // A heightless landing is established by the reachable swept approach, not
  // by assuming it has the departure elevation before stairs are searched.
- const targetGround=to.y===undefined?undefined:clear(to.x,to.z,to.y);
- if(clear(from.x,from.z,ground)===null||(to.y!==undefined&&(targetGround===null||!atDestinationHeight(targetGround))))return [];
+ if(clear(from.x,from.z,ground)===null)return [];
  const start={ix:0,iz:0,x:from.x,z:from.z,y:ground,cost:0};start.score=Math.hypot(start.x-end.x,start.z-end.z);push(start);seen.set('0,0',start);
  for(let count=0;heap.length&&count<45000;count++){
   const n=pop();if(n.closed)continue;if(work&&!work.take('nodes'))return [];n.closed=true;

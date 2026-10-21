@@ -23,6 +23,7 @@ test('heightless raised destinations use the reachable stair approach and explic
  const world={navigation:createSurfaceNavigation([root],{placement:.1}),obstacles:[]},from={x:0,y:0,z:1},to={x:0,z:-2.6};
  const path=gardenRoute(world,from,to);assert.ok(path.length,'omitted height is established by the swept approach');assert.equal(path.at(-1).y,.6);
  assert.ok(gardenRoute(world,from,{...to,y:.6}).length,'correct explicit height remains reachable');
+ assert.ok(gardenRoute(world,from,{...to,y:.4}).length,'an explicit approach reference resolves its safely reachable supporting floor');
  assert.deepEqual(gardenRoute(world,from,{...to,y:0}),[],'explicit floor cannot be replaced with the higher landing');
  assert.deepEqual(gardenRoute(world,from,{...to,y:0},undefined,{take:()=>true}),[],'budgeted direct-route shortcut obeys the explicit landing height too');
  world.obstacles=[{type:'circle',x:0,z:-2.6,radius:.4}];
