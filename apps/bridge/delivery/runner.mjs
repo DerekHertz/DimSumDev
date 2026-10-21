@@ -24,7 +24,8 @@ import { hasSecret } from "../../../scripts/exposure.mjs";
 import { checkoutMap, codeSpan, renderBlock } from "../../../scripts/pr-map.mjs";
 import { REF_RE } from "../agents/policy.mjs";
 import { JOB_ID_RE } from "./jobs.mjs";
-import { DELIVERABLE_TYPES, VISUAL_TYPES, isCiPath, isUiPath, isUserMergePath, nextStep } from "./plan.mjs";
+import { DELIVERABLE_TYPES, VISUAL_TYPES, authorOf, isCiPath, isUiPath, isUserMergePath, nextStep } from "./plan.mjs";
+import { FLOOR_ROLES, floor, gaps } from "./floor.mjs";
 import { readLookAt, readVerdict, readWhatChanges } from "./prompts.mjs";
 import { classify } from "./ci-watch.mjs";
 
@@ -113,6 +114,10 @@ export const DEN_ONLY = "Deliver runs on the den project only, for now; switch t
 
 // The evidence slot each reviewing role's verdict fills.
 const EVIDENCE_OF = { "code-reviewer": "review", qa: "qa", security: "security" };
+// The runs that write to the branch and so can make a new candidate.
+const WRITERS = new Set(["developer", "technical-writer"]);
+// What a job runs: the roles of its floor plus the owner's additions (team-and-den-ux/17). Nothing removes a role.
+const unionRoles = (floorRoles, added) => FLOOR_ROLES.filter((r) => floorRoles?.includes(r) || added?.includes(r));
 // The bridge's steps that belong to the release manager (ADR 0029 decision 5).
 const RELEASE_STEPS = new Set(["push", "pr", "merge", "resolve"]);
 
@@ -134,7 +139,8 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     const guard = now(j.evidence.guard);
     return {
       id: j.id, ref: j.ref, title: j.title, state: j.state, step: j.step, pause: j.pause, base: j.base, branch: j.branch,
-      candidate: j.candidate ? { sha: j.candidate.sha } : null, bounces: j.bounces, live: j.live ? { runId: j.live.runId, role: j.live.role, mode: j.live.mode } : null,
+      candidate: j.candidate ? { sha: j.candidate.sha } : null, bounces: j.bounces,
+      roles: unionRoles(risk?.floor?.roles, j.roles), floor: risk?.floor ?? null, live: j.live ? { runId: j.live.runId, role: j.live.role, mode: j.live.mode } : null,
       evidence: {
         review: now(j.evidence.review)?.verdict ?? null, qa: now(j.evidence.qa)?.verdict ?? null, security: now(j.evidence.security)?.verdict ?? null,
         risk: risk ? { clean: risk.clean, hits: risk.hits, security: risk.security, userMerge: risk.userMerge } : null,
@@ -250,10 +256,16 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
         return refuse(502, `could not read the from branch: ${errorText(err)}`);
       }
     }
+    // team-and-den-ux/17: the owner's additions to the floor. Nothing here removes a role, so [] changes nothing.
+    let roles = [];
+    if (input.roles !== undefined) {
+      if (!Array.isArray(input.roles) || input.roles.length > FLOOR_ROLES.length || !input.roles.every((r) => FLOOR_ROLES.includes(r))) return refuse(400, `roles must be a list of at most ${FLOOR_ROLES.length} of: ${FLOOR_ROLES.join(", ")}`);
+      roles = unionRoles([], input.roles);
+    }
     // No await from here to the registration, so two clicks start one delivery.
     if ([...jobs.values()].some((j) => j.ref === ref && live(j))) return refuse(409, "this ticket already has a delivery; resume or close it");
     const job = {
-      id: `d-${randomBytes(8).toString("hex")}`, ref, title: ticket.title ?? "", type: ticket.type, visual: VISUAL_TYPES.includes(ticket.type), state: "running", pause: null, step: null,
+      id: `d-${randomBytes(8).toString("hex")}`, ref, title: ticket.title ?? "", type: ticket.type, roles, visual: VISUAL_TYPES.includes(ticket.type), state: "running", pause: null, step: null,
       base, ...(startAt ? { startAt, from: input.from.slice(0, 100) } : {}), branch: null, candidate: null, evidence: { review: null, qa: null, security: null, risk: null, tests: null, pr: null, ci: null, verdict: null, preview: null, live: null }, localChecks: Boolean(checks), testGuard: typeof git.guard === "function", bounces: 0, declines: 0, findings: null, ciRerun: null, ciBounced: null,
       live: null, claimed: false, runs: [], pr: null, startedAt: new Date().toISOString(), updatedAt: null, gen: 0,
     };
@@ -302,7 +314,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
 
   async function startRun(job, next) {
     const { role, mode } = next;
-    const started = await host.start({ ref: job.ref, role, ...(mode ? { mode } : {}), delivery: { at: next.at, since: next.since, ...(next.fix ? { findings: job.findings ?? "(the review left no findings text)" } : {}), ...(job.note ? { note: job.note } : {}), ...(role !== "developer" && guardHits(job).length ? { guard: guardHits(job) } : {}) } });
+    const started = await host.start({ ref: job.ref, role, ...(mode ? { mode } : {}), delivery: { at: next.at, since: next.since, ...(next.fix ? { findings: job.findings ?? "(the review left no findings text)" } : {}), ...(job.note ? { note: job.note } : {}), ...(role === authorOf(job) ? { author: true } : {}), ...(!WRITERS.has(role) && guardHits(job).length ? { guard: guardHits(job) } : {}) } });
     if (!started.ok) {
       const kind = started.status === 429 ? (/usage/.test(started.error) ? "usage" : "no-room") : started.status === 409 ? "busy" : "environment";
       return pause(job, kind, started.error, kind === "no-room" ? "It starts by itself when a run ends, or on Resume." : "Resume once that has changed.");
@@ -331,7 +343,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
   async function drop(job, role, reason) {
     if (!job.claimed) return;
     job.claimed = false;
-    const status = role === "developer" ? (job.candidate ? "in-review" : "ready-for-agent") : undefined;
+    const status = role === authorOf(job) ? (job.candidate ? "in-review" : "ready-for-agent") : undefined;
     await op(job, "release", {}, () => board.drop(job.ref, { status, reason })).catch((err) => console.error(`bridge: could not release ${job.ref}: ${err?.message ?? err}`));
   }
 
@@ -356,14 +368,24 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     if (run.state !== "done") return giveUp(run.state === "terminated" ? "stopped" : "step-failed", `the ${role} run ${run.state === "terminated" ? "was stopped" : "failed"}${run.reason ? ` (${String(run.reason).slice(0, 80)})` : ""}`, "Resume to run the step again.");
     if (!run.sha || !run.startSha) return giveUp("environment", `the bridge could not record the ${role} run's commit`, "Resume to run the step again.");
 
-    if (role === "developer") {
-      if (run.sha === run.startSha) return giveUp("no-commit", "the developer committed nothing", "Read its report in the thread, then Resume to run it again or close the delivery.");
+    if (WRITERS.has(role)) {
+      const author = role === authorOf(job);
+      if (run.sha === run.startSha) {
+        if (author) return giveUp("no-commit", `the ${role} committed nothing`, "Read its report in the thread, then Resume to run it again or close the delivery.");
+        job.evidence.writer = { sha: run.sha, runId }; // a writer that finds the docs already true commits nothing, and still counts
+      }
+    }
+    if (WRITERS.has(role) && run.sha !== run.startSha) {
+      const author = role === authorOf(job);
       job.candidate = { sha: run.sha, runId };
+      // The technical writer's run is its own evidence at the commit it ended on, so it does not run again at it.
+      if (role === "technical-writer") job.evidence.writer = { sha: run.sha, runId };
       // What the user should look at on this commit's preview, from the developer's report; a line that looks secret is masked.
-      job.lookAt = { sha: run.sha, items: readLookAt(run.report).map((s) => (hasSecret(s) ? "[masked: possible secret]" : s)) };
+      // A follow-up writer's commit keeps the author's list, moved to the new commit.
+      job.lookAt = { sha: run.sha, items: author ? readLookAt(run.report).map((s) => (hasSecret(s) ? "[masked: possible secret]" : s)) : job.lookAt?.items ?? [] };
       // informative-prs/02: the What changes section of the handoff, for the pull request body; kept only when it has a behavior paragraph.
-      const wc = readWhatChanges(run.report);
-      // A later run (merge-main, fix round) that reports none keeps the earlier text and door, moved to the new commit.
+      const wc = author ? readWhatChanges(run.report) : null;
+      // A later run (merge-main, fix round, the follow-up writer) that reports none keeps the earlier text and door, moved to the new commit.
       if (wc?.text) job.changes = { sha: run.sha, text: proseForBody(wc.text), door: wc.door ? { way: wc.door.way, reason: inertText(errorText(wc.door.reason)) } : null };
       else job.changes = { text: "", door: null, ...job.changes, sha: run.sha };
       await build?.close(job.id, { remove: true }).catch(() => {}); // a new commit: a preview of the last one is gone
@@ -372,7 +394,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       // F29: the branch now holds the main it merged, so the reviews and the scripted check look only at this work.
       if (job.syncTarget && (await git.descends({ base: job.syncTarget, sha: run.sha }).catch(() => false))) job.base = job.syncTarget;
       job.syncTarget = null;
-    } else {
+    } else if (!WRITERS.has(role)) {
       const verdict = readVerdict(run.report);
       if (run.sha !== run.startSha) return giveUp("changed-commit", `the ${role} run changed the commit it was reviewing, so its verdict is not counted`, "Resume to review again.");
       if (!verdict) return giveUp("no-verdict", `the ${role} run ended without a verdict line`, "Read its report in the thread, then Resume to review again.");
@@ -389,8 +411,8 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     }
     await save(job);
     try {
-      const reviewed = role === "developer" ? null : job.evidence[EVIDENCE_OF[role]].verdict;
-      await op(job, "release", { runId }, () => board.handoff(job.ref, { role, mode, runId, sha: run.sha, branch: run.branch, verdict: reviewed, report: run.report }));
+      const reviewed = WRITERS.has(role) ? null : job.evidence[EVIDENCE_OF[role]].verdict;
+      await op(job, "release", { runId }, () => board.handoff(job.ref, { role, mode, runId, sha: run.sha, branch: run.branch, verdict: reviewed, report: run.report, committed: run.sha !== run.startSha || role === authorOf(job) }));
       job.claimed = false;
     } catch (err) {
       await drop(job, role, "den delivery: the handoff could not be written");
@@ -419,7 +441,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     const [files, secret, risk] = [await git.changed(range), await git.addsSecret(range), await git.risk(range)];
     if (job.gen !== gen) return;
     const userMerge = files.some(isUserMergePath);
-    job.evidence.risk = { sha: range.sha, clean: risk.clean === true, hits: risk.hits.length, secret: secret === true, security: risk.clean !== true || userMerge || files.some(isUiPath), userMerge, ciChange: files.some(isCiPath), ui: files.some(isUiPath), files: files.length };
+    job.evidence.risk = { sha: range.sha, clean: risk.clean === true, hits: risk.hits.length, secret: secret === true, security: risk.clean !== true || userMerge || files.some(isUiPath), userMerge, ciChange: files.some(isCiPath), ui: files.some(isUiPath), files: files.length, floor: floor({ type: job.type, files, riskClean: risk.clean === true }) };
     await save(job);
   }
 
@@ -516,6 +538,13 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       ? [`- Test guard: ${hits.length} hit(s) listed for the verifier`, ...hits.slice(0, GUARD_HITS_IN_BODY).map((h) => `  - ${inert(errorText(h))}`), ...(hits.length > GUARD_HITS_IN_BODY ? [`  - and ${hits.length - GUARD_HITS_IN_BODY} more`] : [])]
       : ["- Test guard: clean"];
 
+  // team-and-den-ux/17: the roles the delivery ran and why, each reason a code span (it holds the branch's own file names).
+  const floorLines = (j) => {
+    const roles = unionRoles(j.evidence.risk?.floor?.roles, j.roles);
+    if (!roles.length) return [];
+    return [`- Floor: ${roles.join(", ")}`, ...roles.filter((r) => j.evidence.risk.floor?.why?.[r]).map((r) => `  - ${r}: ${inert(errorText(j.evidence.risk.floor.why[r]))}`)];
+  };
+
   // The pull request body (informative-prs/02): What changes, System map, Risk, Evidence, in the pr-writing skill's order.
   const prBody = async (job) => {
     const { sha } = job.candidate;
@@ -538,8 +567,10 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       "## Evidence", "",
       "<details>", "<summary>Checks, files and handoffs</summary>", "",
       `- Commit: \`${sha}\``,
+      ...floorLines(job),
+      ...(ev.writer?.sha === sha ? [`- Technical writer: ran (run ${ev.writer.runId})`] : []),
       ...(ev.review?.sha === sha ? [`- Code review: ${ev.review.verdict} (run ${ev.review.runId})`] : []),
-      `- qa verify: ${ev.qa.verdict} (run ${ev.qa.runId})`,
+      ...(ev.qa?.sha === sha ? [`- qa verify: ${ev.qa.verdict} (run ${ev.qa.runId})`] : []),
       `- Risk check: ${ev.risk.clean ? "clean" : `${ev.risk.hits} hit(s)`}${ev.risk.userMerge ? "; touches a guardrail, bridge or check path: the user reviews and merges" : ""}`,
       // The local run is advisory (the commit's own test scripts ran it), so only its state and counts are written here.
       ...(ev.guard?.sha === sha ? guardLines(ev.guard.hits) : []),
@@ -566,7 +597,23 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     await save(job);
   }
 
+  // ADR 0029 decision 3: the hand-up (the push and the merge) asks again which roles the commit needs, from the paths it
+  // changes now and the owner's additions, and what is on record for each, independently of the plan. A role with no counted
+  // result refuses the hand-up. The recomputed floor is kept, so a Resume runs the missing role.
+  async function floorGap(job, gen) {
+    const { sha } = job.candidate;
+    const risk = job.evidence.risk?.sha === sha ? job.evidence.risk : null;
+    const now = floor({ type: job.type, files: await git.changed({ base: job.base, sha }), riskClean: risk ? risk.clean : false });
+    if (job.gen !== gen) return true;
+    const missing = gaps({ roles: unionRoles(now.roles, job.roles), evidence: job.evidence, sha });
+    if (!missing.length) return false;
+    if (risk) risk.floor = now;
+    await pause(job, "floor-gap", `the commit needs a result from ${missing.join(", ")}, and has none; nothing was pushed or merged`, "Resume to run the missing step, or close the delivery.");
+    return true;
+  }
+
   async function publish(job, gen) {
+    if (await floorGap(job, gen)) return;
     const { sha } = job.candidate;
     let pr = await git.findPr({ branch: job.branch });
     if (pr?.state !== "MERGED" && pr?.sha !== sha) {
@@ -645,6 +692,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     const st = await observe(job, gen);
     if (!st || st.state === "MERGED" || job.gen !== gen) return;
     if (nextStep(job).kind !== "merge") return; // a check turned red, a conflict appeared: the plan says which
+    if (await floorGap(job, gen)) return;
     const { sha } = job.candidate;
     await op(job, "merge", { sha, pr: job.pr.number }, () => {
       still(job, gen); // a Stop while the intent was being written: nothing is merged

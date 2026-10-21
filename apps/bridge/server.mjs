@@ -768,7 +768,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       if (tool === "start_delivery") {
         const ref = fullRef(body.ref);
         if (!allowed((input) => input.ref === cleanText(body.ref))) return refused(403, "the user has not allowed starting this delivery");
-        const result = await delivery.start({ ref });
+        const result = await delivery.start({ ref, ...(body.roles === undefined ? {} : { roles: body.roles }) });
         if (!result.ok) return refused(result.status, result.error);
         return done(`started the delivery of ${ref} (${result.delivery.id})`);
       }
@@ -805,7 +805,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       }
       ticket = { ticket: { ref } };
     }
-    const result = await delivery.start({ ref, ...(body.from === undefined ? {} : { from: body.from }) });
+    const result = await delivery.start({ ref, ...(body.from === undefined ? {} : { from: body.from }), ...(body.roles === undefined ? {} : { roles: body.roles }) });
     if (!result.ok) return reply(res, result.status, { error: result.error, ...ticket });
     reply(res, result.status, { delivery: result.delivery, ...ticket });
   }

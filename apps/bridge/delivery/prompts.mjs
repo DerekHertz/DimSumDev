@@ -71,8 +71,8 @@ const SHARED =
   "Run no board command, and do not push, open a pull request or merge: the bridge does each of those from the commit it records. " +
   WORK_TIPS;
 
-/** { role, mode?, ref, ticketFile, since, fix?, note? } -> the step's prompt. `since` is the commit the delivery started from. */
-export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false, note = false, guard = false, recipeFile = `.claude/agents/${role}.md` }) {
+/** { role, mode?, ref, ticketFile, since, fix?, note?, author? } -> the step's prompt. `since` is the commit the delivery started from; `author` says the role writes the work (the technical writer on a docs ticket). */
+export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false, note = false, guard = false, author = false, recipeFile = `.claude/agents/${role}.md` }) {
   const head = `You are the ${role} agent${mode ? ` in ${mode} mode` : ""} for ticket ${ref}. Read ${recipeFile} for how to work, with these changes. ${SHARED}The ticket is the file ${ticketFile}. ${note ? "The user left you a note when they resumed this delivery: it is at the top of .den/findings.md. Read it first and follow it. " : ""}`;
   if (role === "developer") {
     return (
@@ -81,6 +81,19 @@ export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false
       "Work test-first in this worktree, run the checks that cover your change (the full suite runs on the pull request), and commit your work here: the bridge publishes the branch from your last commit, and a run that commits nothing delivers nothing. " +
       "End with a short report of what you changed and which checks you ran and what they showed: that last message is your handoff. Open it with the `## What changes` section the handoff skill describes: the bridge copies it into the pull request. " +
       "If the change alters what the den looks like, end the report with a `Look at:` line and a list under it: for each visible change, one line saying where in the den to find it and what should look different. The user reads that list beside the preview."
+    );
+  }
+  // team-and-den-ux/17: the technical writer, as the author of a docs ticket or as the step after the author. Its last message is
+  // its handoff and carries no verdict line.
+  if (role === "technical-writer") {
+    return (
+      head +
+      (fix ? "A review of the last commit asked for changes: read .den/findings.md first, and fix what it names. " : "") +
+      (author
+        ? "Write what the ticket asks, in this worktree, and commit it here: the bridge publishes the branch from your last commit, and a run that commits nothing delivers nothing. Run the checks that cover your change (the full suite runs on the pull request). " +
+          "End with a short report of what you wrote. Open it with the `## What changes` section the handoff skill describes: the bridge copies it into the pull request."
+        : `Another agent wrote the commit checked out here (\`git diff ${since}..HEAD\`). Update the docs that change makes untrue, and write nothing the change does not call for. Commit docs only; if the docs are already true, commit nothing. ` +
+          "A commit becomes the candidate the reviews read; a run that commits nothing still counts. End with a short report of what you updated, or why nothing needed updating. That last message is your handoff; it carries no verdict line.")
     );
   }
   const guardNote = guard ? "The bridge's test guard flagged changes that may weaken the tests: they are listed in .den/findings.md under 'Test guard'. For each one, say in your findings whether you accept it and why, or bounce it. " : "";

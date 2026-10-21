@@ -173,6 +173,24 @@ describe("Bao's den tools", () => {
     assert.equal(res.status, 403);
   });
 
+  // team-and-den-ux/17: the owner's added roles ride along with the user's allow; the runner checks them, so a bad list is a 400.
+  test("start_delivery passes the owner's roles to the delivery, and a bad list is refused", async () => {
+    const { run, tool } = await desk();
+    const allowStart = async (requestId) => {
+      run.emit({ type: "permission-request", requestId, tool: "mcp__den__start_delivery", input: { ref: DISPATCH_REF } });
+      const approval = await until(async () => (await t.state()).approvals.find((a) => a.tool === "mcp__den__start_delivery" && a.state === "pending"), { what: "the ask" });
+      assert.equal((await t.post(`/approvals/${approval.id}`, { decision: "allow" })).status, 200);
+    };
+    await allowStart("s-1");
+    const bad = await tool("start_delivery", { ref: DISPATCH_REF, roles: ["developer"] });
+    assert.equal(bad.status, 400, bad.text);
+    assert.match(bad.body.error, /roles/);
+    await allowStart("s-2");
+    const ok = await tool("start_delivery", { ref: DISPATCH_REF, roles: ["qa", "security"] });
+    assert.equal(ok.status, 200, ok.text);
+    assert.deepEqual((await t.state()).deliveries.at(-1).roles, ["qa", "security"]);
+  });
+
   test("a role the catalog does not give the den connection is refused", async () => {
     t = await makeBridge({ library: createLibrary({ catalog: parseCatalog({ connections: [DEN] }) }) });
     await t.dispatch("architect");
