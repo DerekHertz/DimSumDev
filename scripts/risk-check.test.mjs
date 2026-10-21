@@ -281,3 +281,36 @@ test("defaults the range to main...HEAD when no argument is given", () => {
     rmSync(dir, { recursive: true, force: true });
   }
 });
+
+// ci-cd/13: a diff over the default 1 MiB execFileSync buffer must not crash.
+function bigProse() {
+  const line = "The quick brown fox jumps over the lazy dog while the tea steeps.\n";
+  return line.repeat(Math.ceil((2 * 1024 * 1024) / line.length));
+}
+
+test("a diff over 1 MiB with nothing risky exits 0 and prints clean", () => {
+  const dir = initRepo();
+  try {
+    commitChange(dir, "docs/research/big.md", bigProse());
+    const { code, stdout } = runCheck(dir);
+    assert.equal(code, 0, stdout.slice(0, 500));
+    assert.match(stdout, /risk-check: clean/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("a diff over 1 MiB that also changes a risky file fails and names it", () => {
+  const dir = initRepo();
+  try {
+    commitChange(dir, "docs/research/big.md", bigProse());
+    commitChange(dir, ".github/workflows/ci.yml", "name: ci\non: push\n");
+    const { code, stdout } = runCheck(dir);
+    assert.notEqual(code, 0);
+    // A buffer crash also exits non-zero and can echo partial diff output.
+    assert.doesNotMatch(stdout, /ENOBUFS|maxBuffer/);
+    assert.match(stdout, /\.github\/workflows\/ci\.yml/);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
