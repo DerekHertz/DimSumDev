@@ -2,12 +2,74 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
 import {createActorPlaces} from './actor-places.mjs';
+import {createSurfaceNavigation} from './navigation.mjs';
 
 function fixture(groundAt,walkX=10){
  const actors=new Map(),meshes=[],navigation={revision:0,groundAt},transport=createActorPlaces({walkWorld:{navigation},walkStart:{x:walkX,z:0,groundY:0}},actors,2);
  const actor=(id,x=-10)=>{const model=new T.Group(),mesh=new T.Mesh(new T.BoxGeometry(.6,1,.6));mesh.position.y=.5;model.add(mesh);meshes.push(mesh);return{id,projectId:'landing',runtime:id==='two'?'codex':'claude',role:'developer',home:new T.Vector3(x,0,0),panda:{model,rig:{profile:{},poseIdle(){},poseWaddle(){}}}};};
  return{actors,transport,actor,navigation,dispose(){transport.dispose();for(const mesh of meshes){mesh.geometry.dispose();mesh.material.dispose();}}};
 }
+
+for(const reduced of [false,true])test(`36 stationary authored lift retains exact owned home after a physical return (reduced=${reduced})`,()=>{
+ const f=fixture(()=>0);
+ try{
+  const a=f.actor('host',.0003);a.stationary=true;a.home.y=.03;a.panda.model.position.copy(a.home);
+  assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);
+  const home=f.transport.places.get(a.homePlace),expected={x:.0003,y:.03,z:0};
+  assert.deepEqual(home.position,expected);assert.deepEqual(a.home.toArray(),[.0003,.03,0]);assert.deepEqual(a.panda.model.position.toArray(),[.0003,.03,0]);
+  const target=f.transport.destination(a,{id:'host-out',kind:'leisure',position:{x:-4,y:0,z:0}});
+  assert.equal(f.transport.go(a,target),true);for(let i=0;i<30;i++)f.transport.update(.1,reduced);
+  assert.equal(a.travel.status,'arrived');assert.ok(a.panda.model.position.distanceTo(a.home)>3);assert.equal(home.owner,a.identity);
+  assert.equal(f.transport.home(a),true);for(let i=0;i<30;i++)f.transport.update(.1,reduced);
+  assert.equal(a.travel.status,'arrived');assert.equal(a.travel.placeId,home.id);assert.equal(home.owner,a.identity);assert.equal(home.occupied,true);
+  assert.deepEqual(a.panda.model.position.toArray(),[.0003,.03,0]);assert.deepEqual(home.position,expected);
+ }finally{f.dispose();}
+});
+
+test('36 stationary authored lift must fit its raised body under actual overhead geometry',()=>{
+ const beam=new T.Mesh(new T.BoxGeometry(.4,.05,.4));beam.position.y=1.095;
+ const navigation=createSurfaceNavigation([beam],{baseY:0,placement:.1,floorRadius:20}),f=fixture(navigation.groundAt);
+ try{
+  const a=f.actor('low-host',0);a.stationary=true;a.home.y=.03;
+  assert.equal(navigation.groundAt(0,0,0,.45,1.05),0,'floor-based body fits below the beam');
+  assert.equal(navigation.groundAt(0,0,0,.45,1.08),null,'the lifted body top intersects the beam');
+  assert.equal(f.transport.prepare(a),true);
+  const home=f.transport.places.get(a.homePlace);assert.notDeepEqual(home.position,{x:0,y:.03,z:0});
+  assert.equal(home.position.y,0,'overflow remains support-normalized');assert.equal(home.owner,a.identity);
+  assert.deepEqual(a.panda.model.position.toArray(),[home.position.x,0,home.position.z]);
+ }finally{f.dispose();beam.geometry.dispose();beam.material.dispose();}
+});
+
+test('36 a new low beam blocks a lifted owned-home return without a false arrival',()=>{
+ const f=fixture(()=>0),beam=new T.Mesh(new T.BoxGeometry(.4,.05,.4));beam.position.y=1.095;
+ const blocked=createSurfaceNavigation([beam],{baseY:0,placement:.1,floorRadius:20});
+ try{
+  const a=f.actor('returning-host',0);a.stationary=true;a.home.y=.03;
+  assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);
+  const home=f.transport.places.get(a.homePlace);assert.equal(home.position.y,.03);
+  const target=f.transport.destination(a,{id:'host-away',kind:'leisure',position:{x:-4,y:0,z:0}});
+  assert.equal(f.transport.go(a,target),true);f.transport.update(.1,true);assert.equal(a.travel.status,'arrived');
+  const away=a.panda.model.position.clone();f.navigation.groundAt=blocked.groundAt;f.navigation.revision++;
+  assert.equal(f.transport.home(a),false);f.transport.update(.1,true);
+  assert.deepEqual(a.panda.model.position,away);assert.equal(home.owner,a.identity);assert.notEqual(a.travel.placeId,home.id);
+  f.navigation.groundAt=()=>0;f.navigation.revision++;
+  assert.equal(f.transport.home(a),true);f.transport.update(.1,true);
+  assert.equal(a.travel.status,'arrived');assert.equal(a.travel.placeId,home.id);assert.deepEqual(a.panda.model.position.toArray(),[0,.03,0]);
+ }finally{f.dispose();beam.geometry.dispose();beam.material.dispose();}
+});
+
+test('36 departure from a lifted owned home sweeps the raised body top',()=>{
+ const beam=new T.Mesh(new T.BoxGeometry(.1,.05,.4));beam.position.set(.65,1.095,0);
+ const navigation=createSurfaceNavigation([beam],{baseY:0,placement:.1,floorRadius:20}),f=fixture(navigation.groundAt);
+ try{
+  const a=f.actor('departing-host',0);a.stationary=true;a.home.y=.03;
+  assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);assert.equal(a.home.y,.03);
+  const target=f.transport.destination(a,{id:'host-beyond-beam',kind:'leisure',position:{x:4,y:0,z:0}});
+  assert.equal(f.transport.go(a,target),true);const before=a.panda.model.position.clone();
+  f.transport.update(.1,false);
+  assert.deepEqual(a.panda.model.position,before,'first step cannot sweep the raised body under a low beam');assert.notEqual(a.travel.status,'arrived');
+ }finally{f.dispose();beam.geometry.dispose();beam.material.dispose();}
+});
 
 test('36 occupied centre gives each actor an owned landing and a real second arrival',()=>{
  let queries=0;const f=fixture(x=>{assert.ok(++queries<=250000);return x>=5?0:null;});

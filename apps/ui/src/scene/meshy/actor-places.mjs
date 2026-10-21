@@ -191,7 +191,7 @@ export function createActorPlaces(den,actors,speed){
    }
    exit=path;return true;
   };
-  let home=places.find({id:'home:'+a.id,kind,near,owner:a.identity,envelope:a.envelope,validate:accessible,work});
+  let home=places.find({id:'home:'+a.id,kind,near,owner:a.identity,envelope:a.envelope,validate:accessible,work,preserveHeight:!!a.stationary});
   if(!home){work=allocation.phase(.9375);landing??=findLanding();if(landing){home=landing.place;exit=landing.path;}}
   const fail=()=>{places.disposeActor(a.identity);exits.delete(a);a.presentation='Scene place unavailable';a.panda.model.visible=false;return false;};
   if(!home)return fail();

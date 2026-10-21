@@ -14,6 +14,10 @@ export function createPlaceRegistry(world,{getBodies=()=>[]}={}){
  function fits(position,envelope,owner,ignore=null,work=null){
   const y=ground(position,envelope,work);
   if(y===null||Math.abs(y-position.y)>.1)return false;
+  // Authored standing origins may sit above their supporting floor. Check the
+  // entire raised body, rather than losing its top clearance in a floor query.
+  const lift=Math.max(0,position.y-y);
+  if(lift&&ground(position,{...envelope,height:envelope.height+lift},work)!==y)return false;
   if(world.obstacles?.some(o=>o.type==='circle'&&distance(position,o)<o.radius+envelope.radius))return false;
   if(getBodies().some(b=>b.owner!==owner&&distance(position,b.position)<envelope.radius+b.envelope.radius+.03))return false;
   return ![...places.values()].some(p=>p.id!==ignore&&p.owner&&p.owner!==owner&&distance(position,p.position)<envelope.radius+p.envelope.radius+.05);
@@ -29,23 +33,23 @@ export function createPlaceRegistry(world,{getBodies=()=>[]}={}){
  function cancel(owner,keepPlaceId=null){for(const p of places.values())if(p.owner===owner&&p.id!==keepPlaceId)release(p.id,owner);}
  function disposeActor(owner){for(const p of places.values())if(p.owner===owner)clear(p);}
  function rebind(from,to){if(from===to)return;for(const p of places.values())if(p.owner===from)p.owner=to;revision++;}
- function find({id,kind,near,owner,envelope,validate=()=>true,work=null,continuation=null}){
+ function find({id,kind,near,owner,envelope,validate=()=>true,work=null,continuation=null,preserveHeight=false}){
   const existing=places.get(id);if(existing?.owner)return (!work||work.take('candidates'))&&validate(existing.position)?reserve(id,owner,envelope,work):null;
   const candidates=[{...near}];
   for(let ring=1;ring<=8;ring++)for(let step=0;step<16;step++){const angle=step*Math.PI/8,r=ring*Math.max(.8,envelope.radius*1.5);candidates.push({x:near.x+Math.sin(angle)*r,y:near.y,z:near.z+Math.cos(angle)*r});}
   // The caller scopes a continuation to one immutable physical snapshot. The
   // signature also prevents carrying a rejected point into another purpose.
-  const signature=JSON.stringify([id,kind,near,owner,envelope]);
+  const signature=JSON.stringify([id,kind,near,owner,envelope,preserveHeight]);
   if(continuation&&(continuation.signature!==signature||continuation.validate!==validate)){continuation.signature=signature;continuation.validate=validate;continuation.cursor={index:0,stage:0};}
   const cursor=continuation?.cursor??{index:0,stage:0};
   const next=()=>{cursor.index++;cursor.stage=0;cursor.position=null;};
   while(cursor.index<candidates.length&&!work?.exhausted){
    const position=cursor.position??={...candidates[cursor.index]};
-   if(cursor.stage===0){const y=ground(position,envelope,work);if(y===null){if(work?.exhausted)break;next();continue;}position.y=y;cursor.stage=1;}
+   if(cursor.stage===0){const y=ground(position,envelope,work);if(y===null){if(work?.exhausted)break;next();continue;}cursor.supportY=y;if(!preserveHeight||cursor.index!==0||position.y<y||position.y-y>.1)position.y=y;cursor.stage=1;}
    if(cursor.stage===1){if(!fits(position,envelope,owner,null,work)){if(work?.exhausted)break;next();continue;}cursor.stage=2;}
    if(cursor.stage===2){if(work&&!work.take('candidates'))break;cursor.stage=3;}
    if(cursor.stage===3){if(!validate(position)){if(work?.exhausted)break;next();continue;}cursor.stage=4;}
-   const place=define({id,kind,position});if(existing)place.position={...position};if(reserve(place.id,owner,envelope,work))return place;
+   const place=define({id,kind,position});if(existing)place.position={...position};place.supportLift=Math.max(0,position.y-cursor.supportY);if(reserve(place.id,owner,envelope,work))return place;
    if(work?.exhausted)break;next();
   }
   return null;

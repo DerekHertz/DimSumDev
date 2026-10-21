@@ -66,8 +66,15 @@ export function createActorTravel(world,places,{speed=.65,getActors=()=>[],prove
    const length=distance(p,next),amount=reduced?length:Math.min(length,dt*speed),to={x:p.x+(next.x-p.x)*(length?amount/length:0),y:p.y,z:p.z+(next.z-p.z)*(length?amount/length:0)};
    const before=proveRoute&&[world.navigation.groundAt,world.navigation.revision,places.revision,JSON.stringify([a.envelope,world.obstacles??[]])];
    const motionWorld=proveRoute?{...world,obstacles:[...(world.obstacles??[]),...[...places.values()].filter(q=>q.owner&&q.owner!==owner(a)).map(q=>({...q.position,type:'circle',radius:q.envelope.radius+.05}))]}:world;
-   let y=routeSegment(motionWorld,p,to,a.envelope);
-   if(reduced){let from=p;y=p.y;for(const next of t.path){y=routeSegment(motionWorld,from,next,a.envelope);if(y===null)break;from=next;}}
+   const landing=(reduced||t.path.length===1&&distance(to,next)<.001)&&destination.supportLift>0;
+   if(landing){to.x=destination.position.x;to.z=destination.position.z;}
+   const home=places.get(a.homePlace),departure=home?.supportLift>0&&distance(p,home.position)<.001&&Math.abs(p.y-home.position.y)<.001?home.supportLift:0;
+   const lift=Math.max(departure,landing?destination.supportLift:0),envelope=lift?{...a.envelope,height:a.envelope.height+lift}:a.envelope;
+   let y=routeSegment(motionWorld,p,to,envelope);
+   if(reduced){let from=p;y=p.y;for(const next of t.path){y=routeSegment(motionWorld,from,next,envelope);if(y===null)break;from=next;}}
+   // A raised owned home is reached only after its full lifted clearance is
+   // rechecked. Publish the exact owned origin before marking the arrival.
+   if(landing&&y!==null)y=Math.abs(y+destination.supportLift-destination.position.y)<.001&&places.fits(destination.position,a.envelope,owner(a),destination.id)?destination.position.y:null;
    const blockers=sorted.filter(b=>b!==a).filter(b=>{
     const at=position(b),points=reduced?[p,...t.path]:[p,to];
     return points.some((point,i)=>i&&pointSegmentDistance(at,points[i-1],point)<a.envelope.radius+b.envelope.radius+.03);
