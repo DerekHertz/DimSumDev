@@ -4,6 +4,8 @@
 
 The protocol was checked against JSON schema generated offline by Ubuntu Codex CLI **0.163.0**, using `codex app-server generate-json-schema --experimental --out <private worktree metadata directory>`. Native launch-path conformance remains unproved.
 
+The separate [disabled permission-translation stage](codex-permissions.md) records its compiler scope and the first offline SHELL canary failure. It supplies no production admission or completed conformance gate.
+
 ## What the module does
 
 - Correlates client responses separately from server requests, including when both directions use the same ID. Unsolicited, duplicate, ambiguous, malformed or oversized messages close the transport and settle pending calls.
