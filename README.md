@@ -44,6 +44,8 @@ npm ci && npm run ui    # then open http://127.0.0.1:4317/?demo=den
 - **Demo mode.** Open `?demo=den` or press **Watch the demo** to replay a recorded session into the den. It makes no bridge calls and reads no tokens, and every action that would steer a real agent is greyed out.
 - **Cheap decisions, logged before trusted.** Routine relay choices (which model a developer needs, how deep qa verifies) go to Jev, a small typed-decision model, through `scripts/jev.mjs`. It runs in shadow mode: each pick is logged beside what the relay actually did, and any error or missing key falls back to the current rule ([ADR 0010](docs/adr/0010-jev-precheck-tier-and-verify-depth.md)).
 
+Residents reserve their workspace while visiting leisure areas or meetings. A resident profile can show `Scene place unavailable` or `Scene destination unavailable` when the garden cannot safely place or route a body. A body with no safe place stays hidden; its run and desk controls remain available. Reduced motion still checks ownership and the route before placement.
+
 ## Requirements
 
 - Node.js and npm.
