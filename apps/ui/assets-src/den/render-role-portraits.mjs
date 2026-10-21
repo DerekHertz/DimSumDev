@@ -20,7 +20,7 @@ export async function renderRolePortraits(onImage,{runtime='claude',roles=null}=
   for(const id of ['bao','wardrobe.developer-vest','wardrobe.qa-scarf']){const source=await loadModel(assets[id].url);resources.add(source);sources.push(source);}
   const [body,vestSource,scarfSource]=sources,vest=fitRoleAsset(vestSource,'developer-vest'),scarf=fitRoleAsset(scarfSource,'qa-scarf');resources.add(vest,scarf);
   const characters={};
-  for(const [key,asset]of Object.entries(assets))if(key.startsWith('characters.')){const source=await loadModel(asset.url);resources.add(source);characters[asset.roleId]=source;}
+  for(const [key,asset]of Object.entries(assets))if(key.startsWith('characters.')){const source=await loadModel(asset.url);resources.add(source);characters[asset.characterId||asset.roleId]=source;}
   factory=createPandaAppearanceFactory({body,vest,scarf,characters});resources.add(factory.outfits);
   const specs=ROLE_OUTFITS.filter(spec=>!roles||roles.includes(spec.id));
   for(const spec of specs){

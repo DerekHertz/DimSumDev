@@ -1,6 +1,6 @@
 import { useId, useState } from 'react';
 import { deskResidents } from './desk-model.mjs';
-import { ROLE_PORTRAITS } from './role-portraits.mjs';
+import { ROLE_PORTRAITS, ROLE_PORTRAIT_FALLBACKS } from './role-portraits.mjs';
 import { RESIDENTS, RUNTIME_UNAVAILABLE } from './resident-inventory.mjs';
 
 const STATES = { resident: 'At home', working: 'Working', 'needs-you': 'Needs you', blocked: 'Blocked',idle:'Idle',throttled:'Throttled' };
@@ -11,8 +11,9 @@ const BADGES = {
 };
 
 function Portrait({ row, large = false }) {
+  const key=row.runtime==='codex'?`codex:${row.role}`:row.role;
   return <span className={`forest-portrait${large ? ' forest-portrait-large' : ''}`} data-role={row.role} aria-hidden="true">
-    <img src={ROLE_PORTRAITS[row.runtime==='codex'?`codex:${row.role}`:row.role]} alt="" width="512" height="512" />
+    <img src={ROLE_PORTRAITS[key]} alt="" width="512" height="512" onError={event=>{const fallback=ROLE_PORTRAIT_FALLBACKS[key];if(fallback&&!event.currentTarget.src.endsWith(fallback))event.currentTarget.src=fallback;}} />
     <span className="forest-portrait-badge">{row.name==='Jiao'?'J':BADGES[row.role] ?? row.name[0]}</span>
   </span>;
 }

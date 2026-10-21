@@ -1,6 +1,7 @@
 import * as T from 'three';
 import {createBalancedPandaRig,createRig} from './panda-rig.mjs';
 import {CHARACTER_PROFILES} from './character-profiles.mjs';
+import {BAO_PRODUCTION} from './bao-profile.mjs';
 import {createRoleOutfit} from './role-outfits.mjs';
 import {createRoleTool} from './role-tools.mjs';
 import {disposeWorld} from './assets.mjs';
@@ -12,10 +13,11 @@ export function createPandaAppearanceFactory({body,characters={},...templates}){
  function createPanda(role,{runtime='claude'}={}){
   if(disposed)throw Error('Panda appearance factory disposed');
   if(!['claude','codex'].includes(runtime))throw Error('Unknown panda runtime: '+runtime);
-  if(characters[role]){
+  const bao=role==='orchestrator'&&runtime==='claude'&&characters.bao;
+  if(bao||characters[role]){
    // Same species and silhouette for both runtimes (labels and badges tell them apart); props are fused in the mesh.
-   const profile=CHARACTER_PROFILES[role],rig=createRig(characters[role],profile);
-   rig.model.userData={roleId:role,actorKey:role,runtime,species:profile.id};rig.model.scale.setScalar(.68);
+   const profile=bao?BAO_PRODUCTION:CHARACTER_PROFILES[role],rig=createRig(bao||characters[role],profile);
+   rig.model.userData={roleId:role,actorKey:role,runtime,species:profile.id};rig.model.scale.setScalar(bao?1.35:.68);
    instances.set(rig.model,{rig,tool:null});return {model:rig.model,rig};
   }
   const key=runtime+':'+role;

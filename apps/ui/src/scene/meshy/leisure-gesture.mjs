@@ -18,7 +18,7 @@ export function createLeisureGesture(rig){
   }else if(kind==='pond'){
    b.Head.rotation.x=.22;b.Shoulder_L.rotation.x=-.75-.16*Math.sin(time*3);b.Shoulder_L.rotation.z=-.35;b.Elbow_L.rotation.x=-.25;
   }else if(kind==='greeting'){
-   b.Shoulder_L.rotation.z=-1.7-.17*Math.sin(time*5);b.Shoulder_L.rotation.x=-.5;b.Elbow_L.rotation.x=-.25;
+   b.Shoulder_L.rotation.z=(rig.profile?.greetingDirection??-1)*((rig.profile?.greetingLift??1.7)+.17*Math.sin(time*5));b.Shoulder_L.rotation.x=-.5;b.Elbow_L.rotation.x=-.25;b.Elbow_L.rotation.z=rig.profile?.greetingElbowLift??0;
   }else if(kind==='mahjong'){
    b.Shoulder_R.rotation.x=-.6-.22*lift;b.Shoulder_R.rotation.z=.4;b.Elbow_R.rotation.x=-.3;
   }

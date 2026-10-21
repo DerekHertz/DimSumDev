@@ -231,7 +231,7 @@ test("all shipped model files belong to the audited Den manifest", () => {
   const declared = new Set(Object.values(manifest.assets).map(a => `apps/ui/public${a.url}`));
   const glbs = tracked.filter((p) => /\.glb(?:\.gz)?$/i.test(p) && !p.startsWith(".scratch/"));
   assert.deepEqual(glbs.filter(p => !declared.has(p)), []);
-  assert.equal(declared.size, 24);
+  assert.equal(declared.size, 25); // team-and-den-ux/24 adds Bao's model
   assert.ok(!Object.keys(manifest.assets).some(key=>key.startsWith('scenery.')), 'structures are authored as lightweight Three.js geometry');
   for (const p of declared) assert.ok(existsSync(join(ROOT, p)), `packaged asset exists: ${p}`);
 });
