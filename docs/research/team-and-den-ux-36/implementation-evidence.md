@@ -1,5 +1,7 @@
 # Ticket 36: owned places and safe tea routes
 
+**Historical candidate evidence.** Independent review bounced `6bf4ada` for unsafe dynamic allocation and incomplete body/terrain clearance. The measurements and captures below describe its earlier `d5b7128` product source. They do not verify the correction currently in progress; that source needs fresh focused, rendered and performance evidence before visual approval or delivery.
+
 This is implementation evidence for review, not visual or performance sign-off. The installed-build reproduction record remains on the private board in `36-developer-2.md`; it describes an older pre-04 installed build and is not the comparison baseline. Native evidence below uses the current 04 shell and actual rendered assets.
 
 ## Implemented behavior

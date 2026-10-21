@@ -18,10 +18,10 @@ function Portrait({ row, large = false }) {
 }
 
 // Selection only opens a profile. The parent connects these explicit actions to the live bridge flows.
-export function Residents({ snapshot, now, bindings, onTalk, onViewWork, getTalkState, onInspectTools }) {
+export function Residents({ snapshot, now, bindings, scenePresentations, onTalk, onViewWork, getTalkState, onInspectTools }) {
   const [selectedId, setSelectedId] = useState('orchestrator');
   const profileId = useId();
-  const rows = deskResidents(snapshot, { now, bindings });
+  const rows = deskResidents(snapshot, { now, bindings, scenePresentations });
   const selected = rows.find(row => row.id === selectedId)
     ?? rows.find(row => row.id === selectedId.split('#')[0]) ?? rows[0];
   const talkState = selected.runtime==='codex'?{enabled:false,reason:RUNTIME_UNAVAILABLE}:getTalkState?.(selected) ?? { enabled: !!onTalk, reason: onTalk ? null : 'Conversation unavailable.' };
@@ -45,6 +45,7 @@ export function Residents({ snapshot, now, bindings, onTalk, onViewWork, getTalk
         <p className="forest-profile-state"><span className={`forest-dot state-${selected.state}`} aria-hidden="true" />{STATES[selected.state] ?? selected.state}</p>
         <p className="forest-profile-task">{selected.task || selected.ref || 'No active work right now.'}</p>
         {selected.bubble ? <p className="forest-profile-tool">{selected.bubble}</p> : null}
+        {selected.sceneNotes.map(note=><p key={note} className="forest-muted">{note}</p>)}
       </div>
       <div className="forest-profile-actions">
         {selected.toolActivity ? <button type="button" className="btn" onClick={()=>onInspectTools?.(selected)}>Inspect {selected.toolActivity.count} active tool {selected.toolActivity.count===1?'call':'calls'}</button> : null}

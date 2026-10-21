@@ -258,3 +258,28 @@ test('team-and-den-ux/23: a first-person walker beside a species resident can st
   assert.ok(next.x-start.x>.5,`moved ${(next.x-start.x).toFixed(2)} away from the red panda`);
  }finally{f.dispose();}
 });
+
+for(const copy of ['visitor','meeting'])test(`36 ${copy} allocation clears passing bodies and failed preparation preserves truthful ownership`,()=>{
+ const f=fixture();try{
+  const {actors,den}=f;den.routineSpots.length=0;
+  const crossing=actors.actors.get('qa');crossing.panda.model.position.set(0,.26,30);
+  actors.applyLive([{role:'developer',ref:'one',agentId:'one'}]);
+  if(copy==='visitor')actors.applyLive([{role:'developer',ref:'one',agentId:'one'},{role:'developer',ref:'two',agentId:'two'}]);
+  else actors.applyMeeting({id:'m/36',ref:'two',state:'running',seats:[{role:'developer'}]});
+  const a=actors.actors.get(copy==='visitor'?'developer#two':'meeting:developer');assert.ok(a);
+  for(const b of actors.actors.values())if(b!==a&&b.panda.model.visible&&a.panda.model.visible)assert.ok(Math.hypot(a.panda.model.position.x-b.panda.model.position.x,a.panda.model.position.z-b.panda.model.position.z)>=a.envelope.radius+b.envelope.radius+.029,`${copy} starts clear of ${b.id}'s current measured body`);
+  // A later arrival cannot teleport into the body's current location either.
+  if(a.panda.model.visible){actors.update(.1,true);for(const b of actors.actors.values())if(b!==a&&b.panda.model.visible)assert.ok(Math.hypot(a.panda.model.position.x-b.panda.model.position.x,a.panda.model.position.z-b.panda.model.position.z)>=a.envelope.radius+b.envelope.radius+.029);}
+ }finally{f.dispose();}
+ const blocked=fixture();try{
+  const {actors,den}=blocked;den.routineSpots.length=0;actors.applyLive([{role:'developer',ref:'one',agentId:'one'}]);den.walkWorld.navigation.groundAt=()=>null;
+  if(copy==='visitor')actors.applyLive([{role:'developer',ref:'one',agentId:'one'},{role:'developer',ref:'two',agentId:'two'}]);
+  else actors.applyMeeting({id:'m/36',ref:'two',state:'running',seats:[{role:'developer'}]});
+  const a=actors.actors.get(copy==='visitor'?'developer#two':'meeting:developer');assert.ok(a);assert.equal(a.panda.model.visible,false);
+  assert.equal(a.homePlace,null,'clone never inherits the resident home lease');
+  for(let i=0;i<50;i++)actors.update(.1,i%2===0);
+  assert.equal(a.panda.model.visible,false);assert.match(a.presentation,/scene place unavailable/i);assert.equal(a.travel,null,'an unplaced clone never requests a route from a foreign home');
+  assert.equal([...actors.places.values()].some(p=>p.owner===a.identity),false,'failed preparation owns no foreign or temporary leases');
+  assert.equal(actors.actors.get('developer').live.agentId,'one','real run remains admitted');
+ }finally{blocked.dispose();}
+});

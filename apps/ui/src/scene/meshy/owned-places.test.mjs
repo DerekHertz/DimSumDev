@@ -100,3 +100,17 @@ test('a blocked narrow corridor holds actors apart without pretending either arr
  assert.equal(yielded,true);assert.equal(a.travel.status,'unavailable');assert.equal(b.travel.status,'unavailable');
  assert.equal(a.travel.attempts,3);assert.equal(b.travel.attempts,3);assert.equal(places.get('left').owner,null);assert.equal(places.get('right').owner,null);
 });
+
+test('36 reduced motion cannot report arrival through an interior solid or overhead beam',async()=>{
+ const T=await import('three'),{createSurfaceNavigation}=await import('./navigation.mjs');
+ for(const [height,y] of [[4,2.25],[.15,1.1]]){
+  const mesh=new T.Mesh(new T.BoxGeometry(.31,height,.31));mesh.position.set(.55,y,.55);
+  const world={navigation:createSurfaceNavigation([mesh],{placement:.2,baseY:0,floorRadius:20})},places=createPlaceRegistry(world),travel=createActorTravel(world,places);
+  places.define({id:'target',kind:'leisure',position:{x:.01,y:0,z:0}});
+  const a={id:'qa',identity:'qa',envelope:{radius:1.23,height:2.28},position:{x:0,y:0,z:0}},at={...a.position};
+  assert.ok(Math.hypot(.55-.155-.01,.55-.155)<a.envelope.radius,'independent solid AABB penetrates requested destination');
+  travel.request(a,'target');travel.update([a],.1,true);
+  assert.notEqual(a.travel.status,'arrived');assert.deepEqual(a.position,at);assert.equal(places.get('target').occupied,false);
+  mesh.geometry.dispose();mesh.material.dispose();
+ }
+});

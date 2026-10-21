@@ -9,9 +9,9 @@ import {TABLE,seatSpots,seated,tableMeeting} from './meeting-table.mjs';
 import {sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 
 // Native R3F scene. App remains the sole owner of live state, actions and panels.
-export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,stage,onReady,onNearby,picked=null,onPick,zoneView=null,onZoneClick=null,onLoadState,bindings=null,onOpenMeeting=null}){
+export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,stage,onReady,onNearby,onScenePresentations,picked=null,onPick,zoneView=null,onZoneClick=null,onLoadState,bindings=null,onOpenMeeting=null}){
  const [den,setDen]=useState(null);
- const live=useRef(null),inputs=useRef({});inputs.current={snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,onNearby,picked,onPick,zoneView,onZoneClick,onLoadState,bindings,onOpenMeeting};
+ const live=useRef(null),inputs=useRef({});inputs.current={snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,onNearby,onScenePresentations,picked,onPick,zoneView,onZoneClick,onLoadState,bindings,onOpenMeeting};
  const {scene,gl}=useThree();
  useEffect(()=>{
   const abort=new AbortController();let mounted=true,world=null;
@@ -25,7 +25,7 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
    live.current={den:d,agents,media,anchored:new Set(),proximity:0,meeting:null,susan:d.world.getObjectByName('Lazy susan'),glow};setDen(d);stage.tallyAnchor=d.tallyAnchor;onReady(d);
    inputs.current.onLoadState?.({status:'ready',message:'The forest garden is ready.'});
   }).catch(error=>{if(mounted&&error.name!=='AbortError'){console.error('Den scene',error);inputs.current.onLoadState?.({status:'error',message:'The garden models could not load. Reload to retry.'});}});
-  return()=>{mounted=false;abort.abort();onReady(null);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current=null;world?.dispose();stage.anchors.clear();};
+  return()=>{mounted=false;abort.abort();onReady(null);inputs.current.onScenePresentations?.([]);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current=null;world?.dispose();stage.anchors.clear();};
  },[gl,stage,onReady]);
  useEffect(()=>{const previous={background:scene.background,fog:scene.fog};const color='#e9f0d9';scene.background=new THREE.Color(color);scene.fog=new THREE.Fog(color,150,260);return()=>{scene.background=previous.background;scene.fog=previous.fog;};},[scene]);
  useEffect(()=>{if(!den)return;den.setFrontier(frontier||[]);den.setTally(tally?.rods);},[den,frontier,tally]);
@@ -53,6 +53,7 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
   if(l.susan&&!l.media.matches&&speaker>=0){const spot=seatSpots(l.meeting.seats.length)[speaker],target=Math.atan2(spot.x-TABLE.x,spot.z-TABLE.z);let d=target-l.susan.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));l.susan.rotation.y+=d*Math.min(1,dt*1.5);}
   l.glow.visible=l.meeting?.state==='briefed'||l.meeting?.state==='paused';
   l.proximity+=dt;if(l.proximity<.1)return;l.proximity=0;
+  inputs.current.onScenePresentations?.(l.agents.presentationRows());
   let card=null;const walking=!!stage.explorer?.active,pick=walking?null:inputs.current.picked;
   if(walking||pick!=null){
    const snap=inputs.current.snapshot,boundRefs=new Set([...l.agents.actors.values()].filter(a=>a.live).map(a=>boundAgentKey(a.live)));

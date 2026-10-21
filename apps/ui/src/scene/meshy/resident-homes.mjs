@@ -20,6 +20,6 @@ export function residentHomes(garden){
   const home=homes.get(resident.role),point=[...home.point];
   if(resident.dispatchable)point[0]+=resident.runtime==='claude'?-.82:.82;
   const position=home.team?garden.worldPoint(home.team,point).toArray():point;
-  return {...resident,teamId:home.team,position,yaw:home.yaw+(garden.assets[home.team]?.root.rotation.y||0)};
+  return {...resident,teamId:home.team,position,approach:home.team?garden.worldPoint(home.team,[0,0,8]).toArray():null,yaw:home.yaw+(garden.assets[home.team]?.root.rotation.y||0)};
  });
 }
