@@ -398,6 +398,7 @@ describe("a branch that no longer merges with main (F29)", () => {
   test("the developer merges main before anything is pushed; it is not a bounce, and the base moves to that main", async () => {
     const t = await setup();
     await t.start();
+    await t.spawn(0); // the developer's worktree exists before main moves
     const base = (await t.job()).base;
     // While the work is under way, main moves on in a way that conflicts.
     writeFileSync(path.join(t.root, "elsewhere.txt"), "main moved\n");
@@ -564,10 +565,9 @@ describe("what stops a delivery, and what it leaves", () => {
     ["a developer commit that is not built on the commit the delivery started from", async (t) => {
       const dev = await t.spawn(0);
       git(dev.args.cwd, "checkout", "-q", "--orphan", "elsewhere");
-      t.work(dev, { commit: "a.txt" });
-      t.work(await t.spawn(1), { say: "VERDICT: pass" });
+      t.work(dev, { commit: "a.txt" }); // the check runs first now, and stops it before any review
     }, "changed-commit", "in-review"],
-    ["a line that looks like a secret", async (t) => { t.git.secret = true; await t.toQaPass(); }, "possible-secret", "in-review"],
+    ["a line that looks like a secret", async (t) => { t.git.secret = true; t.work(await t.spawn(0), { commit: "feature.txt", say: "Added feature.txt." }); }, "possible-secret", "in-review"], // the check runs first now, so no review has run
     ["a change to CI configuration, which is never pushed", async (t) => { t.git.files = [".github/workflows/ci.yml"]; await t.toQaPass(); t.work(await t.spawn(2), { say: "VERDICT: pass" }); await t.paused("ci-change"); assert.deepEqual(t.sideEffects(), []); }, "ci-change", "in-review"],
     ["a push the remote refuses", async (t) => { t.git.fail.push = `remote: denied ${["https://user", "hunter2@example.invalid/r.git"].join(":")}`; await t.toQaPass(); }, "publish-failed", "in-review"],
     ["no check at all", async (t) => { t.git.checks = []; await t.toQaPass(); }, "no-checks", "in-review"],
@@ -985,13 +985,14 @@ describe("the pull request body carries the four sections", () => {
     ["Done. CHATTER-LINE.", "", "## What changes", "", PARA, "", "```diff", DIFF, "```", "", ...(door ? [door, ""] : []), tail].join("\n");
   // A docs-only change claims no security run; docs/agents/ lands in the docs area of docs/system-map.json.
   const FILES = ["docs/agents/new-note.md"];
-  const deliver = async ({ say, files = FILES, guard } = {}) => {
+  const deliver = async ({ say, files = FILES, guard, extra = 0 } = {}) => {
     const t = await setup();
     if (files) t.git.files = files;
     if (guard) t.git.guard = guard;
     await t.start();
     t.work(await t.spawn(0), { commit: "feature.txt", say });
-    t.work(await t.spawn(1), { say: "I ran the tests.\nVERDICT: pass" });
+    t.work(await t.spawn(1), { say: "I ran the tests.\nVERDICT: pass" }); // docs only: the technical writer; code: qa
+    for (let n = 2; n < 2 + extra; n++) t.work(await t.spawn(n), { say: "VERDICT: pass" });
     await t.when((j) => j.state === "merged", "the delivery to merge");
     const pr = t.git.calls.find((c) => c[0] === "openPr")[1];
     return { t, pr, body: pr.body };
@@ -1036,7 +1037,7 @@ describe("the pull request body carries the four sections", () => {
 
   test("a fix round whose report has no What changes keeps the section and door from the earlier developer run", async () => {
     const t = await setup();
-    t.git.files = FILES;
+    t.git.files = ["tools/new-note.mjs"]; // code, so qa reviews it (a docs-only change calls the writer, not qa)
     await t.start();
     t.work(await t.spawn(0), { commit: "feature.txt", say: report() });
     t.work(await t.spawn(1), { say: "The empty case is not handled.\nVERDICT: bounce" });
@@ -1124,12 +1125,13 @@ describe("the pull request body carries the four sections", () => {
 
   test("the evidence lines, the guard hits and the file list are folded under Evidence, with the bridge's note", async () => {
     const hits = ["a.test.mjs: test file deleted", "b.test.mjs: can't fail"];
-    const { t, body } = await deliver({ say: report(), guard: async () => ({ hits }) });
+    // Docs and code: the floor calls the technical writer, then qa (the guard runs only before qa).
+    const { t, body } = await deliver({ say: report(), guard: async () => ({ hits }), files: ["docs/agents/new-note.md", "tools/x.mjs"], extra: 1 });
     const evidence = section(body, "Evidence");
     const details = fold(body);
     assert.ok(evidence.includes(details), "the fold sits under the Evidence heading");
     const sha = (await t.job()).candidate.sha;
-    for (const line of [`- Commit: \`${sha}\``, "- Code review: pass", "- qa verify: pass", "- Risk check: clean", "- Test guard: 2 hit(s) listed for the verifier", "  - `a.test.mjs: test file deleted`"]) {
+    for (const line of [`- Commit: \`${sha}\``, "- Floor: technical-writer", "- Technical writer: ran", "- Code review: pass", "- qa verify: pass", "- Risk check: clean", "- Test guard: 2 hit(s) listed for the verifier", "  - `a.test.mjs: test file deleted`"]) {
       assert.ok(details.includes(line), `inside the fold: ${line}`);
     }
     assert.match(details, /The bridge opened this pull request as the release manager's step; no agent holds git-host credentials\./);

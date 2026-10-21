@@ -14,33 +14,40 @@ import { createGitHost } from "./git-host.mjs";
 
 const BASE = "a".repeat(40), SHA = "b".repeat(40), OLD = "c".repeat(40), RUN = "c-0123456789abcdef";
 const BRANCH = "den/fx/08-plain-01234567";
-const riskOf = (more = {}) => ({ sha: SHA, clean: true, hits: 0, secret: false, security: false, userMerge: false, ...more });
+// team-and-den-ux/17: the scripted check stores the floor on the risk record. These rows are about a code change, so the floor
+// is the code reviewer and qa, plus security when the record says it asked for it, and the writer for a UI change.
+const riskOf = (more = {}) => {
+  const roles = ["code-reviewer", "qa", ...(more.security || more.ui ? ["security"] : [])];
+  return { sha: SHA, clean: true, hits: 0, secret: false, security: false, userMerge: false, floor: { roles: more.ui ? ["technical-writer", ...roles, "user-verdict"] : roles, why: {} }, ...more };
+};
 // team-and-den-ux/02: every candidate gets the code reviewer first. The rows below are about what follows it, so a job
 // carries a passing review unless a test says otherwise (pass review: undefined to leave it out).
 const REVIEWED = { sha: SHA, verdict: "pass" };
-const job = (evidence = {}, more = {}) => ({ base: BASE, candidate: { sha: SHA }, bounces: 0, visual: false, evidence: { review: REVIEWED, ...evidence }, ...more });
+const job = (evidence = {}, more = {}) => ({ base: BASE, candidate: { sha: SHA }, bounces: 0, evidence: { review: REVIEWED, writer: { sha: SHA, runId: RUN }, ...evidence }, ...more });
 // F29: before the push the candidate is merged with main (a dry run); a clean result is part of "passed".
 const MAIN = "d".repeat(40);
 const synced = (more = {}) => ({ sha: SHA, main: MAIN, conflicts: [], at: "push", ...more });
 const passed = { qa: { sha: SHA, verdict: "pass" }, risk: riskOf(), sync: synced() };
 const open = { ...passed, pr: { sha: SHA, state: "OPEN", mergeable: "MERGEABLE" } };
 const green = { ...open, ci: { sha: SHA, state: "green" } };
+const checked = { risk: riskOf() }; // the scripted check has run, so the floor is known
 
 describe("the delivery plan", () => {
   // team-and-den-ux/02 (ADR 0029 decisions 2 and 6): the code reviewer, then qa, at one commit; one fix round for both.
   test("a new candidate goes to the code reviewer first, and a review of an older commit does not count", () => {
-    assert.deepEqual(nextStep(job({ review: undefined })), { kind: "run", role: "code-reviewer", at: SHA, since: BASE });
-    assert.deepEqual(nextStep(job({ review: { sha: OLD, verdict: "pass" } })), { kind: "run", role: "code-reviewer", at: SHA, since: BASE });
-    assert.deepEqual(nextStep(job({ review: undefined }, { testGuard: true })), { kind: "run", role: "code-reviewer", at: SHA, since: BASE });
+    assert.deepEqual(nextStep(job({ review: undefined })), { kind: "check" }, "the check comes first: the floor needs the changed paths");
+    assert.deepEqual(nextStep(job({ ...checked, review: undefined })), { kind: "run", role: "code-reviewer", at: SHA, since: BASE });
+    assert.deepEqual(nextStep(job({ ...checked, review: { sha: OLD, verdict: "pass" } })), { kind: "run", role: "code-reviewer", at: SHA, since: BASE });
+    assert.deepEqual(nextStep(job({ ...checked, review: undefined }, { testGuard: true })), { kind: "run", role: "code-reviewer", at: SHA, since: BASE });
   });
 
   test("a code review bounce still sends the commit to qa, so the fix round has both reviews' findings", () => {
     const bounced = { sha: SHA, verdict: "bounce" };
-    assert.deepEqual(nextStep(job({ review: bounced }, { bounces: 1 })), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE });
+    assert.deepEqual(nextStep(job({ ...checked, review: bounced }, { bounces: 1 })), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE });
     for (const qa of [{ sha: SHA, verdict: "pass" }, { sha: SHA, verdict: "bounce" }]) {
-      assert.deepEqual(nextStep(job({ review: bounced, qa }, { bounces: 1 })), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true });
+      assert.deepEqual(nextStep(job({ ...checked, review: bounced, qa }, { bounces: 1 })), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true });
     }
-    assert.equal(nextStep(job({ review: bounced, qa: { sha: SHA, verdict: "pass" } }, { bounces: MAX_BOUNCES })).pause, "failed-twice");
+    assert.equal(nextStep(job({ ...checked, review: bounced, qa: { sha: SHA, verdict: "pass" } }, { bounces: MAX_BOUNCES })).pause, "failed-twice");
   });
 
   test("a passing review and a passing qa go on to the scripted checks", () => {
@@ -56,17 +63,17 @@ describe("the delivery plan", () => {
 
   // den-mvp/70: with the test guard on, it runs on the candidate before any verifier sees it.
   test("the test guard runs before qa verifies, once per candidate, and only for a job that has it", () => {
-    assert.deepEqual(nextStep(job({}, { testGuard: true })), { kind: "guard" });
-    assert.deepEqual(nextStep(job({ guard: { sha: OLD, hits: [] } }, { testGuard: true })), { kind: "guard" });
-    assert.deepEqual(nextStep(job({ guard: { sha: SHA, hits: ["a.test.mjs: test file deleted"] } }, { testGuard: true })), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE });
-    assert.deepEqual(nextStep(job({}, {})), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE });
+    assert.deepEqual(nextStep(job({ ...checked }, { testGuard: true })), { kind: "guard" });
+    assert.deepEqual(nextStep(job({ ...checked, guard: { sha: OLD, hits: [] } }, { testGuard: true })), { kind: "guard" });
+    assert.deepEqual(nextStep(job({ ...checked, guard: { sha: SHA, hits: ["a.test.mjs: test file deleted"] } }, { testGuard: true })), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE });
+    assert.deepEqual(nextStep(job({ ...checked }, {})), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE });
   });
 
   const rows = [
     ["no candidate: a developer at the base", { base: BASE, candidate: null, bounces: 0, evidence: {} }, { kind: "run", role: "developer", at: BASE, since: BASE }],
-    ["a candidate: qa verifies it", job(), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE }],
-    ["a qa pass for an older commit does not count", job({ qa: { sha: OLD, verdict: "pass" } }), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE }],
-    ["a qa bounce: the developer fixes it, from the candidate", job({ qa: { sha: SHA, verdict: "bounce" } }, { bounces: 1 }), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true }],
+    ["a candidate: qa verifies it", job(checked), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE }],
+    ["a qa pass for an older commit does not count", job({ ...checked, qa: { sha: OLD, verdict: "pass" } }), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE }],
+    ["a qa bounce: the developer fixes it, from the candidate", job({ ...checked, qa: { sha: SHA, verdict: "bounce" } }, { bounces: 1 }), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true }],
     ["qa passed: the scripted checks", job({ qa: passed.qa }), { kind: "check" }],
     ["a risk hit: security reviews", job({ ...passed, risk: riskOf({ clean: false, hits: 2, security: true }) }), { kind: "run", role: "security", at: SHA, since: BASE }],
     ["a red check, counted as a bounce: the developer fixes it from the candidate", job({ ...open, ci: { sha: SHA, state: "red", failed: ["test"] } }, { bounces: 1 }), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true }],
@@ -77,7 +84,7 @@ describe("the delivery plan", () => {
     ["a pull request: its checks", job(open), { kind: "ci" }],
     ["green and mergeable: merge", job(green), { kind: "merge" }],
     ["merged: resolve the ticket", job({ ...passed, pr: { sha: SHA, state: "MERGED" } }), { kind: "resolve" }],
-    ["a ui ticket with the user's verdict: merge", job({ ...green, verdict: { sha: SHA, ok: true } }, { visual: true }), { kind: "merge" }],
+    ["a ui ticket with the user's verdict: merge", job({ ...green, verdict: { sha: SHA, ok: true } }, { roles: ["user-verdict"] }), { kind: "merge" }],
     // den-mvp/34: the checks of ci.yml, run here, between the scripted check and security or the push.
     ["local checks: run after the scripted check", job(passed, { localChecks: true }), { kind: "tests" }],
     ["local checks of an older commit do not count", job({ ...passed, tests: { sha: OLD, state: "green" } }, { localChecks: true }), { kind: "tests" }],
@@ -98,14 +105,14 @@ describe("the delivery plan", () => {
   for (const [name, input, want] of rows) test(name, () => assert.deepEqual(nextStep(input), want));
 
   const pauses = [
-    ["the second bounce", job({ qa: { sha: SHA, verdict: "bounce" } }, { bounces: MAX_BOUNCES }), "failed-twice"],
+    ["the second bounce", job({ ...checked, qa: { sha: SHA, verdict: "bounce" } }, { bounces: MAX_BOUNCES }), "failed-twice"],
     ["a line that looks like a secret", job({ ...passed, risk: riskOf({ secret: true }) }), "possible-secret"],
     ["a red check after the work was sent back twice", job({ ...open, ci: { sha: SHA, state: "red", failed: ["test"] } }, { bounces: MAX_BOUNCES }), "failed-twice"],
     ["no check at all", job({ ...open, ci: { sha: SHA, state: "none" } }), "no-checks"],
     ["checks still running", job({ ...open, ci: { sha: SHA, state: "pending" } }), "ci-pending"],
     ["a guardrail path, even when all is green", job({ ...green, risk: riskOf({ security: true, userMerge: true }), security: { sha: SHA, verdict: "pass" } }), "guardrail"],
-    ["a ui ticket with no verdict", job(green, { visual: true }), "visual-verdict"],
-    ["a ui verdict for an older commit", job({ ...green, verdict: { sha: OLD, ok: true } }, { visual: true }), "visual-verdict"],
+    ["a ui ticket with no verdict", job(green, { roles: ["user-verdict"] }), "visual-verdict"],
+    ["a ui verdict for an older commit", job({ ...green, verdict: { sha: OLD, ok: true } }, { roles: ["user-verdict"] }), "visual-verdict"],
     ["the git host says conflict, a fresh merge of main says clean", job({ ...green, pr: { sha: SHA, state: "OPEN", mergeable: "CONFLICTING" }, sync: synced({ at: "pr" }) }), "conflict"],
     ["still conflicting after the merge rounds", job({ ...passed, sync: synced({ conflicts: ["a.mjs"] }) }, { syncRounds: MAX_SYNC_ROUNDS }), "conflict"],
     ["mergeability not known", job({ ...green, pr: { sha: SHA, state: "OPEN", mergeable: "UNKNOWN" } }), "not-mergeable"],
@@ -119,22 +126,22 @@ describe("the delivery plan", () => {
   const merged = { ...approved, pr: { sha: SHA, state: "MERGED" } };
   const uiRows = [
     ["a change under apps/ui/: its preview is built before anything is pushed", job(ui), { kind: "preview" }],
-    ["a ui ticket type whose change is under apps/ui/: the same", job(ui, { visual: true }), { kind: "preview" }],
+    ["a ui ticket type whose change is under apps/ui/: the same", job(ui, { roles: ["user-verdict"] }), { kind: "preview" }],
     ["a preview for an older commit does not count", job({ ...ui, preview: { sha: OLD, ok: true } }), { kind: "preview" }],
     ["UI code is reviewed by security before its preview, whatever the scripted check said", job(unreviewed), { kind: "run", role: "security", at: SHA, since: BASE }],
     ["a security pass for an older commit does not count", job({ ...unreviewed, security: { sha: OLD, verdict: "pass" } }), { kind: "run", role: "security", at: SHA, since: BASE }],
     ["approved: publish", job(approved), { kind: "publish" }],
     ["approved, open: its checks", job({ ...approved, pr: open.pr }), { kind: "ci" }],
-    ["approved and green: merge, with no second verdict", job({ ...approved, pr: open.pr, ci: green.ci }, { visual: true }), { kind: "merge" }],
+    ["approved and green: merge, with no second verdict", job({ ...approved, pr: open.pr, ci: green.ci }, { roles: ["user-verdict"] }), { kind: "merge" }],
     ["declined: the developer runs again with the note", job({ ...built, verdict: { sha: SHA, ok: false } }), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true }],
     ["declined many times over: still the developer, never failed-twice", job({ ...built, verdict: { sha: SHA, ok: false } }, { declines: 5, bounces: 1 }), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true }],
-    ["a decline of an older commit does not count: the new one is verified", job({ verdict: { sha: OLD, ok: false }, preview: { sha: OLD, ok: true } }, { declines: 2 }), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE }],
+    ["a decline of an older commit does not count: the new one is verified", job({ ...checked, verdict: { sha: OLD, ok: false }, preview: { sha: OLD, ok: true } }, { declines: 2 }), { kind: "run", role: "qa", mode: "verify", at: SHA, since: BASE }],
     ["a security bounce of UI code: the developer fixes it, and no preview is built", job({ ...unreviewed, security: { sha: SHA, verdict: "bounce" } }, { bounces: 1 }), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true }],
     ["a preview that did not build: back to the developer as a failed check", job({ ...ui, preview: { sha: SHA, ok: false } }, { bounces: 1 }), { kind: "run", role: "developer", at: SHA, since: BASE, fix: true }],
     ["merged: the change goes live", job(merged), { kind: "go-live" }],
     ["merged and live: resolve the ticket", job({ ...merged, live: { sha: SHA, state: "live", release: OLD } }), { kind: "resolve" }],
     ["a go-live for an older commit does not count", job({ ...merged, live: { sha: OLD, state: "live", release: OLD } }), { kind: "go-live" }],
-    ["merged with nothing under apps/ui/: no release, resolve", job({ ...passed, pr: { sha: SHA, state: "MERGED" } }, { visual: true }), { kind: "resolve" }],
+    ["merged with nothing under apps/ui/: no release, resolve", job({ ...passed, pr: { sha: SHA, state: "MERGED" } }, { roles: ["user-verdict"] }), { kind: "resolve" }],
   ];
   for (const [name, input, want] of uiRows) test(name, () => assert.deepEqual(nextStep(input), want));
 

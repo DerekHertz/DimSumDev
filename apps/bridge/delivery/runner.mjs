@@ -542,7 +542,8 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
   const floorLines = (j) => {
     const roles = unionRoles(j.evidence.risk?.floor?.roles, j.roles);
     if (!roles.length) return [];
-    return [`- Floor: ${roles.join(", ")}`, ...roles.filter((r) => j.evidence.risk.floor?.why?.[r]).map((r) => `  - ${r}: ${inert(errorText(j.evidence.risk.floor.why[r]))}`)];
+    const why = (r) => (j.evidence.risk?.floor?.why?.[r] ? ` (${inert(errorText(j.evidence.risk.floor.why[r]))})` : "");
+    return [`- Floor: ${roles.map((r) => `${r}${why(r)}`).join("; ")}`];
   };
 
   // The pull request body (informative-prs/02): What changes, System map, Risk, Evidence, in the pr-writing skill's order.
@@ -600,12 +601,14 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
   // ADR 0029 decision 3: the hand-up (the push and the merge) asks again which roles the commit needs, from the paths it
   // changes now and the owner's additions, and what is on record for each, independently of the plan. A role with no counted
   // result refuses the hand-up. The recomputed floor is kept, so a Resume runs the missing role.
-  async function floorGap(job, gen) {
+  // The user's verdict is asked for before the merge (after CI), or before the push when the change is UI code (its preview).
+  async function floorGap(job, gen, { merging = false } = {}) {
     const { sha } = job.candidate;
     const risk = job.evidence.risk?.sha === sha ? job.evidence.risk : null;
-    const now = floor({ type: job.type, files: await git.changed({ base: job.base, sha }), riskClean: risk ? risk.clean : false });
+    const files = await git.changed({ base: job.base, sha });
+    const now = floor({ type: job.type, files, riskClean: risk ? risk.clean : false });
     if (job.gen !== gen) return true;
-    const missing = gaps({ roles: unionRoles(now.roles, job.roles), evidence: job.evidence, sha });
+    const missing = gaps({ roles: unionRoles(now.roles, job.roles).filter((r) => r !== "user-verdict" || merging || files.some(isUiPath)), evidence: job.evidence, sha });
     if (!missing.length) return false;
     if (risk) risk.floor = now;
     await pause(job, "floor-gap", `the commit needs a result from ${missing.join(", ")}, and has none; nothing was pushed or merged`, "Resume to run the missing step, or close the delivery.");
@@ -692,7 +695,7 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     const st = await observe(job, gen);
     if (!st || st.state === "MERGED" || job.gen !== gen) return;
     if (nextStep(job).kind !== "merge") return; // a check turned red, a conflict appeared: the plan says which
-    if (await floorGap(job, gen)) return;
+    if (await floorGap(job, gen, { merging: true })) return;
     const { sha } = job.candidate;
     await op(job, "merge", { sha, pr: job.pr.number }, () => {
       still(job, gen); // a Stop while the intent was being written: nothing is merged

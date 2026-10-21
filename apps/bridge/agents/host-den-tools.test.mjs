@@ -179,6 +179,7 @@ describe("Bao's den tools", () => {
     const allowStart = async (requestId) => {
       run.emit({ type: "permission-request", requestId, tool: "mcp__den__start_delivery", input: { ref: DISPATCH_REF } });
       const approval = await until(async () => (await t.state()).approvals.find((a) => a.tool === "mcp__den__start_delivery" && a.state === "pending"), { what: "the ask" });
+      await send(t.bridge, { path: `/approvals/${approval.id}`, headers: t.headers }); // the user opens it first
       assert.equal((await t.post(`/approvals/${approval.id}`, { decision: "allow" })).status, 200);
     };
     await allowStart("s-1");
