@@ -1,8 +1,45 @@
 # Ticket 36: owned places and safe tea routes
 
-**Recovery candidate:** `dfe764be7f3f02dc1d346f9551d5239324dd807f`, draft PR #383. The developer reports 102/102 focused checks, five syntax checks and the production UI build passing. These are author results from the private board handoff `36-developer-13.md`; this writer pass ran no tests or browser checks. Fresh independent review, QA, security and final-candidate rendered/reference evidence remain pending. At resumption, CI reports seven failing tests in shared navigation contracts; the author results do not establish a CI pass. Acceptance is incomplete.
+**Current product candidate:** `1bac18101433119c2e0ce13d35b1ed79439e7a4e`, draft PR #383. The developer reports 121/121 covering checks, seven syntax checks and the production UI build passing in private board handoff `36-developer-14.md`. The root reports a final-candidate mounted unavailable-profile check passing 1/1. These are attributed results; this writer inspected source, diffs and saved receipts, and ran no tests or browser checks. The prior shared-navigation findings have source corrections and author coverage; a fresh independent pass is still pending. CI was in progress at the last check.
+
+**Release blocker:** the final native capture records synchronous crowd admission of **28,356.4 ms**, 800 accelerated updates taking **23,271.2 ms**, and a single production update taking **8,038.2 ms**. Responsiveness remains unresolved. Neither the later idle samples nor the completed capture establishes performance or merge acceptance. Independent final assessment and a concrete performance recovery plan remain pending.
 
 **Historical rendered evidence:** the measurements and captures below describe product source `d5b7128`, retained in `6bf4ada`. Independent review bounced `6bf4ada` for unsafe dynamic allocation and incomplete body/terrain clearance. Those captures do not verify the recovery candidate or provide its visual/performance sign-off. The installed-build reproduction record remains on the private board in `36-developer-2.md`; it describes an older pre-04 installed build and is not the comparison baseline.
+
+## Current candidate native evidence
+
+The root captured the actual app in native Chrome 155.0.8059.85 on 2026-10-21, from 14:52:05.517 to 14:54:13.159 UTC. Product source was `1bac181`; the comparison baseline was `20a854a81017637a6f074bb62782643fb6462454`. Both contain the same current Bao assets. The saved private receipt, preparation record and helper identify those sources. Raw captures and host paths stay private.
+
+Both builds used actual model textures, 1440×900, DPR 1 and no reduced motion. The canvas measured 1384×856. The helper intercepted actor/camera modules for test-only events, held periodic snapshot rebinding during manual fixtures and called the original controller. It introduced no production debug interface. The final receipt records zero page errors and zero write requests, an owned browser closed, and both loopback servers closed.
+
+All 32 initial candidate residents were visible with matching owned homes. After adding four visitors and six meeting guests, all 42 bodies were visible with matching owned homes. The 800-update crowd check recorded minimum horizontal envelope clearance **0.09185291** scene units. Per-actor identity, home owner, presentation, position, envelope and travel state were saved. Some actors remained safely staged or reported unavailable destinations; this does not establish completion of every crowd journey.
+
+The actual QA reached owned `leisure:tea` after **570** simulated 0.1-second updates and returned to its retained home after another **677**. Minimum horizontal envelope clearance across that trip was **0.078482085** scene units. These were accelerated manual updates in the rendered app, not ordinary wall-clock travel.
+
+Six real screenshots cover tea arrival in light/dark, the crowd overview in light, the crowd at narrow width in dark, an unavailable visitor profile in light, and an unavailable meeting profile at narrow width in dark. The unavailable fixture made navigation inaccessible and checked that ordinary and meeting bodies were hidden with no home/travel and truthful notes. Their native Team profiles still showed `Working`; the visitor's `View work` action was enabled. At 375×812, document width and scroll width were both 375px. The user has not given a visual verdict.
+
+### Responsiveness and harness completion
+
+Crowd admission blocked synchronously for **28,356.4 ms**: `applyLive` took **6,632.1 ms** and `applyMeeting` took **21,724.2 ms**. The following 800 updates took **23,271.2 ms**, with a maximum single production update of **8,038.2 ms**. Initial candidate allocation separately took **5,692.3 ms**. These stalls remain a release blocker even though later samples have low update p95 values.
+
+The first full native attempt failed its 35-second aggregate crowd deadline. Saved fixture work took about 53 seconds, so the private harness raised that step to 90 seconds inside the unchanged 240-second whole-capture deadline. All 800 updates, safety assertions and product work ceilings remained. The second attempt completed with phase timings. That change fixed harness completion; it did not fix the measured product stalls.
+
+### Current rendering and memory comparison
+
+One nominal eight-second sample ran sequentially for baseline 32, baseline 42, candidate 32 and candidate 42. Counts, camera target `[0,2,-8]`, zoom 1, viewport, assets and settings matched. These later samples omit the synchronous admission and accelerated-update stalls above.
+
+| Measurement | Baseline 32 | Candidate 32 | Baseline 42 | Candidate 42 |
+|---|---:|---:|---:|---:|
+| Controller update p50 / p95, ms | 1.4 / 2.0 | 1.4 / 1.9 | 1.9 / 3.1 | 2.2 / 3.6 |
+| CPU render submission p50 / p95, ms | 15.8 / 18.3 | 16.2 / 18.8 | 18.7 / 23.4 | 19.3 / 27.3 |
+| Actual controller/render calls | 229 | 229 | 229 | 221 |
+| Animation-frame heartbeat count / p95, ms | 456 / 17.6 | 458 / 17.6 | 456 / 17.6 | 441 / 18.1 |
+| CDP used JavaScript heap, MiB | 87.80 | 175.25 | 94.60 | 284.69 |
+| Renderer geometries / textures | 1,374 / 116 | 1,374 / 116 | 1,501 / 126 | 1,503 / 126 |
+| Draw calls per reported frame | 1,386 | 1,386 | 1,513 | 1,513 |
+| Triangles per reported frame | 3,113,490 | 3,113,490 | 3,371,400 | 3,371,400 |
+
+The animation-frame heartbeat is a separate callback, not rendered-frame cadence. CPU submission timings surround `renderer.render` and do not measure GPU duration. Heap uses `Runtime.getHeapUsage` without forced garbage collection. Workload was uncontrolled, samples were unrepeated, and candidate crowd sampling followed its tea trip while baseline sampling did not. Different allocation/travel histories limit attribution. The larger heap and two extra crowd geometries need assessment; these samples establish neither a leak nor physical VRAM use. No performance sign-off follows from this table.
 
 ## Implemented behavior
 
@@ -83,9 +120,9 @@ The animation-frame heartbeat is a separate browser callback, not rendered-frame
 ## Remaining gates
 
 - Fresh independent code review and QA at the final candidate, including test-guard findings and the recorded runner incident.
-- Risk/security and CI checks, with outstanding failures resolved before acceptance.
-- Final-candidate mounted unavailable-presentation checks, native 32/42-body trip/crowd evidence and reference-box performance comparison.
-- User visual verdict on the final light/dark/narrow captures. Historical captures do not satisfy this gate.
+- Risk/security and completed green CI checks; last reported CI state was in progress.
+- Independent assessment of the native stalls and memory increase, followed by a concrete performance recovery plan. Responsiveness remains unresolved.
+- User visual verdict on the six final light/dark/narrow captures. Current mounted/native checks and descriptive comparison are recorded above; historical captures do not satisfy this gate.
 
 The current authorization stops before merge or installed update.
 
