@@ -21,7 +21,10 @@ export function createActorPlaces(den,actors,speed){
   a.homePlace=null;a.travel=null;a.path=null;a.arriving=false;a.presentation=null;
   a.envelope=actorEnvelope(a.panda,a.gesture);bind(a,a.live);
   const staging={x:den.walkStart?.x??0,y:den.walkStart?.groundY??.26,z:den.walkStart?.z??30};
-  const work=createAllocationWork(),bodySnapshot=bodyWorld(a),navigation=den.walkWorld.navigation;
+  const allocation=createAllocationWork(),bodySnapshot=bodyWorld(a),navigation=den.walkWorld.navigation;
+  // Primary search gets 3/4 of the shared work. Staging retains 3/16 and
+  // arrival the last 1/16; unused earlier work stays available to later phases.
+  let work=allocation.phase(.75);
   const budgetWorld={...den.walkWorld,navigation:{...navigation,groundAt:(...args)=>work.groundAt(navigation,...args)}};
   bodySnapshot.navigation=budgetWorld.navigation;
   let exit,goal=a.approach??staging;
@@ -39,13 +42,14 @@ export function createActorPlaces(den,actors,speed){
    return true;
   };
   let home=places.find({id:'home:'+a.id,kind,near,owner:a.identity,envelope:a.envelope,validate:accessible,work});
-  if(!home){goal=staging;home=places.find({id:'staging:'+a.id,kind:'staging',near:staging,owner:a.identity,envelope:a.envelope,validate:accessible,work});}
+  if(!home){work=allocation.phase(.9375);goal=staging;home=places.find({id:'staging:'+a.id,kind:'staging',near:staging,owner:a.identity,envelope:a.envelope,validate:accessible,work});}
   if(!home){places.disposeActor(a.identity);a.presentation='Scene place unavailable';a.panda.model.visible=false;return false;}
   a.panda.model.visible=true;
   a.homePlace=home.id;a.home=new T.Vector3(home.position.x,home.position.y,home.position.z);a.panda.model.position.copy(a.home);places.occupy(home.id,a.identity);
   exits.set(a,{from:a.home.clone(),path:exit});
   a.presentation=home.kind==='staging'?'Workspace unavailable · waiting at a safe place':null;
   if(arrival){
+   work=allocation.phase(1);
    const start=a.home.clone().add(new T.Vector3(.9,0,.6));
    if(places.fits(start,a.envelope,a.identity,null,work)&&routeSegment(budgetWorld,start,a.home,a.envelope)!==null){
     const stage=places.define({id:'arrival:'+a.id,kind:'staging',position:start});
