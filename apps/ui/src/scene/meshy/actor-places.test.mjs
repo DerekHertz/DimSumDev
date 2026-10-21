@@ -163,3 +163,103 @@ test('36 a moved owned destination is reproved before the traveller receives its
   assert.equal(a.travel.status,'arrived');assert.equal(target.owner,a.identity);assert.ok(Math.abs(a.panda.model.position.x+6)<.02);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);
  }finally{f.dispose();}
 });
+
+const tick=(transport,seconds,reduced=false)=>{for(let i=0;i<Math.round(seconds*10);i++)transport.update(.1,reduced);};
+for(const mode of ['reservation','proof'])for(const reduced of [false,true])test(`36 recovery ${mode} rejection is atomic, deduplicated, bounded and recovers after function replacement (reduced=${reduced})`,()=>{
+ let blocked=false,queries=0;
+ const open=(x,z,y,r)=>{queries++;return x-r< -12||x+r>0||Math.abs(z)+r>1?null:0;};
+ const f=fixture((x,z,y,r)=>blocked&&(mode==='reservation'||Math.abs(x+7)<r+.05)?(queries++,null):open(x,z,y,r));
+ try{
+  const a=f.actor('retry',-10);assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);const before=a.panda.model.position.clone();blocked=true;
+  const target=f.transport.destination(a,{id:'retry-seat',kind:'meeting',position:{x:-4,y:0,z:0},overflow:false});assert.ok(target);
+  assert.equal(f.transport.go(a,target),false);assert.equal(a.travel,null);assert.deepEqual(a.panda.model.position,before);assert.equal(target.owner,null);
+  const first=queries;tick(f.transport,7,reduced);assert.equal(queries,first);
+  assert.equal(f.transport.go(a,target),false);assert.equal(queries,first,'duplicate intent neither searches nor restarts the beat');
+  tick(f.transport,2,reduced);assert.ok(queries>first,'the second attempt includes destination reservation and route proof');
+  tick(f.transport,30,reduced);assert.equal(a.travel.status,'unavailable');assert.equal(a.travel.attempts,3);assert.deepEqual(a.travel.path,[]);assert.equal(target.owner,null);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);assert.deepEqual(a.panda.model.position,before);
+  const exhausted=queries;tick(f.transport,30,reduced);assert.equal(queries,exhausted);assert.equal(f.transport.go(a,target),false);assert.equal(queries,exhausted);
+  f.navigation.groundAt=open;f.transport.update(.1,reduced);assert.ok(queries>exhausted);assert.ok(['moving','arrived'].includes(a.travel.status));tick(f.transport,5,reduced);
+  assert.equal(a.travel.status,'arrived');assert.equal(target.owner,a.identity);assert.equal(target.occupied,true);assert.ok(Math.abs(a.panda.model.position.x+4)<.02);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);
+ }finally{f.dispose();}
+});
+
+for(const cleanup of ['home','remove','dispose'])test(`36 recovery ${cleanup} clears rejected pending intent without later motion or leases`,()=>{
+ let blocked=false,queries=0;const f=fixture((x,z,y,r)=>{queries++;return blocked&&Math.abs(x+7)<r+.05||Math.abs(z)+r>1||x-r< -12||x+r>0?null:0;});
+ try{
+  const a=f.actor('cancel',-10);assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);blocked=true;
+  const target=f.transport.destination(a,{id:'cancel-seat',kind:'meeting',position:{x:-4,y:0,z:0},overflow:false});assert.equal(f.transport.go(a,target),false);
+  const before=a.panda.model.position.clone();
+  if(cleanup==='home')assert.equal(f.transport.home(a),true);else f.transport[cleanup](...(cleanup==='remove'?[a]:[]));
+  const stopped=queries;tick(f.transport,40,true);assert.equal(queries,stopped);assert.deepEqual(a.panda.model.position,before);assert.equal(target.owner,null);assert.notEqual(a.travel?.placeId,target.id);
+ }finally{f.dispose();}
+});
+
+test('36 recovery failed home request without committed travel exhausts safely and resumes on navigation revision',()=>{
+ let blocked=false,queries=0;const f=fixture(()=>{queries++;return blocked?null:0;});
+ try{
+  const a=f.actor('home-retry');assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);blocked=true;const before=a.panda.model.position.clone();
+  assert.equal(f.transport.home(a),false);assert.equal(a.travel,null);tick(f.transport,40,true);assert.equal(a.travel.status,'unavailable');assert.equal(a.travel.attempts,3);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);assert.deepEqual(a.panda.model.position,before);
+  const exhausted=queries;tick(f.transport,30,true);assert.equal(queries,exhausted);blocked=false;f.navigation.revision++;f.transport.update(.1,true);assert.equal(a.travel.status,'arrived');assert.equal(a.travel.placeId,a.homePlace);assert.equal(a.travel.attempts,1);assert.deepEqual(a.panda.model.position,before);
+ }finally{f.dispose();}
+});
+
+for(const returning of [false,true])test(`36 recovery static active failure is bounded and retains the body, home and occupied lease (return=${returning})`,()=>{
+ let blocked=false,queries=0;const open=(x,z,y,r)=>{queries++;return Math.abs(z)+r>1||x-r< -12||x+r>0?null:0;};
+ const f=fixture((x,z,y,r)=>blocked&&Math.abs(x+7)<r+.05?(queries++,null):open(x,z,y,r));
+ try{
+  const a=f.actor('active-retry',-10);assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);
+  const target=f.transport.destination(a,{id:'active-out',kind:'leisure',position:{x:-4,y:0,z:0}});assert.equal(f.transport.go(a,target),true);
+  if(returning)f.transport.update(.1,true);else tick(f.transport,1);
+  const before=a.panda.model.position.clone(),oldPath=a.travel.path.map(p=>({...p}));blocked=true;f.navigation.revision++;
+  if(returning){assert.equal(f.transport.home(a),false);assert.deepEqual(a.travel.path,oldPath);assert.equal(target.occupied,true);}else f.transport.update(.1,false);
+  const first=queries;tick(f.transport,7);assert.equal(queries,first);tick(f.transport,2);assert.ok(queries>first);tick(f.transport,30,true);
+  assert.equal(a.travel.status,'unavailable');assert.equal(a.travel.attempts,3);assert.deepEqual(a.panda.model.position,before);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);assert.equal(target.owner,returning?a.identity:null);
+  const exhausted=queries;tick(f.transport,30,true);assert.equal(queries,exhausted);
+  f.navigation.groundAt=open;f.transport.update(.1,true);assert.equal(a.travel.status,'arrived');assert.equal(a.travel.placeId,returning?a.homePlace:target.id);assert.ok(a.panda.model.position.distanceTo(returning?a.home:new T.Vector3(-4,0,0))<.02);if(returning)assert.equal(target.owner,null);
+ }finally{f.dispose();}
+});
+
+test('36 recovery repeated destination allocation does not spend work or reset exhausted intent',()=>{
+ let blocked=false,queries=0;const f=fixture(()=>{queries++;return blocked?null:0;});
+ try{
+  const a=f.actor('repeat');assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);blocked=true;
+  const request={id:'repeat-seat',kind:'meeting',position:{x:-4,y:0,z:0},overflow:false};
+  assert.equal(f.transport.go(a,f.transport.destination(a,request)),false);const first=queries;
+  for(let i=0;i<70;i++){assert.equal(f.transport.go(a,f.transport.destination(a,request)),false);f.transport.update(.1,false);}assert.equal(queries,first);
+  tick(f.transport,32,true);assert.equal(a.travel.attempts,3);const exhausted=queries;
+  for(let i=0;i<100;i++){f.transport.go(a,f.transport.destination(a,request));f.transport.update(.1,true);}assert.equal(queries,exhausted);assert.equal(a.travel.status,'unavailable');
+ }finally{f.dispose();}
+});
+
+test('36 recovery failed replacement preserves committed travel and its occupied destination',()=>{
+ let blocked=false;const f=fixture(x=>blocked&&x> -2?null:0);
+ try{
+  const a=f.actor('prior',-10);assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);
+  const first=f.transport.destination(a,{id:'first-out',kind:'leisure',position:{x:-4,y:0,z:0}});assert.equal(f.transport.go(a,first),true);const current=a.travel,path=current.path.map(p=>({...p}));blocked=true;
+  const next=f.transport.destination(a,{id:'rejected-next',kind:'meeting',position:{x:-1,y:0,z:0},overflow:false});const before=a.panda.model.position.clone();
+  assert.equal(f.transport.go(a,next),false);assert.equal(a.travel,current);assert.deepEqual(a.travel.path,path);assert.deepEqual(a.panda.model.position,before);assert.equal(first.owner,a.identity);assert.equal(next.owner,null);
+  tick(f.transport,40,true);assert.equal(a.travel,current);assert.equal(a.travel.status,'arrived');assert.equal(a.travel.placeId,first.id);assert.equal(first.occupied,true);assert.equal(first.owner,a.identity);assert.equal(next.owner,null);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);
+  assert.equal(f.transport.home(a),true);f.transport.update(.1,true);assert.equal(a.travel.placeId,a.homePlace);assert.equal(a.travel.status,'arrived');assert.equal(first.owner,null);const at=a.panda.model.position.clone();tick(f.transport,30,true);assert.deepEqual(a.panda.model.position,at);assert.equal(next.owner,null);
+ }finally{f.dispose();}
+});
+
+test('36 recovery moving neighbours cannot reset a rejected request on every frame',()=>{
+ let blocked=false,queries=0;const f=fixture(()=>{queries++;return blocked?null:0;});
+ try{
+  const a=f.actor('bounded-moving');assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);
+  const b=f.actor('moving-neighbour',-30);assert.equal(f.transport.prepare(b),true);f.actors.set(b.id,b);blocked=true;
+  const target=f.transport.destination(a,{id:'moving-neighbour-seat',kind:'meeting',position:{x:-4,y:0,z:0},overflow:false});assert.equal(f.transport.go(a,target),false);const first=queries;
+  for(let i=0;i<70;i++){b.panda.model.position.z+=.01;f.transport.update(.1,false);}assert.equal(queries,first);
+  for(let i=0;i<330;i++){b.panda.model.position.z+=.01;f.transport.update(.1,false);}assert.equal(a.travel.attempts,3);const exhausted=queries;
+  for(let i=0;i<300;i++){b.panda.model.position.z+=.01;f.transport.update(.1,false);}assert.equal(queries,exhausted);
+ }finally{f.dispose();}
+});
+
+test('36 recovery idle owners do not repeatedly read navigation dependencies or search',()=>{
+ let queries=0,reads=0;const f=fixture(()=>{queries++;return 0;});
+ try{
+  const a=f.actor('idle');assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);assert.equal(a.travel,null);
+  const revision=f.navigation.revision;Object.defineProperty(f.navigation,'revision',{get(){reads++;return revision;}});const before=queries;
+  tick(f.transport,10);assert.equal(reads,0,'idle frames have no navigation snapshot work');assert.equal(queries,before);assert.equal(a.travel,null);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);
+ }finally{f.dispose();}
+});

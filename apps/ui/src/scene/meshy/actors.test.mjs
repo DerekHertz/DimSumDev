@@ -159,6 +159,33 @@ test('unreachable meeting travel retries at most twice, holds position, and redu
   actors.update(.1,true);assert.deepEqual(a.panda.model.position,home);assert.equal(a.travel.status,'unavailable');assert.match(a.presentation,/unavailable/i);assert.equal(a.travel.attempts,3);
  }finally{f.dispose();}
 });
+test('36 recovery duplicate meeting events preserve retry timing and clearing the meeting cancels rejected intent',()=>{
+ const f=fixture();try{
+  const {actors,den}=f;den.routineSpots.length=0;let queries=0;const good=den.walkWorld.navigation.groundAt;den.walkWorld.navigation.groundAt=()=>{queries++;return null;};
+  const meeting={id:'retry-meeting',ref:'retry-meeting',state:'running',seats:[{role:'developer'}]},a=actors.actors.get('developer'),home=a.home.clone();
+  actors.applyMeeting(meeting);const first=queries;advance(actors,7);actors.applyMeeting({...meeting});assert.equal(queries,first);advance(actors,2);assert.ok(queries>first);advance(actors,30);assert.equal(a.travel.attempts,3);
+  const exhausted=queries;actors.applyMeeting({...meeting});advance(actors,20);assert.equal(queries,exhausted);assert.deepEqual(a.panda.model.position,home);
+  actors.applyMeeting(null);den.walkWorld.navigation.groundAt=good;actors.update(.1,true);advance(actors,20,true);assert.equal(a.travel.placeId,a.homePlace);assert.equal(a.travel.status,'arrived');assert.equal(a.seat,null);assert.deepEqual(a.panda.model.position,home);assert.equal([...actors.places.values()].some(p=>p.kind==='meeting'&&p.owner===a.identity),false);
+ }finally{f.dispose();}
+});
+test('36 recovery failed leisure resumes after navigation function replacement without firing effects on failure',()=>{
+ const f=fixture();try{
+  const {actors,den}=f;den.routineSpots.splice(1);const good=den.walkWorld.navigation.groundAt;advance(actors,2.1);const a=[...actors.actors.values()].find(a=>a.routine);assert.ok(a);const at=a.panda.model.position.clone();
+  den.walkWorld.navigation.groundAt=()=>null;advance(actors,40);assert.equal(a.travel.status,'unavailable');assert.equal(f.feeds,0);assert.deepEqual(a.panda.model.position,at);assert.ok(a.routineFailures.has('tea'));
+  for(const b of actors.actors.values())if(b!==a)b.stationary=true;
+  const revision=den.walkWorld.navigation.revision;den.walkWorld.navigation.groundAt=(...args)=>good(...args);actors.update(.1,true);assert.equal(den.walkWorld.navigation.revision,revision);assert.equal(a.travel.status,'arrived');assert.equal(a.travel.placeId,a.homePlace);
+  for(let i=0;i<500&&!a.routine;i++)actors.update(.1);assert.ok(a.routine,'a new function invalidates the failed leisure suppression');assert.equal(a.routine.spot.id,'tea');assert.ok(['outbound','visit','return'].includes(a.routine.stage));assert.equal(f.feeds,0);
+ }finally{f.dispose();}
+});
+test('36 recovery initial leisure reservation rejection is bounded, quiet and never a visit',()=>{
+ const f=fixture();try{
+  const {actors,den}=f,a=actors.actors.get('developer');for(const b of actors.actors.values())if(b!==a)b.stationary=true;den.routineSpots.splice(1);const original=den.routineSpots[0].position;den.routineSpots[0].position=new T.Vector3(30,.26,30);
+  let queries=0;const good=den.walkWorld.navigation.groundAt;den.walkWorld.navigation.groundAt=(x,...args)=>{queries++;return args[0]> -5?null:good(x,...args);};
+  const at=a.panda.model.position.clone();advance(actors,4.5);assert.equal(a.routine,null,'rejected intent is not an admitted outing');assert.deepEqual(a.panda.model.position,at);advance(actors,35.5);assert.ok(a.routineFailures?.has('tea'));assert.equal(a.routine,null);assert.equal(f.feeds,0);assert.deepEqual(a.panda.model.position,at);assert.equal(a.travel.status,'arrived');assert.equal(a.travel.placeId,a.homePlace);
+  const exhausted=queries;advance(actors,30);assert.equal(queries,exhausted);assert.equal([...actors.places.values()].some(p=>p.kind==='leisure'&&p.owner===a.identity),false);
+  den.routineSpots[0].position=original;den.walkWorld.navigation.groundAt=(...args)=>good(...args);for(let i=0;i<400&&!a.routine;i++)actors.update(.1);assert.ok(a.routine);assert.equal(a.routine.spot.id,'tea');assert.ok(['moving','arrived'].includes(a.travel.status));assert.equal(actors.places.get(a.travel.placeId).owner,a.identity);
+ }finally{f.dispose();}
+});
 test('36 homes, visitor overflow and leisure leases share full-identity ownership and measured envelopes',()=>{
  const f=fixture();try{
   const {actors}=f;assert.ok(actors.places);

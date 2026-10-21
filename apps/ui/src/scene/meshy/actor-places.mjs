@@ -11,7 +11,7 @@ export function createActorPlaces(den,actors,speed){
  const traveller=createActorTravel(den.walkWorld,places,{speed,getActors:()=>[...actors.values()],proveRoute:proveTrip});
  // Home witnesses are permanent; complete trip corridors survive until an
  // owned, physically validated home arrival. Neither is a second registry.
- const exits=new Map(),pending=new WeakMap(),rejections=new WeakMap();
+ const exits=new Map(),pending=new Map(),rejections=new Map();
  let time=0;
  const point=p=>({x:p.x,y:p.y,z:p.z});
  const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
@@ -42,11 +42,6 @@ export function createActorPlaces(den,actors,speed){
  // Do not turn transient body motion into an unbounded per-frame route search.
  function dependency(a){
   return JSON.stringify([a.identity,a.envelope,den.walkWorld.navigation.revision??null,den.walkWorld.obstacles??[],[...actors.values()].filter(b=>b!==a).map(b=>[b.identity,b.panda.model.visible,b.envelope]),[...places.values()].filter(p=>p.owner&&p.owner!==a.identity).map(p=>[p.id,p.owner,p.position,p.envelope,p.revision])]);
- }
- const bodyDependency=a=>JSON.stringify([...actors.values()].filter(b=>b!==a&&b.panda.model.visible).map(b=>[b.identity,point(b.panda.model.position),b.envelope]));
- function failedProof(a,e){
-  const dep=dependency(a),groundAt=den.walkWorld.navigation.groundAt,old=e.failure;
-  e.failure={dependency:dep,groundAt,bodies:bodyDependency(a),attempts:old?.dependency===dep&&old.groundAt===groundAt?old.attempts+1:1,retryAt:time+8};
  }
  function releaseNew(a,ids){for(const id of ids){const p=places.get(id);if(p?.owner===a.identity&&!p.occupied)places.release(id,a.identity);}}
  function proveTrip(a,destination,sharedWork=null,arrivalStart=null){
@@ -89,7 +84,6 @@ export function createActorPlaces(den,actors,speed){
     if(!local.active.some(p=>JSON.stringify(p)===JSON.stringify(certificate)))local.active=[...local.active,certificate];
    }
    local.dependency=dependency(a);local.groundAt=den.walkWorld.navigation.groundAt;
-   delete local.failure;
    local.radius=envelope.radius;
    if(home.envelope.radius!==envelope.radius||home.envelope.height!==envelope.height){home.envelope={...envelope};home.revision++;}
    return {path:outbound.map(point),arrived:alreadyThere};
@@ -99,16 +93,19 @@ export function createActorPlaces(den,actors,speed){
  }
  function revalidateTrips(){
   for(const [a,e]of exits){
-   const t=a.travel;if(!t)continue;
-   const dep=dependency(a),groundAt=den.walkWorld.navigation.groundAt,failure=e.failure;
-   const changed=!failure||failure.dependency!==dep||failure.groundAt!==groundAt||failure.attempts<3&&time>=failure.retryAt&&failure.bodies!==bodyDependency(a);
-   if(t.returnRequested){if(changed)home(a);continue;}
-   if(t.reproofRequested&&!changed)continue;
+   const failure=rejections.get(a),t=a.travel;if(!failure&&!t)continue;
+   const dep=dependency(a),groundAt=den.walkWorld.navigation.groundAt;
+   if(failure){
+    const changed=failure.dependency!==dep||failure.groundAt!==groundAt;
+    if(changed||failure.attempts<3&&time+.000001>=failure.retryAt){
+     const place=failure.request?destination(a,failure.request,true):places.get(failure.placeId);
+     go(a,place,null,failure,failure.kind);
+    }
+    continue;
+   }
    if(!t.reproofRequested&&!['moving','yielding'].includes(t.status))continue;
    if(!t.reproofRequested&&e.dependency===dep&&e.groundAt===groundAt)continue;
-   const proof=proveTrip(a,places.get(t.placeId));
-   if(proof){t.path=proof.path;t.status=proof.arrived?'arrived':'moving';delete t.reproofRequested;}
-   else{t.status='waiting';t.retryAt=Infinity;t.reproofRequested=true;failedProof(a,e);}
+   go(a,places.get(t.placeId),null,null,'reproof');
   }
  }
  function crosses(position,path,from,radius,work){
@@ -119,6 +116,7 @@ export function createActorPlaces(den,actors,speed){
   if(a.identity)places.rebind(a.identity,next);a.identity=next;
  }
  function prepare(a,kind='work',near=a.home,{arrival=false}={}){
+  releaseNew(a,pending.get(a)?.acquired??[]);pending.delete(a);rejections.delete(a);
   a.homePlace=null;a.travel=null;a.path=null;a.arriving=false;a.presentation=null;
   a.envelope=actorEnvelope(a.panda,a.gesture);bind(a,a.live);
   const staging={x:den.walkStart?.x??0,y:den.walkStart?.groundY??.26,z:den.walkStart?.z??30};
@@ -228,35 +226,48 @@ export function createActorPlaces(den,actors,speed){
   }
   return true;
  }
- function go(a,place,work=null){
+ function go(a,place,work=null,retry=null,kind='request'){
   const tentative=pending.get(a);pending.delete(a);
   releaseNew(a,(tentative?.acquired??[]).filter(id=>id!==place?.id));
   if(!a.homePlace){a.presentation='Scene place unavailable';return false;}
-  if(!place){a.presentation='Scene destination unavailable';return false;}
+  const old=retry??rejections.get(a);
+  const request=tentative?.request??retry?.request??(old?.placeId===place?.id?old.request:null),placeId=place?.id??request?.id;
+  if(!placeId){rejections.delete(a);a.presentation='Scene destination unavailable';return false;}
+  const dep=dependency(a),key=JSON.stringify(request??placeId),unchanged=old?.key===key&&old.dependency===dep&&old.groundAt===den.walkWorld.navigation.groundAt;
+  // Repeated caller events retain the original attempt count and beat. An
+  // uncommitted intent owns no place and cannot replace existing travel.
+  if(!retry&&unchanged){releaseNew(a,tentative?.acquired??[]);a.presentation='Scene destination unavailable';return false;}
   work??=tentative?.work??createAllocationWork();
-  const dep=dependency(a),old=rejections.get(a),unchanged=old?.placeId===place.id&&old.dependency===dep&&old.groundAt===den.walkWorld.navigation.groundAt;
-  if(unchanged&&old.attempts>=3){releaseNew(a,tentative?.acquired??[]);a.presentation='Scene destination unavailable';return false;}
+  const attempts=(unchanged?old.attempts:0)+1;
   const current=a.travel,certificate=exits.get(a);
-  if(current?.placeId===place.id&&['moving','yielding'].includes(current.status)&&!current.returnRequested&&!current.reproofRequested&&certificate?.dependency===dep&&certificate.groundAt===den.walkWorld.navigation.groundAt){rejections.delete(a);sync(a);return true;}
-  const response=traveller.request(a,place.id,work);
+  if(current?.placeId===placeId&&['moving','yielding'].includes(current.status)&&!current.returnRequested&&!current.reproofRequested&&certificate?.dependency===dep&&certificate.groundAt===den.walkWorld.navigation.groundAt){rejections.delete(a);sync(a);return true;}
+  const response=place&&traveller.request(a,placeId,work);
   if(!['moving','arrived'].includes(response?.status)){
-   releaseNew(a,tentative?.acquired??[]);rejections.set(a,{placeId:place.id,dependency:dependency(a),groundAt:den.walkWorld.navigation.groundAt,attempts:unchanged?old.attempts+1:1});a.presentation='Scene destination unavailable';return false;
+   releaseNew(a,tentative?.acquired??[]);
+   rejections.set(a,{placeId,key,request,kind,dependency:dependency(a),groundAt:den.walkWorld.navigation.groundAt,attempts,retryAt:time+8});
+   const interrupted=kind==='return'||kind==='reproof';
+   if(current&&interrupted){current.status=attempts>=3?'unavailable':'waiting';current.retryAt=Infinity;current.attempts=attempts;if(kind==='return')current.returnRequested=true;else current.reproofRequested=true;}
+   // Publish terminal failure only after bounded retries. This is presentation
+   // state, never a route certificate, occupied lease or successful arrival.
+   if(attempts>=3&&(!current||current.placeId===placeId||interrupted)){
+    a.travel??={placeId,path:[]};a.travel.status='unavailable';a.travel.attempts=attempts;a.travel.retryAt=Infinity;
+    if(placeId!==a.homePlace)releaseNew(a,[placeId]);
+   }
+   a.presentation='Scene destination unavailable';return false;
   }
-  rejections.delete(a);sync(a);return true;
+  response.attempts=attempts;rejections.delete(a);sync(a);return true;
  }
  function home(a){
-  const ok=go(a,places.get(a.homePlace));
-  if(!ok&&a.travel){
-   a.travel.returnRequested=true;a.travel.status='waiting';a.travel.retryAt=Infinity;
-   const e=exits.get(a);if(e)failedProof(a,e);
-  }
-  return ok;
+  return go(a,places.get(a.homePlace),null,null,'return');
  }
- function destination(a,{id,kind,position,overflow=true}){
+ function destination(a,{id,kind,position,overflow=true},retry=false){
   if(!a.homePlace)return null;
   releaseNew(a,pending.get(a)?.acquired??[]);
+  const request={id,kind,position:{...position},overflow};
+  const failure=rejections.get(a);
+  if(!retry&&failure?.key===JSON.stringify(request)&&failure.dependency===dependency(a)&&failure.groundAt===den.walkWorld.navigation.groundAt){pending.set(a,{request,acquired:[]});return places.get(failure.placeId)??null;}
   const work=createAllocationWork(),ownedBefore=new Set([...places.values()].filter(p=>p.owner===a.identity).map(p=>p.id));
-  const finish=p=>{pending.set(a,{work,acquired:p&&!ownedBefore.has(p.id)?[p.id]:[]});return p;};
+  const finish=p=>{pending.set(a,{work,request,acquired:p&&!ownedBefore.has(p.id)?[p.id]:[]});return p;};
   const validate=p=>preservesProtected(a,p,work);
   if(kind==='leisure')return finish(places.find({id,kind,near:position,owner:a.identity,envelope:a.envelope,work,validate}));
   position={...position,y:position.y??a.panda.model.position.y};
@@ -271,11 +282,11 @@ export function createActorPlaces(den,actors,speed){
    e.active=[];places.cancel(a.identity,a.homePlace);places.clearDeparted(a.identity,a.home,a.envelope);
   }
   a.path=t?.path?.length?t.path:null;
-  a.routeGoal=t&&places.get(t.placeId)?.position;a.routeTries=t?.attempts??0;
+  a.routeGoal=t&&places.get(t.placeId)?.position;a.routeTries=rejections.get(a)?.attempts??t?.attempts??0;
   a.presentation=t?.status==='unavailable'?'Scene destination unavailable':t?.status==='waiting'?'Waiting for a safe route':t?.status==='yielding'?'Yielding on the path':rejections.has(a)?'Scene destination unavailable':a.leaving&&a.live?'Working · returning to desk':(!t||t.placeId===a.homePlace)&&places.get(a.homePlace)?.kind==='staging'?'Workspace unavailable · waiting at a safe place':null;
  }
  function remove(a){traveller.cancel(a);places.disposeActor(a.identity);exits.delete(a);pending.delete(a);rejections.delete(a);}
  return{places,prepare,bind,go,home,destination,sync,remove,
   update(dt,reduced,held){time+=Math.min(dt,.1);revalidateTrips();traveller.update([...actors.values()].filter(a=>a.panda.model.visible),dt,reduced,held);for(const a of actors.values())sync(a);},
-  dispose(){exits.clear();places.dispose();}};
+  dispose(){for(const a of actors.values())traveller.cancel(a);exits.clear();pending.clear();rejections.clear();places.dispose();}};
 }

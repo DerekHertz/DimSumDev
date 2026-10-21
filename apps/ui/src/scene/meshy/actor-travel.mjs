@@ -52,10 +52,12 @@ export function createActorTravel(world,places,{speed=.65,getActors=()=>[],prove
  function update(actors,dt,reduced=false,held=null){
   time+=Math.min(dt,.1);const sorted=[...actors].sort((a,b)=>owner(a).localeCompare(owner(b)));
   for(const a of sorted){const t=a.travel,p=position(a);a.travelMoved=0;places.clearDeparted(owner(a),p,a.envelope);if(!t||a.id===held)continue;
-   if(t.status==='unavailable'&&relevantChange(t)){t.attempts=0;attempt(a);}
-   if(t.status==='waiting'){if(time+.000001>=t.retryAt)attempt(a);continue;}
+   // Scene proofs and their uncommitted intent share the adapter's bounded
+   // retry policy. The primitive traveller retains its standalone policy.
+   if(!proveRoute&&t.status==='unavailable'&&relevantChange(t)){t.attempts=0;attempt(a);}
+   if(t.status==='waiting'){if(!proveRoute&&time+.000001>=t.retryAt)attempt(a);continue;}
    if(!['moving','yielding'].includes(t.status))continue;
-   const destination=places.get(t.placeId);if(destination?.owner!==owner(a)){unavailable(a);continue;}
+   const destination=places.get(t.placeId);if(destination?.owner!==owner(a)){if(proveRoute){t.reproofRequested=true;t.status='waiting';t.retryAt=Infinity;}else unavailable(a);continue;}
    if(t.yieldTo){
     const winner=sorted.find(b=>owner(b)===t.yieldTo);
     if(winner&&active(winner.travel)&&routesConflict(a,winner,position)){t.status='yielding';continue;}
@@ -81,6 +83,7 @@ export function createActorTravel(world,places,{speed=.65,getActors=()=>[],prove
     }
     const yieldsPriority=!!t.yieldTo;
     if(!reduced&&!yieldsPriority&&time-t.yieldSince>1&&time>=(t.replanAt??0)){
+     if(proveRoute){t.reproofRequested=true;t.status='waiting';t.retryAt=Infinity;continue;}
      if(t.attempts>=3){unavailable(a);continue;}
      t.attempts++;
      const obstacles=[...(world.obstacles??[]),...sorted.filter(b=>b!==a).map(b=>({...position(b),type:'circle',radius:b.envelope.radius+.03}))];
