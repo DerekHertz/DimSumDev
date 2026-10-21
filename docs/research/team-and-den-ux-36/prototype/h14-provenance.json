@@ -1,0 +1,26 @@
+{
+  "label": "H14 proof-only measurement correction",
+  "preparationStarted": "2026-10-21T03:41:22Z",
+  "h13Commit": "38efdf93f17e5ebe4c77eae98c87b5731c4dd783",
+  "productionBase": "993523f244483f554079ece4ebb07c4c9ff8e93c",
+  "preservedH13ProofSha256": "15af4aefdcf8d1bbbb579850002fd247e7e3682ac2aa94cfc0fe45c47b80519d",
+  "correctedProofSha256": "1e1685af8a3b204399666d8e82dcd14543989db9054a1aa2c8c769e3a24026cb",
+  "geometryOracleSha256": "6519c5ce7c08da3f755e3bef0c8077f85201651782aaea7f846c54a024e38d31",
+  "originalPredicate": "a.panda.model.updateWorldMatrix(true,true);const box=new T.Box3().setFromObject(a.panda.model,true);for(const x of [box.min.x,box.max.x])for(const z of [box.min.z,box.max.z])assert.ok(Math.hypot(x-at.x,z-at.z)<=r+1e-6,a.id+' actual deformed rig remains in measured inflated radius');assert.ok(box.max.y-at.y<=a.envelope.height+1e-6,a.id+' actual rig height');",
+  "correctedPredicate": "const occupied=occupiedVertices(a);diag.lastGeometry={phase,frame:diag.oracles.frames,actor:state(a),...occupied};diag.oracles.vertexMeasurements=(diag.oracles.vertexMeasurements??0)+1;diag.oracles.measuredVertices=(diag.oracles.measuredVertices??0)+occupied.vertexCount;assert.ok(occupied.supported,a.id+' supported nonempty actual deformed mesh measurement: '+JSON.stringify(occupied.unsupported));assert.ok(occupied.radius<=r+1e-6,a.id+' actual deformed rig remains in measured inflated radius; radius='+occupied.radius+' limit='+(r+1e-6)+' excess='+occupied.radiusExcess+' mesh='+occupied.extrema.radius.mesh+' vertex='+occupied.extrema.radius.index);assert.ok(occupied.height<=a.envelope.height+1e-6,a.id+' actual rig height; height='+occupied.height+' limit='+(a.envelope.height+1e-6)+' excess='+occupied.heightExcess+' mesh='+occupied.extrema.height.mesh+' vertex='+occupied.extrema.height.index);",
+  "changes": [
+    "new independent occupied-vertex oracle",
+    "new H14 caller copies H13 byte-for-byte except oracle import and predicate",
+    "new H14 driver copies H13 except unique no-overwrite label, proof filename and provenance base",
+    "H14 loader preserves overlay behavior and records actual loaded module source hashes"
+  ],
+  "preserved": {
+    "loader": "h13-loader.mjs",
+    "overlayProvenance": "provenance.json",
+    "fixtureBodySha256": "0ca14f7f48a3fb1713e5469efb71150df78610fcfd75c14d7abd1df250ccaed5",
+    "allH13FilesUnchanged": true
+  },
+  "executedModuleCapture": "h14-loader.mjs records effective executed ESM source hashes, including overlays, props/rig/three and test dependencies, into unique .modules.jsonl; builtins carry null source hash",
+  "driverSha256": "31d29ec3e9b4af50ab98f1fe72f67d3db74c5716f70ea52781e6c2793cd325b0",
+  "loaderSha256": "9438c9b787454c9c2c248edfea102e2c41735a5f2ab606d01392aa066978dde2"
+}
