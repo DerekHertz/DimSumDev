@@ -41,6 +41,8 @@ import { DESK_THREAD } from "./overlay/transcript-panel.mjs";
 import { Residents } from "./shell/Residents.jsx";
 import { Rail } from "./shell/Rail.jsx";
 import { Sheet } from "./shell/Sheet.jsx";
+import { AuditReplay } from "./audit/AuditReplay.jsx";
+import { replayParam } from "./audit/runs/index.mjs";
 import { SHEET_HEADS, buildLabel, escapeAction, railBadges } from "./shell/rail-model.mjs";
 import { deskActivity } from "./shell/desk-model.mjs";
 import { actorBindings, NAVIGATION_TARGETS, MESHY_TEAM_LABELS } from "./scene/meshy/layout.mjs";
@@ -117,7 +119,9 @@ export function App() {
 
   // The two sheet slots (spec 1.3). Each remembers when it opened (Escape closes the last one first) and what opened it
   // (focus goes back there when it closes).
-  const [topic, setTopic] = useState(null);
+  // Hierarchy audit replay: ?replay=<id> opens that run's replay sheet over the scene.
+  const [replayId] = useState(() => (typeof location === "undefined" ? null : replayParam(location.search)));
+  const [topic, setTopic] = useState(() => (replayId ? "replay" : null));
   const [meetingId, setMeetingId] = useState(null);
   const [meetingRole, setMeetingRole] = useState(null);
   const [left, setLeft] = useState(() => new Set());
@@ -440,6 +444,11 @@ export function App() {
           <Sheet id="sheet-topic" slot="topic" eyebrow={SHEET_HEADS.team[0]} title={SHEET_HEADS.team[1]} closeLabel="Close panel" onClose={closeTopic} focusKey="team">
             <Residents snapshot={snapshot} now={now} bindings={bindings} scenePresentations={scenePresentations} onInspectTools={inspectTools} onTalk={talkToResident} onViewWork={viewResidentWork} getTalkState={residentTalkState} />
             <p className="forest-muted">{RESIDENTS.length} residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}</p>
+          </Sheet>
+        ) : null}
+        {topic === 'replay' ? (
+          <Sheet id="sheet-topic" slot="topic" eyebrow={SHEET_HEADS.replay[0]} title={SHEET_HEADS.replay[1]} closeLabel="Close panel" onClose={closeTopic} focusKey="replay" wide>
+            <AuditReplay initialId={replayId} />
           </Sheet>
         ) : null}
         {topic === 'tally' ? (
