@@ -75,4 +75,25 @@ compared against its source geometry before the manifest is written.
 Generated through the user's existing Meshy workflow and supplied source
 assets; packaging itself makes no network or paid API calls.
 
+## Bao (team-and-den-ux/24)
+
+`characters.bao` is packed from the user-selected Meshy A remesh,
+`remesh-a-7500.glb`, which is kept outside the repo:
+
+    node apps/ui/assets-src/den/build-bao.mjs --source /path/to/remesh-a-7500.glb
+
+The script refuses any source whose sha256 differs from the pinned one, then runs
+`pack-assets.py`'s `pack_asset` with a colour-only 512² atlas (the Bao-only texture
+allowance the user approved). It writes the manifest entry and
+`bao-provenance.json` (source tasks, hashes, 65 Meshy credits, zero purchases). It
+makes no network or paid calls.
+
+`characters.bao` is not in `sources.json` or `pack-audit.json`, so a full base repack
+drops it: run `build-bao.mjs` again **after** every repack.
+
+The original Bao body stays shared by the other identities and is the fallback when
+the Bao model fails to load.
+`characters.bao` selects only the Claude orchestrator; Codex orchestrator is Jiao.
+The matching portrait and its retained fallback are indexed in `role-portraits.mjs`.
+
 Gzip compression is deterministic (zero timestamp). The audit records exact byte-for-byte decompression, alongside source geometry and image validation. All active material maps remain intact.

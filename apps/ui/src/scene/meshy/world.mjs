@@ -29,8 +29,8 @@ export async function createMeshyWorld(renderer,{signal,onProgress=()=>{}}={}){
   // team-and-den-ux/23: species replacements; a failed load keeps that role's panda (old assets stay for rollback).
   const characters={};den.characterLoad={loaded:[],failed:[]};
   for(const [key,asset]of Object.entries(den.assets))if(key.startsWith('characters.')&&asset.roleId){
-   try{const source=await loadModel(asset.url);resources.add(source);active(signal);characters[asset.roleId]=source;den.characterLoad.loaded.push(asset.roleId);}
-   catch(error){if(error?.name==='AbortError')throw error;den.characterLoad.failed.push({role:asset.roleId,message:error.message});}
+   try{const source=await loadModel(asset.url);resources.add(source);active(signal);characters[asset.characterId||asset.roleId]=source;den.characterLoad.loaded.push(asset.characterId||asset.roleId);}
+   catch(error){if(error?.name==='AbortError')throw error;den.characterLoad.failed.push({role:asset.characterId||asset.roleId,message:error.message});}
   }
   appearances=createPandaAppearanceFactory({body,vest,scarf,headphones,securityVest,characters});resources.add(appearances.outfits);den.pandaRigs=appearances.instances;
   den.createPanda=appearances.createPanda;

@@ -38,7 +38,7 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
  useFrame((_,delta)=>{
   const l=live.current;if(!l)return;const dt=Math.min(delta,.1);l.agents.update(dt,l.media.matches);l.elapsed=(l.elapsed||0)+(l.media.matches?0:dt);l.den.ambient.pose(l.elapsed,null,l.media.matches);l.den.garden.assets.tea.koi.update(dt,l.media.matches);l.den.world.updateMatrixWorld(true);
   // Labels float .4 above the head: Bao's crown is 3; a species publishes its own head top (antlers included).
-  const labelAt=model=>model.localToWorld(new THREE.Vector3(0,(l.den.pandaRigs.get(model)?.rig.profile.envelope?.head.top??3)+.4,0));
+  const labelAt=model=>{const head=l.den.pandaRigs.get(model)?.rig.profile.envelope?.head;return model.localToWorld(new THREE.Vector3(0,(head?.labelTop??head?.top??3)+.4,0));};
   const figures=l.agents.liveFigures(),anchorsNow=new Map();
   const toolAnchors=stage.toolAnchors??(stage.toolAnchors=new Map());toolAnchors.clear();
   for(const [id,a]of l.agents.actors)if(a.panda.model.visible)toolAnchors.set(id,{top:labelAt(a.panda.model),base:a.panda.model.getWorldPosition(new THREE.Vector3())});

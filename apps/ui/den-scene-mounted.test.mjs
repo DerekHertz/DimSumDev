@@ -153,12 +153,13 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
     assert.ok(!loaded.includes('/src/scene/procedural/RestaurantDen.jsx'), 'old procedural scene is not mounted');
     assert.equal(await page.locator('iframe').count(), 0, 'no embedded preview server');
     assert.equal(await page.locator('.forest-canvas canvas').count(), 1);
-    assert.equal(Object.keys(assets).length, 24, 'only retained character, prop, wardrobe and vegetation models are shipped (team-and-den-ux/23 adds two species)');
+    assert.equal(Object.keys(assets).length, 25, 'only retained character, prop, wardrobe and vegetation models are shipped (team-and-den-ux/23 adds two species, 24 adds Bao)');
     assert.deepEqual(Object.keys(assets).filter(key => key.startsWith('scenery.')), [], 'buildings and furniture use procedural geometry');
     assert.equal(loaded.some(path => path.startsWith('/den/models/scenery/')), false, 'no removed scenery download');
     const required = ['bao','wardrobe.developer-vest','wardrobe.qa-scarf','wardrobe.developer-headphones'];
     assert.deepEqual(required.filter(id=>!loaded.includes(assets[id].url)), [], 'the approved body and shared wardrobe load locally');
-    assert.equal(modelResponses.length, 6, 'authored scenery and tools need only the four shared models plus the two species (team-and-den-ux/23)');
+    assert.equal(modelResponses.length, 7, 'authored scenery and tools need only the four shared models, the two species (team-and-den-ux/23) and Bao (24)');
+    assert.ok(loaded.includes(assets['characters.bao'].url), 'Bao loads locally');
     assert.deepEqual(['characters.developer','characters.technical-writer'].filter(id=>!loaded.includes(assets[id].url)), [], 'both species load locally');
     const scene = await page.evaluate(async()=>{
       const url=performance.getEntriesByType('resource').find(e=>e.name.includes('react-three_fiber.js')).name;
@@ -181,16 +182,17 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
     });
     assert.equal(new Set(scene.roles).size,18);
     assert.equal(new Set(scene.actorKeys).size,32,'each permanent runtime resident has a distinct actor key');
-    // team-and-den-ux/23: a species carries its props in its mesh (the pouch, the book and brush) instead of a paw tool.
-    assert.deepEqual(scene.claudeTools.filter(t=>t.species).map(t=>[t.role,t.species,t.tools.length]).toSorted(),[['developer','red-panda',0],['technical-writer','cloud-dragon',0]]);
+    // team-and-den-ux/23: a species carries its props in its mesh (the pouch, the book and brush) instead of a paw tool. 24 adds Bao.
+    assert.deepEqual(scene.claudeTools.filter(t=>t.species).map(t=>[t.role,t.species,t.tools.length]).toSorted(),[['developer','red-panda',0],['orchestrator','giant-panda',0],['technical-writer','cloud-dragon',0]]);
     const pandas=scene.claudeTools.filter(t=>!t.species);
     // A placeholder kit nests the borrowed kit's name, so compare each role's own (root) tool.
     assert.ok(pandas.every(t=>t.tools.length>0),'every other Claude permanent role holds a paw tool');
     assert.equal(new Set(pandas.map(t=>t.tools[0])).size,pandas.length,'each other Claude permanent role has a distinct paw tool');
     // 19 before team-and-den-ux/23: the writer's own scroll left with the cloud dragon; the developer's tablet stays in the code reviewer's placeholder kit.
-    assert.equal(new Set(scene.tools).size,18,'Jiao adds her distinct approved coordinator tool');
+    // 18 before team-and-den-ux/24: Bao's Bamboo fan left with the giant panda model, which carries its props in its mesh.
+    assert.equal(new Set(scene.tools).size,17,'Jiao adds her distinct approved coordinator tool');
     assert.ok(scene.tools.includes('Order notebook'));
-    assert.deepEqual(scene.coordinatorTools,{orchestrator:['Bamboo fan'],'codex:orchestrator':['Order notebook']},'Bao and Jiao keep their distinct approved tools');
+    assert.deepEqual(scene.coordinatorTools,{orchestrator:[],'codex:orchestrator':['Order notebook']},'Bao carries no paw tool; Jiao keeps hers');
     assert.equal(scene.skeletons,47,'32 residents and 15 scenery pandas have independent skeletons');
     assert.equal(scene.places.length,10);
     assert.deepEqual(scene.routes.filter(r=>!r.out||!r.home),[],'every workstation connects to the meeting and back over actual walking surfaces');
@@ -245,6 +247,36 @@ test("a failed model load explains the garden failure and leaves the Team rail e
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
+});
+
+// team-and-den-ux/24: Bao's new model and portrait each fail on their own back to the old appearance.
+test("a failed Bao portrait falls back to the old one in the same box, and a failed Bao model still readies the garden", { timeout: 90000 }, async () => {
+  const portrait = await openGarden({ failModels: '/den/portraits/bao-jade.webp' });
+  try {
+    await portrait.page.locator('[data-rail="team"]').click();
+    const images = portrait.page.getByRole('list', { name: 'Residents and visitors' }).locator('img');
+    await portrait.page.waitForFunction(() => [...document.querySelectorAll('.forest-portrait img')].some(image => new URL(image.currentSrc || image.src).pathname === '/den/portraits/orchestrator.webp' && image.complete && image.naturalWidth > 0));
+    const rows = await images.evaluateAll(list => list.map(image => { const box = image.closest('.forest-portrait').getBoundingClientRect(); return { path: new URL(image.currentSrc || image.src).pathname, width: box.width, height: box.height }; }));
+    assert.ok(rows.every(row => row.path !== '/den/portraits/bao-jade.webp'), 'the failed portrait is replaced');
+    const bao = rows.find(row => row.path === '/den/portraits/orchestrator.webp'), jiao = rows.find(row => row.path === '/den/portraits/codex-orchestrator.webp');
+    assert.ok(bao && jiao, 'Bao shows the old portrait and Jiao keeps hers');
+    assert.deepEqual([bao.width, bao.height], [jiao.width, jiao.height], 'the fallback keeps the fixed portrait box');
+    assert.deepEqual(portrait.errors, []);
+  } finally { await portrait.context.close(); }
+  const model = await openGarden({ failModels: '/den/models/characters/bao.glb.gz' });
+  try {
+    await ready(model.page);
+    assert.equal(await model.page.getByRole('alert').filter({ hasText: 'garden models could not load' }).count(), 0, 'only Bao fails, so the garden is not reported broken');
+    const bao = await model.page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(e => e.name.includes('react-three_fiber.js')).name;
+      const { _roots } = await import(url);
+      const world = _roots.get(document.querySelector('canvas')).store.getState().scene.getObjectByName('Dim Sum Dev · plush bamboo garden');
+      const found = []; world.traverse(n => { if (n.userData.actorKey === 'orchestrator') found.push({ species: n.userData.species ?? null, scale: n.scale.x }); });
+      return found;
+    });
+    assert.deepEqual(bao, [{ species: null, scale: 1.35 }], 'Bao falls back to the old body at the same scale');
+    assert.deepEqual(model.errors, []);
+  } finally { await model.context.close(); }
 });
 
 function screenPoint(box, x, y, z) {
@@ -353,7 +385,8 @@ test("portrait profiles keep real work and visitor identities, and route explici
     // team-and-den-ux/23: a species keeps one body for both runtimes, so its two residents share one portrait.
     const species = { developer: '/den/portraits/developer-red-panda.webp', 'technical-writer': '/den/portraits/technical-writer-cloud-dragon.webp' };
     assert.equal(new Set(portraitPaths).size, 32 - Object.keys(species).length, 'each runtime resident uses its own cached portrait, except a species shared by both runtimes');
-    const expected = [...roleIds.map(role => species[role] || `/den/portraits/${role}.webp`), '/den/portraits/runner.webp', ...codexPortraitPaths.map(path => Object.entries(species).find(([role]) => path === `/den/portraits/codex-${role}.webp`)?.[1] || path)];
+    const claudeOnly = { orchestrator: '/den/portraits/bao-jade.webp' }; // team-and-den-ux/24: Bao's own portrait; Jiao keeps codex-orchestrator
+    const expected = [...roleIds.map(role => claudeOnly[role] || species[role] || `/den/portraits/${role}.webp`), '/den/portraits/runner.webp', ...codexPortraitPaths.map(path => Object.entries(species).find(([role]) => path === `/den/portraits/codex-${role}.webp`)?.[1] || path)];
     assert.deepEqual(portraitPaths.toSorted(), expected.toSorted());
     assert.ok(portraitPaths.includes('/den/portraits/release-manager.webp'), 'the corrected Release Manager wrap has its own portrait');
     await portraits.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
