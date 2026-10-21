@@ -1,12 +1,33 @@
 # Ticket 36: owned places and safe tea routes
 
-**Current product candidate:** `1bac18101433119c2e0ce13d35b1ed79439e7a4e`, draft PR #383. The developer reports 121/121 covering checks, seven syntax checks and the production UI build passing in private board handoff `36-developer-14.md`. The root reports a final-candidate mounted unavailable-profile check passing 1/1. These are attributed results; this writer inspected source, diffs and saved receipts, and ran no tests or browser checks. The prior shared-navigation findings have source corrections and author coverage; a fresh independent pass is still pending. CI was in progress at the last check.
+**Current product candidate:** `12cc7bee8227a3b5fc198bfe8a8ab469f23fed0b`, draft PR #383. The developer reports frozen **138/138** focused checks across 17 literal files, four syntax checks and the production UI build passing in private board handoff `36-developer-15.md`. The root's mounted unavailable-profile check passes **1/1** in 14.403 seconds. Both runs have zero skips/cancellations and receipts showing their owned process groups gone. These are attributed results, not a full-suite result; this writer inspected source, diffs, handoffs and saved receipts, and ran no tests or browser checks.
 
-**Release blocker:** the final native capture records synchronous crowd admission of **28,356.4 ms**, 800 accelerated updates taking **23,271.2 ms**, and a single production update taking **8,038.2 ms**. Responsiveness remains unresolved. Neither the later idle samples nor the completed capture establishes performance or merge acceptance. Independent final assessment and a concrete performance recovery plan remain pending.
+**Release blocker:** independent code review passes the correction diff, but QA bounces overall AC7 readiness for synchronous responsiveness. The exact-candidate native capture records **29,963.3 ms** crowd admission and a **9,118.4 ms** single production update, versus **343 ms** and **4 ms** on the reference. Low settled update samples do not resolve those stalls. A proposed additional performance pass and numerical targets remain unapproved.
 
-**Historical rendered evidence:** the measurements and captures below describe product source `d5b7128`, retained in `6bf4ada`. Independent review bounced `6bf4ada` for unsafe dynamic allocation and incomplete body/terrain clearance. Those captures do not verify the recovery candidate or provide its visual/performance sign-off. The installed-build reproduction record remains on the private board in `36-developer-2.md`; it describes an older pre-04 installed build and is not the comparison baseline.
+The latest correction preserves Bao and Jiao's existing authored stationary home lift only when the supporting floor and complete raised body fit. Home, model and lease coordinates agree; departure and normal/reduced-motion return validate raised clearance before exact arrival. The original Bao `0.29` assertion and fixtures remain unchanged. Earlier shared-navigation findings are closed by independent review and QA; the retained assertion audit and test-guard dispositions are recorded in `36-code-reviewer-3.md` and `36-qa-verify-3.md` on the private board.
+
+Hosted CI is not established green for this source. At the latest check, the pushed branch was `12cc7bee`, while the PR snapshot/pull head still showed `3d8182f`, with no associated `12cc7bee` workflow. The explicit `20a854a...HEAD` risk check reports the mounted fixture's network/server hit; formal security review remains deferred until QA passes.
 
 ## Current candidate native evidence
+
+The root captured exact source `12cc7bee` against `20a854a81017637a6f074bb62782643fb6462454` on 2026-10-21, from 15:13:27.565 to 15:15:39.052 UTC. Both use the same Bao assets, actual model textures, native Chrome 155, 1440×900, DPR 1 and no reduced motion. The private receipt and helper identify both sources and original production calls; raw captures and host paths stay private.
+
+All 32 initial residents and all 42 crowd bodies were visible with matching owned homes. The crowd completed 800 accelerated updates with minimum horizontal envelope clearance **0.09185291** scene units. This checks safe placement, not completion of every crowd journey. QA reached owned `leisure:tea` after **570** simulated 0.1-second updates and returned to its exact retained home after another **677**; minimum trip clearance was **0.078482085** scene units.
+
+| Production timing, ms | Reference | Candidate |
+|---|---:|---:|
+| Initial constructor/allocation | 2.5 | 5,520.3 |
+| Synchronous crowd admission | 343 | 29,963.3 |
+| Maximum single original production update during crowd fixture | 4 | 9,118.4 |
+| Later settled 42-body update p95 | 3.1 | 3.7 |
+
+The enclosing 800-update crowd phase took **26,020.9 ms**, including harness inspection and frame yielding. The single-update maximum times only the original production call. Later rendering samples were sequential and uncontrolled; they establish no five-percent budget verdict, GPU duration, physical VRAM use or memory leak conclusion. Animation-frame heartbeat counts are separate from rendered cadence.
+
+Six screenshots cover light/dark tea arrival, light crowd overview, dark narrow crowd, an unavailable ordinary visitor and an unavailable meeting guest. Hidden unavailable bodies retain accessible Team profiles with truthful `Working` state, their own work references and enabled `View work` actions. At 375×812, document width and scroll width both remain 375px. The receipt records zero page errors and zero write requests. The owned browser closed; both owned servers closed, with their ports refusing connections. The user visual verdict remains pending.
+
+**Historical evidence:** the next section retains the superseded `1bac181` capture. Later sections explicitly marked historical describe product source `d5b7128`, retained in `6bf4ada`; independent review bounced that earlier candidate for unsafe dynamic allocation and incomplete body/terrain clearance. Neither historical capture verifies `12cc7bee` or provides its visual/performance sign-off. The installed-build reproduction record remains on the private board in `36-developer-2.md`; it describes an older pre-04 installed build and is not the comparison baseline.
+
+## Historical native evidence at `1bac181`
 
 The root captured the actual app in native Chrome 155.0.8059.85 on 2026-10-21, from 14:52:05.517 to 14:54:13.159 UTC. Product source was `1bac181`; the comparison baseline was `20a854a81017637a6f074bb62782643fb6462454`. Both contain the same current Bao assets. The saved private receipt, preparation record and helper identify those sources. Raw captures and host paths stay private.
 
@@ -24,7 +45,7 @@ Crowd admission blocked synchronously for **28,356.4 ms**: `applyLive` took **6,
 
 The first full native attempt failed its 35-second aggregate crowd deadline. Saved fixture work took about 53 seconds, so the private harness raised that step to 90 seconds inside the unchanged 240-second whole-capture deadline. All 800 updates, safety assertions and product work ceilings remained. The second attempt completed with phase timings. That change fixed harness completion; it did not fix the measured product stalls.
 
-### Current rendering and memory comparison
+### Historical `1bac181` rendering and memory comparison
 
 One nominal eight-second sample ran sequentially for baseline 32, baseline 42, candidate 32 and candidate 42. Counts, camera target `[0,2,-8]`, zoom 1, viewport, assets and settings matched. These later samples omit the synchronous admission and accelerated-update stalls above.
 
@@ -46,6 +67,8 @@ The animation-frame heartbeat is a separate callback, not rendered-frame cadence
 The scene has one place registry for work, meeting, leisure, visitor and staging places. Leases follow the complete project/runtime/role/agent/ticket identity, including a resident's takeover identity. Work homes stay reserved during trips. Departing occupied temporary places stay owned until the body clears them; visitor removal and scene disposal release all of that actor's leases.
 
 The common traveller validates the actual rig, outfit, carried props, leisure gestures and published replacement envelopes. It checks the swept path, terrain and overhead clearance, including final approaches and reduced-motion placement. Allocations use distinct fitting overflow or safe staging rather than a shared fallback. Staging or route failure appears separately from real agent state; presentation availability does not gate execution admission.
+
+Primary stationary homes may retain their valid authored lift above the supporting floor. Raised top clearance, departure and terminal landing are checked conservatively; normal and reduced-motion arrivals publish the exact owned home coordinates. Overflow and moving candidates retain support normalization.
 
 Each allocated home has a protected local departure and reverse path beyond its occupied clearance. Before admitting a trip, the adapter proves outgoing and return routes against a snapshot of bodies, leases, obstacles and navigation. Active trip protection remains until a physically validated arrival at the owned home. This does not reserve a permanent full route from every idle home to the garden.
 
@@ -119,11 +142,10 @@ The animation-frame heartbeat is a separate browser callback, not rendered-frame
 
 ## Remaining gates
 
-- Fresh independent code review and QA at the final candidate, including test-guard findings and the recorded runner incident.
-- Risk/security and completed green CI checks; last reported CI state was in progress.
-- Independent assessment of the native stalls and memory increase, followed by a concrete performance recovery plan. Responsiveness remains unresolved.
-- User visual verdict on the six final light/dark/narrow captures. Current mounted/native checks and descriptive comparison are recorded above; historical captures do not satisfy this gate.
+- A user decision on the proposed additional performance pass. Current independent code review passes the correction; QA bounces readiness for the measured native stalls. Further source changes need renewed independent verification.
+- Formal security after QA passes, and completed green CI associated with the actual final source. Hosted CI acceptance remains unverified.
+- User visual verdict on the six exact-candidate light/dark/narrow captures after responsiveness is resolved. Historical captures do not satisfy this gate.
 
 The current authorization stops before merge or installed update.
 
-No installed update, service or router action, Jev/TypeSafe call, new dependency, purchase, office expansion, outing scheduler redesign or waving feature was part of this work.
+No installed update is included. The implementation changes no service/router code, dependencies, office layout or outing scheduler contract; Jev/TypeSafe calls, purchases and waving remain outside its scope.
