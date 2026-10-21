@@ -437,9 +437,9 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // A delivery step is the internal entry's alone: no route reads these fields.
     let step = null;
     if (entry === "start" && input.delivery !== undefined) {
-      const { at, since, findings, note, guard } = input.delivery ?? {};
+      const { at, since, findings, note, guard, author } = input.delivery ?? {};
       if (!COMMIT_RE.test(at) || !COMMIT_RE.test(since) || (findings !== undefined && typeof findings !== "string") || (note !== undefined && typeof note !== "string") || (guard !== undefined && !(Array.isArray(guard) && guard.every((g) => typeof g === "string")))) return refuse(400, "a delivery step needs the commits it starts at and began from");
-      step = { at, since, ...(findings === undefined ? {} : { findings: findings.slice(0, FINDINGS_MAX) }), ...(note === undefined ? {} : { note: note.slice(0, NOTE_MAX) }), ...(guard === undefined ? {} : { guard: guard.slice(0, 50).map((g) => g.slice(0, 300)) }) };
+      step = { at, since, ...(findings === undefined ? {} : { findings: findings.slice(0, FINDINGS_MAX) }), ...(note === undefined ? {} : { note: note.slice(0, NOTE_MAX) }), ...(guard === undefined ? {} : { guard: guard.slice(0, 50).map((g) => g.slice(0, 300)) }), ...(author === true ? { author: true } : {}) };
     }
     // So is a meeting run. Its note is the bridge's own text: the topic and the takes are quoted in it as data.
     let meeting = null;
@@ -742,7 +742,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       : a.meeting
       ? meetingPrompt({ role: a.role, part: a.meeting.part, ref: a.ref, ticketFile: ticketFile(a.ref, a.projectRoot), recipeFile: recipeOf(a) })
       : a.delivery
-      ? deliveryPrompt({ role: a.role, mode: a.mode, ref: a.ref, ticketFile: ticketFile(a.ref, a.projectRoot), since: a.delivery.since, fix: a.delivery.findings !== undefined, note: a.delivery.note !== undefined, guard: a.delivery.guard !== undefined, recipeFile: recipeOf(a) })
+      ? deliveryPrompt({ role: a.role, mode: a.mode, ref: a.ref, ticketFile: ticketFile(a.ref, a.projectRoot), since: a.delivery.since, fix: a.delivery.findings !== undefined, note: a.delivery.note !== undefined, guard: a.delivery.guard !== undefined, author: a.delivery.author === true, recipeFile: recipeOf(a) })
       : a.mode === DIRECT_MODE
       ? `You are the ${a.role} agent in direct mode for ticket ${a.ref}. The user started this task from the den. ` +
         `Read ${recipeOf(a)} and follow it. The task is in the ticket file ${ticketFile(a.ref, a.projectRoot)}: ` +
