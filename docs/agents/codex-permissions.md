@@ -34,7 +34,9 @@ diagnostic: bwrap: execvp /home/dhertzell/.nvm/versions/node/v22.23.3/lib/node_m
 
 The original receipt did not capture the random fixture basename/port; its owned fixture was removed after settled cleanup. Later receipts include the exact executable, argv and working directory. Read-only inspection confirmed that the reported native helper exists, is executable and is canonical on the host; the installed public loader resolves that exact platform-package helper. The initial restricted profile admitted the probe's Node binary but omitted the sandbox's native re-exec helper.
 
-The prepared correction requires the caller to supply that exact canonical installed helper and grants only that executable read access, never its package/home parent directory. Its fixture checks require the helper entry and reject missing/traversing paths. This correction has **not been rerun**; first-failure hold applies until the revised frozen source/plan is reviewed and a new run is explicitly authorized. Default production registration and live model/account/auth calls remain disabled.
+The prepared correction requires the installed helper and grants only that executable read access, never its package/home parent directory. Before creating a fixture, listener or launcher, execution admission resolves **all three** supplied binary paths (Node, Codex CLI wrapper and native helper), requires regular files and checks execute access. Wrapper symlinks are resolved to the checked file; the exact resolved path is then used. Directories, directory aliases and non-executable files refuse admission. The pure plan validates representation only and claims no filesystem proof; separate disposable filesystem fixtures cover execution admission without running their dummy executables.
+
+This correction has **not been rerun**; first-failure hold applies until the revised frozen source/plan is reviewed and a new run is explicitly authorized. Default production registration and live model/account/auth calls remain disabled.
 
 ## Remaining integration gates
 

@@ -1,6 +1,7 @@
 // OFFLINE SHELL-only experiment. No app-server, provider, auth or account calls.
 // Import/default invocation launches nothing. Production admission stays disabled.
-import { mkdtemp, mkdir, writeFile, readFile, symlink, realpath, rm } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, symlink, realpath, rm, stat, access } from "node:fs/promises";
+import { constants } from "node:fs";
 import { createServer } from "node:net";
 import { randomBytes } from "node:crypto";
 import path from "node:path";
@@ -13,6 +14,21 @@ const PREFIX = "/tmp/den-codex-profile-task2-";
 const SAFE_PATH = /^\/(?:[A-Za-z0-9._@+-]+\/)*[A-Za-z0-9._@+-]+$/;
 const MARKER = "disposable-fixture-marker";
 
+// Filesystem admission belongs to the execution entry, not the pure plan. A
+// canonical directory must never become an executable's subtree read grant.
+export async function resolveCanaryExecutables({ nodeBin, codexBin, nativeHelper } = {}) {
+  const resolved = {};
+  for (const [name, supplied] of Object.entries({ nodeBin, codexBin, nativeHelper })) {
+    if (typeof supplied !== "string" || supplied.length > 4096 || !path.isAbsolute(supplied) || /[\x00-\x1f\x7f]/.test(supplied)) throw new TypeError(`invalid ${name} executable path`);
+    const canonical = await realpath(supplied);
+    if (!(await stat(canonical)).isFile()) throw new TypeError(`${name} must resolve to a regular executable file`);
+    await access(canonical, constants.X_OK);
+    resolved[name] = canonical;
+  }
+  return Object.freeze(resolved);
+}
+
+// Representation only: callers must admit actual files before execution.
 export function offlineCanaryPlan({ root, nodeBin, codexBin, nativeHelper, port }) {
   if (!SAFE_PATH.test(root) || !root.startsWith(PREFIX) || !/^[a-zA-Z0-9]+$/.test(root.slice(PREFIX.length)) ||
       [nodeBin, codexBin, nativeHelper].some(value => typeof value !== "string" || !SAFE_PATH.test(value) || path.posix.normalize(value) !== value) ||
@@ -80,6 +96,7 @@ process.exitCode=results.every(r=>r.ok)?0:1;
 export async function runOfflineCanary({ codexBin, nativeHelper, nodeBin = process.execPath } = {}) {
   if (process.platform !== "linux") throw new Error("offline native canary requires Linux");
   if ([codexBin, nodeBin, nativeHelper].some(value => typeof value !== "string" || !SAFE_PATH.test(value))) throw new TypeError("explicit native binary paths are required");
+  const executables = await resolveCanaryExecutables({ nodeBin, codexBin, nativeHelper });
   // No global environment is changed; the native CLI receives only a new,
   // disposable HOME/CODEX_HOME. These contain no real credentials or auth files.
   const root = await mkdtemp(PREFIX);
@@ -90,8 +107,7 @@ export async function runOfflineCanary({ codexBin, nativeHelper, nodeBin = proce
     let connections = 0;
     listener = createServer(socket => { connections += 1; socket.destroy(); });
     await new Promise((resolve, reject) => { listener.once("error", reject); listener.listen(0, "127.0.0.1", resolve); });
-    if (await realpath(nativeHelper) !== nativeHelper) throw new Error("the installed native helper must be an exact canonical path");
-    const plan = offlineCanaryPlan({ root, codexBin, nativeHelper, nodeBin: await realpath(nodeBin), port: listener.address().port });
+    const plan = offlineCanaryPlan({ root, ...executables, port: listener.address().port });
     for (const relative of ["worktree/edit", "native", "home", "xdg", "tmp", "outside"]) await mkdir(`${root}/${relative}`, { recursive: true, mode: 0o700 });
     for (const relative of ["worktree/source", "worktree/edit/governed", "worktree/dummy-credential", "native/dummy-store"]) await writeFile(`${root}/${relative}`, MARKER, { mode: 0o600 });
     await writeFile(`${plan.worktree}/probe.mjs`, PROBE, { mode: 0o600 });

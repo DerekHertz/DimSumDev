@@ -48,7 +48,7 @@ export function compileCodexPermissions(input) {
   if (!/^[a-z][a-z0-9-]{0,63}$/.test(profileId ?? "")) throw new TypeError("a custom profile id is required");
   if (within(nativeStore, worktree) || within(worktree, nativeStore) || nativeStore === "/") throw new TypeError("the native store must be private and separate from the worktree");
   if (!object(policy) || policy.version !== 1 || Object.keys(policy).some((key) => !FIELDS.includes(key)) || FIELDS.some((key) => !Object.hasOwn(policy, key))) throw new TypeError("unknown effective-policy requirements or version");
-  if (!Array.isArray(policy.hosts) || policy.hosts.length !== 0) throw new TypeError("network hosts require separately proved proxy/connection confinement");
+  if (!denseList(policy.hosts, 0)) throw new TypeError("network hosts require separately proved proxy/connection confinement");
   const read = paths(policy.readRoots);
   const write = paths(policy.writeRoots);
   const readOnly = paths(policy.readOnlyPaths);

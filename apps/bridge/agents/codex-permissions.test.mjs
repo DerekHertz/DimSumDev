@@ -86,7 +86,8 @@ test("sparse and decorated path/command lists refuse compilation rather than omi
   const sparse = Array(1);
   const decorated = Object.assign(["/project/worktrees/job"], { extra: "/outside" });
   for (const patch of [{ readRoots: sparse }, { denyPaths: sparse }, { readOnlyPaths: decorated },
-    { denyCommands: sparse }, { denyCommands: [sparse] }, { denyCommands: [Object.assign(["git", "push"], { extra: "ignored" })] }]) {
+    { denyCommands: sparse }, { denyCommands: [sparse] }, { denyCommands: [Object.assign(["git", "push"], { extra: "ignored" })] },
+    { hosts: Object.assign([], { extra: "ignored-host" }) }]) {
     assert.throws(() => compileCodexPermissions(input(patch)));
   }
 });
