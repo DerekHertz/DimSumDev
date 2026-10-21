@@ -52,7 +52,7 @@ import { createTreeArtifacts } from "./tree-artifacts.mjs";
 import { createGitHost } from "../delivery/git-host.mjs";
 import { floor, isCodePath, isDocsPath } from "../delivery/floor.mjs";
 import { readVerdict } from "../delivery/prompts.mjs";
-import { freshWorkflow, phaseRole, phaseOfRole, isReviewPhase, readTreeEvidence, reviewPassed } from "./task-tree-workflow.mjs";
+import { freshWorkflow, phaseRole, phaseOfRole, isReviewPhase, readTreeEvidence, reviewPassed, reviewFailure, recoveryFailure } from "./task-tree-workflow.mjs";
 
 const COMMIT_RE = /^[0-9a-f]{40,64}$/;
 const FINDINGS_MAX = 16000; // characters of a review's findings handed to a fix round
@@ -534,7 +534,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const scopesWithin = (child, parent) => child.every((scope) => parent.some((base) => scope === base || scope.startsWith(`${base}/`)));
   const scopesOverlap = (a, b) => a.some((scope) => b.some((other) => scope === other || scope.startsWith(`${other}/`) || other.startsWith(`${scope}/`)));
   function treeUsable(node) {
-    if (shuttingDown || node.cancelled || taskTrees.node(node.id) !== node || !taskTrees.approved(node)) return false;
+    if (shuttingDown || node.cancelled || node.workflow?.terminalFailure || taskTrees.node(node.id) !== node || !taskTrees.approved(node)) return false;
     const owner = admission.ownerOf(node.rootRef);
     if (owner.owner !== node.owner || owner.epoch !== node.epoch || owner.root !== node.rootRef) return false;
     if (node.parentId) {
@@ -777,6 +777,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       await workflowEvent(current, "failed", current.activeAgent, { reason: current.workflow.error, candidate: current.workflow.receipt?.candidate ?? null });
     }
   }
+  async function terminalTreeFailure(node, code, agent = node.activeAgent) {
+    node.workflow.terminalFailure ??= { code, attemptId: agent?.id ?? null, phase: agent?.treePhase ?? null, candidate: node.workflow.receipt?.candidate ?? null };
+    try { await taskTrees.checkpoint(node); }
+    catch (err) { if (agent?.proc && !agent.exited) terminate(agent, "tree-journal-write-failed"); throw err; }
+  }
   function treeActor(attemptId, { owner = false, review = false } = {}) {
     const agent = agents.get(attemptId);
     if (!agent?.treeNode || !agent.proc || agent.exited || agent.stopRequested || agent.releasing || !treeUsable(agent.treeNode)) return null;
@@ -868,7 +873,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     node.workflow.completion = evidence;
     node.workflow.acceptance = null;
     agent.treeCompletion = evidence;
-    await taskTrees.checkpoint(node);
+    if (evidence.checks.some((check) => check.passed === false)) await terminalTreeFailure(node, "author-check-failed", agent);
+    else await taskTrees.checkpoint(node);
     release(agent);
     return { ok: true, status: 202, nodeId: node.id, state: "verifying" };
   }
@@ -883,6 +889,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     catch (err) { return refuse(400, err.message); }
     if (readVerdict(`VERDICT: ${report.verdict}`) !== report.verdict) return refuse(400, "the review has no recognized verdict");
     agent.treeReviewReport = report;
+    (workflow.reviewSubmissions ??= {})[agent.id] = { ...report, attemptId: agent.id };
+    const failed = reviewFailure(report);
+    if (failed) await terminalTreeFailure(node, failed, agent);
+    else await taskTrees.checkpoint(node);
     await taskTrees.journal({ event: "review-report", ...treeAudit(node, agent), candidate: report.candidate, verdict: report.verdict });
     release(agent);
     return { ok: true, status: 200, nodeId: node.id, candidate: report.candidate, verdict: report.verdict };
@@ -953,6 +963,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   }
   async function acceptReviewedNode(node) {
     const workflow = node.workflow;
+    if (workflow.terminalFailure) return pauseTreeNode(node, "a terminal failure keeps this candidate unaccepted");
     if (!workflow.receipt || !workflow.requiredRoles?.every((role) => reviewPassed(workflow.reviews[role]) && workflow.reviews[role].candidate === workflow.receipt.candidate)) return pauseTreeNode(node, "independent review bounced or omitted required evidence");
     if (workflow.userVerdictRequired && (workflow.userVerdict?.candidate !== workflow.receipt.candidate || workflow.userVerdict?.verdict !== "approve")) { workflow.status = "waiting-user"; await taskTrees.checkpoint(node); return; }
     const accepted = { ...workflow, status: "accepted", acceptance: { candidate: workflow.receipt.candidate, operationId: workflow.receipt.operationId, reviews: workflow.requiredRoles.map((role) => ({ role, attemptId: workflow.reviews[role].attemptId, candidate: workflow.reviews[role].candidate })) } };
@@ -978,10 +989,15 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const node = agent.treeNode;
     const workflow = workflowOf(node);
     const attempt = workflow.attempts.find((row) => row.id === agent.id);
-    if (attempt) attempt.state = agent.state;
+    if (attempt) Object.assign(attempt, { state: agent.state, reason: agent.reason ?? null, cleanupConfirmed: agent.cleanupConfirmed === true });
     if (agent.stopRequested || node.cancelled) { await pauseTreeNode(node, agent.reason ?? "the task was stopped"); if (node.depth === 0 && agent.reason === "stopped-by-user") taskTrees.close(node); return; }
+    if (isReviewPhase(agent.treePhase) && (agent.state !== "done" || !agent.treeReviewReport)) {
+      await terminalTreeFailure(node, agent.state !== "done" ? "review-attempt-failed" : "review-report-missing", agent);
+      await pauseTreeNode(node, "the review ended unsuccessfully or without its required report; recovery grants no retry");
+      return;
+    }
+    if (agent.cleanupConfirmed !== true) { await pauseTreeNode(node, "resource-group cleanup is unconfirmed; no candidate may be captured or accepted"); return; }
     try {
-      if (agent.cleanupConfirmed !== true) throw new Error("resource-group cleanup is unconfirmed; no candidate may be captured or accepted");
       if (agent.treeYield) {
         if (!await (await artifactsFor(node)).isClean({ workspace: agent.workspace, candidate: workflow.author.head }) || await privateGit(agent.workspace.dir, "rev-parse", "HEAD") !== workflow.author.head) throw new Error("the stopped parent has unexpected edits; preserve its worktree for inspection before yielding");
         workflow.status = "waiting"; workflow.yieldConfirmed = true;
@@ -992,11 +1008,13 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         await taskTrees.checkpoint(node); scheduleTrees(); return;
       }
       if (isReviewPhase(agent.treePhase)) {
+        if (agent.state !== "done") { await terminalTreeFailure(node, "review-attempt-failed", agent); throw new Error("the review execution failed; no review retry is authorized"); }
+        if (!agent.treeReviewReport) { await terminalTreeFailure(node, "review-report-missing", agent); throw new Error("the review ended without its required report; no review retry is authorized"); }
         if (!agent.treeReviewReport || agent.state !== "done" || await privateGit(agent.workspace.dir, "rev-parse", "HEAD") !== workflow.receipt.candidate || !await (await artifactsFor(node)).isClean({ workspace: agent.workspace, candidate: workflow.receipt.candidate })) throw new Error("the review has missing evidence or changed its frozen candidate");
         const artifacts = await artifactsFor(node);
         await artifacts.validateReceipt(workflow.receipt);
         workflow.reviews[agent.role] = { ...agent.treeReviewReport, attemptId: agent.id, role: agent.role, model: agent.model };
-        if (!reviewPassed(workflow.reviews[agent.role])) throw new Error("independent review bounced or a required verification failed; no automatic retry is authorized");
+        if (!reviewPassed(workflow.reviews[agent.role])) { await terminalTreeFailure(node, reviewFailure(workflow.reviews[agent.role]), agent); throw new Error("independent review bounced or a required verification failed; no automatic retry is authorized"); }
         const next = workflow.requiredRoles.find((role) => !workflow.reviews[role]);
         if (next) await queueReview(node, next);
         else await acceptReviewedNode(node);
@@ -1024,14 +1042,15 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       workflow.userVerdictRequired = required.roles.includes("user-verdict");
       workflow.reviews = {};
       await queueReview(node, workflow.requiredRoles[0]);
-    } catch (err) { await pauseTreeNode(node, err.message); }
+    } catch (err) { if (isReviewPhase(agent.treePhase)) await terminalTreeFailure(node, "review-verification-failed", agent); await pauseTreeNode(node, err.message); }
   }
   async function verdictTree(input) {
     if (!input || Object.keys(input).some((key) => !["revision", "nodeId", "candidate", "verdict"].includes(key)) || !["approve", "decline"].includes(input.verdict)) return refuse(400, "the user verdict must name the exact revision, node and candidate");
     const node = taskTrees.node(input.nodeId);
     if (!node || node.treeId !== input.revision || node.workflow?.status !== "waiting-user" || node.workflow.receipt?.candidate !== input.candidate || !treeUsable(node)) return refuse(409, "this candidate is not waiting for this user verdict");
     node.workflow.userVerdict = { candidate: input.candidate, verdict: input.verdict };
-    await taskTrees.checkpoint(node);
+    if (input.verdict === "decline") await terminalTreeFailure(node, "user-declined");
+    else await taskTrees.checkpoint(node);
     if (input.verdict === "decline") await pauseTreeNode(node, "the user declined this candidate");
     else await acceptReviewedNode(node);
     return { ok: true, status: 200, nodeId: node.id, candidate: input.candidate, accepted: node.workflow.status === "accepted" };
@@ -1058,6 +1077,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (owner.legacy || owner.root !== record.ref || owner.owner !== originalRoot.owner || owner.epoch !== originalRoot.epoch) return refuse(409, "the recorded approved owner changed; propose a new revision");
     let validation;
     try {
+      for (const item of record.nodes) {
+        const failed = recoveryFailure(item.workflow);
+        if (failed) throw new Error(failed === "cancelled-by-user" ? "this logical workflow was explicitly cancelled; recovery cannot grant another implementation attempt" : `a recorded terminal failure (${failed}) requires a new reviewed revision; recovery grants no retry`);
+      }
       // A stopped leader is insufficient: every recorded native resource must be positively absent.
       for (const item of record.nodes) {
         if (item.workflow?.cancelledByUser) throw new Error("this logical workflow was explicitly cancelled; recovery cannot grant another implementation attempt");
@@ -1843,6 +1866,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (logical && taskTrees.approved(logical) && (!logical.activeAgent?.proc || logical.activeAgent.exited)) {
       logical.cancelled = true;
       logical.workflow.cancelledByUser = true;
+      try { await taskTrees.checkpoint(logical); }
+      catch { await cancelTreeChildren({ treeNode: logical }); return refuse(503, "cancellation could not be persisted; owned descendants were stopped"); }
       await cancelTreeChildren({ treeNode: logical });
       await pauseTreeNode(logical, "stopped-by-user");
       if (logical.depth === 0) taskTrees.close(logical);
@@ -1852,8 +1877,12 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const agent = typeof id === "string" && AGENT_ID_RE.test(id) ? active ?? agents.get(id) : undefined;
     if (!agent) return refuse(404, "no such agent");
     if (!agent.proc || agent.exited || agent.state === "terminated") return refuse(409, "the agent has already ended");
+    if (agent.treeNode) {
+      agent.treeNode.workflow.cancelledByUser = true;
+      try { await taskTrees.checkpoint(agent.treeNode); }
+      catch { terminate(agent, "stopped-by-user"); return refuse(503, "cancellation could not be persisted; the owned process was stopped"); }
+    }
     if (!agent.killing) {
-      if (agent.treeNode) agent.treeNode.workflow.cancelledByUser = true;
       sessions.append({ event: "stop", agentId: agent.id, ref: agent.ref, route: "POST /agents/:id/stop" }).catch((err) => console.error(`bridge: could not write sessions.jsonl: ${err.stack ?? err}`));
       record(agent, { kind: "stop", status: "requested" }); // the thread's trail (organism-infra/230); the `ended` entry closes it
       terminate(agent, "stopped-by-user");

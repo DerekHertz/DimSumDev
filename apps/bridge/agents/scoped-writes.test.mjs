@@ -1,12 +1,13 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { fstatSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { chmodSync, fstatSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, renameSync, rmdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { randomBytes } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
+import { fileURLToPath } from "node:url";
 import { canonicalWriteScopes, prepareWriteScope, scopedWriteBindArgs } from "./scoped-writes.mjs";
 import { buildScopeArgv, createResourceLauncher, LIMITS } from "./resource-group.mjs";
-import { treePrivateDirectories } from "./claude-runtime.mjs";
+import { createClaudeRuntime, treePrivateDirectories } from "./claude-runtime.mjs";
 
 const fixture = () => {
   const root = mkdtempSync(path.join(os.tmpdir(), "den-scoped-writes-"));
@@ -109,5 +110,48 @@ test("the production resource launcher confines candidate-worktree writes, symli
     launched?.group.kill();
     await launched?.group.settled(2000);
     f.cleanup();
+  }
+});
+
+test("managed read owners and managers cannot write through the actual runtime and kernel launcher", { timeout: 40000 }, async (t) => {
+  if (process.platform !== "linux" || process.env.DEN_SCOPED_TEST_SLICE !== "den-agents-codex-task2") return t.skip("set DEN_SCOPED_TEST_SLICE=den-agents-codex-task2 in the authorized Linux task environment");
+  const f = fixture();
+  const controlRoot = fileURLToPath(new URL("../../..", import.meta.url)).replace(/\/$/, "");
+  const home = path.join(f.root, "home");
+  const mainGit = path.join(f.root, "common.git");
+  mkdirSync(home); mkdirSync(mainGit);
+  const bin = path.join(f.root, "readonly-canary.mjs");
+  // This credential-free Node fixture replaces Claude; it never calls a model,
+  // account endpoint or MCP server. The real adapter still compiles and launches.
+  writeFileSync(bin, `#!${process.execPath}\nimport fs from 'node:fs';\nprocess.stdin.once('data',()=>{let blocked=false;try{fs.writeFileSync(${JSON.stringify(f.approved)},'ESCAPED')}catch(e){blocked=['EACCES','EPERM','EROFS'].includes(e.code)}const readable=fs.readFileSync(${JSON.stringify(f.outside)},'utf8')==='outside-before';console.log(JSON.stringify({type:'result',subtype:'success',is_error:!blocked||!readable,result:'readonly-canary'}));process.stdin.destroy();process.exitCode=blocked&&readable?0:2});\n`, { mode: 0o700 });
+  chmodSync(bin, 0o700);
+  const env = { PATH: process.env.PATH, HOME: home, DEN_CLAUDE_BIN: bin };
+  const actual = createResourceLauncher({ env: process.env, slice: process.env.DEN_SCOPED_TEST_SLICE });
+  const owned = [];
+  const sessions = [];
+  const launcher = { ...actual, async launch(args) { const run = await actual.launch(args); owned.push(run); return run; } };
+  try {
+    const runtime = createClaudeRuntime({ env, launcher, controlRoot });
+    for (const [role, depth] of [["orchestrator", 0], ["developer", 1]]) {
+      const sessionId = randomUUID(); sessions.push(sessionId);
+      const proc = await runtime.spawn({ role, cwd: f.worktree, prompt: "Run the disposable filesystem canary.", sessionId,
+        runId: `task2-readonly-${depth}-${randomBytes(6).toString("hex")}`, model: "sonnet", effort: "high", root: f.worktree, mainGit,
+        project: { control: false, root: f.worktree, pluginDir: path.join(controlRoot, ".claude") },
+        tree: { depth, phase: "implementation", logicalRole: role, execution: { mode: "read" } },
+        treeCredential: { url: "http://127.0.0.1:1", token: "disposable-canary-token-000000000000000000" } });
+      const bound = setTimeout(() => proc.signal("SIGKILL"), 15000);
+      const exit = await proc.exited.finally(() => clearTimeout(bound));
+      assert.equal(exit.code, 0, `${role} read contract is enforced by the actual runtime launch`);
+      assert.equal(exit.cleanupConfirmed, true);
+      assert.equal(readFileSync(f.approved, "utf8"), "approved-before");
+    }
+  } finally {
+    let stopped = true;
+    for (const run of owned) { run.group.kill(); if (await run.group.settled(3000) !== true) stopped = false; }
+    if (stopped) {
+      f.cleanup();
+      for (const sessionId of sessions) rmdirSync(path.join(controlRoot, ".scratch/_run/tree-shell", sessionId));
+    }
+    assert.equal(stopped, true, "unconfirmed native resources preserve the disposable fixture for inspection");
   }
 });

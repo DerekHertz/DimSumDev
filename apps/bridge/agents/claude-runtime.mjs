@@ -106,7 +106,7 @@ export function treeExecutionProfile({ role, tree, resume, cwd }) {
     writeScope = canonicalWriteScopes({ worktree: cwd, paths: execution.scopes.map((scope) => path.join(cwd, scope)) });
     scopeWrites = writeScope.paths.map((file) => ({ path: file, directory: lstatSync(file).isDirectory() }));
   }
-  return { phase, review, code, readonly: review || (role === "runner" && !code), scopeWrites, writeScope };
+  return { phase, review, code, readonly: !code, scopeWrites, writeScope };
 }
 
 /** File tools cannot ask a user to broaden a code runner or review beyond its admitted write contract. */
@@ -260,7 +260,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       };
       let args;
       try {
-        args = buildClaudeArgs({ sessionId, ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(treeMode ? { tree: true, effort } : {}), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
+        args = buildClaudeArgs({ sessionId, ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(treeMode ? { tree: true, effort, treeReview: treeProfile.review } : {}), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
       } catch (err) {
         removeConfig();
         throw err;

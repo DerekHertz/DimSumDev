@@ -40,14 +40,14 @@ async function fixture(config = {}, extra = {}) {
   };
   return { fx, runtime, options, host, plan, node: (id) => host.trees().flatMap((tree) => tree.nodes).find((node) => node.id === id), close: async () => { await host.shutdown(); await fx.cleanup(); } };
 }
-async function reviewAll(t, nodeId, revision) {
-  while (t.node(nodeId).workflow.status !== "accepted") {
+async function reviewAll(t, nodeId, revision, until = "accepted") {
+  while (t.node(nodeId).workflow.status !== until) {
     const node = t.node(nodeId);
     if (node.workflow.status === "awaiting-verifier") {
       assert.equal((await t.host.verifierTree({ revision, nodeId, candidate: node.workflow.receipt.candidate, runtime: "claude", reason: "User explicitly selects a fresh same-runtime verifier while Codex conformance is unavailable." })).status, 202);
     }
-    await wait(() => t.node(nodeId).workflow.status === "accepted" || t.runtime.spawns.some((run) => run.args.tree?.nodeId === nodeId && ["code-review", "qa", "security", "writer-review"].includes(run.args.tree.phase) && !run.exited), JSON.stringify(t.node(nodeId).workflow));
-    if (t.node(nodeId).workflow.status === "accepted") break;
+    await wait(() => t.node(nodeId).workflow.status === until || t.runtime.spawns.some((run) => run.args.tree?.nodeId === nodeId && ["code-review", "qa", "security", "writer-review"].includes(run.args.tree.phase) && !run.exited), JSON.stringify(t.node(nodeId).workflow));
+    if (t.node(nodeId).workflow.status === until) break;
     const run = t.runtime.spawns.find((run) => run.args.tree?.nodeId === nodeId && ["code-review", "qa", "security", "writer-review"].includes(run.args.tree.phase) && !run.exited);
     const current = t.node(nodeId);
     assert.equal(run.args.model, "sonnet", "review is pinned to the configured stronger tier");
@@ -489,5 +489,118 @@ test("logical owner cancellation stops its fresh review attempt and permanently 
     const unsafe = await recovered.start({ ref: "fx/07-bumpable", role: "developer" });
     assert.equal(unsafe.status, 409, "closed tree receipts remain protected from later unprotected adapters");
     assert.match(unsafe.error, /artifact-store protection/);
+  } finally { await recovered?.shutdown(); await t.close(); }
+});
+
+for (const failure of ["bounce", "check-failed", "guard-bounce", "nonzero", "resource-limit", "missing-report", "mutated-candidate"]) test(`known review failure ${failure} cannot become a fresh review through restart`, { timeout: 25000 }, async () => {
+  const t = await fixture(); let recovered;
+  try {
+    const command = "node --check src/result.mjs";
+    const contractEvidence = { ...evidence, checks: [{ command, passed: true, evidence: "The fresh execution checked the approved verification command." }] };
+    const proposal = await t.host.planTree({ ref: REF, runtime: "claude", scopes: ["src"], rootContract: { ...rootContract, verificationCommands: [command] }, nodes: [] });
+    assert.equal(proposal.status, 201, proposal.error);
+    const owner = proposal.tree.rootId;
+    assert.equal((await t.host.startTree({ revision: proposal.revision })).status, 201);
+    assert.equal((await t.host.completeTree(owner, contractEvidence)).status, 202);
+    await wait(() => t.runtime.spawns.some((run) => run.args.tree.phase === "code-review"));
+    let reviewer = t.runtime.spawns.find((run) => run.args.tree.phase === "code-review");
+    const candidate = t.node(owner).workflow.receipt.candidate;
+    if (failure === "guard-bounce") {
+      assert.equal((await t.host.reviewTree(reviewer.args.runId, { ...contractEvidence, candidate, verdict: "pass", findings: [] })).status, 200);
+      await wait(() => t.runtime.spawns.some((run) => run.args.tree.phase === "qa"));
+      reviewer = t.runtime.spawns.find((run) => run.args.tree.phase === "qa");
+    }
+    if (failure === "nonzero" || failure === "missing-report" || failure === "resource-limit") {
+      if (failure === "resource-limit") reviewer.emit({ type: "resource-limit", resource: "memory" });
+      reviewer.exit({ code: failure === "missing-report" ? 0 : 2, cleanupConfirmed: true });
+    } else {
+      if (failure === "mutated-candidate") { await mkdir(path.join(reviewer.args.cwd, "src"), { recursive: true }); await writeFile(path.join(reviewer.args.cwd, "src/unapproved.mjs"), "unreviewed mutation\n"); }
+      const report = { ...contractEvidence, candidate, verdict: failure === "bounce" ? "bounce" : "pass", findings: [], checks: contractEvidence.checks.map((check) => ({ ...check, passed: failure !== "check-failed" })), guardVerdicts: failure === "guard-bounce" ? t.node(owner).workflow.guard.hits.map((hit) => ({ hit, verdict: "bounce", reason: "The fresh verifier rejected this test-guard hit." })) : [] };
+      assert.equal((await t.host.reviewTree(reviewer.args.runId, report)).status, 200);
+    }
+    await wait(() => t.node(owner).workflow.status === "paused");
+    await t.host.shutdown();
+    assert.ok(t.node(owner).workflow.terminalFailure, "the completed failure has a durable machine latch");
+    if (failure === "bounce") {
+      const file = path.join(t.fx.root, ".scratch/_run/task-trees.jsonl");
+      const events = (await readFile(file, "utf8")).trim().split("\n").map(JSON.parse);
+      for (const event of events) if (event.workflow) { delete event.workflow.terminalFailure; delete event.workflow.reviewSubmissions; }
+      await writeFile(file, events.map((event) => JSON.stringify(event)).join("\n") + "\n");
+    }
+    const before = t.runtime.spawns.length;
+    recovered = createHost(t.options); await recovered.ready;
+    const result = await recovered.resumeTree({ revision: proposal.revision });
+    assert.equal(result.status, 409, result.error);
+    assert.match(result.error, /terminal failure/);
+    assert.equal(t.runtime.spawns.length, before, "recovery neither repeats the author nor retries a known failed review");
+    assert.equal(recovered.trees().filter((tree) => !tree.recordOnly).length, 0, "failure is refused before tree mutation");
+  } finally { await recovered?.shutdown(); await t.close(); }
+});
+
+test("an explicit human decline remains terminal across restart", { timeout: 40000 }, async () => {
+  const t = await fixture(); let recovered;
+  try {
+    const proposal = await t.host.planTree({ ref: REF, runtime: "claude", scopes: ["apps/ui"], rootContract, nodes: [] });
+    assert.equal(proposal.status, 201, proposal.error);
+    const owner = proposal.tree.rootId;
+    assert.equal((await t.host.startTree({ revision: proposal.revision })).status, 201);
+    const author = t.runtime.spawns[0];
+    await mkdir(path.join(author.args.cwd, "apps/ui"), { recursive: true });
+    await writeFile(path.join(author.args.cwd, "apps/ui/declined.mjs"), "export const needsUserVerdict = true;\n");
+    assert.equal((await t.host.completeTree(owner, evidence)).status, 202);
+    await reviewAll(t, owner, proposal.revision, "waiting-user");
+    assert.equal((await t.host.verdictTree({ revision: proposal.revision, nodeId: owner, candidate: t.node(owner).workflow.receipt.candidate, verdict: "decline" })).status, 200);
+    await t.host.shutdown();
+    const before = t.runtime.spawns.length;
+    recovered = createHost(t.options); await recovered.ready;
+    const result = await recovered.resumeTree({ revision: proposal.revision });
+    assert.equal(result.status, 409);
+    assert.match(result.error, /user-declined/);
+    assert.equal(t.runtime.spawns.length, before);
+  } finally { await recovered?.shutdown(); await t.close(); }
+});
+
+test("a stop acknowledgement persists cancellation before its process and watcher finish", { timeout: 20000 }, async () => {
+  const t = await fixture({ stdinCloseEnds: false, sigtermEnds: false }, { policy: { killGraceMs: 1000, spawnWaitMs: 20 } }); let recovered;
+  try {
+    const proposal = await t.plan();
+    const author = t.runtime.spawns[0];
+    assert.equal((await t.host.stop(proposal.tree.rootId)).status, 202);
+    assert.equal(author.exited, false, "the stop acknowledgement precedes process shutdown and final checkpoint");
+    let probes = 0;
+    t.runtime.stillRunning = async () => { probes++; return true; };
+    recovered = createHost(t.options); await recovered.ready;
+    const refused = await recovered.resumeTree({ revision: proposal.revision });
+    assert.equal(refused.status, 409);
+    assert.match(refused.error, /explicitly cancelled/);
+    assert.equal(probes, 0, "the durable decision is refused before runtime recovery or mutation");
+    assert.equal(t.runtime.spawns.length, 1);
+    author.exit({ code: 0, cleanupConfirmed: true });
+  } finally { for (const run of t.runtime.spawns) if (!run.exited) run.exit({ cleanupConfirmed: true }); await recovered?.shutdown(); await t.close(); }
+});
+
+test("a positive submitted review with uncertain cleanup can recover after resource absence is proven", { timeout: 25000 }, async () => {
+  const t = await fixture(); let recovered;
+  try {
+    const proposal = await t.plan(); const owner = proposal.tree.rootId;
+    assert.equal((await t.host.completeTree(owner, evidence)).status, 202);
+    await wait(() => t.runtime.spawns.some((run) => run.args.tree.phase === "code-review"));
+    const reviewer = t.runtime.spawns.find((run) => run.args.tree.phase === "code-review");
+    t.runtime.config.cleanupConfirmed = undefined;
+    assert.equal((await t.host.reviewTree(reviewer.args.runId, { ...evidence, candidate: t.node(owner).workflow.receipt.candidate, verdict: "pass", findings: [] })).status, 200);
+    await wait(() => t.node(owner).workflow.status === "paused");
+    assert.equal(t.node(owner).workflow.terminalFailure, null, "uncertain cleanup is not a fabricated failed verifier verdict");
+    t.runtime.config.cleanupConfirmed = true;
+    const reconcile = await t.host.start({ ref: "fx/07-bumpable", role: "developer" });
+    assert.equal(reconcile.status, 201, reconcile.error);
+    await t.host.stop(reconcile.agent.id);
+    await t.host.shutdown();
+    const before = t.runtime.spawns.length;
+    recovered = createHost(t.options); await recovered.ready;
+    const resumed = await recovered.resumeTree({ revision: proposal.revision });
+    assert.equal(resumed.status, 202, resumed.error);
+    await wait(() => t.runtime.spawns.length > before);
+    assert.equal(t.runtime.spawns[before].args.tree.phase, "code-review");
+    assert.notEqual(t.runtime.spawns[before].args.runId, reviewer.args.runId);
   } finally { await recovered?.shutdown(); await t.close(); }
 });

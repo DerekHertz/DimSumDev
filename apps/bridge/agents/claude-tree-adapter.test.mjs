@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -157,6 +158,46 @@ test("every logical layer has fresh high-tier readonly reviews with only a repor
       assert.ok(settings(argv).sandbox.filesystem.denyWrite.includes(WORKTREE));
     }
   }
+});
+
+test("managed read owners and managers deny file writes while retaining their author control channel", () => {
+  for (const [depth, role] of [[0, "orchestrator"], [1, "developer"]]) for (const phase of ["implementation", "continuation"]) {
+    const profile = treeExecutionProfile({ role, tree: { depth, logicalRole: role, phase, execution: { mode: "read" } }, cwd: WORKTREE });
+    assert.equal(profile.readonly, true);
+    assert.equal(profile.review, false);
+    assert.match(treeFileWriteRefusal(profile, WORKTREE, "Edit", { file_path: `${WORKTREE}/src/file.mjs` }), /read-only/);
+    const argv = buildClaudeArgs({ sessionId: SESSION, agent: role, tree: true, treeReview: profile.review, model: "sonnet", effort: "high", ...compileCeiling(role, { worktree: WORKTREE, tree: true, treeReadOnly: profile.readonly }) });
+    assert.ok(settings(argv).sandbox.filesystem.denyWrite.includes(WORKTREE));
+    assert.ok(!argv.includes("--allowedTools"), "read-only author phases retain approved delegation/yield/complete rather than the verifier-only channel");
+    for (const tool of ["Write", "Edit", "NotebookEdit", "Agent", "Task"]) assert.ok(flag(argv, "--disallowedTools").split(",").includes(tool));
+  }
+  const legacyCeiling = compileCeiling("developer", { worktree: WORKTREE });
+  const legacy = buildClaudeArgs({ sessionId: SESSION, agent: "developer", ...legacyCeiling });
+  assert.equal(legacyCeiling.worktree, WORKTREE);
+  assert.ok(settings(legacy).permissions.allow.some((rule) => rule.startsWith("Write(")), "legacy developer permissions keep their original write ceiling");
+});
+
+test("managed read depth zero and one hand an empty product write scope to the kernel launcher", async (t) => {
+  if (process.platform !== "linux") return t.skip("the production launcher contract uses Linux paths; no native process is launched");
+  const control = mkdtempSync(path.join(os.tmpdir(), "den-read-kernel-contract-"));
+  const cwd = path.join(control, ".claude/worktrees/read-node");
+  const home = path.join(control, "home");
+  try {
+    mkdirSync(cwd, { recursive: true }); mkdirSync(home);
+    for (const dir of [".claude/agents", ".codex/agents"]) { mkdirSync(path.dirname(path.join(control, dir)), { recursive: true }); cpSync(path.join(fileURLToPath(new URL("../../..", import.meta.url)), dir), path.join(control, dir), { recursive: true }); }
+    const hooks = path.join(control, "empty-hooks"); mkdirSync(hooks);
+    const git = (...args) => execFileSync("git", ["-C", control, "-c", "core.hooksPath=" + hooks, "-c", "commit.gpgsign=false", "-c", "user.name=fixture", "-c", "user.email=fixture@localhost", ...args], { stdio: "pipe" });
+    git("init", "-q"); writeFileSync(path.join(control, "seed"), "seed\n"); git("add", "seed"); git("commit", "-qm", "seed");
+    for (const [depth, role] of [[0, "orchestrator"], [1, "developer"]]) {
+      let captured;
+      const runtime = createClaudeRuntime({ controlRoot: control, env: { HOME: home, PATH: process.env.PATH }, launcher: { enforced: true, scopedWrites: true, launch: async (input) => { captured = input; throw new Error("captured launcher contract; no process"); } } });
+      await assert.rejects(runtime.spawn({ role, cwd, root: control, mainGit: path.join(control, ".git"), prompt: "Inspect this fixed read-only planning task.", sessionId: SESSION, runId: `c-${"a".repeat(15)}${depth}`, model: "sonnet", effort: "high", tree: { depth, logicalRole: role, phase: "implementation", execution: { mode: "read", scopes: ["src"] } }, treeCredential: { url: "http://127.0.0.1:4317", token: "t".repeat(43) } }), /captured launcher contract/);
+      assert.deepEqual(captured.writeScope, { worktree: cwd, paths: [] });
+      assert.notEqual(captured.cwd, cwd, "the implicit writable process directory is outside the product worktree");
+      assert.ok(settings(captured.args).sandbox.filesystem.denyWrite.includes(cwd));
+      assert.ok(!captured.args.includes("--allowedTools"));
+    }
+  } finally { rmSync(control, { recursive: true, force: true }); }
 });
 
 test("tree and concurrent legacy profiles both close future artifact receipts and bridge-owned hook storage", () => {

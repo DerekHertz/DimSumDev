@@ -374,12 +374,13 @@ const isScopeWrites = (scopes) => isDense(scopes) && scopes.length > 0 && scopes
 export function buildClaudeArgs(options) {
   if (!isPlainObject(options)) throw new TypeError("buildClaudeArgs needs { sessionId, agent, model?, ticketFile?, wall?, worktree? }");
   for (const key of Object.keys(options)) {
-    if (!["sessionId", "resume", "agent", "model", "effort", "tree", "treeReadOnly", "scopeWrites", "readRoot", "privatePaths", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
+    if (!["sessionId", "resume", "agent", "model", "effort", "tree", "treeReadOnly", "treeReview", "scopeWrites", "readRoot", "privatePaths", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
   }
-  const { sessionId, resume, agent, model, effort, tree, treeReadOnly, scopeWrites, readRoot, privatePaths, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
+  const { sessionId, resume, agent, model, effort, tree, treeReadOnly, treeReview, scopeWrites, readRoot, privatePaths, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
   if (tree !== undefined && tree !== true) throw new TypeError("buildClaudeArgs: tree must be true");
   if (effort !== undefined && !(tree === true && ["low", "medium", "high", "xhigh", "max"].includes(effort))) throw new TypeError("buildClaudeArgs: effort must be a configured tree effort");
   if (treeReadOnly !== undefined && !(tree === true && treeReadOnly === true)) throw new TypeError("buildClaudeArgs: treeReadOnly needs admitted tree mode");
+  if (treeReview !== undefined && !(tree === true && typeof treeReview === "boolean")) throw new TypeError("buildClaudeArgs: treeReview needs an admitted tree phase");
   if (scopeWrites !== undefined && !(tree === true && agent === "runner" && !treeReadOnly && worktree === undefined && isScopeWrites(scopeWrites))) throw new TypeError("buildClaudeArgs: scoped file writes need an admitted code runner without a broad worktree allow");
   if (readRoot !== undefined && !(tree === true && isWorktreePath(readRoot))) throw new TypeError("buildClaudeArgs: readRoot needs a plain admitted tree worktree");
   if (privatePaths !== undefined && !(wall !== undefined && isDense(privatePaths) && privatePaths.length <= 4 && privatePaths.every(isWorktreePath))) throw new TypeError("buildClaudeArgs: privatePaths need plain protected paths with the wall");
@@ -418,7 +419,7 @@ export function buildClaudeArgs(options) {
     ...(effort === undefined ? [] : ["--effort", effort]),
     // Every tree spawn goes through the bridge; native children would bypass its depth, ownership and capacity checks.
     ...(tree === true ? ["--disallowedTools", treeReadOnly || (agent === "runner" && scopeWrites === undefined) ? "Agent,Task,Write,Edit,NotebookEdit" : "Agent,Task,NotebookEdit"] : []),
-    ...(treeReadOnly && agent !== "runner" ? ["--allowedTools", "mcp__tree__status,mcp__tree__review"] : []),
+    ...(treeReadOnly && (treeReview ?? true) && agent !== "runner" ? ["--allowedTools", "mcp__tree__status,mcp__tree__review"] : []),
     // den-mvp/48: a target project loads nothing from its own .claude/: no settings, and the den's role definitions come in as a plugin.
     "--setting-sources", target ? "" : "project,local",
     ...(target ? ["--plugin-dir", project.pluginDir] : []),
