@@ -20,7 +20,7 @@ function routesConflict(a,b,position){
  for(let i=1;i<ap.length;i++)for(let j=1;j<bp.length;j++)if(segmentsConflict(ap[i-1],ap[i],bp[j-1],bp[j],clearance))return true;
  return false;
 }
-export function createActorTravel(world,places,{speed=.65,getActors=()=>[]}={}){
+export function createActorTravel(world,places,{speed=.65,getActors=()=>[],proveRoute=null}={}){
  let time=0;
  const position=a=>a.position??a.panda.model.position;
  const owner=a=>a.identity??a.id;
@@ -28,11 +28,21 @@ export function createActorTravel(world,places,{speed=.65,getActors=()=>[]}={}){
  const unavailable=a=>{const t=a.travel;t.status='unavailable';t.path=[];if(t.placeId!==a.homePlace)places.release(t.placeId,owner(a));t.navigationRevision=world.navigation.revision;t.placeRevision=places.get(t.placeId)?.revision;};
  function attempt(a,work=null){
   const t=a.travel,p=places.get(t.placeId);t.attempts++;t.retryAt=time+8;
-  if(!p||!places.reserve(p.id,owner(a),a.envelope,work)){t.path=[];t.status='waiting';}
+  if(proveRoute){const proof=p&&proveRoute(a,p,work);t.path=proof?.path??[];t.status=proof?.arrived?'arrived':t.path.length?'moving':'waiting';if(proof?.arrived)places.occupy(p.id,owner(a));}
+  else if(!p||!places.reserve(p.id,owner(a),a.envelope,work)){t.path=[];t.status='waiting';}
   else{const obstacles=[...(world.obstacles??[]),...getActors().filter(b=>b!==a&&b.panda?.model.visible!==false).map(b=>({...position(b),type:'circle',radius:b.envelope.radius+.03}))],navigation=work?{...world.navigation,groundAt:(...args)=>work.groundAt(world.navigation,...args)}:world.navigation;t.path=gardenRoute({...world,navigation,obstacles},position(a),p.position,a.envelope,work);t.status=t.path.length?'moving':'waiting';}
   if(t.status==='waiting'&&t.attempts>=3)unavailable(a);
  }
- function request(a,placeId,work=null){
+ function request(a,placeId,work=null,arrivalStart=null){
+  // The scene adapter proves and installs its full outgoing/return protection
+  // before this traveller replaces prior motion or releases the prior target.
+  if(proveRoute){
+   const destination=places.get(placeId),proof=destination&&proveRoute(a,destination,work,arrivalStart);
+   if(!proof)return {status:'unavailable'};
+   if(a.travel&&a.travel.placeId!==a.homePlace&&a.travel.placeId!==placeId)places.release(a.travel.placeId,owner(a));
+   a.travel={placeId,path:proof.path,attempts:1,status:proof.arrived?'arrived':'moving',retryAt:time+8};
+   if(proof.arrived)places.occupy(placeId,owner(a));return a.travel;
+  }
   if(a.travel?.placeId===placeId&&a.travel.status==='unavailable'&&!relevantChange(a.travel))return a.travel;
   if(a.travel?.placeId===placeId&&!['arrived','unavailable'].includes(a.travel.status))return a.travel;
   if(a.travel&&a.travel.placeId!==a.homePlace)places.release(a.travel.placeId,owner(a));
@@ -53,13 +63,16 @@ export function createActorTravel(world,places,{speed=.65,getActors=()=>[]}={}){
    }
    const next=reduced?destination.position:t.path[0];if(!next)continue;
    const length=distance(p,next),amount=reduced?length:Math.min(length,dt*speed),to={x:p.x+(next.x-p.x)*(length?amount/length:0),y:p.y,z:p.z+(next.z-p.z)*(length?amount/length:0)};
-   let y=routeSegment(world,p,to,a.envelope);
-   if(reduced){let from=p;y=p.y;for(const next of t.path){y=routeSegment(world,from,next,a.envelope);if(y===null)break;from=next;}}
+   const before=proveRoute&&[world.navigation.groundAt,world.navigation.revision,places.revision,JSON.stringify([a.envelope,world.obstacles??[]])];
+   const motionWorld=proveRoute?{...world,obstacles:[...(world.obstacles??[]),...[...places.values()].filter(q=>q.owner&&q.owner!==owner(a)).map(q=>({...q.position,type:'circle',radius:q.envelope.radius+.05}))]}:world;
+   let y=routeSegment(motionWorld,p,to,a.envelope);
+   if(reduced){let from=p;y=p.y;for(const next of t.path){y=routeSegment(motionWorld,from,next,a.envelope);if(y===null)break;from=next;}}
    const blockers=sorted.filter(b=>b!==a).filter(b=>{
     const at=position(b),points=reduced?[p,...t.path]:[p,to];
     return points.some((point,i)=>i&&pointSegmentDistance(at,points[i-1],point)<a.envelope.radius+b.envelope.radius+.03);
    });
-   if(y===null){t.path=[];t.status='waiting';t.retryAt=time+8;continue;}
+   if(before&&(before[0]!==world.navigation.groundAt||before[1]!==world.navigation.revision||before[2]!==places.revision||before[3]!==JSON.stringify([a.envelope,world.obstacles??[]]))){t.reproofRequested=true;t.status='waiting';t.retryAt=Infinity;continue;}
+   if(y===null){if(proveRoute){t.reproofRequested=true;t.status='waiting';t.retryAt=Infinity;}else{t.path=[];t.status='waiting';t.retryAt=time+8;}continue;}
    if(blockers.length){
     t.status='yielding';t.yieldSince??=time;
     for(const b of blockers.filter(b=>active(b.travel))){
@@ -71,7 +84,7 @@ export function createActorTravel(world,places,{speed=.65,getActors=()=>[]}={}){
      if(t.attempts>=3){unavailable(a);continue;}
      t.attempts++;
      const obstacles=[...(world.obstacles??[]),...sorted.filter(b=>b!==a).map(b=>({...position(b),type:'circle',radius:b.envelope.radius+.03}))];
-     const detour=gardenRoute({...world,obstacles},p,destination.position,a.envelope);if(detour.length)t.path=detour;t.replanAt=time+4;
+     const detour=proveRoute?(proveRoute(a,destination,null)?.path??[]):gardenRoute({...world,obstacles},p,destination.position,a.envelope);if(detour.length)t.path=detour;t.replanAt=time+4;
     }
     continue;
    }

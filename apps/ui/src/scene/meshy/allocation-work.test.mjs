@@ -2,6 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createAllocationWork} from './allocation-work.mjs';
 
+test('36 exact cache distinguishes replaced navigation functions without resetting the allowance',()=>{
+ const work=createAllocationWork();let calls=0;
+ const navigation={revision:0,groundAt:()=>{calls++;return 0;}};
+ assert.equal(work.groundAt(navigation,0,0,0,.45,1),0);
+ navigation.groundAt=()=>{calls++;return null;};
+ assert.equal(work.groundAt(navigation,0,0,0,.45,1),null,'replacement terrain cannot reuse a stale exact hit');
+ assert.equal(calls,2);
+ for(let x=1;x<250001;x++)work.groundAt(navigation,x,0,0,.45,1);
+ assert.equal(calls,250000,'both terrain adapters spend the same external ceiling');
+});
+
 test('36 exact cache keys navigation revisions and all phases share one query budget',()=>{
  const allocation=createAllocationWork();let calls=0;
  const navigation={revision:0,groundAt:()=>++calls};

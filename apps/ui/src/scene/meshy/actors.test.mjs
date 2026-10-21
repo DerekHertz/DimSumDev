@@ -24,6 +24,7 @@ test('visitors retain live identities and own skeletons, and release them when t
  const f=fixture();try{
   const {actors,den}=f;actors.applyLive([{role:'developer',ref:'work/1'},{role:'developer',ref:'work/2'}]);
   const resident=actors.actors.get('developer'),visitor=actors.actors.get('developer#work/2');
+  console.log('36 original visitor '+JSON.stringify({id:visitor.id,identity:visitor.identity,visible:visitor.panda.model.visible,homePlace:visitor.homePlace,home:visitor.home,position:visitor.panda.model.position,travel:visitor.travel,presentation:visitor.presentation}));
   assert.notEqual(visitor.panda.rig.skeleton,resident.panda.rig.skeleton);assert.equal(visitor.live.ref,'work/2');
   const before=visitor.panda.model.position.clone();actors.update(.1);assert.ok(visitor.panda.model.position.distanceTo(before)>0);assert.notEqual(visitor.panda.rig.bones.Hip_L.quaternion.w,1,'walking deforms the legs');
   actors.applyLive([]);assert.equal(den.pandaRigs.size,32);assert.equal(visitor.panda.model.parent,null);

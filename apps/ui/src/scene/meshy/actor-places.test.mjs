@@ -10,7 +10,7 @@ function fixture(groundAt,walkX=10){
 }
 
 test('36 occupied centre gives each actor an owned landing and a real second arrival',()=>{
- let queries=0;const f=fixture(x=>{assert.ok(++queries<=250000);return Math.abs(x)<.3?null:0;});
+ let queries=0;const f=fixture(x=>{assert.ok(++queries<=250000);return x>=5?0:null;});
  try{
   const first=f.actor('one');assert.equal(f.transport.prepare(first,'visitor'),true);f.actors.set(first.id,first);
   const firstHome=f.transport.places.get(first.homePlace);assert.equal(firstHome.position.x,10);assert.equal(firstHome.position.z,0);
@@ -90,13 +90,15 @@ test('36 dense no-approach allocation exhausts truthfully within a total query b
 
 test('36 primary home search preserves staging and arrival work',()=>{
  let queries=0;
- const actors=new Map(),world={navigation:{groundAt:x=>{assert.ok(++queries<=250000,'primary, staging and arrival share one external query ceiling');return Math.abs(x)<.3?null:0;}}};
+ // Eleven fitting isolated primary disks exert candidate pressure without a
+ // reversible local exit. Staging must retain work for a real arrival.
+ const disks=[{x:-10,z:0}];for(let i=0;i<10;i++)disks.push({x:-10+Math.sin(i*Math.PI/8)*.8,z:Math.cos(i*Math.PI/8)*.8});
+ const actors=new Map(),world={navigation:{groundAt:(x,z,y,r)=>{assert.ok(++queries<=250000,'primary, staging and arrival share one external query ceiling');return x>=5||disks.some(p=>Math.hypot(x-p.x,z-p.z)+r<=.45+1e-6)?0:null;}}};
  const transport=createActorPlaces({walkWorld:world,walkStart:{x:10,z:0,groundY:0}},actors,2);
  const model=new T.Group(),mesh=new T.Mesh(new T.BoxGeometry(.6,1,.6));mesh.position.y=.5;model.add(mesh);
  const actor={id:'fallback',role:'developer',home:new T.Vector3(-10,0,0),panda:{model,rig:{profile:{},poseIdle(){},poseWaddle(){}}}};
  try{
-  // No authored approach: primary homes cannot cross the barrier to the landing,
-  // but a safe staging place exists on its other side and must not be starved.
+  // Inactive homes promise local egress, not connectivity to the garden.
   assert.equal(transport.prepare(actor,'visitor',actor.home,{arrival:true}),true);
   const home=transport.places.get(actor.homePlace);assert.equal(home.kind,'staging');assert.equal(home.owner,actor.identity);assert.equal(home.occupied,true);
   assert.equal(model.visible,true);assert.match(actor.presentation,/safe place/);assert.equal(actor.arriving,true);assert.equal(actor.travel.status,'moving');
@@ -112,10 +114,52 @@ test('36 later allocation cannot seal an existing resident only body-width exit'
  function actor(id,x){const model=new T.Group(),mesh=new T.Mesh(new T.BoxGeometry(1.5,2,1.5));mesh.position.y=1;model.add(mesh);model.position.x=x;meshes.push(mesh);return{id,role:'developer',runtime:'claude',home:new T.Vector3(x,0,0),panda:{model,rig:{profile:{},poseIdle(){},poseWaddle(){}}}};}
  try{
   const first=actor('first',-5);assert.equal(transport.prepare(first),true);actors.set(first.id,first);
+  const target=transport.destination(first,{id:'exit',kind:'staging',position:{x:10,y:0,z:0},overflow:false});assert.ok(target);transport.go(first,target);
   const later=actor('later',0);transport.prepare(later);actors.set(later.id,later);
   assert.equal(later.panda.model.visible,false,'a second body has no independent exit in the single-body corridor');assert.match(later.presentation,/unavailable/i);
-  const target=transport.destination(first,{id:'exit',kind:'staging',position:{x:10,y:0,z:0},overflow:false});assert.ok(target);transport.go(first,target);
   for(let i=0;i<150;i++)transport.update(.1,false);
   assert.equal(first.travel.status,'arrived');assert.ok(Math.abs(first.panda.model.position.x-10)<.02);assert.equal(transport.places.get(target.id).owner,first.identity);
  }finally{transport.dispose();for(const mesh of meshes){mesh.geometry.dispose();mesh.material.dispose();}}
+});
+
+test('36 failed cancellation retains the complete return corridor until validated home arrival',()=>{
+ let cut=false,queries=0;
+ const ground=(x,z,y,r)=>{assert.ok(++queries<=250000,'each transaction remains externally bounded');return Math.abs(z)+r>.7||x-r< -10.6||x+r> -3.4||cut&&Math.abs(x+8.5)<=r+.04?null:0;};
+ const f=fixture(ground);
+ try{
+  const a=f.actor('retained',-10);assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);
+  queries=0;const target=f.transport.destination(a,{id:'out',kind:'leisure',position:{x:-4,y:0,z:0}});assert.ok(target);assert.equal(f.transport.go(a,target),true);
+  for(let i=0;i<15;i++){queries=0;f.transport.update(.1,false);}
+  assert.ok(a.panda.model.position.x> -7.1&&a.panda.model.position.x< -6.9);
+  const before=a.panda.model.position.clone(),oldPath=a.travel.path.map(p=>({...p}));cut=true;f.navigation.revision++;queries=0;
+  assert.equal(f.transport.home(a),false);assert.deepEqual(a.panda.model.position,before);assert.deepEqual(a.travel.path,oldPath);assert.equal(a.travel.returnRequested,true);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);assert.equal(target.owner,a.identity,'failed replacement retains the prior target');
+  queries=0;const later=f.actor('later',-8.5);assert.equal(f.transport.prepare(later),false,'no later body may seal the retained corridor');f.actors.set(later.id,later);
+  for(let i=0;i<20;i++){queries=0;f.transport.update(.1,false);}assert.deepEqual(a.panda.model.position,before);
+  cut=false;f.navigation.revision++;queries=0;
+  for(let i=0;i<30;i++){queries=0;f.transport.update(.1,false);}
+  assert.equal(a.travel.status,'arrived');assert.equal(a.travel.placeId,a.homePlace);assert.ok(a.panda.model.position.distanceTo(a.home)<.02);assert.equal(target.owner,null);
+  queries=0;const after=f.actor('after',-5);assert.equal(f.transport.prepare(after),true,'home arrival releases trip-only corridor protection');
+ }finally{f.dispose();}
+});
+
+test('36 changing trip snapshots reject atomically and release only the newly unoccupied destination',()=>{
+ let queries=0,mutate=false,f;
+ f=fixture(()=>{assert.ok(++queries<=250000);if(mutate)f.navigation.revision++;return 0;});
+ try{
+  const a=f.actor('changing',-10);assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);
+  queries=0;const target=f.transport.destination(a,{id:'new',kind:'leisure',position:{x:-4,y:0,z:0}});assert.ok(target);const before=a.panda.model.position.clone();mutate=true;
+  assert.equal(f.transport.go(a,target),false);assert.deepEqual(a.panda.model.position,before);assert.equal(a.travel,null);assert.equal(target.owner,null);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);assert.match(a.presentation,/destination unavailable/i);
+ }finally{f.dispose();}
+});
+
+test('36 a moved owned destination is reproved before the traveller receives its exact replacement route',()=>{
+ let mutate=false,changed=false,f,target,queries=0;
+ f=fixture(()=>{assert.ok(++queries<=250000);if(mutate&&!changed){changed=true;target.position.x=-6;target.revision++;}return 0;});
+ try{
+  const a=f.actor('replacement',-10);assert.equal(f.transport.prepare(a),true);f.actors.set(a.id,a);
+  queries=0;target=f.transport.destination(a,{id:'moving-target',kind:'leisure',position:{x:-4,y:0,z:0}});assert.ok(target);mutate=true;
+  assert.equal(f.transport.go(a,target),true);assert.equal(changed,true);assert.deepEqual(a.travel.path.at(-1),{x:-6,y:0,z:0});
+  for(let i=0;i<30;i++){queries=0;f.transport.update(.1,false);}
+  assert.equal(a.travel.status,'arrived');assert.equal(target.owner,a.identity);assert.ok(Math.abs(a.panda.model.position.x+6)<.02);assert.equal(f.transport.places.get(a.homePlace).owner,a.identity);
+ }finally{f.dispose();}
 });
