@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
+import {createMeshyActors} from './actors.mjs';
 import {residentCaller} from './test-fixtures/resident-caller.mjs';
 import {occupiedVertices} from './test-fixtures/occupied-vertices.mjs';
 
@@ -12,7 +13,7 @@ const state=a=>({id:a.id,identity:a.identity,visible:a.panda.model.visible,homeP
 test('36 full caller preserves all 32 owners through late arrivals, outings, failed cancellation and disconnected destinations',t=>{
  let phase='resident-construction',externalQueries=0;
  const counted=fn=>(...args)=>{externalQueries++;return fn(...args);};
- const f=residentCaller({groundAt:counted(()=>.26)}),stats={frames:0,footprints:0,segments:0,pairs:0,vertices:0},originalIds=[...f.actors.actors.keys()];
+ const f=residentCaller({groundAt:counted(()=>.26),createActors:createMeshyActors}),stats={frames:0,footprints:0,segments:0,pairs:0,vertices:0},originalIds=[...f.actors.actors.keys()];
  const nav=f.den.walkWorld.navigation;
  const diagnostics=()=>({phase,stats,externalQueries,actors:[...f.actors.actors.values()].map(state),leases:[...f.actors.places.values()].filter(p=>p.owner).map(p=>({id:p.id,owner:p.owner,position:p.position,occupied:p.occupied,departing:p.departing}))});
  const allOwned=()=>{assert.equal(f.actors.actors.size,32);for(const id of originalIds){const a=f.actors.actors.get(id);assert.equal(a.panda.model.visible,true,id+' stays visible');assert.equal(f.actors.places.get(a.homePlace)?.owner,a.identity,id+' current full identity owns home');}};
