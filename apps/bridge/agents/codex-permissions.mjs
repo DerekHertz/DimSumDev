@@ -28,8 +28,12 @@ function absolute(value) {
   return value;
 }
 function paths(value) {
-  if (!Array.isArray(value) || value.length > 100 || value.some((_, index) => !Object.hasOwn(value, index))) throw new TypeError("invalid profile path list");
+  if (!denseList(value, 100)) throw new TypeError("invalid profile path list");
   return [...new Set(value.map(absolute))];
+}
+function denseList(value, maximum) {
+  return Array.isArray(value) && value.length <= maximum && Object.keys(value).length === value.length &&
+    Array.from(value.keys()).every(index => Object.hasOwn(value, index));
 }
 function freeze(value) {
   if (object(value) || Array.isArray(value)) { for (const child of Object.values(value)) freeze(child); Object.freeze(value); }
@@ -55,7 +59,7 @@ export function compileCodexPermissions(input) {
   // it. Reject that input rather than relying on rule order to preserve a deny.
   for (const grant of [...read, ...write]) if (deny.some((protectedPath) => within(grant, protectedPath))) throw new TypeError("a grant reopens a protected denial");
   for (const grant of write) if (readOnly.some((protectedPath) => within(grant, protectedPath))) throw new TypeError("a grant reopens a governed read-only path");
-  if (!Array.isArray(policy.denyCommands) || policy.denyCommands.length > 100 || policy.denyCommands.some((command) => !Array.isArray(command) || command.length < 1 || command.length > 16 || command.some((token) => typeof token !== "string" || !/^[A-Za-z0-9_./@+-]{1,200}$/.test(token)))) throw new TypeError("unsupported command restriction grammar");
+  if (!denseList(policy.denyCommands, 100) || policy.denyCommands.some((command) => !denseList(command, 16) || command.length < 1 || command.some((token) => typeof token !== "string" || !/^[A-Za-z0-9_./@+-]{1,200}$/.test(token)))) throw new TypeError("unsupported command restriction grammar");
 
   // A custom profile with no parent starts restricted and unmatched paths deny.
   // No root-deny carveout, glob snapshot, implicit tmp write or workspace macro is
@@ -63,7 +67,10 @@ export function compileCodexPermissions(input) {
   const filesystem = { ":minimal": "read" };
   for (const root of read) filesystem[root] = "read";
   for (const root of write) filesystem[root] = "write";
-  for (const protectedPath of readOnly) filesystem[protectedPath] = "read";
+  // Governance is a ceiling, not a new read grant. Native specificity must not
+  // let a governed descendant reopen a deny or otherwise unreadable subtree.
+  for (const protectedPath of readOnly) filesystem[protectedPath] =
+    [...read, ...write].some(root => within(protectedPath, root)) && !deny.some(root => within(protectedPath, root)) ? "read" : "deny";
   for (const protectedPath of deny) filesystem[protectedPath] = "deny";
   const config = {
     default_permissions: profileId,

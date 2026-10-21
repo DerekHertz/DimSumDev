@@ -17,7 +17,8 @@ test("neutral effective restrictions translate into an exact named profile witho
   assert.equal(profile.filesystem[":root"], undefined, "restricted profiles already default to deny; no broad root grant");
   assert.equal(profile.filesystem["/project/worktrees/job"], "write");
   assert.equal(profile.filesystem["/project/node_modules"], "read");
-  for (const path of input().policy.readOnlyPaths) assert.equal(profile.filesystem[path], "read");
+  for (const path of input().policy.readOnlyPaths.slice(0, 2)) assert.equal(profile.filesystem[path], "read");
+  assert.equal(profile.filesystem["/project/.git/refs"], "deny", "governance outside admitted roots cannot add read access");
   for (const path of [...input().policy.denyPaths, input().nativeStore]) assert.equal(profile.filesystem[path], "deny");
   assert.equal(profile.network.enabled, false);
   assert.ok(!Object.hasOwn(profile, "extends"));
@@ -70,6 +71,24 @@ test("read-only roles retain read access but never gain a write root", () => {
   const fs = compiled.config.permissions[compiled.profileId].filesystem;
   assert.equal(fs["/project/worktrees/job"], "read");
   assert.ok(!Object.values(fs).includes("write"));
+});
+
+test("governed read ceilings never reopen a more-specific denied subtree or add a new readable root", () => {
+  const compiled = compileCodexPermissions(input({
+    readOnlyPaths: ["/home/user/.ssh/key", "/state/private-native/session", "/unadmitted/governance", "/project/worktrees/job/controlled"],
+  }));
+  const filesystem = compiled.config.permissions[compiled.profileId].filesystem;
+  for (const path of ["/home/user/.ssh/key", "/state/private-native/session", "/unadmitted/governance"]) assert.equal(filesystem[path], "deny");
+  assert.equal(filesystem["/project/worktrees/job/controlled"], "read");
+});
+
+test("sparse and decorated path/command lists refuse compilation rather than omitting restrictions", () => {
+  const sparse = Array(1);
+  const decorated = Object.assign(["/project/worktrees/job"], { extra: "/outside" });
+  for (const patch of [{ readRoots: sparse }, { denyPaths: sparse }, { readOnlyPaths: decorated },
+    { denyCommands: sparse }, { denyCommands: [sparse] }, { denyCommands: [Object.assign(["git", "push"], { extra: "ignored" })] }]) {
+    assert.throws(() => compileCodexPermissions(input(patch)));
+  }
 });
 
 test("config rendering quotes path keys and preserves the named profile without legacy sandbox settings", () => {

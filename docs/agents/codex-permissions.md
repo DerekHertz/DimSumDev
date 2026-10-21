@@ -10,6 +10,8 @@ The field names and filesystem precedence were inspected in the installed Ubuntu
 
 Native named profiles request network disabled, approval policy never, empty shell-environment inheritance, and disabled native delegation/hooks/plugins/alternate surfaces using real versioned configuration keys. These are configuration requests, not launch-path proof. Forbidden execution prefixes preserve the input command rules but are not shell confinement; aliases and indirect execution still need protected enforcement. Private configuration, native-store protection, canonical/symlink validation, resource enforcement, scoped connection interposition and actual native tool conformance remain required.
 
+Governed read-only paths are ceilings: they become native read entries only beneath an already admitted root and outside denied subtrees; otherwise they remain denied. They cannot introduce read access or reopen credential/store denials. Sparse or decorated policy lists are rejected instead of silently omitting restrictions.
+
 ## Offline canary and first failure
 
 `apps/bridge/agents/codex-permissions-canary.mjs` launches nothing when imported. Its explicit `--run-offline` action creates only disposable dummy files and a fresh private Codex home. It uses ephemeral native auth storage, a whitelist child environment, an owned localhost listener, and only the **den-agents-codex-task2** resource slice. It never copies existing credentials. Thirty-second execution and 64KB output bounds apply. Cleanup kills the exact returned resource group and requires `settled(3000)` before deleting the canonical random fixture root. Uncertain cleanup preserves the fixture.
