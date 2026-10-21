@@ -40,7 +40,8 @@ const GUARDRAIL_PATHS = new Map([
 ]);
 
 function git(args) {
-  return execFileSync("git", args, { encoding: "utf8" });
+  // 256 MiB: the 1 MiB default made a large diff throw ENOBUFS instead of being checked.
+  return execFileSync("git", args, { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
 }
 
 function parseDiff(range) {
