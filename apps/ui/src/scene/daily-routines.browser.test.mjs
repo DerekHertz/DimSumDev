@@ -7,7 +7,7 @@ import {lightenScene} from '../../../ci-cd/light-scene.mjs';
 
 // This tests the shipped frame loop and card wiring, with only rasterisation skipped.
 // The user's separate moving-build review checks appearance with real WebGL draws.
-test('the actual garden moves residents and koi, holds the selected identity, and respects reduced motion', {timeout:90000},async()=>{
+test('the actual garden keeps owned homes, animates idle residents and koi, holds selection, and respects reduced motion', {timeout:90000},async()=>{
  let server,browser;
  try{
   server=await createServer({configFile:'apps/ui/vite.config.mjs',configLoader:'native',server:{port:0,host:'127.0.0.1'},logLevel:'silent'});await server.listen();
@@ -30,7 +30,7 @@ test('the actual garden moves residents and koi, holds the selected identity, an
     const garment=p.getObjectByName('Shared-rig outfit'),skins=[];p.traverse(n=>{if(n.isSkinnedMesh)skins.push(n);});
     return {id,species:p.userData.species,count:garment.children.length,shared:skins.every(n=>n.skeleton===skins[0].skeleton),textured:skins.some(n=>(Array.isArray(n.material)?n.material:[n.material]).some(m=>m.map))};
    });
-   return {pandas:Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,p.position.toArray()])),fish:window.routineProbe.fish.map(f=>f.position.toArray()),outfits};
+   return {pandas:Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,p.position.toArray()])),spine:pandas.developer.getObjectByName('Spine').scale.toArray(),fish:window.routineProbe.fish.map(f=>f.position.toArray()),outfits};
   });
   assert.equal(initial.fish.length,3);assert.equal(Object.keys(initial.pandas).length,32);
   // team-and-den-ux/23: the red panda and cloud dragon wear outfits fused into their own textured body; 24 adds Bao's giant panda.
@@ -38,33 +38,34 @@ test('the actual garden moves residents and koi, holds the selected identity, an
   assert.ok(initial.outfits.every(o=>(o.species||o.count>0)&&o.shared&&o.textured),'all actual residents retain textured outfits on their shared skeleton');
   await page.waitForFunction(before=>{
    const p=window.routineProbe;
-   return p.fish.every((f,i)=>f.position.toArray().some((v,j)=>Math.abs(v-before.fish[i][j])>.02))&&Object.entries(p.pandas).some(([id,a])=>a.position.toArray().some((v,j)=>Math.abs(v-before.pandas[id][j])>.1));
+   return p.fish.every((f,i)=>f.position.toArray().some((v,j)=>Math.abs(v-before.fish[i][j])>.02))&&p.pandas.developer.getObjectByName('Spine').scale.toArray().some((v,j)=>Math.abs(v-before.spine[j])>.001);
   },initial,{timeout:15000});
   const walking=await page.evaluate(before=>{
-   const {pandas}=window.routineProbe,id=Object.keys(pandas).find(id=>pandas[id].position.toArray().some((v,j)=>Math.abs(v-before[id][j])>.1)),p=pandas[id];
+   const {pandas}=window.routineProbe,id='developer',p=pandas[id];
    const skins=[];p.traverse(n=>{if(n.isSkinnedMesh)skins.push(n);});
-   window.routineProbe.walking={id,p,skins,shoulder:p.getObjectByName('Shoulder_L').quaternion.clone()};
+   window.routineProbe.walking={id,p,skins,spine:p.getObjectByName('Spine').scale.clone()};
    return {id,species:p.userData.species,outfitMeshes:p.getObjectByName('Shared-rig outfit').children.length};
   },initial.pandas);
   assert.ok(walking.species||walking.outfitMeshes>0);
-  await page.waitForFunction(()=>{const w=window.routineProbe.walking;return w.p.getObjectByName('Shoulder_L').quaternion.angleTo(w.shoulder)>.02;},null,{timeout:10000});
+  await page.waitForFunction(()=>{const w=window.routineProbe.walking;return w.p.getObjectByName('Spine').scale.distanceTo(w.spine)>.001;},null,{timeout:10000});
   assert.ok(await page.evaluate(()=>window.routineProbe.walking.skins.every(mesh=>{
    const positions=mesh.geometry.attributes.position,point=mesh.position.clone();
    for(let i=0;i<positions.count;i+=Math.max(1,Math.floor(positions.count/40))){point.fromBufferAttribute(positions,i);mesh.applyBoneTransform(i,point);if(!point.toArray().every(Number.isFinite))return false;}
    return true;
-  })),'body and actual outfit vertices stay finite during the assembled garden walk');
+  })),'body and actual outfit vertices stay finite during assembled idle animation');
+  assert.deepEqual(await page.evaluate(()=>Object.fromEntries(Object.entries(window.routineProbe.pandas).map(([id,p])=>[id,p.position.toArray()]))),initial.pandas,'idle animation retains every owned home');
   const key=await page.evaluate(before=>{
-   const {world,pandas}=window.routineProbe,key=Object.keys(pandas).find(id=>pandas[id].position.toArray().some((v,j)=>Math.abs(v-before[id][j])>.1));
+   const {world,pandas}=window.routineProbe,key='developer';
    // Invoke the real scene pick handler; overview roofs can occlude a screen-coordinate click.
    world.__r3f.handlers.onClick({object:pandas[key],stopPropagation(){}});return key;
   },initial.pandas);
   const card=page.getByRole('region',{name:'Selected panda'});await card.waitFor();assert.match(await card.innerText(),/Resident · no agent running/);
-  await page.waitForTimeout(200);const held=await page.evaluate(key=>window.routineProbe.pandas[key].position.toArray(),key);
-  await page.waitForTimeout(350);assert.deepEqual(await page.evaluate(key=>window.routineProbe.pandas[key].position.toArray(),key),held);
+  await page.waitForTimeout(200);const held=await page.evaluate(key=>window.routineProbe.pandas[key].getObjectByName('Spine').scale.toArray(),key);
+  await page.waitForTimeout(350);assert.deepEqual(await page.evaluate(key=>window.routineProbe.pandas[key].getObjectByName('Spine').scale.toArray(),key),held);
   await page.getByRole('button',{name:'Close panda card'}).click();await card.waitFor({state:'hidden'});
-  await page.waitForFunction(({key,held})=>window.routineProbe.pandas[key].position.toArray().some((v,j)=>Math.abs(v-held[j])>.03),{key,held});
+  await page.waitForFunction(({key,held})=>window.routineProbe.pandas[key].getObjectByName('Spine').scale.toArray().some((v,j)=>Math.abs(v-held[j])>.001),{key,held});
   await page.emulateMedia({reducedMotion:'reduce'});await page.waitForTimeout(200);
-  const still=()=>page.evaluate(()=>({fish:window.routineProbe.fish.map(f=>[...f.position.toArray(),...f.children.find(n=>n.name.endsWith('tail')).quaternion.toArray()]),pandas:Object.values(window.routineProbe.pandas).map(p=>p.position.toArray())}));
+  const still=()=>page.evaluate(()=>({fish:window.routineProbe.fish.map(f=>[...f.position.toArray(),...f.children.find(n=>n.name.endsWith('tail')).quaternion.toArray()]),pandas:Object.values(window.routineProbe.pandas).map(p=>[...p.position.toArray(),...p.getObjectByName('Spine').scale.toArray()])}));
   const paused=await still();await page.waitForTimeout(350);assert.deepEqual(await still(),paused);
   await page.emulateMedia({reducedMotion:'no-preference'});
   await page.waitForFunction(before=>window.routineProbe.fish.some((f,i)=>f.position.toArray().some((v,j)=>Math.abs(v-before.fish[i][j])>.01)),paused);
