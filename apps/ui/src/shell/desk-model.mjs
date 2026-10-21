@@ -6,12 +6,17 @@ export { RESIDENTS } from './resident-inventory.mjs';
 // Presentation metadata only. Agent state and ticket identity always come from the live snapshot.
 export function deskResidents(snapshot, options = {}) {
   const bindings = options.bindings ?? actorBindings(liveActorsFromSnapshot(snapshot, options));
-  return RESIDENTS.flatMap(resident => {
+  const rows=RESIDENTS.flatMap(resident => {
     const primary = bindings.get(resident.id);
     const visitors = [...bindings].filter(([id, actor]) => residentKey(actor.role,actor.runtime) === resident.id && id !== resident.id);
     return [{ ...resident, projectId:options.projectId, ...primary, id: resident.id, state: primary?.state ?? 'resident', ref: primary?.ref ?? null, visitor: false },
       ...visitors.map(([id, actor]) => ({ ...resident, ...actor, id, visitor: true }))];
   });
+  return rows.map(row=>({...row,sceneNotes:(options.scenePresentations??[]).flatMap(p=>{
+    if(p.id===row.id&&p.ref===(row.ref??null)&&(p.agentId??null)===(row.agentId??null))return[p.presentation];
+    if(p.guest&&!row.visitor&&residentKey(p.role,p.runtime)===row.id)return['Meeting visitor · '+p.presentation];
+    return[];
+  })}));
 }
 
 export function deskActivity(snapshot, options) {

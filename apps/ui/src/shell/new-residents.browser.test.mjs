@@ -8,7 +8,7 @@ import {lightenScene} from '../../../ci-cd/light-scene.mjs';
 const ROLES=['code-reviewer','release-manager','sre','technical-writer'];
 const quiet={schema:1,seq:1,tickets:[],frontier:[],usage:null,requests:[],agents:[],placements:[],meetings:[]};
 
-test('four seated charter roles open real scene cards and bind only their exact runtime runs',{timeout:150000},async()=>{
+test('four charter roles keep real home cards and exact runtime bindings while visitors stay in Team',{timeout:150000},async()=>{
  let server,browser;
  try{
   server=await createServer({configFile:'apps/ui/vite.config.mjs',configLoader:'native',server:{port:0,host:'127.0.0.1'},logLevel:'silent'});await server.listen();
@@ -70,13 +70,13 @@ test('four seated charter roles open real scene cards and bind only their exact 
   await page.evaluate(snapshot=>window.pushResidents(snapshot),{...quiet,seq:2,agents:[...agents,visitor,foreign]});
   await page.waitForFunction(()=>{
    const p=window.charterProbe;const pandas={};p.world.traverse(node=>{if(node.userData.actorKey)pandas[node.userData.actorKey]=node;});p.pandas=pandas;
-   return pandas['release-manager#charter/02']?.userData.ticketRef==='charter/02'&&pandas['codex:technical-writer']?.userData.ticketRef==='charter/01';
+   return pandas['codex:technical-writer']?.userData.ticketRef==='charter/01';
   });
   const refs=await page.evaluate(()=>Object.fromEntries(Object.entries(window.charterProbe.pandas).map(([id,node])=>[id,node.userData.ticketRef??null])));
-  assert.equal(Object.keys(refs).length,33);
+  assert.equal(Object.keys(refs).length,32);
   for(const role of ROLES){assert.equal(refs[role],'charter/01');assert.equal(refs['codex:'+role],'charter/01');}
   assert.equal(refs.developer,null);assert.equal(refs['codex:developer'],null);assert.equal(refs['docs-writer'],null);
-  assert.equal(refs['release-manager#charter/02'],'charter/02');
+  assert.equal(refs['release-manager#charter/02'],undefined,'deferred visitor has no borrowed scene body');
   for(const role of ROLES){
    const card=await pick(role);await page.waitForFunction(role=>document.querySelector('.proximity-team')?.textContent.includes(role+' · Claude'),role);
    assert.match(await card.innerText(),/charter\/01/);assert.match(await card.innerText(),role==='sre'?/Blocked/:/Working/);
@@ -84,10 +84,13 @@ test('four seated charter roles open real scene cards and bind only their exact 
    await page.locator('.transcript-meta code').filter({hasText:new RegExp('^claude-'+role+'$')}).waitFor();
    await page.keyboard.press('Escape');await page.getByRole('button',{name:'Close panda card'}).click();
   }
-  const visitorCard=await pick('release-manager#charter/02');await page.waitForFunction(()=>document.querySelector('.proximity-ticket')?.textContent==='charter/02');
-  assert.match(await visitorCard.innerText(),/Needs your answer/);
+  await page.locator('[data-rail=team]').click();
+  await page.getByRole('list',{name:'Residents and visitors'}).getByRole('button',{name:/, release-manager, Claude,.*visitor on charter\/02/}).click();
+  const visitorCard=page.locator('.forest-profile');assert.match(await visitorCard.innerText(),/Needs you/);assert.match(await visitorCard.innerText(),/charter\/02/);
+  await visitorCard.getByText('Scene visitor deferred — available in Team',{exact:true}).waitFor();
+  assert.equal(await visitorCard.getByRole('button',{name:/View work/}).isEnabled(),true);
   await page.evaluate(snapshot=>window.pushResidents(snapshot),{...quiet,seq:3,agents:agents.map(agent=>({...agent,state:'done'}))});
-  await page.waitForFunction(()=>!window.charterProbe.world.getObjectByProperty('name','The Release Manager · visitor'));
+  await page.getByRole('list',{name:'Residents and visitors'}).getByRole('button',{name:/visitor on charter\/02/}).waitFor({state:'detached'});
   await page.waitForFunction(()=>window.charterProbe.pandas['release-manager'].userData.ticketRef===undefined);
   assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
  }finally{await browser?.close();await server?.close();}

@@ -43,24 +43,21 @@ async function open(state) {
   return { page, errors, close: async () => { await browser.close(); await server.close(); } };
 }
 
-test('a running meeting: seat labels, Bao listening, the claim, no generic chip, and the pill opens the meeting', { timeout: 90000 }, async () => {
+test('a running meeting keeps progress and its take in the panel without claiming physical seats', { timeout: 90000 }, async () => {
   const t = await open('running');
   try {
     const { page } = t;
     const pill = page.locator('.meeting-pill');
     await pill.waitFor({ timeout: 60000 });
     assert.match(await pill.innerText(), /Meeting on 57 · 1 of 3 have spoken/);
-    const seat = (key) => page.locator(`[data-seat="${key}"]`);
-    await page.waitForFunction(() => document.querySelector('[data-seat="product"]')?.style.visibility === 'visible', null, { timeout: 60000 });
-    await page.waitForFunction(() => document.querySelector('[data-seat="product"] .meeting-claim')?.textContent === 'Keep the two-week cut line.', null, { timeout: 20000 });
-    assert.match(await seat('product').getAttribute('aria-label'), /product: Said its piece\. Keep the two-week cut line\./, 'the landed take shows its claim');
-    assert.match(await seat('architect').innerText(), /Thinking/);
-    assert.match(await seat('developer').innerText(), /Waiting to speak/);
-    assert.match(await seat('orchestrator').innerText(), /Bao · Listening/);
-    assert.equal(await page.locator(`.chip[data-ref="${REF}"]`).count(), 0, 'the meeting run wears its seat label, not a chip');
+    await page.waitForFunction(()=>{const b=document.querySelector('.den-entry button');return b&&b.getAttribute('aria-disabled')!=='true';},null,{timeout:60000});
+    assert.equal(await page.locator('[data-seat]:visible').count(),0,'deferred seating has no invented visible seat labels');
+    assert.equal(await page.locator(`.chip[data-ref="${REF}"]`).count(), 0, 'the meeting run remains in its panel without a generic chip');
     await pill.click();
     const meeting = page.locator('[data-sheet=side]');
     await meeting.waitFor();
+    const take=meeting.locator('details[data-take="product"]');await take.locator('summary').click();
+    assert.match(await take.innerText(),/Claim: Keep the two-week cut line\./,'the actual landed take remains readable');
     await page.locator('[data-rail=meetings]').click();
     const card = page.locator('[data-overlay=meetings]');
     await card.waitFor();
@@ -72,20 +69,20 @@ test('a running meeting: seat labels, Bao listening, the claim, no generic chip,
   }
 });
 
-test('a briefed meeting waits on the user, and a seat opens its own take', { timeout: 90000 }, async () => {
+test('a briefed meeting waits on the user and its panel take is keyboard accessible', { timeout: 90000 }, async () => {
   const t = await open('briefed');
   try {
     const { page } = t;
     const pill = page.locator('.meeting-pill');
     await pill.waitFor({ timeout: 60000 });
     assert.match(await pill.innerText(), /Meeting on 57 · waiting on you/);
-    await page.waitForFunction(() => document.querySelector('[data-seat="orchestrator"]')?.style.visibility === 'visible', null, { timeout: 60000 });
-    assert.match(await page.locator('[data-seat="orchestrator"]').innerText(), /Bao · Brief ready · your choice/);
-    await page.locator('[data-seat="product"]').focus();
+    await pill.focus();
     await page.keyboard.press('Enter');
     const meeting = page.locator('[data-sheet=side]');
     await meeting.waitFor();
+    await meeting.locator('details[data-take="product"] summary').focus();await page.keyboard.press('Enter');
     await meeting.locator('details[data-take="product"][open]').waitFor();
+    assert.match(await meeting.locator('details[data-take="product"]').innerText(),/Claim: Keep the two-week cut line\./);
     assert.deepEqual(t.errors, []);
   } finally {
     await t.close();

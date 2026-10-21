@@ -51,6 +51,8 @@ npm ci && npm run ui    # then open http://127.0.0.1:4317/?demo=den
 - **More than one project.** The den works for other repos too, like an agency: `npm run den:project -- add <slug> <path>` onboards one with its own board and queue, and you pick the active project in the den ([ADR 0021](docs/adr/0021-agent-wall-grants-and-the-bridge-as-kernel.md)).
 - **Cheap decisions, proved before used.** Small routine choices can go to Jev, a typed-decision model, from the bridge. A use case goes live only after a labelled eval of its real job passes, and every live call logs the rule-based decision beside it for comparison ([ADR 0010](docs/adr/0010-jev-precheck-tier-and-verify-depth.md), Amendment 3).
 
+Residents have stable, individually owned homes with full-body clearance. Tea trips and extra visitor or meeting bodies are deferred; their real runs, tool inspection and desk controls remain available in Team. A resident with no fitting home stays hidden with `Scene place unavailable`; deferred runs show `Scene visitor deferred — available in Team`. Reduced motion changes animation without moving a resident or bypassing placement checks.
+
 ## Requirements
 
 - Node.js and npm.

@@ -101,6 +101,8 @@ export function App() {
   const [cursorFree, setCursorFree] = useState(false);
   const [walkPlace, setWalkPlace] = useState('Entrance');
   const [nearby, setNearby] = useState(null);
+  const [scenePresentations,setScenePresentations]=useState([]);
+  const onScenePresentations=useCallback(rows=>setScenePresentations(previous=>JSON.stringify(previous)===JSON.stringify(rows)?previous:rows),[]);
   // Overview (live den run, 2026-10-10): a clicked panda shows the card walk mode shows. `engaged` is walk mode or a
   // picked panda: the permission review and the message box stay open, and their keys act, in either.
   const [picked, setPicked] = useState(null);
@@ -391,7 +393,7 @@ export function App() {
                 <FrameCap />
                 <CameraRig store={camera} stage={stage} den={den} onModeChange={onExploreChange} onHint={setExploreHint} onCursorChange={setCursorFree} onLocationChange={setWalkPlace} />
                 <Suspense fallback={null}>
-                  <MeshyDen snapshot={snapshot} bindings={bindings} onLoadState={setGardenLoad} placements={scenePlacements} frontier={frontier} tally={tally} onOpenTally={openTally}
+                  <MeshyDen snapshot={snapshot} bindings={bindings} onScenePresentations={onScenePresentations} onLoadState={setGardenLoad} placements={scenePlacements} frontier={frontier} tally={tally} onOpenTally={openTally}
                     selected={selected} onSelect={selectTicket} stage={stage} onReady={onDenReady} onNearby={onNearby} picked={picked} onPick={pickPanda} zoneView={zoneView} onZoneClick={zoneClick} onOpenMeeting={(meeting, role) => openMeeting(meeting, role)} />
                 </Suspense>
               </Canvas>
@@ -436,7 +438,7 @@ export function App() {
           onShowMeeting={(id, from) => openMeeting(id, null, from)} onCloseMeeting={closeMeeting} onLeaveMeeting={leaveMeeting} left={left} />
         {topic === 'team' ? (
           <Sheet id="sheet-topic" slot="topic" eyebrow={SHEET_HEADS.team[0]} title={SHEET_HEADS.team[1]} closeLabel="Close panel" onClose={closeTopic} focusKey="team">
-            <Residents snapshot={snapshot} now={now} bindings={bindings} onInspectTools={inspectTools} onTalk={talkToResident} onViewWork={viewResidentWork} getTalkState={residentTalkState} />
+            <Residents snapshot={snapshot} now={now} bindings={bindings} scenePresentations={scenePresentations} onInspectTools={inspectTools} onTalk={talkToResident} onViewWork={viewResidentWork} getTalkState={residentTalkState} />
             <p className="forest-muted">{RESIDENTS.length} residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}</p>
           </Sheet>
         ) : null}

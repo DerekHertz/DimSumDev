@@ -40,3 +40,13 @@ test('profiles preserve live task identity without treating placement tool data 
   assert.equal(quiet.task, undefined);
   assert.equal(quiet.bubble, undefined);
 });
+
+test('36 Team profiles show exact unavailable visitors and unbound meeting copies without changing run state',()=>{
+ const snapshot={agents:[{id:'one',role:'developer',ref:'work/one',state:'working'},{id:'two',role:'developer',ref:'work/two',state:'working'}]};
+ const rows=deskResidents(snapshot,{scenePresentations:[{id:'developer#work/two',role:'developer',runtime:'claude',ref:'work/two',agentId:'two',presentation:'Scene place unavailable'},{id:'meeting:developer',role:'developer',runtime:'claude',ref:null,guest:true,presentation:'Scene place unavailable'}]});
+ assert.deepEqual(rows.find(r=>r.id==='developer#work/two').sceneNotes,['Scene place unavailable']);
+ assert.deepEqual(rows.find(r=>r.id==='developer').sceneNotes,['Meeting visitor · Scene place unavailable']);
+ assert.equal(rows.find(r=>r.id==='developer#work/two').state,'working');
+ const stale=deskResidents(snapshot,{scenePresentations:[{id:'developer#work/two',role:'developer',runtime:'claude',ref:'work/other',agentId:'old',presentation:'Scene place unavailable'}]});
+ assert.deepEqual(stale.find(r=>r.id==='developer#work/two').sceneNotes,[],'old actor presentation never attaches to a different run');
+});
