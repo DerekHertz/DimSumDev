@@ -81,3 +81,5 @@ Comment text is never copied. The board does not record the owner's name, approv
 - **Producer.** No runtime emits tree events yet. Today's relays are flat: the recorded run shows six managers directly under the owner and no runners, so it carries two over-limit warnings. Replaying a real tree needs codex-residents/07 or later.
 - **Storage and sharing.** The den opens replays bundled in `apps/ui/src/audit/runs/` and local files. Opening a saved replay from the board (`.scratch/<feature>/replays/`) by a stable link needs a bridge read route (for example `GET /replays/:id`, a GET-only row in `routes.mjs`). That is bridge work, which the user merges. Until then, a PR links a bundled replay by name, or attaches an exported file.
 - **Provenance.** The viewer checks structure, not who wrote the log. Animation is not proof, and the log is not tamper-proof.
+
+Screenshots from the browser test (`DEN_AUDIT_EVIDENCE_DIR`): [the sample at event 25](hierarchy-replay/sample-event-25.png), [the recorded run with an inspected event](hierarchy-replay/recorded-ticket-50.png), and [a phone with reduced motion](hierarchy-replay/phone-reduced-motion.png).
