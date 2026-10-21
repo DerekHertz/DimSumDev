@@ -584,7 +584,27 @@
         }
       ],
       "roleId": "technical-writer"
+    },
+    "characters.bao": {
+      "url": "/den/models/characters/bao.glb.gz",
+      "kind": "character",
+      "sourceFilename": "remesh-a-7500.glb",
+      "triangles": 7767,
+      "bytes": 288510,
+      "sha256": "296860c4a4c62899c95ba376574d7c3f23eb09be17f71d7f9eb8ca112be03de8",
+      "compression": "gzip",
+      "decodedBytes": 400196,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ],
+      "roleId": "orchestrator",
+      "characterId": "bao",
+      "runtime": "claude"
     }
   },
-  "bytes": 27052078
+  "bytes": 27340588
 }

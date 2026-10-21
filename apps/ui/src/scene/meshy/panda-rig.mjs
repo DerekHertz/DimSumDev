@@ -119,7 +119,7 @@ export function createRig(source, profile) {
   model.updateMatrixWorld(true);
   const skeleton = new T.Skeleton(boneList); skeleton.calculateInverses();
   const meshes = [], outfits = new T.Group(); outfits.name = 'Shared-rig outfit'; travelRoot.add(outfits);
-  const originalMaterials = new Map();
+  const originalMaterials = new Map(), authoredColors = new Map(), weightColors = new Map();
   const weightMaterial = new T.MeshStandardMaterial({ vertexColors: true, roughness: .85 });
   let weightsVisible = false;
   function skinObject(object, parent, transform = new T.Matrix4(), headOnly = false) {
@@ -139,7 +139,9 @@ export function createRig(source, profile) {
         color.setHSL((indices[weights[0][0]] * .173) % 1, .62, .57); color.toArray(colors, i * 3);
       }
       geometry.setAttribute('skinIndex', new T.Uint16BufferAttribute(skinIndices, 4));
-      geometry.setAttribute('skinWeight', new T.Float32BufferAttribute(skinWeights, 4)); geometry.setAttribute('color', new T.Float32BufferAttribute(colors, 3));
+      geometry.setAttribute('skinWeight', new T.Float32BufferAttribute(skinWeights, 4));
+      const painted = geometry.getAttribute('color'), debug = new T.Float32BufferAttribute(colors, 3);
+      if (!painted) geometry.setAttribute('color', debug);
       const clone = material => {
         const result = material.clone();
         // Three's material clone omits these callbacks; the approved role colors use them.
@@ -153,6 +155,7 @@ export function createRig(source, profile) {
       parent.add(mesh); mesh.bind(skeleton, new T.Matrix4()); originalMaterials.set(mesh, materials);
       if (weightsVisible) mesh.material = weightMaterial;
       meshes.push(mesh);
+      authoredColors.set(mesh, painted); weightColors.set(mesh, debug);
     });
   }
   skinObject(source, travelRoot, normalize);
@@ -160,6 +163,18 @@ export function createRig(source, profile) {
     travelRoot.position.set(0, 0, 0);
     for (const bone of boneList) { bone.position.copy(restLocal[bone.name]); bone.quaternion.identity(); bone.scale.set(1, 1, 1); }
     model.updateMatrixWorld(true); skeleton.update();
+  }
+  function restArms(breath = 0) {
+    for (const [side, sign] of [['L', 1], ['R', -1]]) {
+      bones['Shoulder_' + side].rotation.z = -sign * (arms.drop - .008 * breath) * arms.swing[side];
+      bones['Elbow_' + side].rotation.x = -.12 * arms.swing[side];
+    }
+  }
+  function reducedRest() {
+    // Some imported sources need a fitted neutral pose instead of their bind
+    // pose. Opt in per profile so existing characters retain their static rest.
+    if (arms.restInReducedMotion) restArms();
+    model.updateMatrixWorld(true); skeleton.update(); return null;
   }
   const up = new T.Vector3(0, 0, 1), inverse = new T.Quaternion(), desired = new T.Vector3();
   function solveLeg(side, targetLocal) {
@@ -181,7 +196,7 @@ export function createRig(source, profile) {
     ankle.quaternion.copy(inverse).multiply(travelRoot.getWorldQuaternion(new T.Quaternion())); ankle.updateWorldMatrix(false, true);
   }
   function poseWaddle(time, { travel = false, reducedMotion = false, ...settings } = {}) {
-    resetPose(); if (reducedMotion) return null;
+    resetPose(); if (reducedMotion) return reducedRest();
     const gait = sampleWaddle(time, { foot: profile.foot, ...settings }), phase = gait.cycles * Math.PI * 2;
     travelRoot.position.z = travel ? gait.distance : 0;
     const sway = Math.cos(phase - Math.PI * .6);
@@ -218,7 +233,7 @@ export function createRig(source, profile) {
     model.updateMatrixWorld(true); skeleton.update(); return gait;
   }
   function poseIdle(time, { reducedMotion = false } = {}) {
-    resetPose(); if (reducedMotion) return null;
+    resetPose(); if (reducedMotion) return reducedRest();
     if (!Number.isFinite(time)) throw Error('Invalid panda idle time');
     const cycles = time / IDLE.duration, breath = (1 - Math.cos(cycles * Math.PI * 2)) / 2;
     // Expand only the upper body. The pelvis, legs and soles stay planted;
@@ -227,10 +242,7 @@ export function createRig(source, profile) {
     bones.Chest.scale.set(1 + .008 * breath, 1 + .004 * breath, 1 + .012 * breath);
     bones.Chest.position.y += .006 * breath;
     bones.Head.rotation.x = -.006 * breath;
-    for (const [side, sign] of [['L', 1], ['R', -1]]) {
-      bones['Shoulder_' + side].rotation.z = -sign * (arms.drop - .008 * breath) * arms.swing[side];
-      bones['Elbow_' + side].rotation.x = -.12 * arms.swing[side];
-    }
+    restArms(breath);
     profile.animate?.(bones, { kind: 'idle', phase: cycles * Math.PI * 2, breath });
     model.updateMatrixWorld(true); skeleton.update();
     return { cycles, breath };
@@ -244,8 +256,8 @@ export function createRig(source, profile) {
     for (const [side, sign] of [['L', 1], ['R', -1]]) {
       // Legs come forward and splay outward, teddy-bear style, so short legs clear a round belly.
       bones['Hip_' + side].rotation.set(-hip, 0, sign * splay); bones['Knee_' + side].rotation.x = knee;
-      bones['Shoulder_' + side].rotation.z = -sign * (arms.drop - .008 * breath) * arms.swing[side]; bones['Elbow_' + side].rotation.x = -.12 * arms.swing[side];
     }
+    restArms(breath);
     bones.Chest.scale.set(1 + .008 * breath, 1 + .004 * breath, 1 + .012 * breath);
     profile.animate?.(bones, { kind: 'sit', phase: time / IDLE.duration * Math.PI * 2, breath, reducedMotion, drop });
     model.updateMatrixWorld(true); skeleton.update();
@@ -257,7 +269,10 @@ export function createRig(source, profile) {
   }
   function setWeightColors(visible) {
     weightsVisible = visible;
-    for (const mesh of meshes) mesh.material = visible ? weightMaterial : originalMaterials.get(mesh);
+    for (const mesh of meshes) {
+      mesh.material = visible ? weightMaterial : originalMaterials.get(mesh);
+      mesh.geometry.setAttribute('color', visible ? weightColors.get(mesh) : authoredColors.get(mesh) || weightColors.get(mesh));
+    }
   }
   function dispose() {
     const materials = new Set([weightMaterial]);
