@@ -23,6 +23,7 @@ export function ProximityCard({ card, onTranscript, onAnswer, onMessage, onInspe
       <p className="proximity-state">{STATE_LABELS[card.state] || card.state}</p>
     </header>
     {card.ref ? <p className="proximity-ticket">{card.ref}</p> : null}
+    {card.presentation ? <p className="proximity-state">{card.presentation}</p> : null}
     {card.tool ? <p className="proximity-tool"><strong>{card.tool.name}</strong>{card.tool.summary ? ` · ${card.tool.summary}` : ''}</p> : null}
     {card.approval ? <p className="proximity-pending"><span className="proximity-lantern" aria-hidden="true" />{pendingLine(card)}</p> : null}
     {card.last ? <div className="proximity-result">

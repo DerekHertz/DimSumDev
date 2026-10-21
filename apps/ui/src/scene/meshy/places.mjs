@@ -1,6 +1,6 @@
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const KINDS=new Set(['work','meeting','leisure','visitor','staging']);
-export const actorIdentity=actor=>JSON.stringify([actor.projectId??null,actor.runtime??'claude',actor.role??null,actor.agentId??actor.id??null,actor.ref??null]);
+export const actorIdentity=actor=>JSON.stringify([actor.projectId??actor.project??null,actor.runtime??'claude',actor.role??null,actor.agentId??actor.id??null,actor.ref??null]);
 
 // One scene-owned registry. A lease owns an envelope, not merely a role or a coordinate.
 export function createPlaceRegistry(world){
@@ -8,7 +8,7 @@ export function createPlaceRegistry(world){
  function define({id,kind,position}){
   if(!KINDS.has(kind))throw Error('Unknown place kind: '+kind);
   const old=places.get(id);if(old)return old;
-  const place={id,kind,position:{...position},owner:null,envelope:null,occupied:false,departing:false};places.set(id,place);revision++;return place;
+  const place={id,kind,position:{...position},owner:null,envelope:null,occupied:false,departing:false,revision:0};places.set(id,place);revision++;return place;
  }
  function fits(position,envelope,owner,ignore=null){
   const y=world.navigation.groundAt(position.x,position.z,position.y,envelope.radius,envelope.height);
@@ -18,19 +18,21 @@ export function createPlaceRegistry(world){
  }
  function reserve(id,owner,envelope){
   const p=places.get(id);if(!p||p.owner&&p.owner!==owner||!fits(p.position,envelope,owner,id))return null;
-  if(p.owner!==owner){p.owner=owner;p.envelope={...envelope};p.occupied=false;p.departing=false;revision++;}return p;
+  if(p.owner!==owner){p.owner=owner;p.envelope={...envelope};p.occupied=false;p.departing=false;p.revision++;revision++;}return p;
  }
- function clear(p){p.owner=null;p.envelope=null;p.occupied=false;p.departing=false;revision++;}
+ function clear(p){p.owner=null;p.envelope=null;p.occupied=false;p.departing=false;p.revision++;revision++;}
  function release(id,owner){const p=places.get(id);if(p?.owner!==owner)return;if(p.occupied){p.departing=true;}else clear(p);}
  function occupy(id,owner){const p=places.get(id);if(p?.owner!==owner)return false;p.occupied=true;p.departing=false;return true;}
  function clearDeparted(owner,position,envelope){for(const p of places.values())if(p.owner===owner&&p.departing&&distance(position,p.position)>envelope.radius+p.envelope.radius+.1)clear(p);}
  function cancel(owner){for(const p of places.values())if(p.owner===owner&&p.kind!=='work')release(p.id,owner);}
  function disposeActor(owner){for(const p of places.values())if(p.owner===owner)clear(p);}
+ function rebind(from,to){if(from===to)return;for(const p of places.values())if(p.owner===from)p.owner=to;revision++;}
  function find({id,kind,near,owner,envelope}){
+  const existing=places.get(id);if(existing?.owner)return reserve(id,owner,envelope);
   const candidates=[{...near}];
   for(let ring=1;ring<=8;ring++)for(let step=0;step<16;step++){const angle=step*Math.PI/8,r=ring*Math.max(.8,envelope.radius*1.5);candidates.push({x:near.x+Math.sin(angle)*r,y:near.y,z:near.z+Math.cos(angle)*r});}
-  for(const position of candidates){const y=world.navigation.groundAt(position.x,position.z,position.y,envelope.radius,envelope.height);if(y===null)continue;position.y=y;if(!fits(position,envelope,owner))continue;const place=define({id,kind,position});if(reserve(place.id,owner,envelope))return place;}
+  for(const position of candidates){const y=world.navigation.groundAt(position.x,position.z,position.y,envelope.radius,envelope.height);if(y===null)continue;position.y=y;if(!fits(position,envelope,owner))continue;const place=define({id,kind,position});if(existing)place.position={...position};if(reserve(place.id,owner,envelope))return place;}
   return null;
  }
- return {define,get:id=>places.get(id),values:()=>places.values(),reserve,occupy,release,cancel,disposeActor,clearDeparted,find,fits,get revision(){return revision;},dispose(){places.clear();revision++;}};
+ return {define,get:id=>places.get(id),values:()=>places.values(),reserve,occupy,release,cancel,disposeActor,rebind,clearDeparted,find,fits,get revision(){return revision;},dispose(){places.clear();revision++;}};
 }

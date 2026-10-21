@@ -63,7 +63,7 @@ test('arrivals, leisure walks and returns, meeting guests and returns travel at 
   const moved=Math.hypot(a.panda.model.position.x-before.x,a.panda.model.position.z-before.z);
   assert.ok(Math.abs(moved-.078)<1e-7,label+' travels 20% faster than .65');
   const gaitDistance=(a.gait-gait)/WADDLE.duration*WADDLE.stride*a.panda.model.scale.x;
-  assert.ok(Math.abs(gaitDistance-moved)<1e-7,label+' gait follows distance');
+  assert.ok(Math.abs(gaitDistance-moved)<1e-7,`${label} gait follows distance (${gaitDistance} vs ${moved}; ${gait} -> ${a.gait})`);
  };
  const f=fixture();try{
   const {actors}=f;
@@ -125,7 +125,7 @@ test('holding a tea visitor pauses the sip and its visit clock until the same ca
  const f=fixture();try{
   const {actors}=f;let a;
   for(let i=0;i<1500&&!a;i++){actors.update(.1);a=[...actors.actors.values()].find(a=>a.routine?.stage==='visit'&&a.routine.spot.kind==='tea');}
-  assert.ok(a);actors.hold(a.role);const elapsed=a.routine.elapsed,paw=a.panda.rig.bones.paw_L.matrixWorld.clone();
+  assert.ok(a);actors.hold(a.id);const elapsed=a.routine.elapsed,paw=a.panda.rig.bones.paw_L.matrixWorld.clone();
   advance(actors,20);assert.equal(a.routine.elapsed,elapsed);assert.ok(a.panda.rig.bones.paw_L.matrixWorld.equals(paw));assert.equal(a.gesture.cup.visible,true);
   actors.hold(null);advance(actors,1);assert.ok(a.routine.elapsed>elapsed);assert.ok(!a.panda.rig.bones.paw_L.matrixWorld.equals(paw));
  }finally{f.dispose();}
@@ -150,12 +150,46 @@ test('reduced motion settles routines home and holds them; unreachable trips wai
   for(const a of actors.actors.values())assert.ok(a.panda.model.position.distanceTo(a.home)<.001);
  }finally{f.dispose();}
 });
-test('unreachable meeting travel retries at most twice, holds position, and reduced motion settles its seat',()=>{
+test('unreachable meeting travel retries at most twice, holds position, and reduced motion preserves safe unavailability',()=>{
  const f=fixture();try{
   const {actors,den}=f;den.routineSpots.length=0;let queries=0;den.walkWorld.navigation.groundAt=()=>{queries++;return null;};
   const a=actors.actors.get('developer'),home=a.home.clone();actors.applyMeeting({id:'m/1',ref:'m/1',state:'running',seats:[{role:'developer'}]});
-  const first=queries;advance(actors,7);assert.equal(queries,first);advance(actors,2);assert.ok(queries>first);advance(actors,30);assert.equal(queries,first*3);assert.deepEqual(a.panda.model.position,home);
-  actors.update(.1,true);assert.equal(a.panda.model.position.x,a.seat.x);assert.equal(a.panda.model.position.z,a.seat.z);
+  const first=queries;advance(actors,7);assert.equal(queries,first);advance(actors,2);assert.ok(queries>first);advance(actors,30);assert.equal(a.travel.attempts,3);const exhausted=queries;advance(actors,30);assert.equal(queries,exhausted);assert.deepEqual(a.panda.model.position,home);
+  actors.update(.1,true);assert.deepEqual(a.panda.model.position,home);assert.equal(a.travel.status,'unavailable');assert.match(a.presentation,/unavailable/i);assert.equal(a.travel.attempts,3);
+ }finally{f.dispose();}
+});
+test('36 homes, visitor overflow and leisure leases share full-identity ownership and measured envelopes',()=>{
+ const f=fixture();try{
+  const {actors}=f;assert.ok(actors.places);
+  actors.applyLive([{role:'developer',runtime:'claude',projectId:'one',agentId:'one',ref:'work/1'},{role:'developer',runtime:'claude',projectId:'two',agentId:'two',ref:'work/2'},{role:'developer',runtime:'codex',projectId:'one',agentId:'three',ref:'work/1'}]);
+  const allocated=[...actors.actors.values()].filter(a=>a.panda.model.visible);
+  for(const a of allocated){const home=actors.places.get(a.homePlace);assert.equal(home.owner,a.identity);assert.ok(a.envelope.radius>0);assert.ok(a.envelope.height>0);}
+  for(const a of allocated)for(const b of allocated)if(a!==b)assert.ok(a.home.distanceTo(b.home)>=a.envelope.radius+b.envelope.radius+.049);
+  advance(actors,4);const outing=[...actors.actors.values()].find(a=>a.routine);assert.ok(outing);
+  assert.equal(actors.places.get(outing.homePlace).owner,outing.identity);
+  assert.equal(actors.places.get(outing.travel.placeId).kind,'leisure');assert.equal(actors.places.get(outing.travel.placeId).owner,outing.identity);
+ }finally{f.dispose();}
+});
+test('36 occupied leisure destination remains owned until returning actor clears it; vanished visitor releases all leases',()=>{
+ const f=fixture();try{
+  const {actors}=f;let a;
+  for(let i=0;i<2000&&!a;i++){actors.update(.1);a=[...actors.actors.values()].find(a=>a.routine?.stage==='visit');}
+  assert.ok(a);const temporary=actors.places.get(a.travel.placeId),at=a.panda.model.position.clone();
+  actors.applyLive([{role:a.role,runtime:a.runtime,projectId:'one',agentId:'new-run',ref:'work/new'}]);
+  assert.deepEqual(a.panda.model.position,at);assert.equal(temporary.owner,a.identity);assert.equal(temporary.departing,true);
+  assert.equal(actors.places.reserve(temporary.id,'intruder',a.envelope),null);
+  advance(actors,5);assert.notEqual(temporary.owner,a.identity);assert.ok(a.panda.model.position.distanceTo(at)>a.envelope.radius*2+.1);
+  actors.applyLive([{role:'developer',ref:'work/1'},{role:'developer',agentId:'visitor-run',ref:'work/2'}]);
+  const visitor=actors.actors.get('developer#work/2'),owner=visitor.identity;assert.ok([...actors.places.values()].some(p=>p.owner===owner));
+  actors.applyLive([]);assert.equal([...actors.places.values()].some(p=>p.owner===owner),false);
+ }finally{f.dispose();}
+});
+test('36 a blocked leisure route never becomes a visit or fires a leisure effect',()=>{
+ const f=fixture();try{
+  const {actors,den}=f;advance(actors,2.1);const a=[...actors.actors.values()].find(a=>a.routine);assert.ok(a);
+  const at=a.panda.model.position.clone();den.walkWorld.navigation.groundAt=()=>null;
+  advance(actors,40);assert.notEqual(a.routine?.stage,'visit');assert.deepEqual(a.panda.model.position,at);assert.equal(f.feeds,0);
+  assert.equal(a.travel.status,'unavailable');assert.ok(a.routineFailures.has('tea'));actors.update(.1,true);assert.deepEqual(a.panda.model.position,at);assert.notEqual(a.travel.status,'arrived');assert.match(a.presentation,/waiting|unavailable/i);
  }finally{f.dispose();}
 });
 test('busy residents keep working while independent meeting guests walk, sit and return home',()=>{

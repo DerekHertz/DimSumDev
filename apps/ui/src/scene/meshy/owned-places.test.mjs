@@ -53,6 +53,18 @@ test('failed routes hold with bounded three attempts, release destination and ne
  for(let i=0;i<300;i++)travel.update([a],.1,true);
  assert.equal(calls,last);assert.deepEqual(a.position,{x:0,y:0,z:0});assert.equal(a.travel.status,'unavailable');
 });
+test('exhausted travel retains home and ignores repeated requests and unrelated leases until relevant navigation changes',()=>{
+ let blocked=false;const world={navigation:{revision:0,groundAt:()=>blocked?null:0}},places=createPlaceRegistry(world),travel=createActorTravel(world,places,{speed:2});
+ const a=actor('one',0);places.define({id:'home',kind:'work',position:{x:3,y:0,z:0}});places.reserve('home',a.identity,body);places.occupy('home',a.identity);a.homePlace='home';blocked=true;
+ travel.request(a,'home');for(let i=0;i<400;i++)travel.update([a],.1);
+ assert.equal(a.travel.status,'unavailable');assert.equal(a.travel.attempts,3);assert.equal(places.get('home').owner,a.identity);assert.equal(places.get('home').departing,false);
+ places.define({id:'unrelated',kind:'leisure',position:{x:20,y:0,z:0}});
+ for(let i=0;i<50;i++){travel.request(a,'home');travel.update([a],.1);}
+ assert.equal(a.travel.attempts,3);assert.equal(a.travel.status,'unavailable');assert.equal(a.position.x,0);
+ blocked=false;world.navigation.revision++;
+ for(let i=0;i<50;i++)travel.update([a],.1);
+ assert.equal(a.travel.status,'arrived');assert.equal(a.travel.attempts,1);assert.equal(places.get('home').owner,a.identity);
+});
 for(const reverse of [false,true])test(`two nearby moving actors yield without overlap and both arrive (reverse=${reverse})`,()=>{
  const places=createPlaceRegistry(flat),travel=createActorTravel(flat,places,{speed:2});
  const a=actor('a',-3,0),b=actor('b',0,-3);
@@ -85,5 +97,6 @@ test('a blocked narrow corridor holds actors apart without pretending either arr
   travel.update([b,a],.1);yielded ||= [a,b].some(a=>a.travel.status==='yielding');
   assert.ok(Math.hypot(a.position.x-b.position.x,a.position.z-b.position.z)>=body.radius*2-.001);
  }
- assert.equal(yielded,true);assert.equal(a.travel.status,'yielding');assert.equal(b.travel.status,'yielding');
+ assert.equal(yielded,true);assert.equal(a.travel.status,'unavailable');assert.equal(b.travel.status,'unavailable');
+ assert.equal(a.travel.attempts,3);assert.equal(b.travel.attempts,3);assert.equal(places.get('left').owner,null);assert.equal(places.get('right').owner,null);
 });

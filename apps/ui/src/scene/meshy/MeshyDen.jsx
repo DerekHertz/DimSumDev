@@ -41,7 +41,7 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
   const labelAt=model=>model.localToWorld(new THREE.Vector3(0,(l.den.pandaRigs.get(model)?.rig.profile.envelope?.head.top??3)+.4,0));
   const figures=l.agents.liveFigures(),anchorsNow=new Map();
   const toolAnchors=stage.toolAnchors??(stage.toolAnchors=new Map());toolAnchors.clear();
-  for(const [id,a]of l.agents.actors)toolAnchors.set(id,{top:labelAt(a.panda.model),base:a.panda.model.getWorldPosition(new THREE.Vector3())});
+  for(const [id,a]of l.agents.actors)if(a.panda.model.visible)toolAnchors.set(id,{top:labelAt(a.panda.model),base:a.panda.model.getWorldPosition(new THREE.Vector3())});
   for(const [key,{model,ref,runtime}]of figures){const at=labelAt(model);anchorsNow.set(key,at);if(runtime==='claude')anchorsNow.set(ref,at);}
   for(const key of l.anchored)if(!anchorsNow.has(key)){stage.anchors.delete(key);l.anchored.delete(key);}
   for(const [key,at]of anchorsNow){stage.anchors.set(key,at);l.anchored.add(key);}
@@ -56,11 +56,11 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
   let card=null;const walking=!!stage.explorer?.active,pick=walking?null:inputs.current.picked;
   if(walking||pick!=null){
    const snap=inputs.current.snapshot,boundRefs=new Set([...l.agents.actors.values()].filter(a=>a.live).map(a=>boundAgentKey(a.live)));
-   const pandas=[...l.agents.actors].map(([id,a])=>{
+   const pandas=[...l.agents.actors].filter(([,a])=>a.panda.model.visible).map(([id,a])=>{
     const identity={role:a.role,runtime:a.runtime,projectId:a.live?.projectId,agentId:a.live?.agentId,ref:a.live?.ref};
     const position=a.panda.model.getWorldPosition(new THREE.Vector3()),agent=agentFor(identity,snap?.agents,boundRefs);
     const placement=a.live?(snap?.placements||[]).filter(row=>row.ref===a.live.ref&&sameResident({...row,role:row.role||a.role},identity)).reduce((last,row)=>!last||Date.parse(row.lastEventAt)>Date.parse(last.lastEventAt)?row:last,null):null;
-    return {id,name:a.name,...identity,dispatchable:!a.concept,team:a.team,position:{x:position.x,z:position.z},ref:a.live?.ref,state:a.live?.state||'resident',tool:placement?.tool??null,agent};
+    return {id,name:a.name,...identity,dispatchable:!a.concept,team:a.team,position:{x:position.x,z:position.z},ref:a.live?.ref,state:a.live?.state||'resident',presentation:a.presentation,tool:placement?.tool??null,agent};
    });
    const camera=walking?stage.explorer.camera:null;
    card=camera?cardFor(pandas,snap?.approvals||[],{x:camera.position.x,z:camera.position.z,yaw:camera.rotation.y}):pickedCard(pandas,snap?.approvals||[],pick);

@@ -83,7 +83,7 @@ function cardOf(nearest, approvals) {
   return {
     id: nearest.id, name: nearest.name, role: nearest.role, team: nearest.team, runtime, projectId:nearest.projectId,
     agentId: agent?.id ?? null, threadId: agent?.id ?? (desk ? (past?.ref === DESK_REF ? past.id : DESK_THREAD) : past?.id ?? null), ref: agent?.ref ?? nearest.ref ?? null, start,
-    state, tool: agent ? agent.tool ?? null : nearest.agent ? null : nearest.tool ?? null, approval, actions,
+    state, presentation:nearest.presentation??null, tool: agent ? agent.tool ?? null : nearest.agent ? null : nearest.tool ?? null, approval, actions,
     last: past ? {
       state: past.state, ref: typeof past.ref === 'string' ? past.ref : null, label: `Last task: ${LAST[past.state]}`,
       reply: typeof past.reply === 'string' && past.reply ? past.reply : null,

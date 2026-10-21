@@ -5,6 +5,14 @@ import { agentFor, cardFor, costLabel, START_ROLES, STATE_LABELS } from './proxi
 import { LIVE_STATES } from '../../../bridge/agents/policy.mjs';
 import { ROLES } from '../../../bridge/agents/policy.mjs';
 
+test('36 presentation availability is separate from real agent state and admission actions',()=>{
+ const panda={id:'developer',role:'developer',runtime:'claude',position:{x:0,z:-1},state:'resident',presentation:'Scene destination unavailable'};
+ const idle=cardFor([panda],[],{x:0,z:0,yaw:0});
+ assert.equal(idle.presentation,panda.presentation);assert.equal(idle.state,'resident');assert.equal(idle.start,true);
+ const busy=cardFor([{...panda,agent:{id:'run36',state:'working',capabilities:{send:true}}}],[],{x:0,z:0,yaw:0});
+ assert.equal(busy.presentation,panda.presentation);assert.equal(busy.state,'working');assert.equal(busy.actions.T.enabled,true);
+});
+
 test('walking toward pandas shows the nearest one in reach and facing the viewer', () => {
   const pandas = [
     { id: 'far', name: 'Far', role: 'qa', position: { x: 0, z: -2.8 } },
