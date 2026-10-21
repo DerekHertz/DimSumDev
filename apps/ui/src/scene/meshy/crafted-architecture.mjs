@@ -187,14 +187,20 @@ export function bakeCrafted(source) {
     geometry.applyMatrix4(o.matrixWorld); geometry.deleteAttribute('uv');
     if (!geometry.attributes.normal) geometry.computeVertexNormals();
     if (!buckets.has(o.material)) buckets.set(o.material, []);
-    buckets.get(o.material).push(geometry);
+    buckets.get(o.material).push({geometry,walkable:o.userData.navigationSurface==='walkable'});
   });
   const group = new T.Group();
   for (const [material, parts] of buckets) {
-    const geometry = mergeGeometries(parts, false);
+    const geometry = mergeGeometries(parts.map(part=>part.geometry), false);
     const result = new T.Mesh(geometry, material); result.name = material.name || 'crafted-detail';
+    // Retain source-solid boundaries for navigation without changing render buffers
+    // or draw batches: a shared material does not make the intervening air solid.
+    let start=0;
+    result.userData.navigationParts=parts.map(({geometry,walkable})=>{
+      const count=geometry.attributes.position.count,part={start,count,walkable};start+=count;return part;
+    });
     result.castShadow = result.receiveShadow = true; group.add(result);
-    parts.forEach(part => part.dispose());
+    parts.forEach(part => part.geometry.dispose());
   }
   source.traverse(o => {if (o.userData.temporaryGeometry) o.geometry.dispose();});
   return group;

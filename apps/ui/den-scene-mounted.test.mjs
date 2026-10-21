@@ -174,6 +174,12 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
         if(n.userData.tool)tools.push(n.userData.tool);
         if(n.userData.placeId==='grove')landscape={root:n};else if(n.userData.placeId)assets[n.userData.placeId]={root:n};
       });
+      landscape.fields=landscape.root.getObjectByName('Five flooded rice terraces with rounded green banks');
+      landscape.waterGroup=landscape.root.getObjectByName('Pale jade-blue water and hand-drawn ripples');
+      const pond=assets.tea.root.getObjectByName('Koi pond, lotus leaves, and curved timber bridge');
+      const water=pond?.children.filter(n=>n.isMesh&&n.material?.transparent===true&&n.material.depthWrite===false);
+      if(!landscape.fields||!landscape.waterGroup||water?.length!==1)throw new Error('Mounted garden must expose terrace banks, grove water and exactly one tea pond water mesh');
+      assets.tea.waterSurface=water[0];
       const nav=createGardenNavigation({root:world,assets,landscape});
       const coordinatorTools=Object.fromEntries(roles.filter(n=>n.userData.roleId==='orchestrator').map(n=>{const tools=new Set();n.traverse(child=>{if(child.userData.tool)tools.add(child.userData.tool);});return [n.userData.actorKey,[...tools]];}));
       const routes=roles.map(n=>({role:n.userData.roleId,out:gardenRoute(nav,n.position,{x:-3.5,z:3.15}).length,home:gardenRoute(nav,{x:-3.5,y:.26,z:3.15},n.position).length}));
