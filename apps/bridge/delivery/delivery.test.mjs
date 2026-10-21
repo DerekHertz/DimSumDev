@@ -1210,7 +1210,7 @@ describe("delivery reads its steps from the floor", () => {
   });
 
   test("the writer runs after the developer, its commit is a new candidate, and the reviews read that commit", async () => {
-    const t = await setup();
+    const t = await setup({ runtimeConfig: { answer: {} } }); // drive the code reviewer too: the default setup answers it by itself
     t.git.files = ["tools/x.mjs", "docs/a.md"];
     await t.start();
     const first = t.work(await t.spawn(0), { commit: "feature.txt", say: "Added." });
@@ -1223,6 +1223,7 @@ describe("delivery reads its steps from the floor", () => {
     const reviewer = await t.spawn(2);
     assert.equal(roleOf(reviewer), "code-reviewer");
     assert.equal(git(reviewer.args.cwd, "rev-parse", "HEAD"), second, "the reviews read the writer's commit");
+    t.work(reviewer, { say: "VERDICT: pass" });
     const qa = await t.spawn(3);
     assert.equal(roleOf(qa), "qa");
     assert.equal(git(qa.args.cwd, "rev-parse", "HEAD"), second);
@@ -1233,7 +1234,7 @@ describe("delivery reads its steps from the floor", () => {
   });
 
   test("a writer run that commits nothing still counts: the reviews follow at the same commit", async () => {
-    const t = await setup();
+    const t = await setup({ runtimeConfig: { answer: {} } }); // drive the code reviewer too: the default setup answers it by itself
     t.git.files = ["tools/x.mjs", "docs/a.md"];
     await t.start();
     const sha = t.work(await t.spawn(0), { commit: "feature.txt", say: "Added." });
