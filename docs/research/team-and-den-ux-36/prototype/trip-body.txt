@@ -1,0 +1,33 @@
+ // THROWAWAY H13: same registry and traveller, private synchronous proof transaction.
+ const clone=p=>({x:p.x,y:p.y,z:p.z});
+ function protectedPaths(a){return [...exits].filter(([b])=>b!==a&&b.panda.model.visible).flatMap(([b,e])=>[{...e,owner:b.identity},...(e.active??[]).map(p=>({...p,radius:e.radius,owner:b.identity}))]);}
+ function preservesProtected(a,p,work){return protectedPaths(a).every(e=>!crosses(p,e.path,e.from,a.envelope.radius+e.radius+.05,work));}
+ function tripSnapshot(a){
+  const bodies=[...actors.values()].filter(b=>b!==a&&b.panda.model.visible).map(b=>({owner:b.identity,position:clone(b.panda.model.position),envelope:{...b.envelope}}));
+  const leases=[...places.values()].filter(p=>p.owner&&p.owner!==a.identity).map(p=>({owner:p.owner,id:p.id,position:clone(p.position),envelope:{...p.envelope},revision:p.revision}));
+  const navigation={...den.walkWorld.navigation},obstacles=(den.walkWorld.obstacles??[]).map(o=>({...o})),protectedGeometry=protectedPaths(a).map(e=>({owner:e.owner,from:clone(e.from),path:e.path.map(clone),radius:e.radius}));
+  return {bodies,leases,navigation,obstacles,protectedGeometry,fingerprint:JSON.stringify([bodies,leases,obstacles,protectedGeometry,a.envelope,navigation.revision??null])};
+ }
+ const equalSnapshot=(a,b)=>a.fingerprint===b.fingerprint&&a.navigation.groundAt===b.navigation.groundAt;
+ function dependency(a){return JSON.stringify([den.walkWorld.navigation.revision??null,den.walkWorld.obstacles??[],[...actors.values()].filter(b=>b!==a).map(b=>[b.identity,b.envelope]),[...places.values()].filter(p=>p.owner&&p.owner!==a.identity).map(p=>[p.id,p.owner,p.position,p.envelope,p.revision])]);}
+ function proveTrip(a,destination,sharedWork){
+  const work=sharedWork??createAllocationWork(),local=exits.get(a),home=places.get(a.homePlace);globalThis.__h13Observe?.('trip-start',{a,work});if(!local||!home||home.owner!==a.identity||!destination||!places.reserve(destination.id,a.identity,a.envelope,work))return null;
+  let physical=tripSnapshot(a),proof=null;
+  for(let retry=0;retry<2&&!work.exhausted;retry++){
+   const world={...den.walkWorld,obstacles:[...physical.obstacles,...physical.bodies.map(b=>({...b.position,type:'circle',radius:b.envelope.radius+.03})),...physical.leases.map(p=>({...p.position,type:'circle',radius:p.envelope.radius+.05}))],navigation:{...physical.navigation,groundAt:(...args)=>work.groundAt(physical.navigation,...args)}};
+   const pathVia=(from,to,via)=>{let path=[],at=from;for(const target of [...(via?[via]:[]),to]){if(Math.hypot(at.x-target.x,at.z-target.z)<1e-7)continue;const leg=gardenRoute(world,at,target,a.envelope,work);if(!leg.length)return null;path.push(...leg);at=path.at(-1);}return path.length?path:[clone(to)];};
+   const start=clone(a.panda.model.position),atHome=Math.hypot(start.x-home.position.x,start.z-home.position.z)<.02;
+   const outbound=pathVia(start,destination.position,destination.id===a.homePlace||atHome?a.approach:null);
+   const returning=outbound&&pathVia(destination.position,home.position,destination.id!==a.homePlace?a.approach:null);
+   const sweep=(from,path)=>{if(!work.take('routes'))return false;let at=from;for(const to of path){const y=routeSegment(world,at,to,a.envelope);if(y===null||Math.abs(y-to.y)>.1)return false;at=to;}return true;};
+   const reverse=(from,path)=>[...path.slice(0,-1).reverse(),from];
+   const localSafe=sweep(local.from,local.path)&&sweep(local.path.at(-1),reverse(local.from,local.path));
+   if(!outbound||!returning||!localSafe||!sweep(start,outbound)||!sweep(destination.position,reverse(start,outbound))||!sweep(destination.position,returning)||!sweep(home.position,reverse(destination.position,returning))){globalThis.__h13Observe?.('trip-proof-failed',{a,work,reason:'outgoing-return-local-or-sweep',snapshot:physical});return null;}
+   const current=tripSnapshot(a);if(!equalSnapshot(physical,current)){physical=current;continue;}
+   proof={from:start,path:[...outbound,...returning].map(clone)};
+   local.active=[...(local.active??[]),proof];local.dependency=dependency(a);local.groundAt=den.walkWorld.navigation.groundAt;
+   globalThis.__h13Observe?.('trip-certificate',{a,work,outbound:outbound.map(clone),returning:returning.map(clone),from:start,snapshot:physical});return outbound;
+  }
+  globalThis.__h13Observe?.('trip-proof-failed',{a,work,reason:'snapshot-changed-or-budget',snapshot:physical});return null;
+ }
+ function revalidateTrips(){for(const [a,e]of exits){if(!a.travel)continue;const changed=e.failedDependency!==dependency(a)||e.failedGroundAt!==den.walkWorld.navigation.groundAt;if(a.travel.returnRequested){if(changed)home(a);continue;}if(a.travel.reproofRequested&&!changed)continue;if(!a.travel.reproofRequested&&!['moving','yielding'].includes(a.travel.status))continue;if(!a.travel.reproofRequested&&e.dependency===dependency(a)&&e.groundAt===den.walkWorld.navigation.groundAt)continue;const path=proveTrip(a,places.get(a.travel.placeId),null);if(path){a.travel.path=path;a.travel.status='moving';delete a.travel.reproofRequested;}else{a.travel.status='waiting';a.travel.retryAt=Infinity;a.travel.reproofRequested=true;e.failedDependency=dependency(a);e.failedGroundAt=den.walkWorld.navigation.groundAt;}}}

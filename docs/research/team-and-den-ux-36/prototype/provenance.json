@@ -1,0 +1,40 @@
+{
+  "base": "993523f244483f554079ece4ebb07c4c9ff8e93c",
+  "sources": {
+    "actor-places": {
+      "originalSha256": "7cc00d47b92bc73faf42ca3c97d64d4b9c645505c143c7d428f05f2a083962ec",
+      "transformedSha256": "86971529854c07eb33a67ff997ea0965e4f3fe7eed8170f6d9a49d55f922d1e9",
+      "original": "apps/ui/src/scene/meshy/actor-places.mjs",
+      "overlay": "actor-places.prototype.mjs"
+    },
+    "actor-travel": {
+      "originalSha256": "4863a9daa8eae191598ddb3cb5ea890485ac149f46a4f42a4aeded34eeaa3821",
+      "transformedSha256": "f2c1afc2183eb9e2f79371b0a8c4d55d6614fb9d558692560d87b2978c4af9b1",
+      "original": "apps/ui/src/scene/meshy/actor-travel.mjs",
+      "overlay": "actor-travel.prototype.mjs"
+    },
+    "allocation-work": {
+      "originalSha256": "e00945e4477e5df9d2f12d460370d638929199c2f4aceba7059c61986dd73b0c",
+      "transformedSha256": "a6c202e7e1c2b065f40cbaa90541e04e14a659f5bc4b292c793e162f334932e1",
+      "original": "apps/ui/src/scene/meshy/allocation-work.mjs",
+      "overlay": "allocation-work.prototype.mjs"
+    },
+    "places": {
+      "originalSha256": "060ec5722f6faaab1dbb315d01f3dba75e0719dd02348fc6114dc768228d31e2",
+      "transformedSha256": "f95d52d4b3265cb079c71ed94bce9a1abf2cb0e1330190312b7179ad9de06af8",
+      "original": "apps/ui/src/scene/meshy/places.mjs",
+      "overlay": "places.prototype.mjs"
+    },
+    "actors": {
+      "originalSha256": "1ac583addfb14070f339c48cb6fe3c75bdb600101ada399afc67479eab89a207",
+      "transformedSha256": "ccde69a23f9c88a702efb989869fc3041029690b5c031fab060c041d68268dbe",
+      "original": "apps/ui/src/scene/meshy/actors.mjs",
+      "overlay": "actors.prototype.mjs"
+    }
+  },
+  "fixture": {
+    "original": "apps/ui/src/scene/meshy/actors.test.mjs",
+    "originalSha256": "69c404c8956e89e5ef3db767a153d8bfc63feb6643d2649b4094b49bf28aba5b",
+    "exactFixtureBodySha256": "0ca14f7f48a3fb1713e5469efb71150df78610fcfd75c14d7abd1df250ccaed5"
+  }
+}
