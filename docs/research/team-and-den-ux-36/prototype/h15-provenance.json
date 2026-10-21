@@ -1,0 +1,43 @@
+{
+  "label": "36-h15-settlement-contract-20261021-035316",
+  "preparationStarted": "2026-10-21T03:53:16Z",
+  "preservedH14Commit": "bddf906e630bd2a7669e0630198e8bbb3da154a9",
+  "productionBase": "993523f244483f554079ece4ebb07c4c9ff8e93c",
+  "changes": [
+    "selected cancelled actor owned-home settlement contract only",
+    "explicit activity/identity/routine/live/home ownership diagnostics",
+    "unique H15 driver/loader/records; unchanged execution stages and safety selectors"
+  ],
+  "originalContract": "until(f,()=>[...f.actors.actors.values()].every(a=>dist(a.panda.model.position,a.home)<.02&&!a.routine),500,'all original actors settle home');inspect(f);",
+  "correctedContract": "diag.settlement={selected:outing.id,actors:[...f.actors.actors.values()].map(a=>({...state(a),homeOwner:f.actors.places.get(a.homePlace)?.owner??null,homeKind:f.actors.places.get(a.homePlace)?.kind??null})),leases:[...f.actors.places.values()].map(q=>({id:q.id,kind:q.kind,owner:q.owner,position:p(q.position),envelope:q.envelope}))};report('settlement-activity-ownership',{selected:outing.id,actors:diag.settlement.actors});until(f,()=>outing.travel?.status==='arrived'&&outing.travel.placeId===outing.homePlace&&dist(outing.panda.model.position,outing.home)<.02,500,'selected cancelled actor remains at owned home');assert.equal(f.actors.actors.size,32,'all original residents remain present');for(const original of diag.residents){const a=f.actors.actors.get(original.id);assert.ok(a?.panda.model.visible,'original resident remains visible '+original.id);assert.deepEqual(a.identity,original.identity,'original resident keeps identity '+original.id);assert.equal(a.homePlace,original.homePlace,'original resident keeps home '+original.id);assert.equal(f.actors.places.get(a.homePlace)?.owner,a.identity,'original resident retains correct owned home '+original.id);}inspect(f);report('selected-return-all32-owned-safe',{selected:outing.id,count:f.actors.actors.size});",
+  "originalState": "presentation:a.presentation});",
+  "diagnosticState": "presentation:a.presentation,role:a.role,runtime:a.runtime,concept:a.concept,state:a.state,activity:a.activity,live:a.live,routine:a.routine?{stage:a.routine.stage,elapsed:a.routine.elapsed,spot:{id:a.routine.spot.id,kind:a.routine.spot.kind,position:p(a.routine.spot.position)},place:{id:a.routine.place.id,owner:a.routine.place.owner,position:p(a.routine.place.position)}}:null});",
+  "preserved": {
+    "H13-RESULT.md": "a49abec567d9db3432fe823eaadf1e55042b6d9f719168ed74bbb1b43cad6d30",
+    "H14-RESULT.md": "28d49049ad98a69425c706dc708ea63f2493ec76727113e2ad8109887e82d06e",
+    "README.md": "a03c2a0528fdb0a9757d7286b67817d4905342a0a7da215d7d6f8cef90232fdb",
+    "actor-places.prototype.mjs": "86971529854c07eb33a67ff997ea0965e4f3fe7eed8170f6d9a49d55f922d1e9",
+    "actor-travel.prototype.mjs": "f2c1afc2183eb9e2f79371b0a8c4d55d6614fb9d558692560d87b2978c4af9b1",
+    "actors.prototype.mjs": "ccde69a23f9c88a702efb989869fc3041029690b5c031fab060c041d68268dbe",
+    "allocation-work.prototype.mjs": "a6c202e7e1c2b065f40cbaa90541e04e14a659f5bc4b292c793e162f334932e1",
+    "fixture.prototype.mjs": "1c251a8b9cd9e861eda3d2008b64e406e3c77e63c65b90544b2b949b9d964e02",
+    "h13-build.mjs": "709e45492eb74f68838b2aebb8e1d48ea041149163e41d606b48d16da29db88f",
+    "h13-loader.mjs": "e99a306becd17d3af091cb52c55039f4dec3a287ca5899a6994a6c97cce9eda0",
+    "h13-proof.mjs": "15af4aefdcf8d1bbbb579850002fd247e7e3682ac2aa94cfc0fe45c47b80519d",
+    "h13-run.mjs": "27bb1f4e14840e6e8e62cc607e38bc4ee5352f261af992822452a664651605cc",
+    "h14-loader.mjs": "9438c9b787454c9c2c248edfea102e2c41735a5f2ab606d01392aa066978dde2",
+    "h14-proof.mjs": "1e1685af8a3b204399666d8e82dcd14543989db9054a1aa2c8c769e3a24026cb",
+    "h14-provenance.json": "7642532f356b5025096702d3f1a1d39733054c6fbdd31d3fa03f0d2b7bed5abc",
+    "h14-run.mjs": "31d29ec3e9b4af50ab98f1fe72f67d3db74c5716f70ea52781e6c2793cd325b0",
+    "occupied-vertices.h14.mjs": "6519c5ce7c08da3f755e3bef0c8077f85201651782aaea7f846c54a024e38d31",
+    "places.prototype.mjs": "f95d52d4b3265cb079c71ed94bce9a1abf2cb0e1330190312b7179ad9de06af8",
+    "provenance.json": "16382e257ab40a255609156f822bc22485ce8674051d8314f0284e689d0e456a",
+    "trip-body.txt": "adcec15e183b990c1c69afabbb9e4e38df9800bb5e8415c33ecff82ec6917669"
+  },
+  "hashes": {
+    "h15-proof.mjs": "e9a003e556da149f1516172ee4ac761757df71a9f1bcc0f1038c2fef0c153b9f",
+    "h15-run.mjs": "99133446394a4803b76db196b94c96d9acb72525f373db0953a5eb8ac7b2a142",
+    "h15-loader.mjs": "6015a37157364e3720653b1b98c119217adb8fa99049afdf894eb9c34c02d567"
+  },
+  "fixtureBodySha256": "0ca14f7f48a3fb1713e5469efb71150df78610fcfd75c14d7abd1df250ccaed5"
+}
