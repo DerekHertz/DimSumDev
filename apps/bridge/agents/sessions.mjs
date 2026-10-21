@@ -32,7 +32,7 @@ export function validateLine(raw) {
   if (!isObject(raw) || !validTs(raw.ts) || !AGENT_ID_RE.test(raw.agentId) || typeof raw.ref !== "string" || !REF_RE.test(raw.ref)) return null;
   const base = { ts: raw.ts, agentId: raw.agentId, ref: raw.ref };
   if (raw.event === "spawn") {
-    if (!ROLES.includes(raw.role) || typeof raw.sessionId !== "string" || !UUID_RE.test(raw.sessionId)) return null;
+    if ((!ROLES.includes(raw.role) && !(raw.treeManaged === true && raw.role === "runner")) || typeof raw.sessionId !== "string" || !UUID_RE.test(raw.sessionId)) return null;
     const runtime = runtimeId(raw.runtime);
     const project = raw.project === undefined ? "den" : raw.project;
     if (!runtime || !validProject(project)) return null;
@@ -46,7 +46,7 @@ export function validateLine(raw) {
     const follows = AGENT_ID_RE.test(raw.origin) && AGENT_ID_RE.test(raw.resumeOf) ? { origin: raw.origin, resumeOf: raw.resumeOf } : {};
     const names = { worktree: workspaceNames({ ref: raw.ref, agentId: follows.origin ?? raw.agentId }).worktree, branch: workspaceNames({ ref: raw.ref, agentId: raw.agentId }).branch };
     const own = raw.worktree === names.worktree && raw.branch === names.branch;
-    return { ...base, event: "spawn", role: raw.role, sessionId: raw.sessionId, runtime, project, runtimeSessionId, ...(resourceId ? { resourceId } : {}), worktree: own ? names.worktree : null, branch: own ? names.branch : null, ...(own ? follows : {}) };
+    return { ...base, event: "spawn", role: raw.role, sessionId: raw.sessionId, runtime, project, runtimeSessionId, ...(raw.treeManaged === true ? { treeManaged: true } : {}), ...(resourceId ? { resourceId } : {}), worktree: own ? names.worktree : null, branch: own ? names.branch : null, ...(own ? follows : {}) };
   }
   if (raw.event === "stop") return { ...base, event: "stop" };
   if (raw.event === "end") {
@@ -112,6 +112,7 @@ export function createSessions(root) {
             agents.set(line.agentId, {
               agentId: line.agentId, ref: line.ref, role: line.role, sessionId: line.sessionId, runtime: line.runtime, runtimeSessionId: line.runtimeSessionId, resourceId: line.resourceId, worktree: line.worktree, branch: line.branch,
               ...(line.origin ? { origin: line.origin, resumeOf: line.resumeOf } : {}), ...(line.project ? { project: line.project } : {}),
+              ...(line.treeManaged ? { treeManaged: true } : {}),
               startedAt: line.ts, endedAt: null, state: "terminated", reason: "bridge-restart-unverified",
             });
           }

@@ -7,8 +7,9 @@
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import http from "node:http";
-import { mkdir, readFile, stat, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { startBridge } from "./server.mjs";
 import { SHA_A, SHA_B, SHA_C, liveReleases } from "./build/release-test-helpers.mjs";
 import { ROUTES } from "./routes.mjs";
@@ -20,6 +21,22 @@ import { CODE, origin, send, login, authed } from "./bridge-auth-helpers.mjs";
 const { createFakeRuntime } = await import("./agents/runtime.mjs").catch(() => ({}));
 
 const DISPATCH_REF = `${FEATURE}/02-ready-p0`; // gate "dispatch" in the fixture
+
+async function prepareTreeAuth({ plan = false } = {}) {
+  const control = fileURLToPath(new URL("../../", import.meta.url));
+  for (const directory of [".claude/agents", ".codex/agents"]) {
+    await mkdir(path.join(fx.root, path.dirname(directory)), { recursive: true });
+    await cp(path.join(control, directory), path.join(fx.root, directory), { recursive: true });
+  }
+  fake.capabilities.treeDelegation = true;
+  fake.validateModel = async () => true;
+  await bridge.host.admission.approve(DISPATCH_REF, { owner: "bao" });
+  if (plan) {
+    const response = await send(bridge, { method: "POST", path: "/trees/plan", headers: authed(bridge, token), body: { ref: DISPATCH_REF, scopes: ["src"], nodes: [] } });
+    assert.equal(response.status, 201, response.text);
+    treeRevision = response.body.revision;
+  }
+}
 
 // A real and a bogus body for every token-gated mutating row, keyed "METHOD path". The bogus one names an id
 // that does not exist, so an unauthenticated caller must not be able to tell it apart from the real one.
@@ -45,6 +62,10 @@ const BODIES = {
   "POST /tickets/transfer": { real: { ref: `${FEATURE}/08-plain`, owner: "jiao" }, bogus: { ref: `${FEATURE}/08-plain`, owner: "nobody" } },
   "POST /admission/runtime": { real: { allow: "both" }, bogus: { allow: "none" } },
   "POST /admission/reconcile": { real: { id: "i-crashed00000000", outcome: "ended" }, bogus: { id: "i-none", outcome: "ended" } },
+  "POST /trees": { get real() { return { revision: treeRevision }; }, bogus: { revision: "no-revision" },
+    prepare: () => prepareTreeAuth({ plan: true }) },
+  "POST /trees/plan": { real: { ref: DISPATCH_REF, scopes: ["src"], nodes: [] }, bogus: { ref: `${FEATURE}/99-nope`, scopes: [] },
+    prepare: () => prepareTreeAuth() },
   "POST /projects/active": { real: { slug: "den" }, bogus: { slug: "nope" } },
   "POST /requests": {
     real: { kind: "dispatch-approve", ref: DISPATCH_REF },
@@ -189,6 +210,7 @@ let token;
 let file;
 let fake;
 let queuedMessageId; // set by the cancel row's prepare (organism-infra/107)
+let treeRevision; // exact proposal prepared for the tree-approval auth row
 
 beforeEach(async () => {
   fx = await makeStateFixture({ git: true });
@@ -411,9 +433,10 @@ describe("token-gated mutating routes (table-driven from ROUTES)", () => {
         assert.equal(res.status, 403);
       });
 
-      test("a body over 4 KB is 413 even with a valid token", async () => {
+      test("a body over the route's configured cap is 413 even with a valid token", async () => {
         const before = await requestsFile();
-        const res = await call(r, { headers: authed(bridge, token), body: { pad: "x".repeat(5000) } });
+        const bytes = r.path === "/trees/plan" ? 32769 : 5000;
+        const res = await call(r, { headers: authed(bridge, token), body: { pad: "x".repeat(bytes) } });
         assert.equal(res.status, 413);
         assert.equal(await requestsFile(), before);
       });

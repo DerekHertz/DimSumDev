@@ -261,7 +261,7 @@ function governedUnder(grant, root, worktree) {
  * worktree undefined leaves the write rules out (the wall stays, the Write request stays). Any grant outside the fixed shape,
  * any grant for a role that cannot write, and a path grant that contains the worktree are TypeErrors.
  */
-export function compileCeiling(role, { worktree, grants, root, home, mainGit, credentials, remote, toolchain } = {}) {
+export function compileCeiling(role, { worktree, grants, root, home, mainGit, credentials, remote, toolchain, tree } = {}) {
   const { hosts: grantHosts, paths } = parseGrants(grants);
   if (credentials !== undefined && !(isDense(credentials) && credentials.every((p) => CREDENTIAL_PATHS.includes(p)))) throw new TypeError("compileCeiling: credentials must be paths from governance.json");
   if (root !== undefined && !isWorktreePath(root)) throw new TypeError("compileCeiling: root must be a plain absolute path");
@@ -269,7 +269,8 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
   if (home !== undefined && !isWorktreePath(home)) throw new TypeError("compileCeiling: home must be a plain absolute path");
   if (toolchain !== undefined && !isWorktreePath(toolchain)) throw new TypeError("compileCeiling: toolchain must be a plain absolute path");
   if (remote !== undefined && typeof remote !== "boolean") throw new TypeError("compileCeiling: remote must be a boolean");
-  const ceiling = Object.hasOwn(CEILINGS, role) ? CEILINGS[role] : undefined;
+  // Runner is a host-admitted tree leaf only; it never becomes a public direct-task role.
+  const ceiling = tree === true && role === "runner" ? { write: "none", hosts: [] } : Object.hasOwn(CEILINGS, role) ? CEILINGS[role] : undefined;
   if (ceiling === undefined) {
     if (grantHosts.length + paths.length > 0) throw new TypeError("compileCeiling: this role takes no grants");
     return null;
@@ -293,6 +294,7 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
   const denyAbs = [...new Set([
     ...(root === undefined ? [] : paths.flatMap((g) => governedUnder(expandHome(g, home), root, worktree))),
     ...(mainGit === undefined ? [] : MAIN_GIT_DENIED.map((name) => (name === "refs" ? `${mainGit}/refs/**` : `${mainGit}/${name}`))),
+    ...(tree === true && role === "runner" && worktree !== undefined ? [`${worktree}/**`] : []),
   ])];
   const hosts = [...new Set([...ceiling.hosts, ...grantHosts])];
   const readLimit = hosts.length > 0 || remote === true;
@@ -303,7 +305,7 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
   return {
     wall: { hosts },
     ...options,
-    forbid: { write: [...GOVERNANCE.guardrailPaths, ...GOVERNANCE.ciPaths.filter((e) => !lifted(e))], run: [...GOVERNANCE.denyRun] },
+    forbid: { write: [...GOVERNANCE.guardrailPaths, ...GOVERNANCE.ciPaths.filter((e) => !lifted(e))], run: [...GOVERNANCE.denyRun, ...(tree === true && role === "runner" ? ["git commit", "board"] : [])] },
     ...(denyAbs.length === 0 ? {} : { denyAbs }),
     ...(paths.length === 0 ? {} : { writePaths: paths }),
     ...(readLimit ? { readLimit: true } : {}),
@@ -360,9 +362,11 @@ const MCP_CONFIG_FILE_RE = /^\/[A-Za-z0-9._@+-]+(?:\/[A-Za-z0-9._@+-]+)*\.json$/
 export function buildClaudeArgs(options) {
   if (!isPlainObject(options)) throw new TypeError("buildClaudeArgs needs { sessionId, agent, model?, ticketFile?, wall?, worktree? }");
   for (const key of Object.keys(options)) {
-    if (!["sessionId", "resume", "agent", "model", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
+    if (!["sessionId", "resume", "agent", "model", "effort", "tree", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
   }
-  const { sessionId, resume, agent, model, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
+  const { sessionId, resume, agent, model, effort, tree, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
+  if (tree !== undefined && tree !== true) throw new TypeError("buildClaudeArgs: tree must be true");
+  if (effort !== undefined && !(tree === true && ["low", "medium", "high", "xhigh", "max"].includes(effort))) throw new TypeError("buildClaudeArgs: effort must be a configured tree effort");
   const target = project !== undefined && project.control === false;
   if (project !== undefined && (!isPlainObject(project) || typeof project.control !== "boolean")) throw new TypeError("buildClaudeArgs: project must be { control: boolean, root, pluginDir? }");
   if (target && !isWorktreePath(project.pluginDir)) throw new TypeError("buildClaudeArgs: a target project needs pluginDir, a plain absolute path");
@@ -382,7 +386,7 @@ export function buildClaudeArgs(options) {
   if (worktree !== undefined && !isWorktreePath(worktree)) throw new TypeError("buildClaudeArgs: worktree must be a plain absolute path");
   if (ticketFile !== undefined && !isTicketFilePath(ticketFile)) throw new TypeError("buildClaudeArgs: ticketFile must be a plain absolute path to a board ticket");
   if (typeof sessionId !== "string" || !UUID_RE.test(sessionId)) throw new TypeError("buildClaudeArgs: sessionId must be a UUID");
-  if (typeof agent !== "string" || !ROLES.includes(agent)) throw new TypeError("buildClaudeArgs: agent must be a known role");
+  if (typeof agent !== "string" || !(ROLES.includes(agent) || (tree === true && agent === "runner"))) throw new TypeError("buildClaudeArgs: agent must be a known role");
   if (model !== undefined && (typeof model !== "string" || !CLAUDE_MODELS.includes(model))) throw new TypeError("buildClaudeArgs: model must be one of the fixed list");
   return [
     "-p",
@@ -395,6 +399,9 @@ export function buildClaudeArgs(options) {
     ...(resume === true ? ["--resume", sessionId] : ["--session-id", sessionId]),
     "--agent", target ? `den:${agent}` : agent,
     ...(model === undefined ? [] : ["--model", model]),
+    ...(effort === undefined ? [] : ["--effort", effort]),
+    // Every tree spawn goes through the bridge; native children would bypass its depth, ownership and capacity checks.
+    ...(tree === true ? ["--disallowedTools", agent === "runner" ? "Agent,Task,Write,Edit,NotebookEdit" : "Agent,Task"] : []),
     // den-mvp/48: a target project loads nothing from its own .claude/: no settings, and the den's role definitions come in as a plugin.
     "--setting-sources", target ? "" : "project,local",
     ...(target ? ["--plugin-dir", project.pluginDir] : []),

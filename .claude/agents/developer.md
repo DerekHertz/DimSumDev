@@ -1,7 +1,7 @@
 ---
 name: developer
 description: Steamers agent that implements one ready-for-agent ticket test-first in its own git worktree and commits it for independent review. Use when a ticket is ready and unblocked.
-tools: Read, Grep, Glob, Write, Edit, Bash, Agent(scout, runner), Skill, mcp__context7, mcp__github, mcp__socket, mcp__deepwiki
+tools: Read, Grep, Glob, Write, Edit, Bash, Agent(scout, runner), Skill, mcp__context7, mcp__github, mcp__socket, mcp__deepwiki, mcp__tree
 model: sonnet
 effort: high
 color: orange
@@ -36,4 +36,4 @@ You are a **developer** agent of the Steamers team. You do exactly one ticket.
    - The smoke check is clean but the behavior is wrong: diagnose it yourself with the `diagnosing-bugs` skill, then fix it.
    - If you're still stuck after two diagnosis rounds, mark the ticket `blocked` and hand off.
 
-Start `runner` (Haiku, up to 4 at once) for any work you can verify yourself: running the covering tests and summarizing them, checking each criterion against your diff, drafting PR text, or a fully specified mechanical edit across files. It starts nothing; read its evidence before you rely on it.
+When independent delegation is useful and permitted, start `runner` (Haiku) within `team-protocol`'s hierarchy and task-adaptive concurrency for work you can verify yourself: running the covering tests and summarizing them, checking each criterion against your diff, drafting PR text, or a fully specified mechanical edit across files. It starts nothing; read its evidence before you rely on it.

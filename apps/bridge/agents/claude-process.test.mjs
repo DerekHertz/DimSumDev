@@ -63,7 +63,7 @@ describe("the runtime's declared shape", () => {
   test("capabilities: approve and send on, and a resume command naming the session", async () => {
     const { createClaudeRuntime } = await loadRuntimeModule();
     const rt = createClaudeRuntime({ controlRoot: "/", launcher: unconfinedLauncher(), env: {} });
-    assert.deepEqual(rt.capabilities, { spawn: true, stop: true, approve: true, send: true, handover: true, resume: true });
+    assert.deepEqual(rt.capabilities, { spawn: true, stop: true, approve: true, send: true, handover: true, resume: true, treeDelegation: true });
     assert.equal(typeof rt.id, "string");
     assert.match(rt.resumeCommand(SESSION), new RegExp(`--resume ${SESSION}`));
   });

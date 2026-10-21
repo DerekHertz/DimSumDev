@@ -21,4 +21,4 @@ The recorded **Pro** plan assumption applies to Claude only. If Claude reports a
 | 90–94% | **Wrap up.** Start no new agents. Let a running agent finish or reach a clean stopping point, then stop. Record the agreed next steps in each open ticket's `## Comments`, write handoffs, stop any dev servers you started, and commit and push finished work (pushing is still a pass gate). Tell the user the percentage and when it resets, quoting `resets_local` (their own time zone), not the UTC `resets_at`. |
 | 95% or more | **Stop now.** Nothing new at all. Write a one-paragraph handoff with what is in flight and where, and end. |
 
-Also check the weekly window. At 80% or more, tell the user before dispatching anything expensive (higher-cost agents, the full relay).
+Also check the weekly window. At 80% or more, tell the user before dispatching anything expensive (deepest-tier Codex agents, the full relay).

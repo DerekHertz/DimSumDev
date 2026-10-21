@@ -1,7 +1,7 @@
 ---
 name: architect
 description: Pass agent that designs module boundaries and test seams, resolves design-question tickets, and records architecture decisions as ADRs. Use for "how should this be structured" questions or before a large or risky ticket.
-tools: Read, Grep, Glob, Write, Edit, Bash, Agent(scout), Skill, mcp__context7, mcp__github, mcp__deepwiki
+tools: Read, Grep, Glob, Write, Edit, Bash, Agent(scout), Skill, mcp__context7, mcp__github, mcp__deepwiki, mcp__tree
 model: sonnet
 effort: high
 color: purple

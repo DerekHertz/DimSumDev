@@ -42,14 +42,13 @@ export const RUNTIME_NOTICE = "Before working, read `.codex/runtime-guidance.md`
 function runtimeWording(text) {
   return text
     .replace(/^Run agents on their role definition's model[^\n]*$/m, "For Codex, use the model and effort configured in `.codex/agents/<role>.toml`, subject to availability and session limits. Never silently substitute a Claude tier or another runtime.")
-    .replace(/Up to two worker agents run at once[^\n]*reserved slot beside them\./g, "Codex uses the worker ceiling in `.codex/runtime-guidance.md`, without reserved extra slots; stricter runtime, resource and ticket limits still apply.")
-    .replace(/^- The agent tree has three levels:[^\n]*$/m, "- Codex delegation follows `.codex/runtime-guidance.md`: one implementation owner, at most two live workers besides the owner, no reserved bonus slots, and no agent started by a leaf. Stricter session and resource limits win.")
-    .replace(/Start `runner` \(Haiku, up to 4 at once\)/g, "When independent delegation is useful and permitted, start `runner` (within the Codex worker ceiling)")
     .replace(/Have `scout` run the smoke check:/g, "Run the smoke check locally, or delegate a bounded read-only check when permitted:")
     .replace(/Run typechecking regularly, single test files regularly, and the full test suite once at the end\. Delegate long test or log output to the `scout` subagent so only a summary comes back\./g, "Run required typechecking and literal covering test files with bounded concurrency and timeouts, including affected existing callers. In resource-limited den agents, leave full suites and browser workloads to designated checks/CI or a separately authorized capable environment. Delegate only independent checkable work when permitted; report exact evidence and remaining checks.")
-    .replace(/claude-(?:haiku|sonnet|opus)-[\w.-]+/g, "configured Codex model ID")
-    .replace(/\b(?:Sonnet(?: 5\.5)?|Haiku)\b/g, "Codex")
-    .replace(/\bOpus agents\b/g, "higher-cost agents");
+    .replace(/claude-(haiku|sonnet|opus)-[\w.-]+/gi, (_match, tier) => MODEL_MAP[tier.toLowerCase()])
+    .replace(/(\bmodel:\s*|--model\s+)(haiku|sonnet|opus)\b/gi, (_match, prefix, tier) => prefix + MODEL_MAP[tier.toLowerCase()])
+    .replace(/\bSonnet(?: 5\.5)?\b/gi, "higher-tier Codex")
+    .replace(/\bHaiku\b/gi, "lower-cost Codex")
+    .replace(/\bOpus\b/gi, "deepest-tier Codex");
 }
 
 export function renderSkill(relative, content) {

@@ -1,7 +1,7 @@
 ---
 name: herald
 description: Front of House agent (the Herald) that drafts short public posts about the org and what it builds. On demand only. It reads the repo, writes one 1-3 paragraph draft with a source header to a file outside the repo, and hands it to the user. It never publishes, posts, pushes or contacts anyone. Use when the user wants a post drafted.
-tools: Read, Grep, Glob, Write, Bash, Agent(scout), Skill
+tools: Read, Grep, Glob, Write, Bash, Agent(scout), Skill, mcp__tree
 model: sonnet
 effort: high
 color: yellow

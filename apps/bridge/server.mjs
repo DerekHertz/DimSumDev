@@ -203,7 +203,9 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     library,
     onChange: (change) => hub.publish(change),
     recordRun: createLedger(root).record,
-    onEnd: (run) => Promise.all([delivery.onEnd(run), meetings.onEnd(run), runEnded(run)]),
+    // Tree children have bridge-derived internal refs, not board tickets. Their
+    // lifecycle/evidence record never resolves or advances the legacy relay.
+    onEnd: (run) => run.treeManaged ? Promise.resolve() : Promise.all([delivery.onEnd(run), meetings.onEnd(run), runEnded(run)]),
     readUsage: async (runtime) => typeof usageByRuntime[runtime] === "function" ? usageByRuntime[runtime]() : runtime === "claude" ? (await hub.snapshot()).usage?.fiveHour ?? null : null,
     // organism-infra/226: a dispatch needs the ticket to be in the frontier (ready, unblocked, unlocked), not to hold the gate.
     checkGate: async (ref, { project }) => {
@@ -325,7 +327,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       reply(res, 403, { error: "content-type must be application/json" });
       return false;
     }
-    if (route.auth === "run" && !host.runAgent(bearerOf(req))) {
+    if (route.auth === "run" && !(route.path === "/tree-tools/:tool" ? host.treeAgent(bearerOf(req)) : host.runAgent(bearerOf(req)))) {
       reply(res, 401, { error: "unauthorized" });
       return false;
     }
@@ -444,6 +446,39 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     "POST /tickets/decline": (req, res) => steerTicket(req, res, "decline"),
     "POST /checks": (req, res) => postChecks(req, res),
     "POST /den-tools/:tool": (req, res) => denTool(req, res),
+    "GET /trees": (_req, res) => reply(res, 200, { trees: host.trees() }),
+    "POST /trees": async (req, res) => {
+      const body = await readJsonObject(req, res);
+      if (!body) return;
+      if (Object.keys(body).some((key) => key !== "revision")) return reply(res, 400, { error: "unknown tree approval field" });
+      const result = await host.startTree(body);
+      reply(res, result.status, result.ok ? result : { error: result.error });
+    },
+    "POST /trees/plan": async (req, res) => {
+      const body = await readJsonObject(req, res, 32768);
+      if (!body) return;
+      if (Object.keys(body).some((key) => !["ref", "runtime", "project", "scopes", "nodes"].includes(key))) return reply(res, 400, { error: "unknown tree proposal field" });
+      const result = await host.planTree(body);
+      reply(res, result.status, result.ok ? result : { error: result.error });
+    },
+    "POST /tree-tools/:tool": async (req, res) => {
+      // A tree credential carries no den-board or publication authority. Its live
+      // node, rather than a client-provided parent ID, fixes the delegation scope.
+      const parent = host.treeAgent(bearerOf(req));
+      if (!parent) return reply(res, 401, { error: "unauthorized" });
+      const body = await readJsonObject(req, res, 16384);
+      if (!body) return;
+      const tool = new URL(req.url, "http://x").pathname.split("/")[2];
+      let result;
+      if (tool === "delegate") {
+        if (Object.keys(body).some((key) => key !== "nodeId")) return reply(res, 400, { error: "unknown delegation field" });
+        result = await host.delegate(parent.id, body);
+      } else if (tool === "result") {
+        if (Object.keys(body).some((key) => key !== "childId")) return reply(res, 400, { error: "unknown result field" });
+        result = await host.treeResult(parent.id, body.childId);
+      } else return reply(res, 404, { error: "no such tree tool" });
+      reply(res, result.status, result.ok ? { text: JSON.stringify(result) } : { error: result.error });
+    },
     // The recovery page is the bridge's own code, not a file of the UI build.
     "GET /recover": (req, res) => sendOwn(res, "text/html; charset=utf-8", RECOVER_HTML),
     "GET /recover/script": (req, res) => sendOwn(res, "text/javascript; charset=utf-8", RECOVER_SCRIPT),

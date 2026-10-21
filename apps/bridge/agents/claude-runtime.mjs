@@ -4,14 +4,15 @@
 // permission requests until the host decides, and signals the whole group so no grandchild outlives a kill.
 // den-mvp outcome 1: the child is started by a launcher (resource-group.mjs) inside a resource group with hardware
 // limits; a kill goes to that group, and a hard limit that is hit ends the run with the limit named.
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
   MAX_LINE_BYTES, buildClaudeArgs, readProjectGuide, mcpConfigWithTokens, buildClaudeEnv, compileCeiling, createLineSplitter, decodeControlRequest, encodeControlResponse, encodeUserMessage, isTicketFilePath, isWorktreePath,
-  parseClaudeLine, CREDENTIAL_PATHS, webRefusal,
+  parseClaudeLine, CREDENTIAL_PATHS, webRefusal, CLAUDE_MODELS, isConnectionTarget,
 } from "./claude-adapter.mjs";
+import { resolveTreeRole } from "./tree-models.mjs";
 import { snapshotPlaceholders, sweepPlaceholders } from "./placeholders.mjs";
 import { UUID_RE, slotClassOf } from "./policy.mjs";
 import { EnforcementError, createResourceLauncher, watchStorage } from "./resource-group.mjs";
@@ -69,6 +70,21 @@ function withAnswers(input, answers) {
 // den-mvp/49: the control checkout, from where this module sits; the bridge may pass its own root (a release folder runs from elsewhere).
 const MODULE_CONTROL_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 
+export function credentialStoresForRun({ home, tree = false } = {}) {
+  if (tree && home === undefined) throw new TypeError("claude runtime: a tree run needs a protected credential directory");
+  // Materialize the tree's token store before taking the deny snapshot: the very first run must protect its own
+  // config and later sibling configs just as a run with pre-existing credentials does. Failure refuses the spawn.
+  if (tree) {
+    const store = path.join(home, ".local/state/den/credentials");
+    mkdirSync(store, { recursive: true, mode: 0o700 });
+    chmodSync(store, 0o700);
+    const run = path.join(store, "run");
+    mkdirSync(run, { recursive: true, mode: 0o700 });
+    chmodSync(run, 0o700);
+  }
+  return home === undefined ? [] : CREDENTIAL_PATHS.filter((p) => existsSync(path.join(home, p.slice(2))));
+}
+
 export function createClaudeRuntime({ env = process.env, launcher = createResourceLauncher({ env }), controlRoot = MODULE_CONTROL_ROOT } = {}) {
   const control = path.resolve(controlRoot);
   const insideControl = (dir) => {
@@ -77,7 +93,10 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
   };
   return {
     id: "claude",
-    capabilities: { ...CAPABILITIES },
+    capabilities: { ...CAPABILITIES, treeDelegation: true },
+    // CLI support is checked here; account/model access is still checked by the native spawn and reported on failure.
+    // No fallback model is configured, so an unavailable configured model cannot silently downgrade the run.
+    validateModel: ({ model, effort }) => CLAUDE_MODELS.includes(model) && ["low", "medium", "high", "xhigh", "max"].includes(effort),
     enforced: launcher.enforced === true,
     preflight: () => launcher.preflight(),
     // den-mvp outcome 2: is the resource group of the run started under this id (its runId, else its sessionId) still there?
@@ -88,9 +107,23 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
     // first message an id, and a message-applied event with that id follows once the child takes it.
     // den-mvp outcome 4: `connections` are the catalog's targets for this role; a list the adapter cannot write refuses the spawn.
     // den-mvp/38: `runCredential` ({ url, token }) is what a "run" connection's script is given to call the bridge back.
-    async spawn({ role, cwd, prompt, sessionId, model, ticketFile, grants, root, mainGit, resume, runId, promptId, connections, runCredential, project } = {}) {
+    async spawn({ role, cwd, prompt, sessionId, model, effort, tree, treeCredential, ticketFile, grants, root, mainGit, resume, runId, promptId, connections, runCredential, project } = {}) {
       if (typeof cwd !== "string" || cwd === "") throw new TypeError("claude runtime: cwd must be a path");
       if (typeof prompt !== "string") throw new TypeError("claude runtime: prompt must be a string");
+      const treeMode = tree !== undefined;
+      if (treeMode !== (treeCredential !== undefined)) throw new TypeError("claude runtime: a tree run needs its own tree credential");
+      if (treeMode) {
+        if (!tree || !Number.isInteger(tree.depth) || tree.depth < 0 || tree.depth > 2) throw new TypeError("claude runtime: invalid tree depth");
+        if ((tree.depth === 0) !== (role === "orchestrator") || (tree.depth === 2) !== (role === "runner") || role === "scout") throw new TypeError("claude runtime: tree role does not match its layer");
+        if (Array.isArray(grants) ? grants.length > 0 : grants !== undefined) throw new TypeError("claude runtime: tree nodes take no additional grants");
+        if (!/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(treeCredential?.url ?? "") || !/^[A-Za-z0-9_-]{20,255}$/.test(treeCredential?.token ?? "")) throw new TypeError("claude runtime: invalid tree credential");
+        const configured = resolveTreeRole({ controlRoot: control, role, runtime: "claude" });
+        if (configured.model !== model || configured.effort !== effort) throw new TypeError("claude runtime: tree model selection differs from the trusted role");
+        if (connections?.some((c) => c.name === "tree")) throw new TypeError("claude runtime: the tree connection is bridge-owned");
+        const treeConnection = { name: "tree", script: path.join(control, "apps/bridge/agents/tree-tools.mjs"), credential: "run" };
+        if (!isConnectionTarget(treeConnection)) throw new TypeError("claude runtime: the trusted tree tool path is not a supported plain absolute path");
+        connections = [...(connections ?? []), treeConnection];
+      } else if (effort !== undefined) throw new TypeError("claude runtime: explicit effort is for managed trees only");
       // den-mvp/49: fail closed. A spawn with no project handle is the den's own, so its cwd must be inside the control checkout;
       // anywhere else it would start with the den's settings loaded from a target's .claude/.
       if (project === undefined && !insideControl(cwd)) throw new TypeError("claude runtime: a spawn with no project must run inside the control checkout");
@@ -105,10 +138,10 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       if (mainGit !== undefined && !isWorktreePath(mainGit)) throw new TypeError("claude runtime: mainGit must be a plain absolute path; refusing to start without the main .git denies");
       // den-mvp outcome 1: the credential stores that exist now are closed to reads; a deny target must exist to be applied.
       const home = isWorktreePath(env.HOME) ? env.HOME : undefined;
-      const credentials = home === undefined ? [] : CREDENTIAL_PATHS.filter((p) => existsSync(`${home}${p.slice(1)}`));
+      const credentials = credentialStoresForRun({ home, tree: treeMode });
       // The kernel review (2026-10-18): a remote connection reaches the network outside the wall, so it brings the read limit like a host.
       const remote = Array.isArray(connections) && connections.some((c) => typeof c?.url === "string");
-      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN });
+      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(treeMode ? { tree: true } : {}), ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN });
       // Every role has a ceiling (ceilings.json); one without would start with no wall, so it does not start.
       if (ceiling === null) throw new EnforcementError(`the ${role} role has no ceiling, so it cannot be started`);
       // den-mvp/33: a connection that holds a credential gets its token from the den's credentials folder (outside every
@@ -122,7 +155,8 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
         const tokens = {};
         for (const c of secured) {
           if (c.credential === "run") {
-            if (/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(runCredential?.url ?? "") && /^[A-Za-z0-9_-]{20,255}$/.test(runCredential?.token ?? "")) tokens[c.name] = { url: runCredential.url, token: runCredential.token };
+            const credential = c.name === "tree" && treeMode ? treeCredential : runCredential;
+            if (/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(credential?.url ?? "") && /^[A-Za-z0-9_-]{20,255}$/.test(credential?.token ?? "")) tokens[c.name] = { url: credential.url, token: credential.token };
             continue;
           }
           try {
@@ -144,7 +178,13 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       const removeConfig = () => {
         if (mcpConfigFile !== undefined) rmSync(mcpConfigFile, { force: true });
       };
-      const args = buildClaudeArgs({ sessionId, ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
+      let args;
+      try {
+        args = buildClaudeArgs({ sessionId, ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(treeMode ? { tree: true, effort } : {}), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
+      } catch (err) {
+        removeConfig();
+        throw err;
+      }
       // den-mvp/48: for every project the bridge passes in its CLAUDE.md or AGENTS.md as committed at HEAD of the main checkout.
       const guide = project === undefined ? null : readProjectGuide(project.root);
       const guideText = guide === null ? "" : `Project guide (${guide.file}, committed at HEAD):\n\n${guide.text}`;

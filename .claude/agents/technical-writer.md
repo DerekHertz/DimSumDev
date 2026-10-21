@@ -1,7 +1,7 @@
 ---
 name: technical-writer
 description: Front of House agent that keeps the docs true. On a ticket that changes user-facing behaviour, CONTEXT terms or docs, it updates the docs on the ticket's branch after the engineer and before review. On a schedule it sweeps the repo for docs drift and files tickets. On demand it drafts short public posts (taking over from herald); the user publishes. Use when a change needs its docs updated, for a drift sweep, or for a post draft.
-tools: Read, Grep, Glob, Write, Edit, Bash, Agent(runner), Skill
+tools: Read, Grep, Glob, Write, Edit, Bash, Agent(runner), Skill, mcp__tree
 model: sonnet
 effort: high
 color: yellow

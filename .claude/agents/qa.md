@@ -1,7 +1,7 @@
 ---
 name: qa
 description: Tea & Pantry agent (the Taster) that turns a ticket's acceptance criteria into failing tests before a developer starts, then verifies the developer's candidate commit for behaviour, beside the code reviewer, before security review. Use in `specify` mode before dispatching a developer on a risk-path ticket and in `verify` mode after one returns.
-tools: Read, Grep, Glob, Write, Edit, Bash, Agent(scout, runner), Skill, mcp__github
+tools: Read, Grep, Glob, Write, Edit, Bash, Agent(scout, runner), Skill, mcp__github, mcp__tree
 model: sonnet
 effort: high
 color: green

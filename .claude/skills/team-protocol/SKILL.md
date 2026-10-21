@@ -9,6 +9,13 @@ Your first message states your role and ticket, e.g. `[role: developer | ticket:
 
 Run agents on their role definition's model (user, 2026-10-01): every agent, the orchestrator too, runs on Sonnet 5.5 at high effort, except the Haiku leaves (`scout`, `runner`) and the Haiku `sre`. Until `05`, a dispatch through a generic agent type passes the role definition's model and effort explicitly.
 
+## Delegation
+
+- **Hierarchy:** Bao (Claude) or Jiao (Codex) owns the task, with up to four managers and up to four runners per manager. This three-level tree is a maximum shape, never mandatory spawning. Managers scope work, review their runners' evidence and hand it up; runners and scout leaves start no agents. A role's tools and the session's actual delegation capabilities still control what it can start.
+- **Model tiers:** the purpose is model-tier utilization. Keep planning, design, demanding review and final judgment on capable configured owner/manager models; give cheaper runners bounded, checkable execution. The parent verifies their evidence. Use the role's configured model and effort, within actual availability; if a needed model is unavailable, report it and wait or stop rather than silently downgrade demanding review or switch runtimes. This hierarchy changes no role's configured model or review floor.
+- **Concurrency:** for a small task, default to the owner alone or one helper; required independent reviews still run. Add live workers only for useful independent scopes, settled interfaces and disjoint write paths. Choose concurrency separately from topology and model routing, within explicit task, runtime, session, usage and resource limits; the strictest applicable limit wins. There is no universal two-worker ceiling and no entitlement to extra slots.
+- **Current bridge:** `apps/bridge/agents/policy.mjs` still enforces two worker slots shared across Claude and Codex, plus one orchestrator slot and one scout slot; these are bridge process classes, not manager/runner layers. The legacy two-agent/batch wording below refers to that admission policy. Resource groups and the usage stop still apply. This guidance changes no enforced limits. For opt-in fixed-revision tree proposals and approval, read `docs/agents/task-trees.md`. Verified barriers, integration, measured per-layer scheduling and live Codex enablement remain staged; changing enforced limits needs its existing approval, and a runtime without nested delegation must sequence or hand off within its capabilities.
+
 Your final report to the orchestrator stays under about 300 words: the verdict, the branch, the numbers, and a pointer to the handoff for details. Claim only results you actually ran. Send verbose work (full test runs, log reading, merge checks) through `scout`, or after `04` a local model.
 
 ## The board
@@ -97,4 +104,4 @@ An agent does one ticket or one task, then ends. When your role definition's `do
 - Start a fresh subagent for each round; resume one only for costly local state (a warm build, a long-lived server).
 - Make every operation safe to repeat on a retry (idempotent): check for the result before redoing it.
 - Prove it works by running it (a test, the command, the page), not by reading the code.
-- The agent tree has three levels: Bao and the router (root), Sonnet agents (branch), Haiku leaves (`scout`, `runner`). A leaf holds no Agent tool. A branch starts only leaves, at most about 4 at once, and checks what they return.
+- Follow "Delegation" above for the shared hierarchy, model routing and task-adaptive concurrency.

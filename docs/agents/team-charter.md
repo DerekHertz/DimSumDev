@@ -5,9 +5,11 @@ Every role's contract: what it takes in, what it hands back, what it may do on i
 ## Who owns what
 
 - **One owner per task.** Bao (Claude) or Jiao (Codex) owns each ticket, project or task, recorded as `owner: bao|jiao`. The owner is the root of the task's tree, picks the roles above the planner's floor and each node's runtime, does the last review, and presents the outcome to the user.
-- **Managers** (the roles below the owner) break their part into scoped subtasks, hand them to runners, review what comes back, and pass it up. At most four managers per tree and four runners per manager; 21 nodes at most.
+- **Managers** (the roles below the owner) break their part into scoped subtasks, hand them to runners, review what comes back, and pass it up. At most four managers per tree and four runners per manager; 21 nodes at most. This is a maximum shape, never mandatory spawning: the purpose is model-tier utilization, keeping planning and judgment with capable owner/manager models and cheaper bounded execution with runners, subject to available configured models and review floors.
 - **Runners** do one well-scoped subtask and return a result and evidence. They start nothing.
 - **The bridge keeps the record.** Agents run no board commands and push nothing; the bridge writes claims, handoffs and the tree's record. Reviewers end with `VERDICT: pass|bounce` tied to a commit, the engineer with its candidate commit.
+
+These are the target contracts, implemented in stages under ADR 0029's "What lands when" table. For current dispatch, follow `team-protocol`'s delegation rules and each role definition. Concurrency is separate from hierarchy and model routing: a small task defaults to the owner alone or one helper, while required reviews remain. The bridge currently shares two worker slots across Claude and Codex, plus one orchestrator and one scout slot (`apps/bridge/agents/policy.mjs`); task-tree records and per-layer admission remain `codex-residents/07`, `09`, `11`. Those enforced limits and resources still control admission. Per-layer proposals require a measured trial and the user's approval; this charter does not enable a live 4×4 bridge tree.
 
 ## Roles
 

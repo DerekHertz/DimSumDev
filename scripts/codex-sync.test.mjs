@@ -392,3 +392,93 @@ test("the hand-maintained Codex supplement participates in drift checks and is r
     const missing=run(dir);assert.notEqual(missing.status,0);assert.match(out(missing),/runtime-guidance\.md/);
   }finally{rmSync(dir,{recursive:true,force:true});}
 });
+
+test("shared and generated guidance preserve the optional four-manager four-runner hierarchy", async () => {
+  const { renderAgents, renderSkill } = await mod();
+  const claude = readFileSync(path.join(ROOT, "CLAUDE.md"), "utf8");
+  const shared = readFileSync(path.join(ROOT, ".claude/skills/team-protocol/SKILL.md"), "utf8");
+  const guidance = readFileSync(path.join(ROOT, ".codex/runtime-guidance.md"), "utf8");
+  for (const [name, text] of [
+    ["CLAUDE.md", claude],
+    ["team-protocol", shared],
+    ["AGENTS.md", renderAgents(claude, guidance)],
+    ["Codex team-protocol", renderSkill("team-protocol/SKILL.md", shared)],
+  ]) {
+    assert.match(text, /Bao\s*\(Claude\)\s*(?:or|OR)\s*Jiao\s*\(Codex\)/, `${name}: either runtime can own the task`);
+    assert.match(text, /(?:up to|at most) (?:four|4) (?:role )?managers/i, `${name}: manager fanout`);
+    assert.match(text, /(?:up to|at most) (?:four|4) runners (?:each|per manager|under each)/i, `${name}: runner fanout`);
+    assert.match(text, /maximum|structural limit/i, `${name}: topology is a maximum`);
+    assert.match(text, /optional|never mandatory|not (?:a )?(?:target|required)/i, `${name}: spawning is optional`);
+  }
+});
+
+test("Codex concurrency is task-adaptive while current bridge limits remain explicit and unchanged", async () => {
+  const { renderAgents, renderSkill, render } = await mod();
+  const guidance = readFileSync(path.join(ROOT, ".codex/runtime-guidance.md"), "utf8");
+  assert.match(guidance, /small[- ]task|small task/i);
+  assert.match(guidance, /(?:zero|0) or (?:one|1)|(?:no|one) helper|owner alone/i);
+  assert.match(guidance, /runtime/);
+  assert.match(guidance, /resource/);
+  assert.match(guidance, /(?:scope|task|ticket)[^\n]*(?:limit|budget)|(?:limit|budget)[^\n]*(?:scope|task|ticket)/i);
+  assert.match(guidance, /bridge/i, "the bridge's two-slot cap must not be mistaken for a universal Codex cap");
+  assert.match(guidance, /per-layer|measured|concurrent|simultaneous/i, "structural fanout must not be mistaken for simultaneous-capacity approval");
+  const outputs = [
+    renderAgents(readFileSync(path.join(ROOT, "CLAUDE.md"), "utf8"), guidance),
+    renderSkill("team-protocol/SKILL.md", readFileSync(path.join(ROOT, ".claude/skills/team-protocol/SKILL.md"), "utf8")),
+    ...["developer", "orchestrator"].map((role) => render(readFileSync(path.join(ROOT, `.claude/agents/${role}.md`), "utf8"))),
+  ];
+  for (const text of outputs) {
+    assert.doesNotMatch(text, /(?:at most|ceiling of) two live workers besides the owner|within the Codex worker ceiling|Codex uses the worker ceiling/);
+  }
+  const policy = await import(pathToFileURL(path.join(ROOT, "apps/bridge/agents/policy.mjs")).href);
+  assert.deepEqual(policy.SLOTS, { worker: 2, bao: 1, scout: 1 });
+  assert.equal(policy.MAX_CONCURRENT_AGENTS, 2);
+  assert.equal(policy.SESSION_CAP, 4);
+});
+
+test("generated routing retains judgment tiers and bounded leaf execution without weakening safety", async () => {
+  const { render, MODEL_MAP } = await mod();
+  assert.deepEqual(MODEL_MAP, { opus: "gpt-6-astra", sonnet: "gpt-6.1-sol", haiku: "gpt-6-luna" });
+  for (const role of ["orchestrator", "developer", "architect", "code-reviewer", "qa", "security"]) {
+    const text = readFileSync(path.join(ROOT, `.claude/agents/${role}.md`), "utf8");
+    const codex = parseToml(render(text));
+    assert.match(text, /^model: sonnet\r?$/m, `${role}: configured Claude judgment tier`);
+    assert.match(text, /^effort: high\r?$/m, `${role}: configured judgment effort`);
+    assert.equal(codex.model, MODEL_MAP.sonnet, `${role}: generated judgment tier`);
+    assert.equal(codex.model_reasoning_effort, "high");
+  }
+  for (const role of ["runner", "scout"]) {
+    const text = readFileSync(path.join(ROOT, `.claude/agents/${role}.md`), "utf8");
+    const codex = parseToml(render(text));
+    assert.match(text, /^model: haiku\r?$/m);
+    assert.equal(codex.model, MODEL_MAP.haiku);
+    assert.equal(codex.model_reasoning_effort, "low");
+    assert.doesNotMatch(text.match(/^tools: ([^\n]*)/m)?.[1] ?? "", /\bAgent\b/, `${role}: Claude leaf has no delegation tool`);
+    if (role === "runner") assert.match(codex.developer_instructions, /(?:start(?:s)? (?:nothing|no|another)|no Agent tool)/i);
+  }
+  const tiered = parseToml(render(SAMPLE() + "\nSonnet judgment; Haiku execution.\n")).developer_instructions;
+  assert.match(tiered, /higher-tier[^\n]*lower-cost/i, "runtime prose must retain the distinction between judgment and execution tiers");
+  const guidance = readFileSync(path.join(ROOT, ".codex/runtime-guidance.md"), "utf8");
+  assert.match(guidance, /never silently (?:switch|substitute|downgrade)/i);
+  assert.match(guidance, /first-failure/);
+  assert.match(guidance, /one-attempt/);
+  assert.match(guidance, /literal covering test files/);
+  assert.match(guidance, /independent code review and QA/);
+  assert.match(guidance, /no push, PR, merge, deployment, dependency or spending authority/);
+});
+
+test("Codex rendering maps lowercase model directives and preserves prose tiers", async () => {
+  const { render, renderSkill, MODEL_MAP } = await mod();
+  const instructions = "Dispatch with `model: haiku` or `--model sonnet`.\nUse claude-opus-5-5 for deep work.\nKeep sonnet judgment above bounded haiku execution.\n";
+  for (const text of [
+    parseToml(render(SAMPLE() + instructions)).developer_instructions,
+    renderSkill("code-review/SKILL.md", Buffer.from(instructions)),
+  ]) {
+    assert.ok(text.includes(`model: ${MODEL_MAP.haiku}`), "inline model arguments use the configured Codex leaf model");
+    assert.ok(text.includes(`--model ${MODEL_MAP.sonnet}`), "CLI model arguments use the configured Codex judgment model");
+    assert.ok(text.includes(MODEL_MAP.opus), "an explicit Claude model ID maps through the existing tier table");
+    assert.match(text, /higher-tier/i);
+    assert.match(text, /lower-cost/i);
+    assert.doesNotMatch(text, /\bclaude-(?:haiku|sonnet|opus)-|(?:model:\s*|--model\s+)(?:haiku|sonnet|opus)\b/i);
+  }
+});

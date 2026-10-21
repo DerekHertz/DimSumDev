@@ -46,6 +46,8 @@ import { createWorkspaces, prepareMainGit } from "./workspace.mjs";
 import { TIERS, readCost, readCount, readModel, readTiers } from "./run-record.mjs";
 import { deliveryPrompt, WORK_TIPS } from "../delivery/prompts.mjs";
 import { MEETING_PARTS, NOTE_MAX as MEETING_FILE_MAX, meetingPrompt } from "../meetings/prompts.mjs";
+import { createTaskTrees, TREE_TASK_BYTES } from "./task-tree.mjs";
+import { resolveTreeRole, assertTreeRuntimeModel } from "./tree-models.mjs";
 
 const COMMIT_RE = /^[0-9a-f]{40,64}$/;
 const FINDINGS_MAX = 16000; // characters of a review's findings handed to a fix round
@@ -126,11 +128,13 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const controlHandle = { slug: "den", root, control: root, workspaces };
   const projects = projectsOption ?? { active: async () => "den", get: async (slug) => (slug === "den" ? controlHandle : null) };
   // A run's project, fixed when it starts: a desk, meeting or orchestrator run is the den's; any other takes the active project.
-  const isControl = (a) => a.role === "orchestrator" || a.ref === DESK_REF || Boolean(a.meeting);
+  const isControl = (a) => (!a.treeManaged && a.role === "orchestrator") || a.ref === DESK_REF || Boolean(a.meeting);
   const workspacesOf = async (slug) => (slug === undefined || slug === "den" ? workspaces : (await projects.get(slug))?.workspaces ?? null);
   const agents = new Map(); // id -> record; insertion order is snapshot order
   const liveByRef = new Map(); // project/ref -> record, for every reserved or running agent
   const pending = new Set(); // spawns in flight
+  const taskTrees = createTaskTrees(root);
+  const treeTokens = new Map(); // isolated from den/catalog authority
   // codex-residents/05: leaving the live map also settles the attempt in the admission journal, so the work can start again.
   const drop = (agent) => {
     liveByRef.delete(refKey(agent));
@@ -150,6 +154,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     resume: a.resume, reason: a.reason, project: a.project ?? "den", worktree: a.worktree ?? null, branch: a.branch ?? null,
     model: a.model ?? null, usage: a.usage ?? null, costUsd: a.costUsd ?? null, reply: a.reply ?? null, durationMs: a.durationMs ?? null,
     resumeOf: a.resumeOf ?? null, followUp: canContinue(a) && END_STATES.includes(a.state),
+    ...(a.treeNode ? { tree: taskTrees.describe(a.treeNode) } : {}),
     wall: wallView(a),
   });
   // agent-os/05: refusals by the wall, counted per kind (hosts together, writes together). A kind's count restarts
@@ -222,7 +227,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const runTokens = new Map();
   const tokenHash = (t) => createHash("sha256").update(t).digest("hex");
   const ALLOWED_CALLS_MAX = 20;
-  const canContinue = (a) => adapterOf(a)?.capabilities?.resume === true && validRuntimeSession(a.runtimeSessionId) && typeof a.sessionId === "string" && UUID_RE.test(a.sessionId) && typeof a.worktree === "string";
+  const canContinue = (a) => !a.treeManaged && adapterOf(a)?.capabilities?.resume === true && validRuntimeSession(a.runtimeSessionId) && typeof a.sessionId === "string" && UUID_RE.test(a.sessionId) && typeof a.worktree === "string";
   const publish = (a) => onChange({ type: "agent", agent: view(a) });
   // Held permission requests (organism-infra/141). The store knows no process; these callbacks are its only way out.
   const approvals = createApprovalStore({
@@ -251,7 +256,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   // den-mvp outcome 2: each entry, and each change to one, is also appended to the role's durable conversation, tagged
   // with this run and its ticket. A failed write is logged; the conversation is a record to read, not an authority.
   const keep = (agent, fields) =>
-    conversations.append(agent.role, { runId: agent.id, ref: agent.ref, ...fields }, { runtime: agent.runtimeId, project: agent.project }).catch((err) => console.error(`bridge: could not write the ${agent.role} conversation: ${err?.message ?? err}`));
+    agent.treeManaged && agent.role === "runner" ? Promise.resolve() : conversations.append(agent.role, { runId: agent.id, ref: agent.ref, ...fields }, { runtime: agent.runtimeId, project: agent.project }).catch((err) => console.error(`bridge: could not write the ${agent.role} conversation: ${err?.message ?? err}`));
   function record(agent, entry) {
     let buffer = transcripts.get(agent.id);
     if (!buffer) {
@@ -333,11 +338,12 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         resume: resumeFor({ runtimeId: h.runtime, runtimeSessionId: h.runtimeSessionId }), reason: h.reason, worktree: h.worktree, branch: h.branch, proc: null,
         ...(h.origin ? { origin: h.origin, resumeOf: h.resumeOf } : {}), ...(h.project ? { project: h.project } : {}),
         model: h.model, usage: h.usage, costUsd: h.costUsd, durationMs: h.durationMs,
+        ...(h.treeManaged ? { treeManaged: true } : {}),
       });
     }
     trimHistory();
   }
-  const ready = replay().catch((err) => console.error(`bridge: sessions replay failed: ${err.stack ?? err}`));
+  const ready = Promise.all([replay(), taskTrees.ready]).catch((err) => console.error(`bridge: sessions/tree replay failed: ${err.stack ?? err}`));
 
   function trimHistory() {
     for (const [id, a] of agents) {
@@ -347,10 +353,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   }
 
   // Shape check shared by both entries. Returns a refusal or null.
-  function checkShape(input) {
+  function checkShape(input, treeNode) {
     if (!input || typeof input !== "object") return refuse(400, "body must be an object");
     const { ref, role, mode } = input;
-    if (typeof role !== "string" || !ROLES.includes(role)) return refuse(400, `role must be one of: ${ROLES.join(", ")}`);
+    if (typeof role !== "string" || (!ROLES.includes(role) && !(treeNode?.depth === 2 && role === "runner"))) return refuse(400, `role must be one of: ${ROLES.join(", ")}`);
     if (typeof ref !== "string" || !REF_RE.test(ref)) return refuse(400, "ref must look like <feature>/<NN>-<slug>");
     if (mode !== undefined && (typeof mode !== "string" || !MODES.includes(mode))) return refuse(400, `mode must be one of: ${MODES.join(", ")}`);
     return null;
@@ -409,10 +415,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     return refuse(429, `the ${c.cap}-session cap is reached`);
   };
 
-  async function select(input, { execute = true } = {}) {
+  async function select(input, { execute = true, tree = false } = {}) {
     const selectedRuntime = runtimeId(input?.runtime);
     if (!selectedRuntime) return refuse(400, "unknown runtime");
-    const control = input.role === "orchestrator" || input.ref === DESK_REF || Boolean(input.meeting);
+    const control = !tree && (input.role === "orchestrator" || input.ref === DESK_REF || Boolean(input.meeting));
     if (input.project !== undefined && !validProject(input.project)) return refuse(400, "invalid project");
     const active = await projects.active();
     const project = input.project ?? (control ? "den" : active);
@@ -426,11 +432,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   }
 
   // entry: "dispatch" | "start" | "direct" (the three entries in the header).
-  async function admit(input, { entry, selected: captured }) {
-    const bad = checkShape(input);
+  async function admit(input, { entry, selected: captured, treeNode }) {
+    const bad = checkShape(input, treeNode);
     if (bad) return bad;
     const { ref, role } = input;
-    const selected = captured ?? await select(input);
+    const selected = captured ?? await select(input, { tree: Boolean(treeNode) });
     if (selected.ok === false) return selected;
     const runtime = adapters[selected.runtime];
     const mode = entry === "direct" ? DIRECT_MODE : input.mode ?? null;
@@ -469,12 +475,194 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const unhold = async (refusal) => (await admission.settle(ticket.intent.id, "never-started"), refusal);
     // From here to the registration of the reservation there is no await: this is the one synchronous step.
     if (shuttingDown) return unhold(refuse(503, "the bridge is shutting down"));
+    if (treeNode && !treeUsable(treeNode)) return unhold(refuse(409, "the parent task is no longer live"));
     if (liveByRef.has(refKey({ ...selected, ref }))) return unhold(refuse(409, "this ticket already has a live agent"));
     const noRoom = full(locked, role, selected.project);
     if (noRoom) return unhold(noRoom);
-    const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}) });
+    const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}), ...(treeNode ? { id: treeNode.id, treeNode, treeManaged: true, model: treeNode.model, effort: treeNode.effort } : {}) });
+    if (treeNode) treeNode.agent = agent;
     agent.intentId = ticket.intent.id;
     return launch(agent, ENTRY_ROUTES[entry], usage === null);
+  }
+  // Task trees enter only through the authenticated tree API. Native runtime spawning is disabled
+  // for these runs: parentage, models, scopes and every process remain bridge-owned.
+  const treeScopeChecks = new Map();
+  async function treeScopes(project, scopes) {
+    const handle = await projects.get(project).catch(() => null);
+    if (!handle) return refuse(409, "the task's project is no longer onboarded");
+    if (!treeScopeChecks.has(handle.root)) treeScopeChecks.set(handle.root, handle.root === root ? admission : createAdmission({ root: handle.root }));
+    return treeScopeChecks.get(handle.root).checkScopes(scopes);
+  }
+  const scopesWithin = (child, parent) => child.every((scope) => parent.some((base) => scope === base || scope.startsWith(`${base}/`)));
+  const scopesOverlap = (a, b) => a.some((scope) => b.some((other) => scope === other || scope.startsWith(`${other}/`) || other.startsWith(`${scope}/`)));
+  function treeUsable(node) {
+    if (shuttingDown || node.cancelled || taskTrees.node(node.id) !== node || !taskTrees.approved(node)) return false;
+    const owner = admission.ownerOf(node.rootRef);
+    if (owner.owner !== node.owner || owner.epoch !== node.epoch || owner.root !== node.rootRef) return false;
+    if (node.parentId) {
+      const parent = taskTrees.node(node.parentId);
+      return !!parent && parent.state === "working" && !parent.cancelled && !!parent.agent?.proc && !parent.agent.exited && !parent.agent.stopRequested && !parent.agent.releasing && treeUsable(parent);
+    }
+    return true;
+  }
+  async function prepareTreeNode(node) {
+    if (!/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(bridgeUrl() ?? "")) throw new Error("the tree tool channel is unavailable");
+    const selection = resolveTreeRole({ controlRoot: root, role: node.role, runtime: node.runtime });
+    await assertTreeRuntimeModel(adapters[node.runtime], { ...selection, role: node.role });
+    if (node.model && (node.model !== selection.model || node.effort !== selection.effort || JSON.stringify(node.delegateRoles) !== JSON.stringify(selection.delegateRoles))) throw new Error("the trusted role changed; approve a new tree revision");
+    Object.assign(node, selection);
+  }
+  const treeAudit = (node) => ({ ...taskTrees.describe(node), role: node.role, runtime: node.runtime, configuredModel: node.model, configuredEffort: node.effort });
+  async function runTreeNode(node, entry) {
+    try {
+      await prepareTreeNode(node);
+      if (!treeUsable(node)) throw new Error("the parent task is no longer live");
+      await taskTrees.journal({ event: "reserved", ...taskTrees.describe(node), ref: node.ref, project: node.project, role: node.role, runtime: node.runtime, scopes: node.scopes, model: node.model, effort: node.effort });
+      if (!treeUsable(node)) throw new Error("the parent task is no longer live");
+      const result = await admit({ ref: node.ref, role: node.role, runtime: node.runtime, project: node.project, scopes: node.scopes, capability: admission.capability(node.owner, node.rootRef) }, { entry, treeNode: node });
+      if (!result.ok) {
+        if (!node.attempted && result.status === 429) node.state = "planned";
+        else { node.cancelled = true; taskTrees.end(node, "failed"); }
+      }
+      return result;
+    } catch (err) {
+      node.cancelled = true;
+      taskTrees.end(node, "failed");
+      console.error(`bridge: task tree refused ${node.role}: ${err?.message ?? err}`);
+      return refuse(409, clean(err?.message, 200) ?? "the tree node could not start");
+    }
+  }
+  async function planTree(input) {
+    await taskTrees.ready;
+    await admission.ready;
+    if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((key) => !["ref", "runtime", "project", "scopes", "nodes"].includes(key))) return refuse(400, "a tree proposal takes only ref, runtime, project, scopes and complete node contracts");
+    const bad = checkShape({ ...input, role: "orchestrator" });
+    if (bad) return bad;
+    const selected = await select({ ...input, role: "orchestrator" }, { tree: true });
+    if (selected.ok === false) return selected;
+    const allowedRuntime = admission.allowlist();
+    if (allowedRuntime !== "both" && allowedRuntime !== selected.runtime) return refuse(409, "this runtime is disabled; tree approval cannot switch runtimes");
+    const fixedRuntime = admission.runtimeOf(input.ref, selected.project);
+    if (fixedRuntime && fixedRuntime !== selected.runtime) return refuse(409, "the task's recorded runtime differs; change it explicitly before proposing a tree");
+    const owner = admission.ownerOf(input.ref);
+    if (owner.legacy || owner.root !== input.ref) return refuse(409, "approve this root task and its owner before starting a tree");
+    if ((owner.owner === "bao" ? "claude" : "codex") !== selected.runtime) return refuse(409, "the root runtime must match the task's approved owner");
+    const checked = await treeScopes(selected.project, input.scopes);
+    if (!checked.ok) return checked;
+    if (!Array.isArray(input.nodes) || input.nodes.length > 20) return refuse(400, "a tree proposal needs at most twenty manager/runner contracts");
+    const keys = new Set(["owner"]);
+    const proposals = new Map();
+    const list = (value, allowEmpty = true) => Array.isArray(value) && value.length <= 30 && (allowEmpty || value.length > 0) && value.every((s) => typeof s === "string" && s.trim() !== "" && Buffer.byteLength(s) <= TREE_TASK_BYTES && !hasSecret(s));
+    for (const contract of input.nodes) {
+      if (!contract || typeof contract !== "object" || Array.isArray(contract) || Object.keys(contract).some((key) => !["id", "parent", "role", "outcome", "inputs", "scopes", "dependencies", "acceptanceCriteria", "verificationCommands"].includes(key))) return refuse(400, "a node needs a complete fixed contract");
+      if (typeof contract.id !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(contract.id) || keys.has(contract.id) || typeof contract.parent !== "string") return refuse(400, "node IDs must be unique and parents explicit");
+      if (typeof contract.outcome !== "string" || contract.outcome.trim() === "" || Buffer.byteLength(JSON.stringify(contract)) > TREE_TASK_BYTES || hasSecret(contract.outcome) || !list(contract.inputs) || !list(contract.acceptanceCriteria, false) || !list(contract.verificationCommands) || !list(contract.dependencies)) return refuse(400, "node contracts need bounded outcomes, inputs, criteria, checks and dependencies");
+      // Independent structural delegation is this slice. Durable dependency acceptance and integration
+      // are separate stages; a raw process completion must never satisfy a dependency here.
+      if (contract.dependencies.length > 0) return refuse(409, "dependency barriers require the verified integration scheduler; this slice accepts independent contracts only");
+      keys.add(contract.id);
+      proposals.set(contract.id, structuredClone(contract));
+    }
+    const prepared = [];
+    const resolved = new Map();
+    const todo = new Map(proposals);
+    try {
+      const ownerSelection = resolveTreeRole({ controlRoot: root, role: "orchestrator", runtime: selected.runtime });
+      await assertTreeRuntimeModel(adapters[selected.runtime], { ...ownerSelection, role: "orchestrator" });
+      resolved.set("owner", { depth: 0, scopes: checked.scopes, selection: ownerSelection });
+      while (todo.size > 0) {
+        let progressed = false;
+        for (const [key, contract] of todo) {
+          const parent = resolved.get(contract.parent);
+          if (!parent) continue;
+          if (parent.depth >= 2 || !parent.selection.delegateRoles?.includes(contract.role) || (parent.depth === 0 ? contract.role === "runner" || contract.role === "orchestrator" : contract.role !== "runner")) throw new Error("a node exceeds the permitted owner/manager/runner structure or trusted role tools");
+          const scopes = await treeScopes(selected.project, contract.scopes);
+          if (!scopes.ok || !scopesWithin(scopes.scopes, parent.scopes)) throw new Error("a child scope must stay inside its parent's approved scope");
+          const selection = resolveTreeRole({ controlRoot: root, role: contract.role, runtime: selected.runtime });
+          await assertTreeRuntimeModel(adapters[selected.runtime], { ...selection, role: contract.role });
+          prepared.push({ key, contract, scopes: scopes.scopes, selection });
+          resolved.set(key, { depth: parent.depth + 1, scopes: scopes.scopes, selection });
+          todo.delete(key);
+          progressed = true;
+        }
+        if (!progressed) throw new Error("a tree contains a missing parent or a cycle");
+      }
+      for (const key of keys) if ([...proposals.values()].filter((node) => node.parent === key).length > 4) throw new Error("a parent may have at most four children");
+    } catch (err) { return refuse(400, clean(err?.message, 200)); }
+    let node;
+    try {
+      node = taskTrees.root({ ref: input.ref, ...selected, owner: owner.owner, epoch: owner.epoch, scopes: checked.scopes });
+      Object.assign(node, resolved.get("owner").selection);
+      const planned = new Map([["owner", node]]);
+      for (const item of prepared) {
+        const child = taskTrees.child(planned.get(item.contract.parent), { role: item.contract.role, task: item.contract.outcome, scopes: item.scopes, planned: true, contract: item.contract });
+        Object.assign(child, item.selection, { key: item.key });
+        planned.set(item.key, child);
+      }
+      await taskTrees.journal({ event: "proposed", tree: taskTrees.snapshot().find((tree) => tree.id === node.treeId) });
+    }
+    catch (err) { if (node) taskTrees.abort(node); return refuse(409, err.message); }
+    return { ok: true, status: 201, revision: node.treeId, tree: taskTrees.snapshot().find((tree) => tree.id === node.treeId) };
+  }
+  async function startTree(input) {
+    if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).length !== 1 || typeof input.revision !== "string") return refuse(400, "approve/start the exact complete tree revision");
+    const proposed = taskTrees.tree(input.revision);
+    if (!proposed || proposed.closed || proposed.superseded) return refuse(409, "the proposed revision is absent or superseded");
+    let node = taskTrees.node(proposed.rootId);
+    const owner = admission.ownerOf(node.rootRef);
+    if (owner.legacy || owner.owner !== node.owner || owner.epoch !== node.epoch || owner.root !== node.rootRef) return refuse(409, "the approved task owner changed; propose a new revision");
+    if (proposed.approved && (node.state !== "planned" || node.attempted)) return refuse(409, "this approved revision has already started");
+    try {
+      if (!proposed.approved) {
+        // The caller is the authenticated user API, never an agent capability.
+        node = taskTrees.approve(input.revision);
+        await taskTrees.journal({ event: "approved", revision: input.revision, owner: node.owner, epoch: node.epoch });
+      } else node.state = "pending";
+    } catch (err) { if (proposed.approved) { node.cancelled = true; taskTrees.end(node, "failed"); } return refuse(409, err.message); }
+    return runTreeNode(node, "dispatch");
+  }
+  async function delegate(parentId, input) {
+    const parent = taskTrees.node(parentId);
+    if (!parent || !treeUsable(parent) || parent.state !== "working" || !parent.agent?.proc || parent.agent.exited || parent.agent.stopRequested || parent.agent.releasing) return refuse(409, "the parent task is no longer live");
+    if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).length !== 1 || typeof input.nodeId !== "string") return refuse(400, "delegation starts only an exact approved nodeId");
+    const node = taskTrees.node(input.nodeId);
+    if (!node || node.parentId !== parent.id || node.treeId !== parent.treeId || node.state !== "planned" || node.attempted || node.cancelled) return refuse(403, "this is not an unstarted child of the approved parent revision");
+    if (!parent.delegateRoles?.includes(node.role)) return refuse(403, "the parent's trusted role does not permit this delegation");
+    // Siblings may run together only on disjoint scopes. Reviewers can be sequenced on a frozen candidate.
+    if (parent.children.some((id) => { const sibling = taskTrees.node(id); return sibling && sibling.id !== node.id && ["pending", "working"].includes(sibling.state) && scopesOverlap(node.scopes, sibling.scopes); })) return refuse(409, "live sibling scopes overlap; sequence this work");
+    node.state = "pending"; // synchronously reserve this stable node before any await
+    try {
+      // Ownership is inherited from the approved root, never selected by a worker.
+      const approved = await admission.approve(node.ref, { owner: node.owner, parent: node.rootRef });
+      if (!approved.ok) throw new Error(approved.error);
+      if (!treeUsable(node)) throw new Error("the parent task is no longer live");
+      const parentWorkspaces = await workspacesOf(node.project);
+      node.base = await parentWorkspaces.head(parent.agent.workspace);
+      return await runTreeNode(node, "start");
+    } catch (err) {
+      node.cancelled = true;
+      taskTrees.end(node, "failed");
+      return refuse(409, clean(err?.message, 200) ?? "the delegated node could not start");
+    }
+  }
+  function treeResult(parentId, childId) {
+    const parent = taskTrees.node(parentId);
+    const child = taskTrees.node(childId);
+    if (!parent || !treeUsable(parent) || parent.state !== "working" || !child || child.parentId !== parent.id) return refuse(403, "a tree result belongs only to its live parent");
+    const agent = child.agent;
+    return { ok: true, status: 200, result: { ...taskTrees.describe(child), role: child.role, state: child.state, accepted: false, ref: child.ref, runtime: child.runtime, contract: structuredClone(child.contract), candidate: agent?.sha ?? null, branch: agent?.branch ?? null, report: END_STATES.includes(child.state) ? agent?.report ?? null : null, reason: agent?.reason ?? null } };
+  }
+  function cancelTreeChildren(agent) {
+    if (!agent.treeNode) return Promise.resolve();
+    const ended = [];
+    for (const node of taskTrees.descendants(agent.treeNode)) {
+      node.cancelled = true;
+      if (node.agent?.proc && !node.agent.exited) {
+        terminate(node.agent, "parent-ended");
+        if (node.agent.finished) ended.push(node.agent.finished);
+      }
+    }
+    return Promise.allSettled(ended);
   }
   // A new run's record. Called inside the synchronous step; launch() registers it and starts the spawn.
   function newAgent({ ref, role, mode, grants, sessionId, runtimeId, ...follows }) {
@@ -575,6 +763,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
 
   async function spawnAgent(agent, routeName, usageUnknown) {
     const runtime = adapterOf(agent);
+    if (agent.treeNode && !treeUsable(agent.treeNode)) { drop(agent); return refuse(409, "the parent task is no longer live"); }
     // The agent's own worktree and branch (ADR 0016 decision 3, amendment 7): no agent runs in the repo root, and
     // without a worktree nothing is spawned.
     // den-mvp outcome 2: a follow-up run reopens the worktree its session ran in; nothing is created, and a cleanup below
@@ -601,7 +790,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     try {
       workspace = agent.resumeOf
         ? await workspaces.reopen({ ref: agent.ref, agentId: agent.id, origin: agent.origin, catchUp: agent.ref === DESK_REF })
-        : await workspaces.create({ ref: agent.ref, agentId: agent.id, ...(agent.delivery ? { base: agent.delivery.at } : {}) });
+        : await workspaces.create({ ref: agent.ref, agentId: agent.id, ...(agent.delivery ? { base: agent.delivery.at } : agent.treeNode?.base ? { base: agent.treeNode.base } : {}) });
     } catch (err) {
       drop(agent);
       console.error(`bridge: could not ${agent.resumeOf ? "reopen the" : "create a"} worktree for ${agent.ref}: ${err?.message ?? err}`);
@@ -610,6 +799,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     agent.worktree = workspace.worktree;
     agent.branch = workspace.branch;
     agent.workspace = workspace;
+    if (agent.treeNode && !treeUsable(agent.treeNode)) {
+      await workspaces.remove(workspace);
+      drop(agent);
+      return refuse(409, "the parent task is no longer live");
+    }
     // den-mvp/23: every run records the commit it started at, so its end can say whether it committed anything.
     if (!agent.delivery) agent.startSha = await workspaces.head(workspace).catch(() => null);
     // A delivery step's worktree is at the commit the bridge named, and a fix round finds the review's findings in it.
@@ -660,6 +854,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       ...(agent.grants.length === 0 ? {} : { grants: agent.grants, root: await realpath(project.root).catch(() => project.root) }),
       // den-mvp outcome 4: the connections the catalog and the role file both give this role; data for the adapter.
       ...(connections.length === 0 ? {} : { connections }),
+      ...(agent.treeNode ? { model: agent.treeNode.model, effort: agent.treeNode.effort, tree: taskTrees.describe(agent.treeNode) } : {}),
     };
     const url = connections.some((c) => c.credential === "run") ? bridgeUrl() : null;
     if (url) {
@@ -668,6 +863,22 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       runTokens.set(agent.runTokenHash, agent.id);
       args.runCredential = { url, token };
     }
+    if (agent.treeNode) {
+      const token = randomBytes(32).toString("base64url");
+      agent.treeTokenHash = tokenHash(token);
+      treeTokens.set(agent.treeTokenHash, agent.id);
+      args.treeCredential = { url: bridgeUrl(), token };
+      // Read-only leaves receive no connection catalog authority from their manager.
+      if (agent.treeNode.depth === 2) { delete args.connections; delete args.runCredential; }
+      if (!treeUsable(agent.treeNode)) {
+        treeTokens.delete(agent.treeTokenHash);
+        if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
+        await workspaces.remove(workspace);
+        drop(agent);
+        return refuse(409, "the parent task is no longer live");
+      }
+      agent.treeNode.attempted = true;
+    }
     let proc;
     try {
       proc = await runtime.spawn(args);
@@ -675,6 +886,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       await workspaces.remove(workspace);
       drop(agent);
       if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
+      if (agent.treeTokenHash) treeTokens.delete(agent.treeTokenHash);
       console.error(`bridge: runtime failed to spawn ${agent.role} for ${agent.ref}: ${err?.message ?? err}`);
       return err?.name === "EnforcementError" ? refused(err.reason) : refuse(502, "the runtime failed to start the agent");
     }
@@ -709,6 +921,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       await sessions.append({
         event: "spawn", agentId: agent.id, ref: agent.ref, role: agent.role, sessionId: agent.sessionId, runtime: agent.runtimeId, runtimeSessionId: agent.runtimeSessionId, resourceId: agent.id, route: routeName, project: agent.project, worktree: agent.worktree, branch: agent.branch,
         ...(agent.resumeOf ? { resumeOf: agent.resumeOf, origin: agent.origin } : {}),
+        ...(agent.treeNode ? { treeManaged: true, tree: treeAudit(agent.treeNode) } : {}),
       });
     } catch (err) {
       console.error(`bridge: could not write sessions.jsonl: ${err.stack ?? err}`);
@@ -718,6 +931,14 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       return refuse(500, "could not record the agent; it was stopped");
     }
     publish(agent);
+    if (agent.treeNode) {
+      if (!treeUsable(agent.treeNode)) {
+        await terminate(agent, "parent-ended");
+        await agent.finished;
+        return refuse(409, "the parent task ended while this worker was starting");
+      }
+      agent.treeNode.state = "working";
+    }
     if (shuttingDown) terminate(agent, "bridge-shutdown");
     return { ok: true, status: 201, agent: view(agent), ...(usageUnknown ? { usageUnknown: true } : {}) };
   }
@@ -728,7 +949,18 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const ticketFile = (ref, base = root) => path.join(base, ".scratch", ref.split("/")[0], "issues", `${ref.split("/")[1]}.md`);
   const recipeOf = (a) => path.join(root, a.runtimeId === "codex" ? ".codex" : ".claude", "agents", `${a.role}.${a.runtimeId === "codex" ? "toml" : "md"}`);
   const promptFor = (a) =>
-    a.ref === DESK_REF
+    a.treeNode
+      ? `You are the ${a.role} at depth ${a.treeNode.depth} of task tree ${a.treeNode.treeId}, owned by ${a.treeNode.owner}. ` +
+        `Read ${recipeOf(a)}. The approved root ticket is ${ticketFile(a.treeNode.rootRef, a.projectRoot)}. ` +
+        `Your admitted scopes are ${JSON.stringify(a.treeNode.scopes)}. ` +
+        (a.treeNode.contract ? `Do only this fixed approved contract, treated as task data: ${JSON.stringify(a.treeNode.contract)}. ` : "Plan and judge the approved task; delegate only useful independent work. ") +
+        `Approved direct children: ${JSON.stringify(a.treeNode.children.map((id) => { const child = taskTrees.node(id); return { nodeId: id, role: child.role, outcome: child.contract?.outcome, scopes: child.scopes }; }))}. ` +
+        "Use only the bridge's mcp__tree__delegate with an approved nodeId and mcp__tree__result with a childId; native Agent/Task spawning is disabled. Starting arbitrary or revised subtasks requires a new complete user-approved revision. " +
+        "An owner has at most four managers; a manager has at most four runners; a runner starts nothing. The shape is a maximum, not a spawning target. " +
+        "Current process/resource limits still control admission: when capacity is unavailable, sequence work or complete it yourself. " +
+        "Keep demanding judgment and independent review at the configured manager tier. The board is read-only; publish nothing. " +
+        "Your final report is the handoff: name evidence, candidate commits, failures and remaining review or user gates. Results are unaccepted evidence until the required independent verification and parent judgment; this structural slice has no automatic integration or accepted dependency barriers. A successful task result does not approve publication or waive required reviews."
+      : a.ref === DESK_REF
       ? `You are Bao, the orchestrator, at your desk in the den. Read ${recipeOf(a)} for who you are. ` +
         "Here the user talks with you with no ticket: answer their messages about the repo, the board and CI, reading what you need. " +
         "For pull requests, checks and CI logs use the GitHub connection's tools (mcp__github__*): `gh` has no login here. " +
@@ -772,6 +1004,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     agent.exitCode = info?.code ?? null;
     noteLimit(agent, info?.resourceLimit);
     agent.exited = true;
+    await cancelTreeChildren(agent);
     await Promise.race([consume, sleep(EVENT_DRAIN_MS)]);
     // agent-os/09: the agent committed on a detached HEAD; the bridge, not the agent, creates its branch at the final commit.
     if (agent.workspace) {
@@ -784,8 +1017,16 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // A run admitted with a scope that returns a change outside it, or on a governed path, failed. An unscoped run (the
     // delivery gate already holds governed changes for the user) is not failed by this check.
     const intent = agent.intentId ? admission.intentOf(agent.intentId) : null;
+    if (agent.treeManaged && (!COMMIT_RE.test(agent.sha ?? "") || !COMMIT_RE.test(agent.startSha ?? ""))) {
+      agent.doneOk = false;
+      agent.reason ??= "returned-candidate-unverified";
+    }
     if (intent?.scopes && agent.sha && agent.startSha && agent.sha !== agent.startSha && agent.workspace?.dir) {
       const files = await changedFiles(agent.workspace.dir, agent.startSha, agent.sha).catch((err) => (console.error(`bridge: could not list the changes of ${agent.id}: ${err?.message ?? err}`), null));
+      if (agent.treeManaged && files === null) {
+        agent.doneOk = false;
+        agent.reason ??= "returned-scope-unverified";
+      }
       const bad = files ? await admission.checkReturned({ scopes: intent.scopes, changed: files }) : [];
       if (bad.length > 0) {
         agent.doneOk = false;
@@ -793,6 +1034,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       }
     }
     finalize(agent);
+    if (agent.treeNode) await taskTrees.journal({ event: "ended", ...treeAudit(agent.treeNode), state: agent.state, candidate: agent.sha ?? null }).catch((err) => console.error(`bridge: could not journal the tree result: ${err?.message ?? err}`));
     // den-mvp/43: a meeting take has no follow-up, so its worktree goes with it; unsaved work is kept on a wip/ branch.
     if (agent.meeting && agent.workspace && !agent.workspace.reopened && agent.ref !== DESK_REF) {
       await (await workspacesOf(agent.project)).retire({ ref: agent.ref, agentId: agent.id }).catch((err) => console.error(`bridge: could not remove the worktree of ${agent.id}: ${err?.message ?? err}`));
@@ -802,11 +1044,12 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       agentId: agent.id, ref: agent.ref, role: agent.role, runtime: agent.runtimeId, project: agent.project, runtimeSessionId: agent.runtimeSessionId, mode: agent.mode ?? null, state: agent.state, reason: agent.reason ?? null,
       model: agent.model ?? null, usage: agent.usage ?? null, costUsd: agent.costUsd ?? null, durationMs: agent.durationMs,
       cliMs: agent.cliMs ?? null, turns: agent.turns ?? null,
+      ...(agent.treeNode ? { treeManaged: true, tree: treeAudit(agent.treeNode) } : {}),
     };
     const { agentId, ref, role, mode, state, reason, ...record } = run;
     const kept = Object.fromEntries(Object.entries(record).filter(([, v]) => v !== null));
     await sessions
-      .append({ event: "end", agentId, ref, state, ...(reason ? { reason } : {}), ...kept })
+      .append({ event: "end", agentId, ref, state, ...(reason ? { reason } : {}), ...kept, ...(agent.treeNode ? { treeManaged: true, tree: treeAudit(agent.treeNode) } : {}) })
       .catch((err) => console.error(`bridge: could not write sessions.jsonl: ${err.stack ?? err}`));
     await Promise.resolve()
       .then(() => recordRun(run))
@@ -917,6 +1160,15 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       return;
     } else if (event.type === "permission-request") {
       if (!agent.capabilities.approve) return;
+      if (typeof event.tool === "string" && event.tool.startsWith("mcp__tree__")) {
+        const input = event.input;
+        const field = event.tool === "mcp__tree__delegate" ? "nodeId" : event.tool === "mcp__tree__result" ? "childId" : null;
+        const child = field && input && typeof input === "object" && !Array.isArray(input) && Object.keys(input).length === 1 ? taskTrees.node(input[field]) : null;
+        const live = agent.treeNode && treeUsable(agent.treeNode) && !agent.stopRequested && !agent.releasing;
+        const allowed = !!live && !!child && child.parentId === agent.id && (field === "childId" || (child.state === "planned" && !child.attempted && agent.treeNode.delegateRoles?.includes(child.role)));
+        Promise.resolve(agent.proc.decide(event.requestId, allowed ? { allow: true } : { allow: false, reason: "the call is outside this live node's approved tree contract" })).catch(() => {});
+        return touch(agent);
+      }
       // den-mvp outcome 4: a connection's tool is answered from the catalog first. A tool the catalog does not give this
       // role is refused here and never becomes a question, and so is a call whose input looks like a secret; a read with a
       // short input is allowed; any other is asked as usual.
@@ -984,6 +1236,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     approvals.settleAgent(agent.id, "agent-exited");
     approvals.release(agent.id);
     if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
+    if (agent.treeTokenHash) treeTokens.delete(agent.treeTokenHash);
+    if (agent.treeNode) {
+      taskTrees.end(agent.treeNode, agent.state);
+    }
     agent.allowedCalls = [];
     agent.resume = resumeFor(agent);
     agent.lastEventAt = new Date().toISOString();
@@ -1032,6 +1288,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (agent.killing) return agent.killing;
     agent.stopRequested = true;
     agent.reason ??= reason;
+    cancelTreeChildren(agent);
     agent.killing = (async () => {
       approvals.settleAgent(agent.id, reason === "bridge-shutdown" ? "bridge-shutdown" : "agent-stopped"); // answers deny while the child can hear
       await (agent.releasing ?? escalate(agent)); // a release already under way is the same sequence: join it
@@ -1295,6 +1552,16 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
 
   return {
     ready,
+    planTree,
+    startTree,
+    delegate,
+    treeResult,
+    trees: () => taskTrees.snapshot(),
+    treeAgent(token) {
+      if (typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;
+      const agent = agents.get(treeTokens.get(tokenHash(token)));
+      return agent?.treeNode && agent.proc && !agent.exited && !agent.stopRequested && !agent.releasing && treeUsable(agent.treeNode) ? { id: agent.id, role: agent.role, tree: taskTrees.describe(agent.treeNode) } : null;
+    },
     dispatch: (input) => admit(input, { entry: "dispatch" }),
     start: (input) => admit(input, { entry: "start" }),
     direct,
@@ -1329,6 +1596,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       const grants = body?.grants;
       if (grants !== undefined) {
         const held = approvals.list().find((a) => a.id === id);
+        if (held && agents.get(held.agentId)?.treeManaged) return refuse(409, "tree grants cannot change inside an approved revision");
         if (held?.wall) {
           const refused = Array.isArray(grants) && grants.length <= 6 ? await grantsRefused(agents.get(held.agentId)?.role, grants) : refuse(400, "grants must be a list of at most 6");
           if (refused) return refused;
