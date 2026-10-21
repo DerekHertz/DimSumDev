@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// den-mvp/103: .claude/ is the one source for the relay; this writes the Codex mirrors from it.
+// Shared contracts come from .claude/; .codex/runtime-guidance.md owns Codex execution details.
 //   .claude/agents/<role>.md -> .codex/agents/<role>.toml
-//   .claude/skills/**        -> .agents/skills/**   (byte copies; .agents/skills/jevgrep is hand-kept, left alone)
-//   CLAUDE.md                -> AGENTS.md
+//   .claude/skills/**        -> .agents/skills/**   (runtime wording adapted; licences copied unchanged)
+//   CLAUDE.md + runtime guidance -> AGENTS.md
 // Usage: node scripts/codex-sync.mjs [--check] [--root <dir>]
 //   write mode regenerates every mirror and removes stale ones; --check writes nothing, prints each
 //   drifted path and exits 1 on drift.
@@ -36,6 +36,32 @@ export const RULES = [
 ];
 const applyRules = (text) => RULES.reduce((t, r) => t.replace(r.pattern, r.to), text);
 
+export const RUNTIME_NOTICE = "Before working, read `.codex/runtime-guidance.md` for the Codex execution contract. Shared safety and approval gates, explicit ticket limits and stricter session constraints still apply.";
+
+// Narrow runtime adaptations, leaving the shared source and approval sections intact.
+function runtimeWording(text) {
+  return text
+    .replace(/^Run agents on their role definition's model[^\n]*$/m, "For Codex, use the model and effort configured in `.codex/agents/<role>.toml`, subject to availability and session limits. Never silently substitute a Claude tier or another runtime.")
+    .replace(/Up to two worker agents run at once[^\n]*reserved slot beside them\./g, "Codex uses the worker ceiling in `.codex/runtime-guidance.md`, without reserved extra slots; stricter runtime, resource and ticket limits still apply.")
+    .replace(/^- The agent tree has three levels:[^\n]*$/m, "- Codex delegation follows `.codex/runtime-guidance.md`: one implementation owner, at most two live workers besides the owner, no reserved bonus slots, and no agent started by a leaf. Stricter session and resource limits win.")
+    .replace(/Start `runner` \(Haiku, up to 4 at once\)/g, "When independent delegation is useful and permitted, start `runner` (within the Codex worker ceiling)")
+    .replace(/Have `scout` run the smoke check:/g, "Run the smoke check locally, or delegate a bounded read-only check when permitted:")
+    .replace(/Run typechecking regularly, single test files regularly, and the full test suite once at the end\. Delegate long test or log output to the `scout` subagent so only a summary comes back\./g, "Run required typechecking and literal covering test files with bounded concurrency and timeouts, including affected existing callers. In resource-limited den agents, leave full suites and browser workloads to designated checks/CI or a separately authorized capable environment. Delegate only independent checkable work when permitted; report exact evidence and remaining checks.")
+    .replace(/claude-(?:haiku|sonnet|opus)-[\w.-]+/g, "configured Codex model ID")
+    .replace(/\b(?:Sonnet(?: 5\.5)?|Haiku)\b/g, "Codex")
+    .replace(/\bOpus agents\b/g, "higher-cost agents");
+}
+
+export function renderSkill(relative, content) {
+  if (!relative.endsWith("SKILL.md")) return content;
+  const text = runtimeWording(content.toString());
+  // Keep front matter first. The shared protocol/implementation skills are the
+  // entry points used by standalone role sessions as well as the root owner.
+  return ["team-protocol/SKILL.md", "implement/SKILL.md"].includes(relative)
+    ? text.replace(/^(---\r?\n[\s\S]*?\r?\n---\r?\n)/, `$1\n${RUNTIME_NOTICE}\n`)
+    : text;
+}
+
 // Codex has no per-agent tool list, so a role definition's tool limits (scout read-only, herald's draft check only) bind only as instructions.
 export const CODEX_CAVEAT = "Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.";
 
@@ -54,20 +80,20 @@ export function render(roleDefinition) {
   if (!model) throw new Error(`unknown model "${fm.model}" (add it to MODEL_MAP)`);
   const effort = EFFORT_MAP[fm.effort];
   if (!effort) throw new Error(`unknown effort "${fm.effort}" (add it to EFFORT_MAP)`);
-  const body = applyRules(m[2].replace(/^\s*\n/, "")).trimEnd() + "\n\n" + CODEX_CAVEAT;
+  const body = RUNTIME_NOTICE + "\n\n" + applyRules(runtimeWording(m[2].replace(/^\s*\n/, ""))).trimEnd() + "\n\n" + CODEX_CAVEAT;
   if (body.includes("'''")) throw new Error("body contains ''' and cannot be a TOML literal string");
   return [
     `name = ${JSON.stringify(fm.name)}`,
-    `description = ${JSON.stringify(fm.description)}`,
+    `description = ${JSON.stringify(runtimeWording(fm.description))}`,
     `model = ${JSON.stringify(model)}`,
     `model_reasoning_effort = ${JSON.stringify(effort)}`,
     `developer_instructions = '''\n${body}\n'''\n`,
   ].join("\n");
 }
 
-export function renderAgents(claudeMd) {
-  const head = "<!-- Generated from CLAUDE.md by scripts/codex-sync.mjs (npm run codex:sync). Do not edit; edit CLAUDE.md. -->\n\n";
-  return head + applyRules(claudeMd);
+export function renderAgents(claudeMd, runtimeGuidance = "") {
+  const head = "<!-- Generated by scripts/codex-sync.mjs from CLAUDE.md (shared contracts) and .codex/runtime-guidance.md (Codex execution). Edit those sources, not this mirror. -->\n\n";
+  return head + applyRules(runtimeWording(claudeMd)) + (runtimeGuidance ? "\n\n" + runtimeGuidance.trim() + "\n" : "");
 }
 
 function walk(dir, base = dir) {
@@ -89,13 +115,15 @@ function skillFiles(root) {
 
 // Every mirror the root should hold: relPath -> Buffer|string. Stale paths are listed separately.
 function plan(root) {
+  // Fail before writing any mirror if the hand-maintained runtime source is missing.
+  const runtimeGuidance = readFileSync(path.join(root, ".codex/runtime-guidance.md"), "utf8");
   const want = new Map();
   const stale = [];
   const agentsDir = path.join(root, ".claude/agents");
   const roles = readdirSync(agentsDir).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3));
   for (const role of roles) want.set(`.codex/agents/${role}.toml`, render(readFileSync(path.join(agentsDir, `${role}.md`), "utf8")));
-  for (const f of skillFiles(root)) want.set(`.agents/skills/${f}`, readFileSync(path.join(root, ".claude/skills", f)));
-  want.set("AGENTS.md", renderAgents(readFileSync(path.join(root, "CLAUDE.md"), "utf8")));
+  for (const f of skillFiles(root)) want.set(`.agents/skills/${f}`, renderSkill(f,readFileSync(path.join(root, ".claude/skills", f))));
+  want.set("AGENTS.md", renderAgents(readFileSync(path.join(root, "CLAUDE.md"), "utf8"),runtimeGuidance));
   for (const f of walk(path.join(root, ".codex/agents"))) if (f.endsWith(".toml") && !want.has(`.codex/agents/${f}`)) stale.push(`.codex/agents/${f}`);
   // .agents/skills/jevgrep is hand-kept: never stale.
   for (const f of walk(path.join(root, ".agents/skills"))) if (!f.startsWith("jevgrep/") && !want.has(`.agents/skills/${f}`)) stale.push(`.agents/skills/${f}`);

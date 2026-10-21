@@ -9,7 +9,7 @@
     { "id": "scripts", "paths": ["scripts/*", "scripts/jev-evals/**"] },
     { "id": "guardrails", "paths": ["scripts/hooks/**", ".claude/settings.json", ".codex/hooks.json", ".codex/config.toml", ".gitleaks.toml"] },
     { "id": "ci-cd", "paths": ["apps/ci-cd/**", ".github/**", ".claude/launch.json"] },
-    { "id": "roles", "paths": [".claude/agents/**", ".codex/agents/**", ".claude/commands/**", "CLAUDE.md", "AGENTS.md"] },
+    { "id": "roles", "paths": [".claude/agents/**", ".codex/agents/**", ".codex/runtime-guidance.md", ".claude/commands/**", "CLAUDE.md", "AGENTS.md"] },
     { "id": "skills", "paths": [".claude/skills/**", ".agents/skills/**", ".claude/.claude-plugin/**", ".claude-plugin/**", "skills-lock.json"], "folders": [".claude/skills", ".agents/skills"] },
     { "id": "mods", "paths": ["mods/**"], "folders": ["mods"] },
     { "id": "docs", "paths": ["docs/**", "CONTEXT.md", "README.md", "design-brief.md", "LICENSE", "NOTICE"], "folders": ["docs/images", "docs/videos"] },

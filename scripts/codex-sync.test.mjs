@@ -186,6 +186,7 @@ function fixture() {
   w(".claude/skills/MATTPOCOCK-LICENSE", "MIT licence text\n");
   w(".claude/skills/VENDORED.md", "# vendored\n");
   w("CLAUDE.md", CLAUDE_MD);
+  w(".codex/runtime-guidance.md", "# Codex execution contract\n\nKeep explicit one-attempt limits and human publication gates.\n");
   return { dir, w };
 }
 const run = (dir, ...args) => spawnSync("node", [SCRIPT, "--root", dir, ...args], { encoding: "utf8", timeout: 60000 });
@@ -295,7 +296,8 @@ test("npm run codex:sync is wired", () => {
   assert.match(pkg.scripts["codex:sync"] ?? "", /scripts\/codex-sync\.mjs/);
 });
 
-test(".agents/skills/ mirrors .claude/skills/ file for file, is tracked in git, and holds no other skill than the hand-kept jevgrep", () => {
+test(".agents/skills/ renders the shared files with Codex runtime adaptations and retains tracked licences", async () => {
+  const {renderSkill} = await mod();
   const walk = (d, base = d) => readdirSync(d, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? walk(path.join(d, e.name), base) : [path.relative(base, path.join(d, e.name)).split(path.sep).join("/")]);
   const src = walk(path.join(ROOT, ".claude/skills")).sort();
@@ -304,7 +306,7 @@ test(".agents/skills/ mirrors .claude/skills/ file for file, is tracked in git, 
   for (const f of src) {
     const dst = path.join(ROOT, ".agents/skills", f);
     assert.ok(existsSync(dst), `.agents/skills/${f} missing`);
-    assert.ok(readFileSync(dst).equals(readFileSync(path.join(ROOT, ".claude/skills", f))), `.agents/skills/${f} differs`);
+    assert.ok(readFileSync(dst).equals(Buffer.from(renderSkill(f,readFileSync(path.join(ROOT, ".claude/skills", f))))), `.agents/skills/${f} differs`);
     assert.ok(tracked.has(`.agents/skills/${f}`), `.agents/skills/${f} is not tracked in git`);
   }
   const extra = walk(path.join(ROOT, ".agents/skills")).filter((f) => !src.includes(f) && !f.startsWith("jevgrep/"));
@@ -315,7 +317,7 @@ test(".agents/skills/ mirrors .claude/skills/ file for file, is tracked in git, 
 test("AGENTS.md on disk is generated from CLAUDE.md, not the 5-line stub", async () => {
   const { renderAgents } = await mod();
   const disk = readFileSync(path.join(ROOT, "AGENTS.md"), "utf8");
-  assert.equal(disk, renderAgents(readFileSync(path.join(ROOT, "CLAUDE.md"), "utf8")));
+  assert.equal(disk, renderAgents(readFileSync(path.join(ROOT, "CLAUDE.md"), "utf8"),readFileSync(path.join(ROOT,".codex/runtime-guidance.md"),"utf8")));
   assert.ok(disk.split("\n").length > 20);
 });
 
@@ -357,4 +359,36 @@ test("skills are mirrored from git ls-files: an untracked file is never copied",
     assert.ok(existsSync(path.join(dir, ".agents/skills/one/SKILL.md")));
     assert.ok(!existsSync(path.join(dir, ".agents/skills/one/stray.md")), "untracked file was mirrored");
   } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("Codex runtime guidance resolves inherited models, worker bonuses and full-suite conflicts without changing gates", async () => {
+  const {render,renderAgents,renderSkill} = await mod();
+  const shared=readFileSync(path.join(ROOT,".claude/skills/team-protocol/SKILL.md"),"utf8");
+  const protocol=renderSkill("team-protocol/SKILL.md",shared);
+  assert.doesNotMatch(protocol,/\b(?:Sonnet|Haiku)\b|at most about 4/);
+  assert.match(protocol,/\.codex\/runtime-guidance\.md/);
+  const gates=shared.slice(shared.indexOf("## Pass gates"),shared.indexOf("## Environment issues"));
+  assert.ok(protocol.includes(gates),"shared approval gates must remain byte-identical");
+  const implement=renderSkill("implement/SKILL.md",readFileSync(path.join(ROOT,".claude/skills/implement/SKILL.md"),"utf8"));
+  assert.doesNotMatch(implement,/full test suite once at the end/);
+  assert.match(implement,/literal covering test files/);
+  const agents=renderAgents(readFileSync(path.join(ROOT,"CLAUDE.md"),"utf8"),"Honor explicit one-attempt limits; no publication authority.");
+  assert.doesNotMatch(agents,/\b(?:Sonnet|Haiku)\b|reserved slot beside them/);
+  assert.match(agents,/Honor explicit one-attempt limits/);
+  const developer=parseToml(render(readFileSync(path.join(ROOT,".claude/agents/developer.md"),"utf8")));
+  assert.doesNotMatch(developer.developer_instructions,/\bHaiku\b|up to 4 at once/);
+  assert.match(developer.developer_instructions,/\.codex\/runtime-guidance\.md/);
+  assert.match(developer.developer_instructions,/When independent delegation is useful and permitted/);
+});
+
+test("the hand-maintained Codex supplement participates in drift checks and is required before writing", () => {
+  const {dir,w}=fixture();
+  try{
+    assert.equal(run(dir).status,0);
+    w(".codex/runtime-guidance.md","# Updated Codex contract\nHonor explicit first-failure stops.\n");
+    const drift=run(dir,"--check");assert.notEqual(drift.status,0);assert.match(out(drift),/AGENTS\.md/);
+    assert.equal(run(dir).status,0);assert.match(readFileSync(path.join(dir,"AGENTS.md"),"utf8"),/Honor explicit first-failure stops/);
+    rmSync(path.join(dir,".codex/runtime-guidance.md"));
+    const missing=run(dir);assert.notEqual(missing.status,0);assert.match(out(missing),/runtime-guidance\.md/);
+  }finally{rmSync(dir,{recursive:true,force:true});}
 });

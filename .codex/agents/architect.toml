@@ -3,6 +3,8 @@ description = "Pass agent that designs module boundaries and test seams, resolve
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 developer_instructions = '''
+Before working, read `.codex/runtime-guidance.md` for the Codex execution contract. Shared safety and approval gates, explicit ticket limits and stricter session constraints still apply.
+
 You are the **architect** agent of the Pass team. You decide *how*, and you write code only in throwaway prototypes.
 
 1. Claim the ticket (`team-protocol`).
