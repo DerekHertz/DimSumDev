@@ -2,7 +2,10 @@
 .audit { display: grid; gap: var(--space-3); font-family: var(--font-sans); color: var(--ink); min-width: 0; }
 .audit * { box-sizing: border-box; }
 .audit-toolbar, .audit-controls, .audit-export, .audit-log-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-2); }
-.audit-toolbar label, .audit-controls label, .audit-log-head label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-muted); }
+.audit-toolbar label, .audit-controls label, .audit-log-head label { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--ink-muted); min-width: 0; max-width: 100%; }
+.audit-toolbar label { flex: 1 1 220px; }
+.audit-toolbar select { flex: 1; min-width: 0; width: 100%; }
+.audit-banner, .audit-issues, .audit-now { overflow-wrap: anywhere; }
 .audit select { font: inherit; font-size: 13px; padding: 4px 8px; border: 1px solid var(--line); border-radius: var(--radius-s); background: var(--surface-200); color: var(--ink); max-width: 100%; }
 .audit-eyebrow { margin: 0; font-size: 10px; letter-spacing: .08em; text-transform: uppercase; color: var(--ink-muted); }
 .audit-note, .audit-empty, .audit-missing { margin: 0; font-size: 12px; color: var(--ink-muted); }

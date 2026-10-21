@@ -137,6 +137,9 @@ test("fits a phone with reduced motion: no page overflow and no node animation",
     await page.locator(".audit-seek").fill("30");
     const overflow = await page.evaluate(() => document.scrollingElement.scrollWidth - window.innerWidth);
     assert.ok(overflow <= 0, `page overflows by ${overflow}px`);
+    // Nothing inside the sheet is wider than the sheet either (the tree scrolls in its own box).
+    const inner = await page.evaluate(() => { const body = document.querySelector("#sheet-topic .den-sheet-body"); return body.scrollWidth - body.clientWidth; });
+    assert.ok(inner <= 0, `sheet content overflows by ${inner}px`);
     const running = await page.evaluate(() => [...document.querySelectorAll(".audit-node")].flatMap((n) => n.getAnimations()).length);
     assert.equal(running, 0);
     await evidence(page, "phone-reduced-motion");
