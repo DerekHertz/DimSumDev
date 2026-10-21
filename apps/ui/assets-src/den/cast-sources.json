@@ -1,0 +1,108 @@
+{
+  "method": "User-picked Meshy candidate B (prop-holding), triangle remesh to 7500; colour-only 512px atlas packer; local shared-rig code skinning",
+  "totalCreditsIncludingReferences": 740,
+  "purchases": 0,
+  "characters": [
+    {
+      "ticket": "team-and-den-ux/25-jiao",
+      "characterId": "jiao",
+      "roleId": "orchestrator",
+      "runtime": "codex",
+      "sourceFilename": "25-jiao-7500.glb",
+      "sourceSha256": "288bb290fa811aeed9a4031ef5f1d20b719ee515b4fb61f51d4a737101d83fb2",
+      "selectedSourceTask": "01a15eef-b553-7657-8162-3c757a159bc2",
+      "remeshTask": "01a15f02-a6f5-7726-ac4c-e14f90cfbae0",
+      "credits": 35
+    },
+    {
+      "ticket": "team-and-den-ux/26-fox",
+      "characterId": "fox",
+      "roleId": "product",
+      "sourceFilename": "26-fox-7500.glb",
+      "sourceSha256": "4a30d5432ded0ebae10f1f7c2e515e87f8ee9774d592d830cfd378965d69342a",
+      "selectedSourceTask": "01a15eef-d44c-7115-abf5-88190374b5ce",
+      "remeshTask": "01a15f02-ab52-77cb-ba8d-f3754b43100e",
+      "credits": 35
+    },
+    {
+      "ticket": "team-and-den-ux/27-crane",
+      "characterId": "crane",
+      "roleId": "architect",
+      "sourceFilename": "27-crane-7500.glb",
+      "sourceSha256": "d6e0cc9ac9023a72e401266e7cf0c97c4371532ea5e171fa26bd01896f20d14e",
+      "selectedSourceTask": "01a15eef-f464-7069-93a4-afc8e0462bab",
+      "remeshTask": "01a15f02-af9e-7374-ba91-158bc0d66040",
+      "credits": 35
+    },
+    {
+      "ticket": "team-and-den-ux/28-deer",
+      "characterId": "deer",
+      "roleId": "designer",
+      "sourceFilename": "28-deer-7500.glb",
+      "sourceSha256": "ab2517eeed1ab36a8c79fed0e92c9b77ca24ca96cd9ffd4903f56d4f0d7cb44a",
+      "selectedSourceTask": "01a15ef0-12d0-722b-934e-a5d05ab36eb5",
+      "remeshTask": "01a15f02-b3fa-70dd-b9f3-b413b359b010",
+      "credits": 35
+    },
+    {
+      "ticket": "team-and-den-ux/29-lion",
+      "characterId": "lion",
+      "roleId": "code-reviewer",
+      "sourceFilename": "29-lion-7500.glb",
+      "sourceSha256": "c0f62138f9da4577c19b06c17370f122c879d0c032be4613dfb19c1cd5ed0e77",
+      "selectedSourceTask": "01a15ef0-330b-72be-b6e4-743c35be9ce9",
+      "remeshTask": "01a15f02-b83b-74a7-b46f-f55358fabbaf",
+      "credits": 35
+    },
+    {
+      "ticket": "team-and-den-ux/30-otter",
+      "characterId": "otter",
+      "roleId": "qa",
+      "sourceFilename": "30-otter-7500.glb",
+      "sourceSha256": "da8f94307eacff024b7ee34bc66d849723a869afce4e0f5fdd8405666ffadb33",
+      "selectedSourceTask": "01a15ef4-2fec-75fe-b398-886b5d9a07ac",
+      "remeshTask": "01a15f02-bc8c-7141-a1ae-a7c03db46d81",
+      "credits": 35
+    },
+    {
+      "ticket": "team-and-den-ux/31-pangolin",
+      "characterId": "pangolin",
+      "roleId": "security",
+      "sourceFilename": "31-pangolin-7500.glb",
+      "sourceSha256": "74cfa0e4f496801b42a3a4cd88a7fe9d7363ca913dbfe005561c3a18df63e3ee",
+      "selectedSourceTask": "01a15ef4-4b42-7748-8359-842b09afa4f2",
+      "remeshTask": "01a15f02-c0df-7102-a6d0-0191a0c52060",
+      "credits": 35
+    },
+    {
+      "ticket": "team-and-den-ux/32-lucky-cat",
+      "characterId": "lucky-cat",
+      "roleId": "release-manager",
+      "sourceFilename": "32-lucky-cat-7500.glb",
+      "sourceSha256": "2a46478364e085d776d10fe172d38796257344ac0bac7658732cd9b74a3b7239",
+      "selectedSourceTask": "01a15ef4-5aa6-758d-b43e-16ef310efa9d",
+      "remeshTask": "01a15f02-c506-7221-8e60-0caf9377a45b",
+      "credits": 35
+    },
+    {
+      "ticket": "team-and-den-ux/33-tortoise",
+      "characterId": "tortoise",
+      "roleId": "sre",
+      "sourceFilename": "33-tortoise-7500.glb",
+      "sourceSha256": "70b95779ae70f0df6d0bbdcb21b1d3b5ec92895c916adad03c07b06a0e2f9570",
+      "selectedSourceTask": "01a15ef4-748e-716e-b5e5-52cdda8622bd",
+      "remeshTask": "01a15f02-c966-770d-bb2e-53ebbd159ec4",
+      "credits": 35
+    },
+    {
+      "ticket": "team-and-den-ux/34-golden-monkey",
+      "characterId": "golden-monkey",
+      "roleId": "runner",
+      "sourceFilename": "34-golden-monkey-7500.glb",
+      "sourceSha256": "66511b1a8a7f3359ba9423a615bd6a545399afe3c8114b54276e69345d29ed66",
+      "selectedSourceTask": "01a15ef4-a1a0-7200-ad88-4f867f00b977",
+      "remeshTask": "01a15f02-cd93-75c1-823b-a8c6bb94fce6",
+      "credits": 35
+    }
+  ]
+}
