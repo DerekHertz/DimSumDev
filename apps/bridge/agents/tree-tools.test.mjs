@@ -22,6 +22,64 @@ test("tree tools expose only approved child identity and parent-owned result loo
   assert.equal(result.additionalProperties, false);
 });
 
+test("workflow tools bound evidence and permit no caller-supplied execution authority", () => {
+  const schema = (name) => TREE_TOOLS.find((tool) => tool.name === name).inputSchema;
+  for (const name of ["status", "yield", "complete", "review", "skip"]) {
+    assert.equal(schema(name).additionalProperties, false, name);
+    for (const field of ["parentId", "owner", "runtime", "model", "grants", "scopes", "phase"]) {
+      assert.equal(schema(name).properties[field], undefined, `${name}: ${field} stays bridge-owned`);
+    }
+  }
+  assert.deepEqual(Object.keys(schema("status").properties), []);
+  assert.deepEqual(schema("yield").required, ["children"]);
+  assert.equal(schema("yield").properties.children.minItems, 1);
+  assert.equal(schema("yield").properties.children.maxItems, 4);
+  assert.equal(schema("yield").properties.children.uniqueItems, true);
+  assert.deepEqual(schema("complete").required, ["criteria", "checks"]);
+  assert.deepEqual(schema("review").properties.verdict.enum, ["pass", "bounce"]);
+  assert.equal(schema("review").properties.candidate.pattern, "^[0-9a-f]{40,64}$");
+  for (const name of ["complete", "review"]) {
+    for (const field of ["criteria", "checks"]) {
+      const rows = schema(name).properties[field];
+      assert.equal(rows.maxItems, 30);
+      assert.equal(rows.items.additionalProperties, false);
+      assert.equal(rows.items.properties.evidence.maxLength, 2000);
+    }
+  }
+  const guard = schema("review").properties.guardVerdicts;
+  assert.ok(guard, "a reviewer can return a verdict for every exact test-guard hit");
+  assert.equal(guard.maxItems, 100);
+  assert.equal(guard.items.additionalProperties, false);
+  assert.deepEqual(guard.items.required, ["hit", "verdict", "reason"]);
+  assert.deepEqual(guard.items.properties.verdict.enum, ["accept", "bounce"]);
+  assert.equal(guard.items.properties.reason.maxLength, 2000);
+  assert.deepEqual(schema("skip").required, ["nodes"]);
+  assert.equal(schema("skip").properties.nodes.maxItems, 20);
+});
+
+test("each workflow tool forwards its exact bounded report with one run credential", async () => {
+  const evidence = { criteria: [{ criterion: "Return evidence", evidence: "Named file inspected." }],
+    checks: [{ command: "node --check src/a.mjs", passed: true, evidence: "Exited zero." }] };
+  for (const [name, args] of [
+    ["status", {}], ["yield", { children: ["approved-child"] }],
+    ["complete", { ...evidence, unused: ["optional-node"] }],
+    ["review", { ...evidence, candidate: "a".repeat(40), verdict: "pass", findings: [],
+      guardVerdicts: [{ hit: "test renamed", verdict: "accept", reason: "Equivalent assertion preserved." }] }],
+    ["skip", { nodes: ["optional-node"] }],
+  ]) {
+    const calls = [];
+    const result = await callTreeTool(name, args, { url: URL, token: TOKEN, fetcher: async (...request) => {
+      calls.push(request);
+      return { ok: true, json: async () => ({ text: "recorded" }) };
+    } });
+    assert.equal(result.isError, undefined, name);
+    assert.equal(calls.length, 1, name);
+    assert.equal(calls[0][0], `${URL}/tree-tools/${name}`);
+    assert.deepEqual(JSON.parse(calls[0][1].body), args);
+    assert.equal(calls[0][1].headers.Authorization, `Bearer ${TOKEN}`);
+  }
+});
+
 test("tree transport sends one authenticated loopback request without trusting parent identity", async () => {
   const calls = [];
   const response = await callTreeTool("delegate", { nodeId: "approved-manager" }, {
@@ -116,7 +174,7 @@ test("stdio MCP initializes, lists bounded tools and forwards authenticated call
   assert.equal(init.result.protocolVersion, "2024-11-05");
   assert.ok(init.result.capabilities.tools);
   const tools = (await rpc("tools/list")).result.tools;
-  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["delegate", "result"]);
+  assert.deepEqual(tools.map((tool) => tool.name).sort(), ["complete", "delegate", "result", "review", "skip", "status", "yield"]);
   const result = await rpc("tools/call", { name: "delegate", arguments: { nodeId: "approved-child" } });
   assert.equal(toolText(result.result), "approved child admitted");
   assert.equal(requests.length, 1);

@@ -11,9 +11,10 @@
 //           the group outlives the command's own exit until kill(), so exhausted() can still be read then
 //   watchStorage({ dir, limitBytes, onOver }) -> stop()      the job-storage monitor (not a quota; see below)
 import { spawn as spawnChild, execFile } from "node:child_process";
-import { accessSync, constants, readFileSync, statSync, writeFileSync } from "node:fs";
+import { accessSync, constants, lstatSync, readFileSync, realpathSync, statSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { SLOT_CLASSES } from "./policy.mjs";
+import { prepareWriteScope, scopedWriteBindArgs } from "./scoped-writes.mjs";
 
 export class EnforcementError extends Error {
   constructor(reason) {
@@ -80,17 +81,19 @@ export const START_GATE = `IFS= read -r go <&3 && [ "$go" = go ] || exit ${GATE_
  * are removed again before the CLI starts, no file the run writes may pass the job-storage bound, and the command
  * starts only once the gate is released.
  */
-export function buildScopeArgv({ unit, slice, limit, fileBytes, bin, args, wrapper = "bwrap", hide = [], hideSockets = [] }) {
+export function buildScopeArgv({ unit, slice, limit, fileBytes, bin, args, wrapper = "bwrap", hide = [], hideSockets = [], writeScope, cwd, privateDirs = [] }) {
   if (typeof unit !== "string" || !/^[a-z0-9][a-z0-9-]{0,80}\.scope$/.test(unit)) throw new TypeError("buildScopeArgv: bad unit name");
   if (typeof slice !== "string" || !SLICE_RE.test(slice)) throw new TypeError("buildScopeArgv: bad slice name");
   if (!isGroupLimit(limit) || !intIn(fileBytes, MIB, Number.MAX_SAFE_INTEGER)) throw new TypeError("buildScopeArgv: bad limit");
   if (typeof bin !== "string" || bin === "" || !Array.isArray(args) || !args.every((a) => typeof a === "string")) throw new TypeError("buildScopeArgv: bad command");
   const paths = [...hide, ...hideSockets];
   if (typeof wrapper !== "string" || wrapper === "" || !paths.every((p) => typeof p === "string" && ABS_RE.test(p))) throw new TypeError("buildScopeArgv: bad wrapper");
+  if (writeScope !== undefined && (typeof cwd !== "string" || !ABS_RE.test(cwd))) throw new TypeError("buildScopeArgv: scoped writes need a plain absolute cwd");
+  if (!Array.isArray(privateDirs) || privateDirs.length > 4 || !privateDirs.every((dir) => typeof dir === "string" && ABS_RE.test(dir) && dir !== "/")) throw new TypeError("buildScopeArgv: privateDirs must be plain absolute directories");
   // The run sees /sys/fs/cgroup read-only (no limit file, no cgroup.procs, no new mount) and none of the service
   // manager's bus sockets: the directories are covered by an empty tmpfs, a lone socket by /dev/null. A private pid
   // namespace with its own /proc keeps /proc/<pid>/root of the host's processes (which see the unwrapped mounts) out of reach.
-  const wrap = [wrapper, "--dev-bind", "/", "/", "--unshare-pid", "--proc", "/proc", "--ro-bind", CGROUP_ROOT, CGROUP_ROOT, ...hide.flatMap((d) => ["--tmpfs", d]), ...hideSockets.flatMap((f) => ["--ro-bind", "/dev/null", f]), "--die-with-parent", "--"];
+  const wrap = [wrapper, "--dev-bind", "/", "/", ...(writeScope === undefined ? [] : scopedWriteBindArgs(writeScope)), "--unshare-pid", "--proc", "/proc", "--ro-bind", CGROUP_ROOT, CGROUP_ROOT, ...hide.flatMap((d) => ["--tmpfs", d]), ...hideSockets.flatMap((f) => ["--ro-bind", "/dev/null", f]), ...privateDirs.flatMap((dir) => ["--tmpfs", dir, "--remount-ro", dir]), ...(writeScope === undefined ? [] : ["--chdir", cwd]), "--die-with-parent", "--"];
   return [
     "--user", "--scope", "--quiet", "--collect", "--unit", unit, "--slice", `${slice}.slice`,
     ...[...groupProperties(limit), "OOMPolicy=continue"].flatMap((p) => ["-p", p]),
@@ -276,7 +279,7 @@ export function createResourceLauncher({ env = process.env, limits = LIMITS, sli
 
   // Starts the command in its scope and returns once the child is known to be inside it with every limit applied.
   // Until then the command waits at the gate; only a start that passed every check releases it.
-  async function start({ slotClass, id, bin, args, cwd, env: childEnv, prefix }) {
+  async function start({ slotClass, id, bin, args, cwd, env: childEnv, prefix, writeScope, privateDirs = [] }) {
     checkRun({ slotClass, id });
     if (process.platform !== "linux") throw new EnforcementError("hardware limits need Linux control groups; this host has none");
     if (read(path.join(CGROUP_ROOT, "cgroup.controllers")) === null) throw new EnforcementError("control groups v2 are not mounted at /sys/fs/cgroup");
@@ -290,8 +293,18 @@ export function createResourceLauncher({ env = process.env, limits = LIMITS, sli
     const sliceFailed = await run("systemctl", ["--user", "set-property", "--runtime", `${slice}.slice`, ...groupProperties(limits.aggregate)], bus.env);
     if (sliceFailed !== null) throw new EnforcementError(`could not set the limits of ${slice}.slice: ${sliceFailed}`);
     const { hide, hideSockets } = busPlaces(env);
-    const argv = buildScopeArgv({ unit, slice, limit, fileBytes: limits.storage.jobMiB * MIB, bin, args, wrapper, hide, hideSockets });
-    const child = spawn("systemd-run", argv, { shell: false, detached: true, cwd, env: { ...childEnv, ...bus.env }, stdio: ["pipe", "pipe", "pipe", "pipe"] });
+    let scoped;
+    let child;
+    try {
+      scoped = writeScope === undefined ? undefined : prepareWriteScope(writeScope);
+      if (privateDirs.some((dir) => realpathSync(dir) !== dir || !lstatSync(dir).isDirectory())) throw new Error("private filesystem directories must exist and be canonical");
+      const argv = buildScopeArgv({ unit, slice, limit, fileBytes: limits.storage.jobMiB * MIB, bin, args, wrapper, hide, hideSockets, writeScope: scoped, cwd, privateDirs });
+      child = spawn("systemd-run", argv, { shell: false, detached: true, cwd, env: { ...childEnv, ...bus.env }, stdio: ["pipe", "pipe", "pipe", "pipe", ...(scoped?.stdio ?? [])] });
+    } catch (err) {
+      throw new EnforcementError(`could not prepare the scoped filesystem: ${err.message}`);
+    } finally {
+      scoped?.close();
+    }
     const gate = child.stdio?.[3];
     gate?.on("error", () => {});
     let stderr = "";
@@ -392,15 +405,16 @@ export function createResourceLauncher({ env = process.env, limits = LIMITS, sli
 
   return {
     enforced: true,
+    scopedWrites: true,
     limits,
     slice,
     preflight,
     active,
-    async launch({ slotClass, id, bin, args, cwd, env: childEnv }) {
+    async launch({ slotClass, id, bin, args, cwd, env: childEnv, writeScope, privateDirs }) {
       checkRun({ slotClass, id });
       const ready = await preflight();
       if (!ready.ok) throw new EnforcementError(ready.reason);
-      return start({ slotClass, id, bin, args, cwd, env: childEnv, prefix: "den-run" });
+      return start({ slotClass, id, bin, args, cwd, env: childEnv, prefix: "den-run", writeScope, privateDirs });
     },
   };
 }

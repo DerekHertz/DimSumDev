@@ -4,13 +4,32 @@
 import { createInterface } from "node:readline";
 import { pathToFileURL } from "node:url";
 
+const criteria = { type: "array", maxItems: 30, items: { type: "object", additionalProperties: false,
+  properties: { criterion: { type: "string", maxLength: 8192 }, evidence: { type: "string", maxLength: 2000 } }, required: ["criterion", "evidence"] } };
+const checks = { type: "array", maxItems: 30, items: { type: "object", additionalProperties: false,
+  properties: { command: { type: "string", maxLength: 8192 }, passed: { type: "boolean" }, evidence: { type: "string", maxLength: 2000 } }, required: ["command", "passed", "evidence"] } };
+const nodeIds = { type: "array", maxItems: 20, uniqueItems: true, items: { type: "string" } };
+
 export const TREE_TOOLS = [
-  { name: "delegate", description: "Delegate one bounded subtask within this task's approved scopes. Spawning is optional. A busy runtime refuses the request; sequence work instead of retrying or increasing limits. Managers verify returned evidence. Runners cannot delegate.",
+  { name: "delegate", description: "Queue one approved direct child within this task's scopes. Spawning is optional and capacity-controlled. Yield to release your session while required children work; do not retry an uncertain request or increase limits. Runners cannot delegate.",
     inputSchema: { type: "object", additionalProperties: false, properties: {
       nodeId: { type: "string", description: "The direct child ID in the complete tree revision the user approved. Its role, task and scopes are fixed by that revision." },
     }, required: ["nodeId"] } },
   { name: "result", description: "Read this parent's own child's status and final evidence. Check the candidate commit before relying on a result. It grants no review or publication approval.",
     inputSchema: { type: "object", additionalProperties: false, properties: { childId: { type: "string" } }, required: ["childId"] } },
+  { name: "status", description: "Read the fixed approved plan, node IDs and workflow states for this live tree. It exposes no private role conversation.",
+    inputSchema: { type: "object", additionalProperties: false, properties: {} } },
+  { name: "yield", description: "Wait for these approved direct children and release this execution session. The bridge wakes the same logical parent only after their required verification and integration succeed. This does not cancel children.",
+    inputSchema: { type: "object", additionalProperties: false, properties: { children: { ...nodeIds, minItems: 1, maxItems: 4 } }, required: ["children"] } },
+  { name: "complete", description: "Submit this author's completion evidence against the exact approved criteria and check commands. Completion is not acceptance: candidate-bound independent reviews and required child barriers still apply. The owner may omit never-started subtrees; a manager may omit only its own never-started direct runners. Approved criteria remain required.",
+    inputSchema: { type: "object", additionalProperties: false, properties: { unused: nodeIds, criteria, checks }, required: ["criteria", "checks"] } },
+  { name: "review", description: "Submit the fresh review phase's verdict and evidence for its exact candidate. Only the bridge-selected independent reviewer phase can use this; authors cannot approve their own work or change the candidate.",
+    inputSchema: { type: "object", additionalProperties: false, properties: { candidate: { type: "string", pattern: "^[0-9a-f]{40,64}$" }, verdict: { enum: ["pass", "bounce"] }, criteria, checks,
+      findings: { type: "array", maxItems: 30, items: { type: "string", maxLength: 2000 } },
+      guardVerdicts: { type: "array", maxItems: 100, items: { type: "object", additionalProperties: false,
+        properties: { hit: { type: "string", maxLength: 8192 }, verdict: { enum: ["accept", "bounce"] }, reason: { type: "string", maxLength: 2000 } }, required: ["hit", "verdict", "reason"] } } }, required: ["candidate", "verdict", "criteria", "checks", "findings"] } },
+  { name: "skip", description: "The owner may omit complete never-started subtrees; a manager may omit only its own never-started direct runners. This cannot skip required criteria or reviews, started or queued work, or dependencies needed by retained nodes.",
+    inputSchema: { type: "object", additionalProperties: false, properties: { nodes: nodeIds }, required: ["nodes"] } },
 ];
 
 export async function callTreeTool(name, args, { url, token, fetcher = fetch } = {}) {

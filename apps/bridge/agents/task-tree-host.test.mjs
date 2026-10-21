@@ -26,8 +26,9 @@ async function setup(runtime = "claude", config = {}, extraHost = {}) {
     await mkdir(path.join(fx.root, dir), { recursive: true });
     await cp(path.join(ROOT, dir), path.join(fx.root, dir), { recursive: true });
   }
-  const fake = createFakeRuntime(config);
+  const fake = createFakeRuntime({ cleanupConfirmed: true, ...config });
   fake.capabilities.treeDelegation = true;
+  fake.capabilities.artifactStoreProtection = true;
   fake.validateModel = async () => true;
   const spawn = fake.spawn.bind(fake);
   fake.spawn = async (args) => {
@@ -102,7 +103,7 @@ test("complete revisions enforce depth, fanout, scope, role tools and supersessi
   } finally { await t.close(); }
 });
 
-test("a 1→4→16 structure executes sequentially within the unchanged two-worker process budget", { timeout: 30000 }, async () => {
+test("a 1→4→16 proposal remains optional within the unchanged two-worker process budget", { timeout: 30000 }, async () => {
   const t = await setup();
   try {
     const nodes = [];
@@ -120,30 +121,17 @@ test("a 1→4→16 structure executes sequentially within the unchanged two-work
     const m1 = proposal.tree.nodes.find((node) => node.key === "m1");
     assert.equal((await t.host.delegate(root, { nodeId: m0.id })).status, 201);
     assert.equal((await t.host.delegate(m0.id, { nodeId: r00.id })).status, 201);
-    assert.equal((await t.host.delegate(root, { nodeId: m1.id })).status, 429);
     assert.equal(t.fake.spawns.length, 3, "no unvalidated concurrency profile is enabled");
+    assert.equal(t.host.capacity([]).room, 0, "existing worker capacity is full");
     const state = t.host.trees()[0].nodes.find((node) => node.id === m1.id);
     assert.equal(state.state, "planned", "capacity refusal does not create an attempt");
-    const finish = async (node, parent) => {
-      const record = t.fake.spawns.find((run) => run.args.runId === node.id);
-      record.emit({ type: "reply", text: "Inspected the fixed scope; evidence returned for parent review." });
-      record.emit({ type: "done", ok: true });
-      await wait(() => t.host.treeResult(parent.id, node.id).result?.state === "done");
-      assert.equal(t.host.treeResult(parent.id, node.id).result.accepted, false);
-    };
-    const owner = proposal.tree.nodes.find((node) => node.id === root);
-    for (let i = 0; i < 4; i += 1) {
-      const manager = proposal.tree.nodes.find((node) => node.key === `m${i}`);
-      if (i > 0) assert.equal((await t.host.delegate(root, { nodeId: manager.id })).status, 201);
-      for (let j = 0; j < 4; j += 1) {
-        const runner = proposal.tree.nodes.find((node) => node.key === `r${i}${j}`);
-        if (i > 0 || j > 0) assert.equal((await t.host.delegate(manager.id, { nodeId: runner.id })).status, 201);
-        await finish(runner, manager);
-      }
-      await finish(manager, owner);
-    }
-    assert.equal(t.fake.spawns.length, 21);
+    assert.equal(t.host.trees()[0].nodes.filter((node) => node.workflow.attempts.length === 0).length, 18, "a maximum shape does not require launching the unused planned nodes");
     assert.equal(t.fake.peakLive, 3, "owner plus one manager and one runner fit the current slot classes");
+    const token = t.fake.spawns[2].args.treeCredential.token;
+    assert.equal((await t.host.stop(root)).status, 202);
+    await wait(() => t.fake.spawns.every((run) => run.exited));
+    assert.equal(t.host.treeAgent(token), null);
+    assert.equal((await t.host.delegate(root, { nodeId: m1.id })).status, 409);
   } finally { await t.close(); }
 });
 
@@ -206,16 +194,18 @@ test("a tree candidate fails closed when its returned file scope cannot be estab
     execFileSync("git", ["-C", dir, "add", "--", "src/manager/result.txt"], { stdio: "pipe" });
     execFileSync("git", ["-C", dir, "-c", "user.name=fixture", "-c", "user.email=fixture@localhost", "commit", "-m", "fixture scoped candidate"], { stdio: "pipe" });
     run.emit({ type: "done", ok: true });
-    await wait(() => ["done", "failed"].includes(t.host.treeResult(root, manager.id).result?.state));
-    const result = t.host.treeResult(root, manager.id).result;
+    await wait(() => t.host.snapshot().find((agent) => agent.id === manager.id)?.state === "failed" && t.host.trees()[0].nodes.find((node) => node.id === manager.id).workflow.status === "paused");
+    const result = t.host.snapshot().find((agent) => agent.id === manager.id);
     assert.equal(enumerated, 1, "the actual committed candidate reached scope verification");
     assert.equal(result.state, "failed");
     assert.equal(result.reason, "returned-scope-unverified");
-    assert.equal(result.accepted, false);
+    assert.equal(t.host.trees()[0].nodes.find((node) => node.id === manager.id).workflow.acceptance, null);
+    await wait(() => t.fake.spawns[0].exited);
+    assert.equal(t.host.treeResult(root, manager.id).status, 403, "scope failure pauses the required parent and revokes its private result authority");
   } finally { await t.close(); }
 });
 
-test("a tree candidate fails closed when its internal candidate publication is unknown", { timeout: 15000 }, async () => {
+test("managed execution never publishes a branch or accepts a raw process completion", { timeout: 15000 }, async () => {
   const t = await setup();
   try {
     const proposal = await t.plan([contract("manager")]);
@@ -225,14 +215,15 @@ test("a tree candidate fails closed when its internal candidate publication is u
     assert.equal((await t.host.delegate(root, { nodeId: manager.id })).status, 201);
     const run = t.fake.spawns.find((record) => record.args.runId === manager.id);
     const branch = t.host.snapshot().find((agent) => agent.id === manager.id).branch;
-    execFileSync("git", ["-C", run.args.cwd, "branch", branch, "HEAD"], { stdio: "pipe" });
     run.emit({ type: "done", ok: true });
-    await wait(() => ["done", "failed"].includes(t.host.treeResult(root, manager.id).result?.state));
-    const result = t.host.treeResult(root, manager.id).result;
-    assert.equal(result.state, "failed");
-    assert.equal(result.reason, "returned-candidate-unverified");
-    assert.equal(result.candidate, null);
-    assert.equal(result.accepted, false);
+    await wait(() => t.host.trees()[0].nodes.find((node) => node.id === manager.id).workflow.status === "paused");
+    const result = t.host.snapshot().find((agent) => agent.id === manager.id);
+    assert.equal(result.state, "done");
+    const workflow = t.host.trees()[0].nodes.find((node) => node.id === manager.id).workflow;
+    assert.match(workflow.error, /without the required completion evidence/);
+    assert.equal(workflow.receipt, null);
+    assert.equal(workflow.acceptance, null);
+    assert.throws(() => execFileSync("git", ["-C", run.args.cwd, "rev-parse", "--verify", `refs/heads/${branch}`], { stdio: "pipe" }), "the bridge creates no branch for managed raw completion");
     assert.equal(t.host.snapshot().find((agent) => agent.id === manager.id).followUp, false);
   } finally { await t.close(); }
 });

@@ -19,7 +19,7 @@
 // converse(role, { text, runId? }) is the thread's one way in: to the live run, or as a follow-up that continues the
 // session of a run that has ended (see "follow-ups" below).
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { realpath } from "node:fs/promises";
+import { realpath, readFile } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -48,6 +48,11 @@ import { deliveryPrompt, WORK_TIPS } from "../delivery/prompts.mjs";
 import { MEETING_PARTS, NOTE_MAX as MEETING_FILE_MAX, meetingPrompt } from "../meetings/prompts.mjs";
 import { createTaskTrees, TREE_TASK_BYTES } from "./task-tree.mjs";
 import { resolveTreeRole, assertTreeRuntimeModel } from "./tree-models.mjs";
+import { createTreeArtifacts } from "./tree-artifacts.mjs";
+import { createGitHost } from "../delivery/git-host.mjs";
+import { floor, isCodePath, isDocsPath } from "../delivery/floor.mjs";
+import { readVerdict } from "../delivery/prompts.mjs";
+import { freshWorkflow, phaseRole, phaseOfRole, isReviewPhase, readTreeEvidence, reviewPassed, reviewFailure, recoveryFailure } from "./task-tree-workflow.mjs";
 
 const COMMIT_RE = /^[0-9a-f]{40,64}$/;
 const FINDINGS_MAX = 16000; // characters of a review's findings handed to a fix round
@@ -110,7 +115,7 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, treeChecks, treeArtifactsFactory = createTreeArtifacts }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -131,6 +136,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const isControl = (a) => (!a.treeManaged && a.role === "orchestrator") || a.ref === DESK_REF || Boolean(a.meeting);
   const workspacesOf = async (slug) => (slug === undefined || slug === "den" ? workspaces : (await projects.get(slug))?.workspaces ?? null);
   const agents = new Map(); // id -> record; insertion order is snapshot order
+  const resourceHolds = new Map(); // uncertain groups outlive bounded UI history
+  const historicalResources = new Map(); // a recorded end never proves store protection
   const liveByRef = new Map(); // project/ref -> record, for every reserved or running agent
   const pending = new Set(); // spawns in flight
   const taskTrees = createTaskTrees(root);
@@ -330,6 +337,9 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   async function replay() {
     for (const h of await sessions.replay()) {
       projectByRun.set(h.agentId, h.project);
+      const resource = { id: h.agentId, runtimeId: h.runtime, project: h.project ?? "den", resourceId: h.resourceId ?? (h.resumeOf ? h.agentId : h.sessionId) };
+      historicalResources.set(h.agentId, resource);
+      if (h.reason === UNVERIFIED || h.cleanupConfirmed === false) resourceHolds.set(h.agentId, resource);
       const runtime = adapters[h.runtime];
       agents.set(h.agentId, {
         id: h.agentId, ref: h.ref, role: h.role, mode: null, runtimeId: h.runtime, sessionId: h.sessionId, runtimeSessionId: h.runtimeSessionId, resourceId: h.resourceId,
@@ -339,6 +349,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         ...(h.origin ? { origin: h.origin, resumeOf: h.resumeOf } : {}), ...(h.project ? { project: h.project } : {}),
         model: h.model, usage: h.usage, costUsd: h.costUsd, durationMs: h.durationMs,
         ...(h.treeManaged ? { treeManaged: true } : {}),
+        ...(h.reason === UNVERIFIED || h.cleanupConfirmed === false ? { cleanupConfirmed: false } : {}),
       });
     }
     trimHistory();
@@ -431,13 +442,34 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     return { runtime: selectedRuntime, project };
   }
 
+  async function resourceGuard(selected, treeNode) {
+    if (!treeNode && adapters[selected.runtime]?.capabilities?.artifactStoreProtection !== true && taskTrees.snapshot().some((tree) => tree.project === selected.project && tree.approved)) return refuse(409, "managed tree artifacts require every new project process to enforce artifact-store protection");
+    for (const earlier of resourceHolds.values()) {
+      let ended = false;
+      try { ended = await adapterOf(earlier)?.stillRunning?.(earlier.resourceId) === false; } catch { /* unknown remains held */ }
+      if (!ended) return refuse(503, "an earlier resource group has unconfirmed cleanup; admission is held until it is proven stopped");
+      resourceHolds.delete(earlier.id);
+      if (agents.has(earlier.id)) agents.get(earlier.id).cleanupConfirmed = true;
+    }
+    if (treeNode) for (const earlier of historicalResources.values()) {
+      if (earlier.project !== selected.project) continue;
+      let ended = false;
+      try { ended = await adapterOf(earlier)?.stillRunning?.(earlier.resourceId) === false; } catch { /* untrusted history is not authority */ }
+      if (!ended) return refuse(409, "a recorded project resource group is live or unverified; drain it before protecting managed artifacts");
+      historicalResources.delete(earlier.id);
+    }
+    if (treeNode && [...liveByRef.values()].some((earlier) => earlier.project === selected.project && earlier.artifactStoreProtected !== true)) return refuse(409, "an existing process lacks verified artifact-store protection; drain it before managed tree execution");
+    return null;
+  }
   // entry: "dispatch" | "start" | "direct" (the three entries in the header).
-  async function admit(input, { entry, selected: captured, treeNode }) {
+  async function admit(input, { entry, selected: captured, treeNode, treeRun }) {
     const bad = checkShape(input, treeNode);
     if (bad) return bad;
     const { ref, role } = input;
     const selected = captured ?? await select(input, { tree: Boolean(treeNode) });
     if (selected.ok === false) return selected;
+    const resourceRefusal = await resourceGuard(selected, treeNode);
+    if (resourceRefusal) return resourceRefusal;
     const runtime = adapters[selected.runtime];
     const mode = entry === "direct" ? DIRECT_MODE : input.mode ?? null;
     // A delivery step is the internal entry's alone: no route reads these fields.
@@ -479,8 +511,14 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (liveByRef.has(refKey({ ...selected, ref }))) return unhold(refuse(409, "this ticket already has a live agent"));
     const noRoom = full(locked, role, selected.project);
     if (noRoom) return unhold(noRoom);
-    const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}), ...(treeNode ? { id: treeNode.id, treeNode, treeManaged: true, model: treeNode.model, effort: treeNode.effort } : {}) });
-    if (treeNode) treeNode.agent = agent;
+    const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}), ...(treeNode ? { id: treeRun?.id ?? treeNode.id, treeNode, treeManaged: true, model: treeRun?.model ?? treeNode.model, configuredModel: treeRun?.model ?? treeNode.model, effort: treeRun?.effort ?? treeNode.effort, configuredEffort: treeRun?.effort ?? treeNode.effort, treePhase: treeRun?.phase ?? "implementation", ...(treeRun ?? {}) } : {}) });
+    if (treeNode) {
+      if (!isReviewPhase(agent.treePhase)) treeNode.agent = agent;
+      treeNode.activeAgent = agent;
+      const workflow = workflowOf(treeNode);
+      workflow.status = "starting";
+      workflow.attempts.push({ id: agent.id, phase: agent.treePhase, role: agent.role, model: agent.model, effort: agent.effort, state: "reserved", sessionId: agent.sessionId });
+    }
     agent.intentId = ticket.intent.id;
     return launch(agent, ENTRY_ROUTES[entry], usage === null);
   }
@@ -496,38 +534,48 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const scopesWithin = (child, parent) => child.every((scope) => parent.some((base) => scope === base || scope.startsWith(`${base}/`)));
   const scopesOverlap = (a, b) => a.some((scope) => b.some((other) => scope === other || scope.startsWith(`${other}/`) || other.startsWith(`${scope}/`)));
   function treeUsable(node) {
-    if (shuttingDown || node.cancelled || taskTrees.node(node.id) !== node || !taskTrees.approved(node)) return false;
+    if (shuttingDown || node.cancelled || node.workflow?.terminalFailure || taskTrees.node(node.id) !== node || !taskTrees.approved(node)) return false;
     const owner = admission.ownerOf(node.rootRef);
     if (owner.owner !== node.owner || owner.epoch !== node.epoch || owner.root !== node.rootRef) return false;
     if (node.parentId) {
       const parent = taskTrees.node(node.parentId);
-      return !!parent && parent.state === "working" && !parent.cancelled && !!parent.agent?.proc && !parent.agent.exited && !parent.agent.stopRequested && !parent.agent.releasing && treeUsable(parent);
+      return !!parent && !parent.cancelled && parent.workflow?.status !== "paused" && treeUsable(parent);
     }
     return true;
   }
-  async function prepareTreeNode(node) {
+  async function prepareTreeNode(node, phase = "implementation") {
     if (!/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(bridgeUrl() ?? "")) throw new Error("the tree tool channel is unavailable");
+    if (adapters[node.runtime]?.capabilities?.artifactStoreProtection !== true) throw new Error("the runtime cannot protect bridge-owned tree artifacts");
     const selection = resolveTreeRole({ controlRoot: root, role: node.role, runtime: node.runtime });
     await assertTreeRuntimeModel(adapters[node.runtime], { ...selection, role: node.role });
     if (node.model && (node.model !== selection.model || node.effort !== selection.effort || JSON.stringify(node.delegateRoles) !== JSON.stringify(selection.delegateRoles))) throw new Error("the trusted role changed; approve a new tree revision");
     Object.assign(node, selection);
+    const role = phaseRole(node, phase);
+    const effective = role === node.role ? selection : resolveTreeRole({ controlRoot: root, role, runtime: node.runtime });
+    await assertTreeRuntimeModel(adapters[node.runtime], { ...effective, role });
+    return { role, ...effective };
   }
-  const treeAudit = (node) => ({ ...taskTrees.describe(node), role: node.role, runtime: node.runtime, configuredModel: node.model, configuredEffort: node.effort });
-  async function runTreeNode(node, entry) {
+  const treeAudit = (node, agent = node.activeAgent) => ({ ...taskTrees.describe(node), logicalRole: node.role, role: agent?.role ?? node.role, runtime: node.runtime, attemptId: agent?.id ?? null, phase: agent?.treePhase ?? "implementation", configuredModel: agent?.configuredModel ?? node.model, configuredEffort: agent?.configuredEffort ?? node.effort });
+  async function runTreeNode(node, entry, phase = "implementation") {
     try {
-      await prepareTreeNode(node);
+      const selectedRole = await prepareTreeNode(node, phase);
       if (!treeUsable(node)) throw new Error("the parent task is no longer live");
       await taskTrees.journal({ event: "reserved", ...taskTrees.describe(node), ref: node.ref, project: node.project, role: node.role, runtime: node.runtime, scopes: node.scopes, model: node.model, effort: node.effort });
       if (!treeUsable(node)) throw new Error("the parent task is no longer live");
-      const result = await admit({ ref: node.ref, role: node.role, runtime: node.runtime, project: node.project, scopes: node.scopes, capability: admission.capability(node.owner, node.rootRef) }, { entry, treeNode: node });
+      const author = node.workflow?.author;
+      const continuing = phase === "continuation";
+      if (continuing && (!author || !validRuntimeSession(author.runtimeSessionId) || adapters[node.runtime]?.capabilities?.resume !== true)) throw new Error("the yielded parent has no resumable native session");
+      const run = { id: phase === "implementation" && !(node.workflow?.attempts.length) ? node.id : `c-${randomBytes(8).toString("hex")}`, phase, model: selectedRole.model, effort: selectedRole.effort, ...(isReviewPhase(phase) ? { treeBase: node.workflow.receipt.candidate } : {}), ...(continuing ? { sessionId: author.sessionId, runtimeSessionId: author.runtimeSessionId, resumeOf: author.attemptId, origin: author.origin, followUp: { text: `Continue your fixed approved node ${node.id}. The bridge accepted and integrated the required children into private candidate ${node.workflow.integration?.candidate}. Re-read your worktree and exact approved criteria. Child evidence references: ${JSON.stringify(node.workflow.integratedChildren)}. Complete only after checking the combined outcome; publication and independent review gates remain.`, messageId: randomUUID() } } : {}) };
+      const result = await admit({ ref: node.ref, role: selectedRole.role, ...(selectedRole.role === "qa" ? { mode: "verify" } : {}), runtime: node.runtime, project: node.project, scopes: node.scopes, capability: admission.capability(node.owner, node.rootRef) }, { entry, treeNode: node, treeRun: run });
       if (!result.ok) {
-        if (!node.attempted && result.status === 429) node.state = "planned";
-        else { node.cancelled = true; taskTrees.end(node, "failed"); }
+        if (result.status === 429) { node.state = "planned"; if (node.workflow) node.workflow.status = "queued"; }
+        else { node.cancelled = true; taskTrees.end(node, "failed"); if (node.workflow) { node.workflow.status = "paused"; node.workflow.error = result.error; node.workflow.pendingPhase = null; await taskTrees.checkpoint(node); if (node.depth === 0 && node.workflow.attempts.length === 0) taskTrees.close(node); } }
       }
       return result;
     } catch (err) {
       node.cancelled = true;
       taskTrees.end(node, "failed");
+      if (node.workflow) { node.workflow.status = "paused"; node.workflow.error = clean(err?.message, 200); node.workflow.pendingPhase = null; await taskTrees.checkpoint(node); if (node.depth === 0 && node.workflow.attempts.length === 0) taskTrees.close(node); }
       console.error(`bridge: task tree refused ${node.role}: ${err?.message ?? err}`);
       return refuse(409, clean(err?.message, 200) ?? "the tree node could not start");
     }
@@ -535,7 +583,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   async function planTree(input) {
     await taskTrees.ready;
     await admission.ready;
-    if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((key) => !["ref", "runtime", "project", "scopes", "nodes"].includes(key))) return refuse(400, "a tree proposal takes only ref, runtime, project, scopes and complete node contracts");
+    try { await taskTrees.acquireLease(); } catch (err) { return refuse(409, err.message); }
+    if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).some((key) => !["ref", "runtime", "project", "scopes", "nodes", "rootContract"].includes(key))) return refuse(400, "a tree proposal takes only ref, runtime, project, scopes, rootContract and complete node contracts");
     const bad = checkShape({ ...input, role: "orchestrator" });
     if (bad) return bad;
     const selected = await select({ ...input, role: "orchestrator" }, { tree: true });
@@ -554,12 +603,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const proposals = new Map();
     const list = (value, allowEmpty = true) => Array.isArray(value) && value.length <= 30 && (allowEmpty || value.length > 0) && value.every((s) => typeof s === "string" && s.trim() !== "" && Buffer.byteLength(s) <= TREE_TASK_BYTES && !hasSecret(s));
     for (const contract of input.nodes) {
-      if (!contract || typeof contract !== "object" || Array.isArray(contract) || Object.keys(contract).some((key) => !["id", "parent", "role", "outcome", "inputs", "scopes", "dependencies", "acceptanceCriteria", "verificationCommands"].includes(key))) return refuse(400, "a node needs a complete fixed contract");
+      if (!contract || typeof contract !== "object" || Array.isArray(contract) || Object.keys(contract).some((key) => !["id", "parent", "role", "outcome", "inputs", "scopes", "dependencies", "acceptanceCriteria", "verificationCommands", "executionMode"].includes(key))) return refuse(400, "a node needs a complete fixed contract");
       if (typeof contract.id !== "string" || !/^[a-z0-9][a-z0-9_-]{0,63}$/.test(contract.id) || keys.has(contract.id) || typeof contract.parent !== "string") return refuse(400, "node IDs must be unique and parents explicit");
       if (typeof contract.outcome !== "string" || contract.outcome.trim() === "" || Buffer.byteLength(JSON.stringify(contract)) > TREE_TASK_BYTES || hasSecret(contract.outcome) || !list(contract.inputs) || !list(contract.acceptanceCriteria, false) || !list(contract.verificationCommands) || !list(contract.dependencies)) return refuse(400, "node contracts need bounded outcomes, inputs, criteria, checks and dependencies");
-      // Independent structural delegation is this slice. Durable dependency acceptance and integration
-      // are separate stages; a raw process completion must never satisfy a dependency here.
-      if (contract.dependencies.length > 0) return refuse(409, "dependency barriers require the verified integration scheduler; this slice accepts independent contracts only");
+      if (contract.executionMode !== undefined && !["read", "code"].includes(contract.executionMode)) return refuse(400, "executionMode must be read or code");
+      if (contract.executionMode === "code" && contract.role !== "runner") return refuse(400, "scoped code execution belongs only to a bounded runner contract");
       keys.add(contract.id);
       proposals.set(contract.id, structuredClone(contract));
     }
@@ -588,15 +636,29 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         if (!progressed) throw new Error("a tree contains a missing parent or a cycle");
       }
       for (const key of keys) if ([...proposals.values()].filter((node) => node.parent === key).length > 4) throw new Error("a parent may have at most four children");
+      const visitDependency = (key, seen = new Set()) => {
+        if (seen.has(key)) throw new Error("a tree contains a dependency cycle");
+        const item = proposals.get(key);
+        for (const dependency of item.dependencies) {
+          if (!proposals.has(dependency) || dependency === item.parent || proposals.get(dependency).parent !== item.parent) throw new Error("dependencies must name approved sibling nodes");
+          visitDependency(dependency, new Set([...seen, key]));
+        }
+      };
+      for (const key of proposals.keys()) visitDependency(key);
     } catch (err) { return refuse(400, clean(err?.message, 200)); }
     let node;
     try {
+      const rootSource = input.rootContract === undefined ? { outcome: `Complete approved task ${input.ref}`, inputs: [], acceptanceCriteria: (await readFile(ticketFile(input.ref, (await projects.get(selected.project)).root), "utf8")).split(/^## Comments/m)[0].split("\n").map((line) => /^\s*- \[[ xX]\]\s+(.+)$/.exec(line)?.[1].trim()).filter(Boolean), verificationCommands: [] } : input.rootContract;
+      if (!rootSource || Array.isArray(rootSource) || Object.keys(rootSource).some((key) => !["outcome", "inputs", "acceptanceCriteria", "verificationCommands"].includes(key)) || typeof rootSource.outcome !== "string" || rootSource.outcome.trim() === "" || Buffer.byteLength(JSON.stringify(rootSource)) > TREE_TASK_BYTES || !list(rootSource.inputs) || !list(rootSource.acceptanceCriteria, false) || !list(rootSource.verificationCommands) || hasSecret(rootSource.outcome)) throw new Error("the root needs exact approved bounded outcome, inputs, acceptance criteria and checks");
       node = taskTrees.root({ ref: input.ref, ...selected, owner: owner.owner, epoch: owner.epoch, scopes: checked.scopes });
       Object.assign(node, resolved.get("owner").selection);
+      node.contract = structuredClone(rootSource);
+      node.workflow = freshWorkflow();
       const planned = new Map([["owner", node]]);
       for (const item of prepared) {
         const child = taskTrees.child(planned.get(item.contract.parent), { role: item.contract.role, task: item.contract.outcome, scopes: item.scopes, planned: true, contract: item.contract });
         Object.assign(child, item.selection, { key: item.key });
+        child.workflow = freshWorkflow();
         planned.set(item.key, child);
       }
       await taskTrees.journal({ event: "proposed", tree: taskTrees.snapshot().find((tree) => tree.id === node.treeId) });
@@ -622,23 +684,21 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     return runTreeNode(node, "dispatch");
   }
   async function delegate(parentId, input) {
-    const parent = taskTrees.node(parentId);
-    if (!parent || !treeUsable(parent) || parent.state !== "working" || !parent.agent?.proc || parent.agent.exited || parent.agent.stopRequested || parent.agent.releasing) return refuse(409, "the parent task is no longer live");
+    const actor = treeActor(parentId);
+    const parent = actor?.treeNode;
+    if (!parent) return refuse(409, "the parent task is no longer live");
     if (!input || typeof input !== "object" || Array.isArray(input) || Object.keys(input).length !== 1 || typeof input.nodeId !== "string") return refuse(400, "delegation starts only an exact approved nodeId");
     const node = taskTrees.node(input.nodeId);
-    if (!node || node.parentId !== parent.id || node.treeId !== parent.treeId || node.state !== "planned" || node.attempted || node.cancelled) return refuse(403, "this is not an unstarted child of the approved parent revision");
+    if (!node || node.parentId !== parent.id || node.treeId !== parent.treeId || workflowOf(node).status !== "planned" || node.attempted || node.cancelled) return refuse(403, "this is not an unstarted child of the approved parent revision");
     if (!parent.delegateRoles?.includes(node.role)) return refuse(403, "the parent's trusted role does not permit this delegation");
     // Siblings may run together only on disjoint scopes. Reviewers can be sequenced on a frozen candidate.
     if (parent.children.some((id) => { const sibling = taskTrees.node(id); return sibling && sibling.id !== node.id && ["pending", "working"].includes(sibling.state) && scopesOverlap(node.scopes, sibling.scopes); })) return refuse(409, "live sibling scopes overlap; sequence this work");
-    node.state = "pending"; // synchronously reserve this stable node before any await
     try {
-      // Ownership is inherited from the approved root, never selected by a worker.
-      const approved = await admission.approve(node.ref, { owner: node.owner, parent: node.rootRef });
-      if (!approved.ok) throw new Error(approved.error);
-      if (!treeUsable(node)) throw new Error("the parent task is no longer live");
-      const parentWorkspaces = await workspacesOf(node.project);
-      node.base = await parentWorkspaces.head(parent.agent.workspace);
-      return await runTreeNode(node, "start");
+      const queued = await queueTreeChild(parent, node);
+      if (!queued.ok) return queued;
+      await scheduleTrees();
+      if (!treeUsable(node) || node.workflow.status === "paused") return refuse(409, node.workflow.error ?? "the approved parent ended while this child was starting");
+      return node.activeAgent?.proc && !node.activeAgent.exited ? { ok: true, status: 201, agent: view(node.activeAgent) } : queued;
     } catch (err) {
       node.cancelled = true;
       taskTrees.end(node, "failed");
@@ -646,23 +706,498 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     }
   }
   function treeResult(parentId, childId) {
-    const parent = taskTrees.node(parentId);
+    const parent = treeActor(parentId)?.treeNode;
     const child = taskTrees.node(childId);
-    if (!parent || !treeUsable(parent) || parent.state !== "working" || !child || child.parentId !== parent.id) return refuse(403, "a tree result belongs only to its live parent");
+    if (!parent || !child || child.parentId !== parent.id) return refuse(403, "a tree result belongs only to its live parent");
     const agent = child.agent;
-    return { ok: true, status: 200, result: { ...taskTrees.describe(child), role: child.role, state: child.state, accepted: false, ref: child.ref, runtime: child.runtime, contract: structuredClone(child.contract), candidate: agent?.sha ?? null, branch: agent?.branch ?? null, report: END_STATES.includes(child.state) ? agent?.report ?? null : null, reason: agent?.reason ?? null } };
+    return { ok: true, status: 200, result: { ...taskTrees.describe(child), role: child.role, state: child.state, workflowStatus: child.workflow.status, accepted: child.workflow.status === "accepted", ref: child.ref, runtime: child.runtime, contract: structuredClone(child.contract), candidate: child.workflow.receipt?.candidate ?? null, branch: null, evidence: child.workflow.acceptance ?? null, report: END_STATES.includes(child.state) ? agent?.report ?? null : null, reason: child.workflow.error ?? agent?.reason ?? null } };
   }
   function cancelTreeChildren(agent) {
     if (!agent.treeNode) return Promise.resolve();
     const ended = [];
     for (const node of taskTrees.descendants(agent.treeNode)) {
+      if (["accepted", "skipped"].includes(node.workflow?.status)) continue;
       node.cancelled = true;
-      if (node.agent?.proc && !node.agent.exited) {
-        terminate(node.agent, "parent-ended");
-        if (node.agent.finished) ended.push(node.agent.finished);
+      if (node.activeAgent?.proc && !node.activeAgent.exited) {
+        terminate(node.activeAgent, "parent-ended");
+        if (node.activeAgent.finished) ended.push(node.activeAgent.finished);
       }
     }
     return Promise.allSettled(ended);
+  }
+  const artifactStores = new Map();
+  const treeCheckers = new Map();
+  const recoveringRevisions = new Set();
+  const privateGit = (dir, ...args) => new Promise((resolve, reject) => execFile("git", ["-C", dir, "-c", "core.fsmonitor=false", ...args], { encoding: "utf8", maxBuffer: 8 << 20, timeout: 300000 }, (err, stdout) => err ? reject(err) : resolve(String(stdout).trim())));
+  const workflowOf = (node) => (node.workflow ??= freshWorkflow());
+  async function artifactsFor(node) {
+    const project = await projects.get(node.project);
+    if (!project) throw new Error("the task project is no longer available");
+    if (!artifactStores.has(project.root)) {
+      const scopeCheck = treeScopeChecks.get(project.root) ?? createAdmission({ root: project.root });
+      artifactStores.set(project.root, treeArtifactsFactory({ root: project.root, checkReturned: (input) => scopeCheck.checkReturned(input), verifyAccepted: (receipt) => {
+        const child = taskTrees.node(receipt.input.nodeId);
+        return !!child && child.workflow?.status === "accepted" && child.workflow.acceptance?.candidate === receipt.candidate && child.workflow.receipt?.operationId === receipt.operationId;
+      }, canCapture: async ({ workspace, attemptId }) => {
+        const author = agents.get(attemptId);
+        return await taskTrees.ownsLease() && author?.workspace?.dir === workspace.dir && author.exited && author.cleanupConfirmed === true && stoppedWorkspace(workspace);
+      }, canMaterialize: async ({ workspace }) => await taskTrees.ownsLease() && stoppedWorkspace(workspace), canReconcile: async ({ workspace }) => await taskTrees.ownsLease() && stoppedWorkspace(workspace) && [...agents.values()].some((agent) => agent.workspace?.dir === workspace.dir && recoveringRevisions.has(agent.treeNode?.treeId)) }));
+    }
+    return artifactStores.get(project.root);
+  }
+  function stoppedWorkspace(workspace) {
+    const related = [...agents.values()].filter((agent) => agent.workspace?.dir === workspace.dir);
+    return related.length > 0 && related.every((agent) => !agent.proc || (agent.exited && agent.cleanupConfirmed === true));
+  }
+  async function checksFor(node) {
+    if (treeChecks) return treeChecks;
+    const project = await projects.get(node.project);
+    if (!project) throw new Error("the task project is no longer available");
+    if (!treeCheckers.has(project.root)) treeCheckers.set(project.root, createGitHost(project.root, { riskScript: path.join(root, "scripts/risk-check.mjs"), guardScript: path.join(root, "scripts/test-guard.mjs") }));
+    return treeCheckers.get(project.root);
+  }
+  const authorContext = (agent) => ({ attemptId: agent.id, origin: agent.origin ?? agent.id, sessionId: agent.sessionId, runtimeSessionId: agent.runtimeSessionId, worktree: agent.worktree, branch: agent.branch, head: agent.startSha });
+  async function workflowEvent(node, kind, agent = node.activeAgent, extra = {}) {
+    await taskTrees.journal({ event: "lifecycle", ...treeAudit(node, agent), kind, ...extra });
+  }
+  async function pauseTreeNode(node, reason) {
+    const paused = [];
+    for (let current = node; current; current = taskTrees.node(current.parentId)) {
+      const workflow = workflowOf(current);
+      if (["accepted", "skipped"].includes(workflow.status)) break;
+      if (workflow.status === "paused" && current !== node) break;
+      workflow.status = "paused";
+      workflow.pendingPhase = null;
+      workflow.error = current === node ? clean(reason, 300) ?? "the tree step needs the user" : `required child ${node.id} paused; its outcome is unaccepted`;
+      paused.push(current);
+      if (current.activeAgent?.proc && !current.activeAgent.exited && !current.activeAgent.stopRequested) terminate(current.activeAgent, "tree-step-failed");
+    }
+    for (const current of paused) {
+      await taskTrees.checkpoint(current);
+      await workflowEvent(current, "failed", current.activeAgent, { reason: current.workflow.error, candidate: current.workflow.receipt?.candidate ?? null });
+    }
+  }
+  async function terminalTreeFailure(node, code, agent = node.activeAgent) {
+    node.workflow.terminalFailure ??= { code, attemptId: agent?.id ?? null, phase: agent?.treePhase ?? null, candidate: node.workflow.receipt?.candidate ?? null };
+    try { await taskTrees.checkpoint(node); }
+    catch (err) { if (agent?.proc && !agent.exited) terminate(agent, "tree-journal-write-failed"); throw err; }
+  }
+  function treeActor(attemptId, { owner = false, review = false } = {}) {
+    const agent = agents.get(attemptId);
+    if (!agent?.treeNode || !agent.proc || agent.exited || agent.stopRequested || agent.releasing || !treeUsable(agent.treeNode)) return null;
+    if (review !== isReviewPhase(agent.treePhase) || (owner && agent.treeNode.depth !== 0)) return null;
+    return agent;
+  }
+  async function skipTree(attemptId, input) {
+    const agent = treeActor(attemptId);
+    if (!agent || agent.treeNode.depth >= 2) return refuse(403, "only a live owner or manager may omit its never-started approved work");
+    if (!input || Object.keys(input).length !== 1 || !Array.isArray(input.nodes) || input.nodes.length > 20 || new Set(input.nodes).size !== input.nodes.length) return refuse(400, "unused nodes must be exact distinct planned identities");
+    const selected = input.nodes.map((id) => taskTrees.node(id));
+    if (selected.some((node) => !node || node.depth === 0 || node.treeId !== agent.treeNode.treeId || workflowOf(node).status !== "planned" || node.attempted)) return refuse(409, "a started or requested node cannot be skipped");
+    if (agent.treeNode.depth === 1 && selected.some((node) => node.parentId !== agent.treeNode.id || node.role !== "runner")) return refuse(403, "a manager may omit only its own never-started direct runners");
+    const include = new Set(input.nodes);
+    const selectedKeys = new Set(selected.map((node) => node.key));
+    for (const tree of taskTrees.snapshot().filter((tree) => tree.id === agent.treeNode.treeId)) for (const dependent of tree.nodes) if (!include.has(dependent.id) && dependent.contract?.dependencies?.some((key) => selectedKeys.has(key))) return refuse(409, "an approved dependent still requires this node; skip that complete dependent subtree too");
+    for (const node of selected) for (const child of taskTrees.descendants(node)) if (!include.has(child.id)) return refuse(409, "skip the complete unused subtree explicitly");
+    for (const node of selected) {
+      node.cancelled = true; node.state = "skipped"; node.workflow.status = "skipped";
+      await taskTrees.checkpoint(node);
+      await workflowEvent(node, "skipped", agent, { skippedNodeId: node.id });
+    }
+    return { ok: true, status: 200, skipped: input.nodes.slice() };
+  }
+  function treeStatus(attemptId) {
+    const agent = agents.get(attemptId);
+    if (!agent?.treeNode || !agent.proc || agent.exited || agent.stopRequested || agent.releasing || !treeUsable(agent.treeNode)) return refuse(403, "this run has no live tree authority");
+    const tree = taskTrees.snapshot().find((item) => item.id === agent.treeNode.treeId);
+    return { ok: true, status: 200, tree: { revision: tree.id, rootId: tree.rootId, nodes: tree.nodes.map((node) => ({ id: node.id, parentId: node.parentId, role: node.role, state: node.state, status: node.workflow?.status ?? node.state, accepted: node.workflow?.status === "accepted", candidate: node.workflow?.receipt?.candidate ?? null, outcome: node.contract?.outcome ?? null })) } };
+  }
+  function dependenciesAccepted(node) {
+    return (node.contract?.dependencies ?? []).every((key) => {
+      const parent = taskTrees.node(node.parentId);
+      const dependency = parent?.children.map((id) => taskTrees.node(id)).find((child) => child.key === key);
+      return dependency?.workflow?.status === "accepted";
+    });
+  }
+  async function queueTreeChild(parent, node) {
+    if (!parent.delegateRoles?.includes(node.role) || node.parentId !== parent.id || node.treeId !== parent.treeId || workflowOf(node).status !== "planned") return refuse(403, "this is not an unstarted permitted child of the approved revision");
+    node.workflow.status = "reserving";
+    const approved = await admission.approve(node.ref, { owner: node.owner, parent: node.rootRef });
+    if (!approved.ok) return approved;
+    const workspace = parent.agent?.workspace;
+    if (!workspace) return refuse(409, "the parent has no private worktree");
+    node.base = await (await workspacesOf(node.project)).head(workspace);
+    node.workflow.base = node.base;
+    node.workflow.status = "queued";
+    node.workflow.pendingPhase = "implementation";
+    await taskTrees.checkpoint(node);
+    return { ok: true, status: 202, nodeId: node.id, state: "queued" };
+  }
+  async function yieldTree(attemptId, input) {
+    const agent = treeActor(attemptId);
+    if (!agent || agent.treeNode.depth === 2) return refuse(403, "only a live owner or manager may yield to its approved children");
+    const node = agent.treeNode;
+    if (!input || Object.keys(input).length !== 1 || !Array.isArray(input.children) || input.children.length === 0 || input.children.length > 4 || new Set(input.children).size !== input.children.length) return refuse(400, "yield names one to four exact direct children");
+    const children = input.children.map((id) => taskTrees.node(id));
+    if (children.some((child) => !child || child.parentId !== node.id || child.treeId !== node.treeId || !node.delegateRoles?.includes(child.role) || ["paused", "skipped"].includes(workflowOf(child).status))) return refuse(403, "the barrier must name permitted direct children of this revision");
+    if (children.every((child) => node.workflow.integratedChildren.includes(child.id))) return refuse(409, "these children were already integrated; yield must make progress");
+    const selectedKeys = new Set(children.map((child) => child.key));
+    if (children.some((child) => child.contract.dependencies.some((key) => !selectedKeys.has(key) && !node.children.some((id) => taskTrees.node(id).key === key && node.workflow.integratedChildren.includes(id))))) return refuse(409, "a yield barrier must include each not-yet-integrated approved dependency");
+    for (const child of children) if (child.workflow.status === "planned") { const queued = await queueTreeChild(node, child); if (!queued.ok) return queued; }
+    node.workflow.author = { ...authorContext(agent), head: await privateGit(agent.workspace.dir, "rev-parse", "HEAD") };
+    node.workflow.waitingChildren = input.children.slice();
+    node.workflow.yieldConfirmed = false;
+    node.workflow.status = "waiting";
+    agent.treeYield = true;
+    node.state = "waiting";
+    await taskTrees.checkpoint(node);
+    await workflowEvent(node, "waiting", agent);
+    release(agent);
+    scheduleTrees();
+    return { ok: true, status: 202, nodeId: node.id, state: "waiting" };
+  }
+  async function completeTree(attemptId, input) {
+    const agent = treeActor(attemptId);
+    if (!agent) return refuse(403, "only the live implementation or continuation may complete this node");
+    let evidence;
+    try { evidence = readTreeEvidence(agent.treeNode.contract, input); }
+    catch (err) { return refuse(400, err.message); }
+    const node = agent.treeNode;
+    if (evidence.unused.length) {
+      const skipped = await skipTree(attemptId, { nodes: evidence.unused });
+      if (!skipped.ok) return skipped;
+    }
+    const children = node.children.map((id) => taskTrees.node(id));
+    if (children.some((child) => !["accepted", "skipped"].includes(workflowOf(child).status))) return refuse(409, "all required children need accepted evidence, or the owner must explicitly mark never-started nodes unused");
+    if (children.some((child) => child.workflow.status === "accepted" && !node.workflow.integratedChildren.includes(child.id))) return refuse(409, "yield to integrate accepted children before completing the combined outcome");
+    node.workflow.completion = evidence;
+    node.workflow.acceptance = null;
+    agent.treeCompletion = evidence;
+    if (evidence.checks.some((check) => check.passed === false)) await terminalTreeFailure(node, "author-check-failed", agent);
+    else await taskTrees.checkpoint(node);
+    release(agent);
+    return { ok: true, status: 202, nodeId: node.id, state: "verifying" };
+  }
+  async function reviewTree(attemptId, input) {
+    const agent = treeActor(attemptId, { review: true });
+    if (!agent) return refuse(403, "a verdict belongs only to the trusted fresh independent review attempt");
+    const node = agent.treeNode;
+    const workflow = node.workflow;
+    if (workflow.author?.attemptId === agent.id || agent.resumeOf || phaseRole(node, agent.treePhase) !== agent.role || !workflow.receipt) return refuse(403, "the implementation cannot review its own candidate or reuse its author session");
+    let report;
+    try { report = readTreeEvidence(node.contract, input, { review: true, candidate: workflow.receipt.candidate, guardHits: agent.role === "qa" ? workflow.guard?.hits ?? [] : [] }); }
+    catch (err) { return refuse(400, err.message); }
+    if (readVerdict(`VERDICT: ${report.verdict}`) !== report.verdict) return refuse(400, "the review has no recognized verdict");
+    agent.treeReviewReport = report;
+    (workflow.reviewSubmissions ??= {})[agent.id] = { ...report, attemptId: agent.id };
+    const failed = reviewFailure(report);
+    if (failed) await terminalTreeFailure(node, failed, agent);
+    else await taskTrees.checkpoint(node);
+    await taskTrees.journal({ event: "review-report", ...treeAudit(node, agent), candidate: report.candidate, verdict: report.verdict });
+    release(agent);
+    return { ok: true, status: 200, nodeId: node.id, candidate: report.candidate, verdict: report.verdict };
+  }
+  let treeSchedule = Promise.resolve();
+  function scheduleTrees() {
+    const run = treeSchedule.then(async () => {
+      if (shuttingDown) return;
+      const all = taskTrees.snapshot().filter((tree) => tree.approved && !tree.closed && !tree.recordOnly).flatMap((tree) => tree.nodes.map((node) => taskTrees.node(node.id)));
+      for (const node of all) {
+        const workflow = workflowOf(node);
+        if (workflow.status === "waiting" && (workflow.yieldConfirmed !== true || node.activeAgent?.proc && !node.activeAgent.exited)) continue;
+        if (workflow.status === "waiting" && workflow.waitingChildren.length) {
+          try {
+            const artifacts = await artifactsFor(node);
+            const workspace = node.agent?.workspace;
+            if (!workspace || !node.agent.exited) continue;
+            const ready = (workflow.integrationInputs ?? workflow.waitingChildren).filter((id) => !workflow.integratedChildren.includes(id) && taskTrees.node(id)?.workflow?.status === "accepted").sort();
+            if (workflow.integrationInputs && ready.length !== workflow.integrationInputs.length) continue;
+            if (!ready.length) {
+              if (workflow.waitingChildren.every((id) => workflow.integratedChildren.includes(id) && taskTrees.node(id)?.workflow?.status === "accepted")) {
+                workflow.waitingChildren = []; workflow.status = "queued"; workflow.pendingPhase = "continuation";
+                await taskTrees.checkpoint(node);
+              }
+              continue;
+            }
+            const children = ready.map((id) => taskTrees.node(id).workflow.receipt);
+            workflow.integrationOperation ??= `integration-${randomBytes(16).toString("hex")}`;
+            workflow.integrationInputs = ready.slice();
+            await taskTrees.checkpoint(node);
+            const receipt = await artifacts.integrate({ workspace, base: workflow.author.head, scopes: node.scopes, parentId: node.id, attemptId: workflow.author.attemptId, operationId: workflow.integrationOperation, children });
+            await artifacts.materialize({ workspace, receipt, expectedHead: workflow.author.head, operationId: `${workflow.integrationOperation}-materialize` });
+            workflow.integration = receipt;
+            workflow.integratedChildren = [...new Set([...workflow.integratedChildren, ...ready])];
+            workflow.author.head = receipt.candidate;
+            workflow.integrationOperation = null;
+            workflow.integrationInputs = null;
+            if (workflow.waitingChildren.every((id) => workflow.integratedChildren.includes(id))) {
+              workflow.waitingChildren = [];
+              workflow.status = "queued"; workflow.pendingPhase = "continuation";
+            }
+            await taskTrees.checkpoint(node);
+          } catch (err) { await pauseTreeNode(node, err.message); }
+        }
+      }
+      // Verification has priority over new implementation, so a full pool cannot starve acceptance.
+      const queued = all.filter((node) => node.workflow?.status === "queued" && node.workflow.pendingPhase).sort((a, b) => Number(!isReviewPhase(a.workflow.pendingPhase)) - Number(!isReviewPhase(b.workflow.pendingPhase)) || a.id.localeCompare(b.id));
+      for (const node of queued) {
+        if (!treeUsable(node) || !dependenciesAccepted(node) || liveByRef.has(refKey(node))) continue;
+        const phase = node.workflow.pendingPhase;
+        const parent = taskTrees.node(node.parentId);
+        if (parent?.workflow?.status === "waiting" && (parent.workflow.yieldConfirmed !== true || parent.activeAgent?.proc && !parent.activeAgent.exited)) continue;
+        if (phase === "implementation" && node.contract?.dependencies?.length) {
+          const dependencies = parent.children.map((id) => taskTrees.node(id)).filter((child) => node.contract.dependencies.includes(child.key));
+          if (!dependencies.every((child) => parent.workflow.integratedChildren.includes(child.id))) continue;
+          node.base = await privateGit(parent.agent.workspace.dir, "rev-parse", "HEAD");
+          node.workflow.base = node.base;
+          node.workflow.dependencyInputs = dependencies.map((child) => ({ nodeId: child.id, candidate: child.workflow.receipt.candidate, acceptance: child.workflow.acceptance }));
+          await taskTrees.checkpoint(node);
+        }
+        if (phase === "implementation" && parent?.children.some((id) => { const sibling = taskTrees.node(id); return sibling && sibling.id !== node.id && sibling.activeAgent?.proc && !sibling.activeAgent.exited && scopesOverlap(node.scopes, sibling.scopes); })) continue;
+        const result = await runTreeNode(node, "start", phase);
+        if (result.ok) { node.workflow.pendingPhase = null; await taskTrees.checkpoint(node); }
+      }
+    });
+    treeSchedule = run.catch((err) => console.error(`bridge: task scheduling paused: ${err?.message ?? err}`));
+    return treeSchedule;
+  }
+  async function acceptReviewedNode(node) {
+    const workflow = node.workflow;
+    if (workflow.terminalFailure) return pauseTreeNode(node, "a terminal failure keeps this candidate unaccepted");
+    if (!workflow.receipt || !workflow.requiredRoles?.every((role) => reviewPassed(workflow.reviews[role]) && workflow.reviews[role].candidate === workflow.receipt.candidate)) return pauseTreeNode(node, "independent review bounced or omitted required evidence");
+    if (workflow.userVerdictRequired && (workflow.userVerdict?.candidate !== workflow.receipt.candidate || workflow.userVerdict?.verdict !== "approve")) { workflow.status = "waiting-user"; await taskTrees.checkpoint(node); return; }
+    const accepted = { ...workflow, status: "accepted", acceptance: { candidate: workflow.receipt.candidate, operationId: workflow.receipt.operationId, reviews: workflow.requiredRoles.map((role) => ({ role, attemptId: workflow.reviews[role].attemptId, candidate: workflow.reviews[role].candidate })) } };
+    await taskTrees.checkpoint({ ...node, workflow: accepted });
+    await workflowEvent(node, "accepted", node.activeAgent, { candidate: workflow.receipt.candidate });
+    Object.assign(workflow, accepted);
+    if (node.depth === 0) taskTrees.close(node, true);
+    scheduleTrees();
+  }
+  async function queueReview(node, role) {
+    const workflow = node.workflow;
+    if (role === "qa" && workflow.crossRuntimeVerifierRequired && workflow.verifierOverride?.candidate !== workflow.receipt.candidate) {
+      workflow.status = "awaiting-verifier"; workflow.pendingPhase = null;
+      workflow.error = `fresh ${node.runtime === "claude" ? "codex" : "claude"} verification requires a configured conformed mixed-runtime adapter; an explicit user same-runtime override is required otherwise`;
+      await taskTrees.checkpoint(node);
+      return;
+    }
+    workflow.status = "queued"; workflow.pendingPhase = phaseOfRole(role);
+    await taskTrees.checkpoint(node);
+    scheduleTrees();
+  }
+  async function finishTreeAttempt(agent) {
+    const node = agent.treeNode;
+    const workflow = workflowOf(node);
+    const attempt = workflow.attempts.find((row) => row.id === agent.id);
+    if (attempt) Object.assign(attempt, { state: agent.state, reason: agent.reason ?? null, cleanupConfirmed: agent.cleanupConfirmed === true });
+    if (agent.stopRequested || node.cancelled) { await pauseTreeNode(node, agent.reason ?? "the task was stopped"); if (node.depth === 0 && agent.reason === "stopped-by-user") taskTrees.close(node); return; }
+    if (isReviewPhase(agent.treePhase) && (agent.state !== "done" || !agent.treeReviewReport)) {
+      await terminalTreeFailure(node, agent.state !== "done" ? "review-attempt-failed" : "review-report-missing", agent);
+      await pauseTreeNode(node, "the review ended unsuccessfully or without its required report; recovery grants no retry");
+      return;
+    }
+    if (agent.cleanupConfirmed !== true) { await pauseTreeNode(node, "resource-group cleanup is unconfirmed; no candidate may be captured or accepted"); return; }
+    try {
+      if (agent.treeYield) {
+        if (!await (await artifactsFor(node)).isClean({ workspace: agent.workspace, candidate: workflow.author.head }) || await privateGit(agent.workspace.dir, "rev-parse", "HEAD") !== workflow.author.head) throw new Error("the stopped parent has unexpected edits; preserve its worktree for inspection before yielding");
+        workflow.status = "waiting"; workflow.yieldConfirmed = true;
+        for (const id of workflow.waitingChildren) {
+          const child = taskTrees.node(id);
+          if (child.workflow.status === "queued" && child.workflow.attempts.length === 0) { child.base = workflow.author.head; child.workflow.base = child.base; await taskTrees.checkpoint(child); }
+        }
+        await taskTrees.checkpoint(node); scheduleTrees(); return;
+      }
+      if (isReviewPhase(agent.treePhase)) {
+        if (agent.state !== "done") { await terminalTreeFailure(node, "review-attempt-failed", agent); throw new Error("the review execution failed; no review retry is authorized"); }
+        if (!agent.treeReviewReport) { await terminalTreeFailure(node, "review-report-missing", agent); throw new Error("the review ended without its required report; no review retry is authorized"); }
+        if (!agent.treeReviewReport || agent.state !== "done" || await privateGit(agent.workspace.dir, "rev-parse", "HEAD") !== workflow.receipt.candidate || !await (await artifactsFor(node)).isClean({ workspace: agent.workspace, candidate: workflow.receipt.candidate })) throw new Error("the review has missing evidence or changed its frozen candidate");
+        const artifacts = await artifactsFor(node);
+        await artifacts.validateReceipt(workflow.receipt);
+        workflow.reviews[agent.role] = { ...agent.treeReviewReport, attemptId: agent.id, role: agent.role, model: agent.model };
+        if (!reviewPassed(workflow.reviews[agent.role])) { await terminalTreeFailure(node, reviewFailure(workflow.reviews[agent.role]), agent); throw new Error("independent review bounced or a required verification failed; no automatic retry is authorized"); }
+        const next = workflow.requiredRoles.find((role) => !workflow.reviews[role]);
+        if (next) await queueReview(node, next);
+        else await acceptReviewedNode(node);
+        return;
+      }
+      if (!agent.treeCompletion || agent.state !== "done") throw new Error(agent.reason ?? "the author ended without the required completion evidence");
+      workflow.author = { ...authorContext(agent), head: await privateGit(agent.workspace.dir, "rev-parse", "HEAD") };
+      const artifacts = await artifactsFor(node);
+      workflow.captureOperation ??= `capture-${agent.id}`;
+      await taskTrees.checkpoint(node);
+      const parameters = { workspace: agent.workspace, base: workflow.base ?? agent.startSha, scopes: node.scopes, nodeId: node.id, attemptId: agent.id, operationId: workflow.captureOperation };
+      if (agent.role === "runner" && workflow.author.head !== agent.startSha) throw new Error("the runner changed HEAD; bounded execution must leave candidate creation to the bridge");
+      workflow.receipt = workflow.author.head === parameters.base ? await artifacts.capture(parameters) : await artifacts.adoptCandidate({ ...parameters, candidate: workflow.author.head });
+      agent.sha = workflow.receipt.candidate;
+      await workflowEvent(node, "result", agent, { candidate: workflow.receipt.candidate });
+      if (workflow.completion.checks.some((row) => !row.passed)) throw new Error("a required author check failed; no new correction allowance is granted");
+      const checker = await checksFor(node);
+      workflow.risk = await checker.risk({ base: workflow.receipt.input.base, sha: workflow.receipt.candidate });
+      workflow.guard = await checker.guard({ base: workflow.receipt.input.base, sha: workflow.receipt.candidate });
+      const code = node.contract.executionMode === "code" || workflow.receipt.changed.some(isCodePath);
+      const required = floor({ type: code ? "feature" : workflow.receipt.changed.some(isDocsPath) ? "docs" : "research", files: workflow.receipt.changed, riskClean: workflow.risk.clean });
+      workflow.requiredRoles = required.roles.filter((role) => phaseOfRole(role));
+      workflow.requiredRoles = [...new Set(["code-reviewer", ...(code ? ["qa"] : []), ...workflow.requiredRoles])];
+      workflow.crossRuntimeVerifierRequired = code;
+      workflow.userVerdictRequired = required.roles.includes("user-verdict");
+      workflow.reviews = {};
+      await queueReview(node, workflow.requiredRoles[0]);
+    } catch (err) { if (isReviewPhase(agent.treePhase)) await terminalTreeFailure(node, "review-verification-failed", agent); await pauseTreeNode(node, err.message); }
+  }
+  async function verdictTree(input) {
+    if (!input || Object.keys(input).some((key) => !["revision", "nodeId", "candidate", "verdict"].includes(key)) || !["approve", "decline"].includes(input.verdict)) return refuse(400, "the user verdict must name the exact revision, node and candidate");
+    const node = taskTrees.node(input.nodeId);
+    if (!node || node.treeId !== input.revision || node.workflow?.status !== "waiting-user" || node.workflow.receipt?.candidate !== input.candidate || !treeUsable(node)) return refuse(409, "this candidate is not waiting for this user verdict");
+    node.workflow.userVerdict = { candidate: input.candidate, verdict: input.verdict };
+    if (input.verdict === "decline") await terminalTreeFailure(node, "user-declined");
+    else await taskTrees.checkpoint(node);
+    if (input.verdict === "decline") await pauseTreeNode(node, "the user declined this candidate");
+    else await acceptReviewedNode(node);
+    return { ok: true, status: 200, nodeId: node.id, candidate: input.candidate, accepted: node.workflow.status === "accepted" };
+  }
+  async function verifierTree(input) {
+    if (!input || Object.keys(input).some((key) => !["revision", "nodeId", "candidate", "runtime", "reason"].includes(key)) || typeof input.reason !== "string" || input.reason.trim() === "" || Buffer.byteLength(input.reason) > 2000 || hasSecret(input.reason)) return refuse(400, "the explicit verifier override needs exact revision, node, candidate, same runtime and bounded reason");
+    const node = taskTrees.node(input.nodeId);
+    if (!node || !treeUsable(node) || node.treeId !== input.revision || node.workflow?.status !== "awaiting-verifier" || input.candidate !== node.workflow.receipt?.candidate || input.runtime !== node.runtime) return refuse(409, "this exact candidate is not waiting for this same-runtime verifier choice");
+    node.workflow.verifierOverride = { candidate: input.candidate, runtime: input.runtime, reason: input.reason, actor: "session-user" };
+    await taskTrees.journal({ event: "verifier-override", ...treeAudit(node), ...node.workflow.verifierOverride });
+    await queueReview(node, "qa");
+    return { ok: true, status: 202, nodeId: node.id, candidate: input.candidate, state: "queued" };
+  }
+  async function resumeTree(input) {
+    await ready;
+    await admission.ready;
+    if (!input || Object.keys(input).length !== 1 || typeof input.revision !== "string") return refuse(400, "resume names the exact recorded revision");
+    const record = taskTrees.historical(input.revision);
+    if (!record?.approved || !record.recordOnly || !Array.isArray(record.nodes)) return refuse(409, "this revision is not a recorded approved tree awaiting explicit recovery");
+    const originalRoot = record.nodes.find((node) => node.id === record.rootId);
+    if (!originalRoot || originalRoot.key !== "owner") return refuse(409, "the recorded root cannot be validated");
+    if (originalRoot.workflow?.status === "accepted") return refuse(409, "this revision already completed; recovery cannot create another execution attempt");
+    const owner = admission.ownerOf(record.ref);
+    if (owner.legacy || owner.root !== record.ref || owner.owner !== originalRoot.owner || owner.epoch !== originalRoot.epoch) return refuse(409, "the recorded approved owner changed; propose a new revision");
+    let validation;
+    try {
+      for (const item of record.nodes) {
+        const failed = recoveryFailure(item.workflow);
+        if (failed) throw new Error(failed === "cancelled-by-user" ? "this logical workflow was explicitly cancelled; recovery cannot grant another implementation attempt" : `a recorded terminal failure (${failed}) requires a new reviewed revision; recovery grants no retry`);
+      }
+      // A stopped leader is insufficient: every recorded native resource must be positively absent.
+      for (const item of record.nodes) {
+        if (item.workflow?.cancelledByUser) throw new Error("this logical workflow was explicitly cancelled; recovery cannot grant another implementation attempt");
+        if (!Array.isArray(item.workflow?.attempts) || item.workflow.attempts.length > 100) throw new Error("the recorded execution attempts cannot be validated");
+        for (const attempt of item.workflow.attempts) {
+          if (!AGENT_ID_RE.test(attempt.id ?? "") || !["implementation", "continuation", "code-review", "qa", "security", "writer-review"].includes(attempt.phase)) throw new Error("a recorded attempt has an invalid identity or phase");
+          const prior = agents.get(attempt.id);
+          if (!prior?.treeManaged || prior.project !== record.project || prior.ref !== item.ref || prior.runtimeId !== item.runtime || prior.role !== phaseRole(item, attempt.phase)) throw new Error("a recorded attempt lacks its matching managed session record");
+          if (typeof adapters[item.runtime]?.stillRunning !== "function" || await adapters[item.runtime].stillRunning(attempt.id) !== false) throw new Error("an earlier task resource group is still live or cannot be proven stopped");
+        }
+      }
+      for (const intent of admission.uncertain().filter((entry) => entry.project === record.project && record.nodes.some((node) => node.ref === entry.ref))) {
+        if (!record.nodes.find((node) => node.ref === intent.ref)?.workflow.attempts.length) throw new Error("an unconfirmed admission has no resource identity to reconcile");
+        await admission.reconcile(intent.id, "ended");
+      }
+      await taskTrees.acquireLease({ reconcile: true });
+      recoveringRevisions.add(record.id);
+      // Re-run the complete proposal validator, then retain only its normalized trusted fields.
+      validation = await planTree({ ref: record.ref, runtime: originalRoot.runtime, project: record.project, scopes: originalRoot.scopes, rootContract: originalRoot.contract, nodes: record.nodes.filter((node) => node.id !== record.rootId).map((node) => node.contract) });
+      if (!validation.ok) throw new Error(validation.error);
+      const fresh = validation.tree.nodes;
+      const byKey = new Map(record.nodes.map((node) => [node.key, node]));
+      if (byKey.size !== fresh.length || record.nodes.length !== fresh.length) throw new Error("the recorded node identities are not unique");
+      const restored = fresh.map((node) => {
+        const old = byKey.get(node.key);
+        if (!old || !AGENT_ID_RE.test(old.id ?? "") || old.treeId !== record.id || old.owner !== node.owner || old.epoch !== node.epoch || ["role", "depth", "runtime", "model", "effort"].some((key) => old[key] !== node[key]) || JSON.stringify(old.scopes) !== JSON.stringify(node.scopes) || JSON.stringify(old.contract) !== JSON.stringify(node.contract)) throw new Error("a recorded contract, scope, model or owner differs from the approved definition");
+        const parentKey = node.contract?.parent;
+        const parentId = node.depth ? byKey.get(parentKey)?.id : null;
+        const expectedChildren = fresh.filter((child) => child.contract?.parent === node.key).map((child) => byKey.get(child.key)?.id);
+        const ref = node.depth ? `${record.ref.split("/")[0]}/00-tree-${old.id.slice(2)}` : record.ref;
+        if (old.parentId !== parentId || old.ref !== ref || JSON.stringify(old.children) !== JSON.stringify(expectedChildren)) throw new Error("the recorded parent, child or work reference changed");
+        return { ...node, ...resolveTreeRole({ controlRoot: root, role: node.role, runtime: node.runtime }), id: old.id, nodeId: old.id, treeId: record.id, parentId, children: expectedChildren, ref, workflow: freshWorkflow() };
+      });
+      await taskTrees.journal({ event: "discarded", revision: validation.revision });
+      taskTrees.abort(taskTrees.node(validation.tree.rootId)); validation = null;
+      const restoredRoot = taskTrees.restore({ ...record, nodes: restored });
+      taskTrees.approve(record.id);
+      for (const item of restored) {
+        const node = taskTrees.node(item.id);
+        const old = byKey.get(node.key);
+        const previous = old.workflow;
+        const workflow = node.workflow;
+        workflow.attempts = structuredClone(previous.attempts);
+        if (previous.status === "skipped" && previous.attempts.length === 0) { node.cancelled = true; node.state = "skipped"; workflow.status = "skipped"; continue; }
+        if (!previous.attempts.length) { workflow.status = previous.status === "queued" ? "queued" : "planned"; workflow.pendingPhase = workflow.status === "queued" ? "implementation" : null; continue; }
+        const author = previous.author;
+        const prior = author && agents.get(author.attemptId);
+        if (!prior || !previous.attempts.some((attempt) => attempt.id === author.attemptId && !isReviewPhase(attempt.phase)) || author.origin !== (prior.origin ?? prior.id) || author.sessionId !== prior.sessionId || author.runtimeSessionId !== prior.runtimeSessionId || !validRuntimeSession(author.runtimeSessionId) || !COMMIT_RE.test(previous.base ?? "")) throw new Error("the previous author identity or base cannot be validated");
+        // Locate the registered private worktree without invoking checkout or conversion.
+        // A recognized interrupted materialization may still contain exact old/new bytes.
+        const workspace = await (await workspacesOf(node.project)).reopen({ ref: node.ref, agentId: prior.id, origin: author.origin });
+        if (workspace.worktree !== prior.worktree || workspace.worktree !== author.worktree || !COMMIT_RE.test(author.head ?? "")) throw new Error("the prior private author worktree cannot be validated");
+        Object.assign(prior, { treeNode: node, treePhase: previous.attempts.find((attempt) => attempt.id === author.attemptId).phase, workspace, exited: true, cleanupConfirmed: true, artifactStoreProtected: true });
+        node.agent = prior; node.activeAgent = prior;
+        workflow.author = structuredClone(author); workflow.base = previous.base;
+        workflow.integratedChildren = Array.isArray(previous.integratedChildren) && previous.integratedChildren.every((id) => node.children.includes(id)) ? previous.integratedChildren.slice() : [];
+        const artifacts = await artifactsFor(node);
+        if (previous.integrationOperation) {
+          const integration = await artifacts.receipt(previous.integrationOperation);
+          if (!integration || integration.kind !== "integrate" || !["complete", "intent"].includes(integration.status) || integration.input.nodeId !== node.id || integration.input.workspace !== workspace.dir || integration.input.base !== workflow.author.head || JSON.stringify(integration.input.scopes) !== JSON.stringify(node.scopes) || !integration.input.children.every((child) => node.children.includes(child.nodeId))) throw new Error("the interrupted integration is not bound to this exact stopped parent");
+          if (integration.status === "intent") {
+            if (!await artifacts.isClean({ workspace, candidate: workflow.author.head })) throw new Error("an incomplete object integration cannot recover an unknown worktree edit");
+            workflow.integrationOperation = integration.operationId;
+            workflow.integrationInputs = integration.input.children.map((child) => child.nodeId);
+          } else {
+            await artifacts.validateReceipt(integration);
+            const materialization = await artifacts.receipt(`${previous.integrationOperation}-materialize`);
+            if (materialization) await artifacts.reconcileMaterialization({ workspace, operationId: materialization.operationId });
+            else {
+              if (!await artifacts.isClean({ workspace, candidate: workflow.author.head })) throw new Error("an unrecorded private transition cannot be recovered");
+              await artifacts.materialize({ workspace, receipt: integration, expectedHead: workflow.author.head, operationId: `${previous.integrationOperation}-materialize` });
+            }
+            workflow.integration = integration;
+            workflow.author.head = integration.candidate;
+            workflow.integratedChildren = [...new Set([...workflow.integratedChildren, ...integration.input.children.map((child) => child.nodeId)])];
+          }
+        }
+        for (const childId of workflow.integratedChildren) {
+          const childRecord = record.nodes.find((child) => child.id === childId);
+          const receipt = await artifacts.validateReceipt(childRecord?.workflow?.receipt);
+          if (receipt.input.nodeId !== childId) throw new Error("an integrated child receipt belongs to another node");
+          await privateGit(workspace.dir, "merge-base", "--is-ancestor", receipt.candidate, workflow.author.head);
+        }
+        if (previous.receipt) {
+          const receipt = await artifacts.validateReceipt(previous.receipt);
+          if (receipt.input.nodeId !== node.id || receipt.input.attemptId !== author.attemptId || receipt.input.workspace !== workspace.dir || JSON.stringify(receipt.input.scopes) !== JSON.stringify(node.scopes)) throw new Error("the recorded candidate is not bound to this exact author and scope");
+          workflow.completion = readTreeEvidence(node.contract, previous.completion);
+          if (workflow.completion.checks.some((check) => !check.passed)) throw new Error("a failed author check cannot be resumed as successful");
+          workflow.receipt = receipt;
+          const checker = await checksFor(node);
+          workflow.risk = await checker.risk({ base: receipt.input.base, sha: receipt.candidate });
+          workflow.guard = await checker.guard({ base: receipt.input.base, sha: receipt.candidate });
+          const code = node.contract.executionMode === "code" || receipt.changed.some(isCodePath);
+          const required = floor({ type: code ? "feature" : receipt.changed.some(isDocsPath) ? "docs" : "research", files: receipt.changed, riskClean: workflow.risk.clean });
+          workflow.requiredRoles = [...new Set(["code-reviewer", ...(code ? ["qa"] : []), ...required.roles.filter((role) => phaseOfRole(role))])];
+          workflow.userVerdictRequired = required.roles.includes("user-verdict");
+          workflow.crossRuntimeVerifierRequired = code;
+          // Historical verdicts and overrides are evidence only: recovery reruns every review.
+          workflow.status = "queued"; workflow.pendingPhase = "code-review";
+        } else if (previous.yieldConfirmed === true && Array.isArray(previous.waitingChildren) && previous.waitingChildren.length && previous.waitingChildren.every((id) => node.children.includes(id)) && await artifacts.isClean({ workspace, candidate: workflow.author.head }) && await privateGit(workspace.dir, "rev-parse", "HEAD") === workflow.author.head) {
+          workflow.status = "waiting"; workflow.waitingChildren = previous.waitingChildren.slice(); workflow.yieldConfirmed = true;
+        } else {
+          workflow.status = "paused"; workflow.error = "the prior author ended without a verifiable completed candidate or clean waiting barrier; no duplicate implementation is authorized";
+        }
+        await taskTrees.checkpoint(node);
+      }
+      for (const item of restored) { const node = taskTrees.node(item.id); if (node.workflow.status === "paused") await pauseTreeNode(node, node.workflow.error); }
+      await taskTrees.journal({ event: "resumed", revision: record.id, owner: owner.owner, epoch: owner.epoch, actor: "session-user" });
+      await taskTrees.checkpoint(restoredRoot);
+      scheduleTrees();
+      return { ok: true, status: 202, revision: record.id, tree: taskTrees.snapshot().find((tree) => tree.id === record.id) };
+    } catch (err) {
+      if (validation?.ok) taskTrees.abort(taskTrees.node(validation.tree.rootId));
+      const active = taskTrees.tree(record.id);
+      if (active) { for (const row of taskTrees.snapshot().find((tree) => tree.id === record.id).nodes) { const node = taskTrees.node(row.id); node.cancelled = true; node.workflow.status = "paused"; } taskTrees.close(taskTrees.node(active.rootId)); }
+      return refuse(409, clean(err.message, 300));
+    } finally { recoveringRevisions.delete(record.id); }
   }
   // A new run's record. Called inside the synchronous step; launch() registers it and starts the spawn.
   function newAgent({ ref, role, mode, grants, sessionId, runtimeId, ...follows }) {
@@ -764,6 +1299,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   async function spawnAgent(agent, routeName, usageUnknown) {
     const runtime = adapterOf(agent);
     if (agent.treeNode && !treeUsable(agent.treeNode)) { drop(agent); return refuse(409, "the parent task is no longer live"); }
+    if (agent.treeNode) {
+      try { if (!await taskTrees.ownsLease()) throw new Error("this host lost its task-tree execution lease"); await taskTrees.checkpoint(agent.treeNode); }
+      catch (err) { drop(agent); return refuse(503, err.message); }
+    }
     // The agent's own worktree and branch (ADR 0016 decision 3, amendment 7): no agent runs in the repo root, and
     // without a worktree nothing is spawned.
     // den-mvp outcome 2: a follow-up run reopens the worktree its session ran in; nothing is created, and a cleanup below
@@ -786,11 +1325,12 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     }
     agent.project = project.slug;
     agent.projectRoot = project.root;
+    agent.artifactStoreProtected = runtime.capabilities?.artifactStoreProtection === true;
     const workspaces = project.workspaces; // this run's root, whatever the active project becomes later
     try {
       workspace = agent.resumeOf
-        ? await workspaces.reopen({ ref: agent.ref, agentId: agent.id, origin: agent.origin, catchUp: agent.ref === DESK_REF })
-        : await workspaces.create({ ref: agent.ref, agentId: agent.id, ...(agent.delivery ? { base: agent.delivery.at } : agent.treeNode?.base ? { base: agent.treeNode.base } : {}) });
+        ? await workspaces.reopen({ ref: agent.ref, agentId: agent.id, origin: agent.origin, catchUp: agent.ref === DESK_REF, ...(agent.treeNode ? { managed: true } : {}) })
+        : await workspaces.create({ ref: agent.ref, agentId: agent.id, ...(agent.treeNode ? { managed: true } : {}), ...(agent.delivery ? { base: agent.delivery.at } : agent.treeBase ? { base: agent.treeBase } : agent.treeNode?.base ? { base: agent.treeNode.base } : {}) });
     } catch (err) {
       drop(agent);
       console.error(`bridge: could not ${agent.resumeOf ? "reopen the" : "create a"} worktree for ${agent.ref}: ${err?.message ?? err}`);
@@ -845,7 +1385,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const connections = await library.connectionsFor(agent.role);
     const args = {
       role: agent.role, ...(agent.mode ? { mode: agent.mode } : {}), ref: agent.ref, cwd: workspace.dir, sessionId: agent.sessionId, runId: agent.id, ...(agent.runtimeSessionId ? { runtimeSessionId: agent.runtimeSessionId } : {}),
-      prompt: agent.followUp ? agent.followUp.text : promptFor(agent), ticketFile: ticketFile(agent.ref, project.root), mainGit,
+      prompt: agent.followUp ? agent.followUp.text : promptFor(agent), ticketFile: ticketFile(agent.treeNode?.rootRef ?? agent.ref, project.root), mainGit,
       // den-mvp/49: derived here, from the bridge's own root and the run's project; never from a request. The runtime refuses a spawn without it outside the control checkout.
       project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent) },
       ...(agent.resumeOf ? { resume: true, runId: agent.id, promptId: agent.followUp.messageId } : {}),
@@ -854,7 +1394,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       ...(agent.grants.length === 0 ? {} : { grants: agent.grants, root: await realpath(project.root).catch(() => project.root) }),
       // den-mvp outcome 4: the connections the catalog and the role file both give this role; data for the adapter.
       ...(connections.length === 0 ? {} : { connections }),
-      ...(agent.treeNode ? { model: agent.treeNode.model, effort: agent.treeNode.effort, tree: taskTrees.describe(agent.treeNode) } : {}),
+      ...(agent.treeNode ? { model: agent.model, effort: agent.effort, tree: { ...treeAudit(agent.treeNode, agent), execution: { mode: !isReviewPhase(agent.treePhase) ? agent.treeNode.contract?.executionMode ?? "read" : "read", scopes: agent.treeNode.scopes }, candidate: isReviewPhase(agent.treePhase) ? agent.treeNode.workflow.receipt?.candidate : null } } : {}),
     };
     const url = connections.some((c) => c.credential === "run") ? bridgeUrl() : null;
     if (url) {
@@ -877,7 +1417,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         drop(agent);
         return refuse(409, "the parent task is no longer live");
       }
-      agent.treeNode.attempted = true;
+      if (!isReviewPhase(agent.treePhase)) agent.treeNode.attempted = true;
     }
     let proc;
     try {
@@ -921,7 +1461,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       await sessions.append({
         event: "spawn", agentId: agent.id, ref: agent.ref, role: agent.role, sessionId: agent.sessionId, runtime: agent.runtimeId, runtimeSessionId: agent.runtimeSessionId, resourceId: agent.id, route: routeName, project: agent.project, worktree: agent.worktree, branch: agent.branch,
         ...(agent.resumeOf ? { resumeOf: agent.resumeOf, origin: agent.origin } : {}),
-        ...(agent.treeNode ? { treeManaged: true, tree: treeAudit(agent.treeNode) } : {}),
+        ...(agent.treeNode ? { treeManaged: true, tree: treeAudit(agent.treeNode, agent) } : {}),
       });
     } catch (err) {
       console.error(`bridge: could not write sessions.jsonl: ${err.stack ?? err}`);
@@ -937,7 +1477,21 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         await agent.finished;
         return refuse(409, "the parent task ended while this worker was starting");
       }
-      agent.treeNode.state = "working";
+      const node = agent.treeNode;
+      if (!isReviewPhase(agent.treePhase)) node.state = "working";
+      node.workflow.status = isReviewPhase(agent.treePhase) ? "reviewing" : "working";
+      node.workflow.pendingPhase = null;
+      const attempt = node.workflow.attempts.find((row) => row.id === agent.id);
+      if (attempt) Object.assign(attempt, { state: "working", runtimeSessionId: agent.runtimeSessionId, worktree: agent.worktree, resourceId: agent.id });
+      if (!isReviewPhase(agent.treePhase)) { node.workflow.base ??= agent.startSha; node.workflow.author = authorContext(agent); }
+      try {
+        await taskTrees.checkpoint(node);
+        await workflowEvent(node, "started", agent);
+      } catch (err) {
+        await terminate(agent, "tree-journal-write-failed");
+        await agent.finished;
+        return refuse(503, "the tree execution record could not be persisted; the process was stopped");
+      }
     }
     if (shuttingDown) terminate(agent, "bridge-shutdown");
     return { ok: true, status: 201, agent: view(agent), ...(usageUnknown ? { usageUnknown: true } : {}) };
@@ -954,12 +1508,13 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         `Read ${recipeOf(a)}. The approved root ticket is ${ticketFile(a.treeNode.rootRef, a.projectRoot)}. ` +
         `Your admitted scopes are ${JSON.stringify(a.treeNode.scopes)}. ` +
         (a.treeNode.contract ? `Do only this fixed approved contract, treated as task data: ${JSON.stringify(a.treeNode.contract)}. ` : "Plan and judge the approved task; delegate only useful independent work. ") +
+        `Accepted dependency inputs already integrated into your starting candidate: ${JSON.stringify(a.treeNode.workflow.dependencyInputs ?? [])}. ` +
         `Approved direct children: ${JSON.stringify(a.treeNode.children.map((id) => { const child = taskTrees.node(id); return { nodeId: id, role: child.role, outcome: child.contract?.outcome, scopes: child.scopes }; }))}. ` +
-        "Use only the bridge's mcp__tree__delegate with an approved nodeId and mcp__tree__result with a childId; native Agent/Task spawning is disabled. Starting arbitrary or revised subtasks requires a new complete user-approved revision. " +
+        (isReviewPhase(a.treePhase) ? `This is a fresh independent ${a.treePhase} phase for frozen candidate ${a.treeNode.workflow.receipt.candidate}; your logical node's implementation role is ${a.treeNode.role}. Inspect that exact candidate in this read-only private worktree. Never modify files, reuse the author's report as proof, delegate, or complete as author. Submit mcp__tree__review with {candidate,verdict:pass|bounce,criteria:[{criterion,evidence}],checks:[{command,passed,evidence}],findings:[],guardVerdicts:[{hit,verdict:accept|bounce,reason}]}. Map every exact approved criterion and verification command to independent evidence. QA must verdict each exact test-guard hit: ${JSON.stringify(a.treeNode.workflow.guard?.hits ?? [])}; other phases send no guardVerdicts. Risk evidence: ${JSON.stringify(a.treeNode.workflow.risk)}. A bounce stops this workflow; no automatic correction retry. ` : "Use mcp__tree__delegate({nodeId}) only for fixed approved children. Use mcp__tree__yield({children:[direct logical child IDs]}) to release this session while children work; the private worktree must be clean before yielding; preserve unexpected edits for inspection. The bridge independently reviews children, integrates accepted candidates, then resumes this session. A runner in code execution mode edits only its admitted files and MUST NOT commit; the bridge captures its candidate. Read mode changes no files. When the complete combined outcome is checked, call mcp__tree__complete({criteria:[{criterion,evidence}],checks:[{command,passed,evidence}],unused?:[logical IDs]}); every exact approved criterion/check needs bounded evidence. Use mcp__tree__skip({nodes}) explicitly for unused never-started work: owner may omit complete subtrees, managers only their own direct runners. Required dependency inputs and approved criteria remain binding. Native Agent/Task spawning is disabled. ") +
         "An owner has at most four managers; a manager has at most four runners; a runner starts nothing. The shape is a maximum, not a spawning target. " +
         "Current process/resource limits still control admission: when capacity is unavailable, sequence work or complete it yourself. " +
         "Keep demanding judgment and independent review at the configured manager tier. The board is read-only; publish nothing. " +
-        "Your final report is the handoff: name evidence, candidate commits, failures and remaining review or user gates. Results are unaccepted evidence until the required independent verification and parent judgment; this structural slice has no automatic integration or accepted dependency barriers. A successful task result does not approve publication or waive required reviews."
+        "Use mcp__tree__status to inspect logical progress and mcp__tree__result({childId}) only for your direct children. Reports alone never accept a candidate: the bridge requires stopped-process capture, independent configured-tier reviews and exact criterion/check evidence. A successful task result does not approve publication or waive required reviews."
       : a.ref === DESK_REF
       ? `You are Bao, the orchestrator, at your desk in the den. Read ${recipeOf(a)} for who you are. ` +
         "Here the user talks with you with no ticket: answer their messages about the repo, the board and CI, reading what you need. " +
@@ -1001,18 +1556,21 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       }
     })();
     const info = await agent.proc.exited.catch(() => null);
+    agent.cleanupConfirmed = info?.cleanupConfirmed === true;
+    if (!agent.cleanupConfirmed) resourceHolds.set(agent.id, { id: agent.id, runtimeId: agent.runtimeId, project: agent.project ?? "den", resourceId: agent.resourceId ?? agent.id });
     agent.exitCode = info?.code ?? null;
     noteLimit(agent, info?.resourceLimit);
     agent.exited = true;
-    await cancelTreeChildren(agent);
+    if (!agent.treeYield && !agent.treeCompletion && !isReviewPhase(agent.treePhase)) await cancelTreeChildren(agent);
     await Promise.race([consume, sleep(EVENT_DRAIN_MS)]);
     // agent-os/09: the agent committed on a detached HEAD; the bridge, not the agent, creates its branch at the final commit.
-    if (agent.workspace) {
+    if (agent.workspace && !agent.treeNode?.workflow) {
       // A follow-up that committed nothing publishes nothing, and then has no branch to name.
       const published = await (await workspacesOf(agent.project)).publish(agent.workspace).catch((err) => console.error(`bridge: could not create the branch ${agent.branch}: ${err?.message ?? err}`));
       if (published === null) agent.branch = null;
       agent.sha = published?.sha ?? (published === null ? agent.startSha ?? null : null);
     }
+    if (agent.treeNode?.workflow && agent.workspace) agent.sha = await (await workspacesOf(agent.project)).head(agent.workspace).catch(() => null);
     // codex-residents/05: what the run returned is checked against the scopes it was admitted with, before it is final.
     // A run admitted with a scope that returns a change outside it, or on a governed path, failed. An unscoped run (the
     // delivery gate already holds governed changes for the user) is not failed by this check.
@@ -1034,7 +1592,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       }
     }
     finalize(agent);
-    if (agent.treeNode) await taskTrees.journal({ event: "ended", ...treeAudit(agent.treeNode), state: agent.state, candidate: agent.sha ?? null }).catch((err) => console.error(`bridge: could not journal the tree result: ${err?.message ?? err}`));
+    if (agent.treeNode) {
+      await finishTreeAttempt(agent);
+      await taskTrees.journal({ event: "ended", ...treeAudit(agent.treeNode, agent), state: agent.state, candidate: agent.treeNode.workflow.receipt?.candidate ?? agent.sha ?? null }).catch((err) => console.error(`bridge: could not journal the tree result: ${err?.message ?? err}`));
+    }
     // den-mvp/43: a meeting take has no follow-up, so its worktree goes with it; unsaved work is kept on a wip/ branch.
     if (agent.meeting && agent.workspace && !agent.workspace.reopened && agent.ref !== DESK_REF) {
       await (await workspacesOf(agent.project)).retire({ ref: agent.ref, agentId: agent.id }).catch((err) => console.error(`bridge: could not remove the worktree of ${agent.id}: ${err?.message ?? err}`));
@@ -1042,14 +1603,14 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // The run record (den-v1 loop S4): on the end line, then as one ledger row. Neither write can undo the end.
     const run = {
       agentId: agent.id, ref: agent.ref, role: agent.role, runtime: agent.runtimeId, project: agent.project, runtimeSessionId: agent.runtimeSessionId, mode: agent.mode ?? null, state: agent.state, reason: agent.reason ?? null,
-      model: agent.model ?? null, usage: agent.usage ?? null, costUsd: agent.costUsd ?? null, durationMs: agent.durationMs,
+      model: agent.model ?? null, usage: agent.usage ?? null, costUsd: agent.costUsd ?? null, durationMs: agent.durationMs, cleanupConfirmed: agent.cleanupConfirmed,
       cliMs: agent.cliMs ?? null, turns: agent.turns ?? null,
-      ...(agent.treeNode ? { treeManaged: true, tree: treeAudit(agent.treeNode) } : {}),
+      ...(agent.treeNode ? { treeManaged: true, tree: treeAudit(agent.treeNode, agent) } : {}),
     };
     const { agentId, ref, role, mode, state, reason, ...record } = run;
     const kept = Object.fromEntries(Object.entries(record).filter(([, v]) => v !== null));
     await sessions
-      .append({ event: "end", agentId, ref, state, ...(reason ? { reason } : {}), ...kept, ...(agent.treeNode ? { treeManaged: true, tree: treeAudit(agent.treeNode) } : {}) })
+      .append({ event: "end", agentId, ref, state, ...(reason ? { reason } : {}), ...kept, ...(agent.treeNode ? { treeManaged: true, tree: treeAudit(agent.treeNode, agent) } : {}) })
       .catch((err) => console.error(`bridge: could not write sessions.jsonl: ${err.stack ?? err}`));
     await Promise.resolve()
       .then(() => recordRun(run))
@@ -1059,6 +1620,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     Promise.resolve()
       .then(() => onEnd({ ...run, startSha: agent.startSha ?? null, sha: agent.sha ?? null, branch: agent.branch ?? null, report: agent.report ?? null }))
       .catch((err) => console.error(`bridge: the end hook failed for ${agent.id}: ${err?.stack ?? err}`));
+    if (!shuttingDown) scheduleTrees(); // an ordinary run ending can free a shared worker slot too
   }
 
   // A run that hit a hard hardware limit failed, and says which one (den-mvp outcome 1). Nothing restarts it.
@@ -1162,10 +1724,13 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       if (!agent.capabilities.approve) return;
       if (typeof event.tool === "string" && event.tool.startsWith("mcp__tree__")) {
         const input = event.input;
-        const field = event.tool === "mcp__tree__delegate" ? "nodeId" : event.tool === "mcp__tree__result" ? "childId" : null;
-        const child = field && input && typeof input === "object" && !Array.isArray(input) && Object.keys(input).length === 1 ? taskTrees.node(input[field]) : null;
+        const tool = event.tool.slice("mcp__tree__".length);
         const live = agent.treeNode && treeUsable(agent.treeNode) && !agent.stopRequested && !agent.releasing;
-        const allowed = !!live && !!child && child.parentId === agent.id && (field === "childId" || (child.state === "planned" && !child.attempted && agent.treeNode.delegateRoles?.includes(child.role)));
+        const object = input && typeof input === "object" && !Array.isArray(input);
+        const field = tool === "delegate" ? "nodeId" : tool === "result" ? "childId" : null;
+        const child = field && object && Object.keys(input).length === 1 ? taskTrees.node(input[field]) : null;
+        const review = isReviewPhase(agent.treePhase);
+        const allowed = !!live && !!object && (tool === "status" ? Object.keys(input).length === 0 : review ? tool === "review" : field ? !!child && child.parentId === agent.treeNode.id && (field === "childId" || (child.workflow?.status === "planned" && !child.attempted && agent.treeNode.delegateRoles?.includes(child.role))) : tool === "complete" || tool === "yield" && agent.treeNode.depth < 2 || tool === "skip" && agent.treeNode.depth < 2);
         Promise.resolve(agent.proc.decide(event.requestId, allowed ? { allow: true } : { allow: false, reason: "the call is outside this live node's approved tree contract" })).catch(() => {});
         return touch(agent);
       }
@@ -1237,7 +1802,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     approvals.release(agent.id);
     if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
     if (agent.treeTokenHash) treeTokens.delete(agent.treeTokenHash);
-    if (agent.treeNode) {
+    if (agent.treeNode && !isReviewPhase(agent.treePhase) && !agent.treeYield) {
       taskTrees.end(agent.treeNode, agent.state);
     }
     agent.allowedCalls = [];
@@ -1297,9 +1862,26 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   }
 
   async function stop(id) {
-    const agent = typeof id === "string" && AGENT_ID_RE.test(id) ? agents.get(id) : undefined;
+    const logical = taskTrees.node(id);
+    if (logical && taskTrees.approved(logical) && (!logical.activeAgent?.proc || logical.activeAgent.exited)) {
+      logical.cancelled = true;
+      logical.workflow.cancelledByUser = true;
+      try { await taskTrees.checkpoint(logical); }
+      catch { await cancelTreeChildren({ treeNode: logical }); return refuse(503, "cancellation could not be persisted; owned descendants were stopped"); }
+      await cancelTreeChildren({ treeNode: logical });
+      await pauseTreeNode(logical, "stopped-by-user");
+      if (logical.depth === 0) taskTrees.close(logical);
+      return { ok: true, status: 202 };
+    }
+    const active = logical && taskTrees.approved(logical) ? logical.activeAgent : null;
+    const agent = typeof id === "string" && AGENT_ID_RE.test(id) ? active ?? agents.get(id) : undefined;
     if (!agent) return refuse(404, "no such agent");
     if (!agent.proc || agent.exited || agent.state === "terminated") return refuse(409, "the agent has already ended");
+    if (agent.treeNode) {
+      agent.treeNode.workflow.cancelledByUser = true;
+      try { await taskTrees.checkpoint(agent.treeNode); }
+      catch { terminate(agent, "stopped-by-user"); return refuse(503, "cancellation could not be persisted; the owned process was stopped"); }
+    }
     if (!agent.killing) {
       sessions.append({ event: "stop", agentId: agent.id, ref: agent.ref, route: "POST /agents/:id/stop" }).catch((err) => console.error(`bridge: could not write sessions.jsonl: ${err.stack ?? err}`));
       record(agent, { kind: "stop", status: "requested" }); // the thread's trail (organism-infra/230); the `ended` entry closes it
@@ -1479,6 +2061,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       }
       if (alive) return refuse(409, "an earlier run of this session may still be running since the bridge restarted; it must end before a follow-up");
     }
+    const resourceRefusal = await resourceGuard(selected);
+    if (resourceRefusal) return resourceRefusal.status === 503 ? { ...resourceRefusal, status: 409 } : resourceRefusal;
     const grants = Array.isArray(prev.grants) ? prev.grants : [];
     const badGrants = await grantsRefused(prev.role, grants.length === 0 ? undefined : grants);
     if (badGrants) return refuse(409, `the earlier run's grants are no longer allowed (${badGrants.error}); start a new task instead`);
@@ -1535,6 +2119,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       await Promise.all(live.map((a) => a.finished));
       // A run that had just exited is not live any more, but its end may still be being recorded: that is waited for too.
       await Promise.all([...agents.values()].map((a) => a.finished));
+      if (inBound) await treeSchedule;
+      if (resourceHolds.size === 0 && pending.size === 0) await taskTrees.releaseLease();
     })());
   }
 
@@ -1554,8 +2140,16 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     ready,
     planTree,
     startTree,
+    resumeTree,
     delegate,
     treeResult,
+    treeStatus,
+    yieldTree,
+    completeTree,
+    reviewTree,
+    skipTree,
+    verdictTree,
+    verifierTree,
     trees: () => taskTrees.snapshot(),
     treeAgent(token) {
       if (typeof token !== "string" || !/^[A-Za-z0-9_-]{43}$/.test(token)) return null;

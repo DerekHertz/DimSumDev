@@ -52,7 +52,7 @@ export function validateLine(raw) {
   if (raw.event === "end") {
     if (!END_STATES.includes(raw.state)) return null;
     const reason = typeof raw.reason === "string" ? raw.reason.slice(0, MAX_REASON).replace(/[^\x20-\x7e]/g, "?") : null;
-    return { ...base, event: "end", state: raw.state, reason, ...runOf(raw) };
+    return { ...base, event: "end", state: raw.state, reason, ...runOf(raw), ...(typeof raw.cleanupConfirmed === "boolean" ? { cleanupConfirmed: raw.cleanupConfirmed } : {}) };
   }
   return null;
 }

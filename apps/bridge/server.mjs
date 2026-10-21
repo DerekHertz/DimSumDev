@@ -457,8 +457,35 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     "POST /trees/plan": async (req, res) => {
       const body = await readJsonObject(req, res, 32768);
       if (!body) return;
-      if (Object.keys(body).some((key) => !["ref", "runtime", "project", "scopes", "nodes"].includes(key))) return reply(res, 400, { error: "unknown tree proposal field" });
+      if (Object.keys(body).some((key) => !["ref", "runtime", "project", "scopes", "nodes", "rootContract"].includes(key))) return reply(res, 400, { error: "unknown tree proposal field" });
       const result = await host.planTree(body);
+      reply(res, result.status, result.ok ? result : { error: result.error });
+    },
+    "POST /trees/resume": async (req, res) => {
+      const body = await readJsonObject(req, res);
+      if (!body) return;
+      if (Object.keys(body).length !== 1 || typeof body.revision !== "string") return reply(res, 400, { error: "resume the exact reviewed tree revision" });
+      const result = await host.resumeTree(body);
+      reply(res, result.status, result.ok ? result : { error: result.error });
+    },
+    "POST /trees/verdict": async (req, res) => {
+      const body = await readJsonObject(req, res);
+      if (!body) return;
+      if (Object.keys(body).some((key) => !["revision", "nodeId", "candidate", "verdict"].includes(key)) ||
+          typeof body.revision !== "string" || typeof body.nodeId !== "string" || !/^[0-9a-f]{40,64}$/.test(body.candidate ?? "") ||
+          !["approve", "decline"].includes(body.verdict)) return reply(res, 400, { error: "verdict requires the exact reviewed revision, node and candidate" });
+      const result = await host.verdictTree(body);
+      reply(res, result.status, result.ok ? result : { error: result.error });
+    },
+    "POST /trees/verifier": async (req, res) => {
+      const body = await readJsonObject(req, res);
+      if (!body) return;
+      if (Object.keys(body).some((key) => !["revision", "nodeId", "candidate", "runtime", "reason"].includes(key)) ||
+          typeof body.revision !== "string" || typeof body.nodeId !== "string" || !/^[0-9a-f]{40,64}$/.test(body.candidate ?? "") ||
+          !["claude", "codex"].includes(body.runtime) || typeof body.reason !== "string" || !body.reason.trim() || Buffer.byteLength(body.reason) > 2000) {
+        return reply(res, 400, { error: "verifier choice requires the exact candidate, runtime and bounded reason" });
+      }
+      const result = await host.verifierTree(body);
       reply(res, result.status, result.ok ? result : { error: result.error });
     },
     "POST /tree-tools/:tool": async (req, res) => {
@@ -476,6 +503,21 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       } else if (tool === "result") {
         if (Object.keys(body).some((key) => key !== "childId")) return reply(res, 400, { error: "unknown result field" });
         result = await host.treeResult(parent.id, body.childId);
+      } else if (tool === "status") {
+        if (Object.keys(body).length !== 0) return reply(res, 400, { error: "status takes no authority fields" });
+        result = await host.treeStatus(parent.id, body);
+      } else if (tool === "yield") {
+        if (Object.keys(body).some((key) => key !== "children")) return reply(res, 400, { error: "unknown yield field" });
+        result = await host.yieldTree(parent.id, body);
+      } else if (tool === "complete") {
+        if (Object.keys(body).some((key) => !["unused", "criteria", "checks"].includes(key))) return reply(res, 400, { error: "unknown completion field" });
+        result = await host.completeTree(parent.id, body);
+      } else if (tool === "review") {
+        if (Object.keys(body).some((key) => !["candidate", "verdict", "criteria", "checks", "findings", "guardVerdicts"].includes(key))) return reply(res, 400, { error: "unknown review field" });
+        result = await host.reviewTree(parent.id, body);
+      } else if (tool === "skip") {
+        if (Object.keys(body).some((key) => key !== "nodes")) return reply(res, 400, { error: "unknown skip field" });
+        result = await host.skipTree(parent.id, body);
       } else return reply(res, 404, { error: "no such tree tool" });
       reply(res, result.status, result.ok ? { text: JSON.stringify(result) } : { error: result.error });
     },

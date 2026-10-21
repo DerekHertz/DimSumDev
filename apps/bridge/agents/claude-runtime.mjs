@@ -4,7 +4,7 @@
 // permission requests until the host decides, and signals the whole group so no grandchild outlives a kill.
 // den-mvp outcome 1: the child is started by a launcher (resource-group.mjs) inside a resource group with hardware
 // limits; a kill goes to that group, and a hard limit that is hit ends the run with the limit named.
-import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -16,6 +16,7 @@ import { resolveTreeRole } from "./tree-models.mjs";
 import { snapshotPlaceholders, sweepPlaceholders } from "./placeholders.mjs";
 import { UUID_RE, slotClassOf } from "./policy.mjs";
 import { EnforcementError, createResourceLauncher, watchStorage } from "./resource-group.mjs";
+import { canonicalWriteScopes } from "./scoped-writes.mjs";
 
 // The Node install this bridge runs from, which an agent's npm and node are too (the den's PATH): reopened under the read limit.
 // One the adapter cannot write as a rule is left out, and npm under the read limit then fails visibly rather than reading home.
@@ -85,6 +86,76 @@ export function credentialStoresForRun({ home, tree = false } = {}) {
   return home === undefined ? [] : CREDENTIAL_PATHS.filter((p) => existsSync(path.join(home, p.slice(2))));
 }
 
+export function treeExecutionProfile({ role, tree, resume, cwd }) {
+  const phase = tree.phase ?? "implementation";
+  const reviewRoles = { "code-review": "code-reviewer", qa: "qa", security: "security", "writer-review": "technical-writer" };
+  if (!["implementation", "continuation", ...Object.keys(reviewRoles)].includes(phase)) throw new TypeError("claude runtime: unknown tree phase");
+  const review = Object.hasOwn(reviewRoles, phase);
+  const logicalRole = tree.logicalRole ?? role;
+  if ((tree.depth === 0) !== (logicalRole === "orchestrator") || (tree.depth === 2) !== (logicalRole === "runner") || logicalRole === "scout") throw new TypeError("claude runtime: tree role does not match its layer");
+  if (review) {
+    if (role !== reviewRoles[phase] || resume === true || !/^[0-9a-f]{40,64}$/.test(tree.candidate ?? "")) throw new TypeError("claude runtime: a review needs its configured role, frozen candidate and a fresh session");
+  } else if (logicalRole !== role) throw new TypeError("claude runtime: implementation role differs from its logical node");
+  const execution = tree.execution ?? { mode: "read" };
+  if (!execution || !["read", "code"].includes(execution.mode)) throw new TypeError("claude runtime: unknown tree execution mode");
+  const code = execution.mode === "code";
+  let scopeWrites;
+  let writeScope;
+  if (code) {
+    if (role !== "runner" || phase !== "implementation" || !Array.isArray(execution.scopes) || execution.scopes.length === 0 || execution.scopes.some((scope) => typeof scope !== "string" || !/^[A-Za-z0-9._@+-]+(?:\/[A-Za-z0-9._@+-]+)*$/.test(scope) || scope.split("/").some((segment) => segment === "." || segment === ".."))) throw new TypeError("claude runtime: code execution needs an admitted implementation runner with explicit relative scopes");
+    writeScope = canonicalWriteScopes({ worktree: cwd, paths: execution.scopes.map((scope) => path.join(cwd, scope)) });
+    scopeWrites = writeScope.paths.map((file) => ({ path: file, directory: lstatSync(file).isDirectory() }));
+  }
+  return { phase, review, code, readonly: !code, scopeWrites, writeScope };
+}
+
+/** File tools cannot ask a user to broaden a code runner or review beyond its admitted write contract. */
+export function treeFileWriteRefusal(profile, processCwd, tool, input) {
+  if (!["Write", "Edit", "MultiEdit", "NotebookEdit"].includes(tool)) return null;
+  if (profile?.readonly) return "This tree phase is read-only.";
+  if (!profile?.code) return null;
+  if (!["Write", "Edit"].includes(tool) || typeof input?.file_path !== "string") return "This tree runner can write only its approved file scopes.";
+  try {
+    const requested = path.resolve(processCwd, input.file_path);
+    let ancestor = requested;
+    const tail = [];
+    for (;;) {
+      try { lstatSync(ancestor); break; } catch (err) { if (err.code !== "ENOENT") return "The tree write target could not be checked safely."; }
+      const parent = path.dirname(ancestor);
+      if (parent === ancestor) return "This tree runner can write only its approved file scopes.";
+      tail.unshift(path.basename(ancestor));
+      ancestor = parent;
+    }
+    const target = path.join(realpathSync(ancestor), ...tail);
+    const allowed = profile.scopeWrites.some((scope) => target === scope.path || (scope.directory && target.startsWith(`${scope.path}${path.sep}`)));
+    return allowed ? null : "This tree runner can write only its approved file scopes.";
+  } catch {
+    return "The tree write target could not be checked safely.";
+  }
+}
+
+function treeShellDirectory(control, worktree, sessionId) {
+  if (!UUID_RE.test(sessionId ?? "")) throw new TypeError("claude runtime: a tree shell needs its trusted session UUID");
+  // A continuation uses the same private cwd as its original native session; review sessions have fresh UUIDs.
+  const scratch = path.join(control, ".scratch/_run/tree-shell", sessionId);
+  const rel = path.relative(path.resolve(worktree), scratch);
+  if (!rel || (!rel.startsWith(`..${path.sep}`) && rel !== ".." && !path.isAbsolute(rel))) throw new TypeError("claude runtime: private tree cwd may not be inside the candidate worktree");
+  mkdirSync(scratch, { recursive: true, mode: 0o700 });
+  chmodSync(scratch, 0o700);
+  if (realpathSync(scratch) !== scratch) throw new TypeError("claude runtime: private tree cwd is not canonical");
+  return scratch;
+}
+
+export function treePrivateDirectories(mainGit) {
+  if (!isWorktreePath(mainGit)) throw new TypeError("claude runtime: a tree needs its trusted common git directory");
+  if (!lstatSync(mainGit).isDirectory() || realpathSync(mainGit) !== mainGit) throw new TypeError("claude runtime: the common git directory is not canonical");
+  const store = path.join(mainGit, "den-tree-artifacts");
+  mkdirSync(store, { recursive: true, mode: 0o700 });
+  if (!lstatSync(store).isDirectory() || realpathSync(store) !== store) throw new TypeError("claude runtime: the tree artifact store is not canonical");
+  chmodSync(store, 0o700);
+  return [store];
+}
+
 export function createClaudeRuntime({ env = process.env, launcher = createResourceLauncher({ env }), controlRoot = MODULE_CONTROL_ROOT } = {}) {
   const control = path.resolve(controlRoot);
   const insideControl = (dir) => {
@@ -93,7 +164,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
   };
   return {
     id: "claude",
-    capabilities: { ...CAPABILITIES, treeDelegation: true },
+    capabilities: { ...CAPABILITIES, treeDelegation: true, artifactStoreProtection: launcher.enforced === true && launcher.scopedWrites === true },
     // CLI support is checked here; account/model access is still checked by the native spawn and reported on failure.
     // No fallback model is configured, so an unavailable configured model cannot silently downgrade the run.
     validateModel: ({ model, effort }) => CLAUDE_MODELS.includes(model) && ["low", "medium", "high", "xhigh", "max"].includes(effort),
@@ -111,22 +182,28 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       if (typeof cwd !== "string" || cwd === "") throw new TypeError("claude runtime: cwd must be a path");
       if (typeof prompt !== "string") throw new TypeError("claude runtime: prompt must be a string");
       const treeMode = tree !== undefined;
+      let treeProfile;
       if (treeMode !== (treeCredential !== undefined)) throw new TypeError("claude runtime: a tree run needs its own tree credential");
       if (treeMode) {
         if (!tree || !Number.isInteger(tree.depth) || tree.depth < 0 || tree.depth > 2) throw new TypeError("claude runtime: invalid tree depth");
-        if ((tree.depth === 0) !== (role === "orchestrator") || (tree.depth === 2) !== (role === "runner") || role === "scout") throw new TypeError("claude runtime: tree role does not match its layer");
         if (Array.isArray(grants) ? grants.length > 0 : grants !== undefined) throw new TypeError("claude runtime: tree nodes take no additional grants");
         if (!/^http:\/\/127\.0\.0\.1:\d{1,5}$/.test(treeCredential?.url ?? "") || !/^[A-Za-z0-9_-]{20,255}$/.test(treeCredential?.token ?? "")) throw new TypeError("claude runtime: invalid tree credential");
         const configured = resolveTreeRole({ controlRoot: control, role, runtime: "claude" });
         if (configured.model !== model || configured.effort !== effort) throw new TypeError("claude runtime: tree model selection differs from the trusted role");
+        treeProfile = treeExecutionProfile({ role, tree, resume, cwd });
+        if (treeProfile.code && launcher.scopedWrites !== true) throw new EnforcementError("the resource launcher cannot enforce scoped writes for a code runner");
         if (connections?.some((c) => c.name === "tree")) throw new TypeError("claude runtime: the tree connection is bridge-owned");
         const treeConnection = { name: "tree", script: path.join(control, "apps/bridge/agents/tree-tools.mjs"), credential: "run" };
         if (!isConnectionTarget(treeConnection)) throw new TypeError("claude runtime: the trusted tree tool path is not a supported plain absolute path");
-        connections = [...(connections ?? []), treeConnection];
+        // Review phases retain their report channel; the bridge's phase-bound token refuses delegation and other
+        // implementation actions. Native Agent/Task spawning and all product writes remain disabled for reviews.
+        connections = [...(connections ?? []).filter((connection) => !treeProfile.review || connection.name !== "den"), treeConnection];
       } else if (effort !== undefined) throw new TypeError("claude runtime: explicit effort is for managed trees only");
       // den-mvp/49: fail closed. A spawn with no project handle is the den's own, so its cwd must be inside the control checkout;
       // anywhere else it would start with the den's settings loaded from a target's .claude/.
       if (project === undefined && !insideControl(cwd)) throw new TypeError("claude runtime: a spawn with no project must run inside the control checkout");
+      const processCwd = treeMode ? treeShellDirectory(control, cwd, sessionId) : cwd;
+      if (treeMode) project = { ...(project ?? { root: control }), control: false, pluginDir: path.join(control, ".claude") };
       // A ticket path the adapter cannot write as a rule is left out: that agent's ticket read stays a request.
       // agent-os/04: a role with a ceiling starts behind the wall, and a role that writes may write in cwd (its worktree).
       // A cwd the adapter cannot write as a rule keeps the wall and leaves the write rules out: the Write request stays.
@@ -136,12 +213,15 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       // (a space or other character outside the plain set) refuses the spawn; dropping it silently left refs, HEAD,
       // packed-refs and index writable. The host answers a spawn failure with its 502 and cleans up.
       if (mainGit !== undefined && !isWorktreePath(mainGit)) throw new TypeError("claude runtime: mainGit must be a plain absolute path; refusing to start without the main .git denies");
+      if (treeMode && mainGit === undefined) throw new TypeError("claude runtime: a tree needs its trusted common git directory");
+      // A concurrent legacy run must not be able to tamper with a tree's receipts or bridge-owned empty hooks.
+      const privateDirs = mainGit === undefined ? [] : treePrivateDirectories(mainGit);
       // den-mvp outcome 1: the credential stores that exist now are closed to reads; a deny target must exist to be applied.
       const home = isWorktreePath(env.HOME) ? env.HOME : undefined;
       const credentials = credentialStoresForRun({ home, tree: treeMode });
       // The kernel review (2026-10-18): a remote connection reaches the network outside the wall, so it brings the read limit like a host.
       const remote = Array.isArray(connections) && connections.some((c) => typeof c?.url === "string");
-      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(treeMode ? { tree: true } : {}), ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN });
+      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(treeMode ? { tree: true, treeReadOnly: treeProfile.readonly, scopeWrites: treeProfile.scopeWrites } : {}), ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN });
       // Every role has a ceiling (ceilings.json); one without would start with no wall, so it does not start.
       if (ceiling === null) throw new EnforcementError(`the ${role} role has no ceiling, so it cannot be started`);
       // den-mvp/33: a connection that holds a credential gets its token from the den's credentials folder (outside every
@@ -180,7 +260,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       };
       let args;
       try {
-        args = buildClaudeArgs({ sessionId, ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(treeMode ? { tree: true, effort } : {}), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
+        args = buildClaudeArgs({ sessionId, ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(treeMode ? { tree: true, effort, treeReview: treeProfile.review } : {}), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
       } catch (err) {
         removeConfig();
         throw err;
@@ -193,7 +273,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       // The child is inside its resource group, limits read back, before this resolves; a host that cannot do that starts nothing.
       let launched;
       try {
-        launched = await launcher.launch({ slotClass: slotClassOf(role), id: runId ?? sessionId, bin, args, cwd, env: buildClaudeEnv(env) });
+        launched = await launcher.launch({ slotClass: slotClassOf(role), id: runId ?? sessionId, bin, args, cwd: processCwd, env: buildClaudeEnv(env), ...(privateDirs.length ? { privateDirs } : {}), ...(treeProfile?.code ? { writeScope: treeProfile.writeScope } : treeProfile?.readonly && launcher.scopedWrites === true ? { writeScope: { worktree: cwd, paths: [] } } : {}) });
       } catch (err) {
         removeConfig();
         throw err;
@@ -261,11 +341,11 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
         if (obj && obj.type === "control_request") {
           const d = decodeControlRequest(obj, seen);
           // A web fetch to a local, private or numeric destination is answered here; it never becomes a question for the user.
-          const refusal = d.kind === "approval" ? webRefusal(d.tool, d.input) : null;
+          const refusal = d.kind === "approval" ? treeFileWriteRefusal(treeProfile, processCwd, d.tool, d.input) ?? webRefusal(d.tool, d.input) : null;
           if (refusal !== null) {
             write(encodeControlResponse({ requestId: d.requestId, allow: false, reason: refusal })).catch(() => {});
           } else if (d.kind === "approval") {
-            held.set(d.requestId, d.input);
+            held.set(d.requestId, { input: d.input, tool: d.tool });
             channel.push({ type: "permission-request", requestId: d.requestId, tool: d.tool, input: d.input });
           } else if (d.kind === "deny") {
             write(encodeControlResponse({ requestId: d.requestId, allow: false })).catch(() => {});
@@ -291,15 +371,17 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
           held.clear();
           limitHit ??= group?.exhausted() ?? null;
           killAll(); // the leader is gone: reap any descendant left behind
-          if (group && !(await group.settled(GROUP_SETTLE_MS))) console.error(`bridge: processes are still in ${group.unit} after its kill`);
+          const cleanupConfirmed = group ? await group.settled(GROUP_SETTLE_MS) : false;
+          if (!cleanupConfirmed) console.error(`bridge: processes are still in ${group?.unit ?? "an unconfirmed resource group"} after its kill`);
           await sweepPlaceholders(placeholders); // den-mvp/28
-          resolve({ code, signal, ...(limitHit === null ? {} : { resourceLimit: limitHit }) });
+          resolve({ code, signal, cleanupConfirmed, ...(limitHit === null ? {} : { resourceLimit: limitHit }) });
         });
       });
 
       try {
         if (promptId !== undefined) sent.add(promptId);
-        await write(encodeUserMessage({ text: guideText === "" ? prompt : `${guideText}\n\n${prompt}`, ...(promptId === undefined ? {} : { id: promptId }) }));
+        const location = treeMode ? `The product worktree is ${cwd}. Your shell starts in a private scratch directory. Use absolute worktree paths for product reads, edits and checks.\n\n` : "";
+        await write(encodeUserMessage({ text: location + (guideText === "" ? prompt : `${guideText}\n\n${prompt}`), ...(promptId === undefined ? {} : { id: promptId }) }));
       } catch {
         // the child may already be gone; the host sees it through `exited`
       }
@@ -333,9 +415,10 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
         },
         async decide(requestId, { allow, reason, answers } = {}) {
           if (!held.has(requestId)) return;
-          const input = held.get(requestId);
+          const { input, tool } = held.get(requestId);
           held.delete(requestId);
-          await write(encodeControlResponse({ requestId, allow: allow === true, reason, input: withAnswers(input, answers) }));
+          const refusal = treeFileWriteRefusal(treeProfile, processCwd, tool, input);
+          await write(encodeControlResponse({ requestId, allow: allow === true && refusal === null, reason: refusal ?? reason, input: withAnswers(input, answers) }));
         },
       };
     },

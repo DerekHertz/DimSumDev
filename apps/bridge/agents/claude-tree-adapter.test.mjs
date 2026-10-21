@@ -1,11 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { existsSync, mkdtempSync, rmSync, statSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, mkdtempSync, rmSync, statSync, symlinkSync, writeFileSync } from "node:fs";
+import { execFileSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildClaudeArgs, compileCeiling, mcpConfigWithTokens } from "./claude-adapter.mjs";
-import { createClaudeRuntime, credentialStoresForRun } from "./claude-runtime.mjs";
+import { createClaudeRuntime, credentialStoresForRun, treeExecutionProfile, treeFileWriteRefusal, treePrivateDirectories } from "./claude-runtime.mjs";
 import { ROLES } from "./policy.mjs";
 
 const SESSION = "0b8f1c1e-5c1a-4c0e-9a55-3f2d9e7a4b10";
@@ -92,4 +93,135 @@ test("a fresh-home tree launch profile denies reads of the credential store befo
   } finally {
     rmSync(home, { recursive: true, force: true });
   }
+});
+
+test("code runners opt into exact write scopes while retaining low-tier execution and no publication or native children", () => {
+  const target = `${WORKTREE}/src/approved.mjs`;
+  const scopeWrites = [{ path: target, directory: false }];
+  const ceiling = compileCeiling("runner", { worktree: WORKTREE, tree: true, scopeWrites, mainGit: "/work/den/.git" });
+  assert.equal(ceiling.worktree, undefined, "code mode must never add a full-worktree write allow");
+  const argv = buildClaudeArgs({ sessionId: SESSION, agent: "runner", tree: true, model: "haiku", effort: "low", ...ceiling });
+  const profile = settings(argv);
+  assert.deepEqual(profile.sandbox.filesystem.allowWrite, [target]);
+  assert.ok(profile.permissions.allow.includes(`Write(/${target})`));
+  assert.ok(!profile.permissions.allow.includes(`Write(/${WORKTREE}/**)`));
+  assert.ok(!profile.sandbox.filesystem.denyWrite.includes(WORKTREE), "the kernel, not a contradictory deny/allow profile, restricts product scope");
+  assert.match(flag(argv, "--disallowedTools"), /Agent,Task/);
+  assert.ok(!flag(argv, "--disallowedTools").split(",").includes("Write"));
+  assert.equal(flag(argv, "--model"), "haiku");
+  assert.equal(flag(argv, "--effort"), "low");
+  for (const command of ["git commit", "git push", "gh pr create", "board"]) assert.ok(ceiling.forbid.run.includes(command));
+});
+
+test("native tree write requests recheck exact files, directory additions and read-only review boundaries", (t) => {
+  const worktree = mkdtempSync(path.join(os.tmpdir(), "den-tree-write-check-"));
+  try {
+    const src = path.join(worktree, "src");
+    mkdirSync(src);
+    const approved = path.join(src, "approved.mjs");
+    const outside = path.join(worktree, "outside.mjs");
+    writeFileSync(approved, "before");
+    writeFileSync(outside, "outside");
+    const tree = { depth: 2, logicalRole: "runner", phase: "implementation", execution: { mode: "code", scopes: ["src/approved.mjs"] } };
+    const profile = treeExecutionProfile({ role: "runner", tree, cwd: worktree });
+    assert.equal(profile.code, true);
+    assert.equal(profile.readonly, false);
+    assert.equal(treeFileWriteRefusal(profile, worktree, "Write", { file_path: approved }), null);
+    assert.match(treeFileWriteRefusal(profile, worktree, "Edit", { file_path: outside }), /approved file scopes/);
+    assert.match(treeFileWriteRefusal(profile, worktree, "Write", { file_path: `${approved}.new` }), /approved file scopes/);
+    const directory = treeExecutionProfile({ role: "runner", tree: { ...tree, execution: { mode: "code", scopes: ["src"] } }, cwd: worktree });
+    assert.equal(treeFileWriteRefusal(directory, worktree, "Write", { file_path: path.join(src, "new.mjs") }), null);
+    assert.match(treeFileWriteRefusal({ readonly: true }, worktree, "Edit", { file_path: approved }), /read-only/);
+    assert.throws(() => treeExecutionProfile({ role: "runner", tree: { ...tree, execution: { mode: "code", scopes: ["../escape"] } }, cwd: worktree }), /explicit relative scopes/);
+    assert.throws(() => treeExecutionProfile({ role: "developer", tree: { depth: 1, execution: { mode: "code", scopes: ["src"] } }, cwd: worktree }), /implementation runner/);
+    if (process.platform === "linux") {
+      const alias = path.join(src, "alias");
+      symlinkSync(path.join(worktree, "outside-new.mjs"), alias);
+      assert.match(treeFileWriteRefusal(directory, worktree, "Write", { file_path: alias }), /could not be checked/);
+    }
+  } finally { rmSync(worktree, { recursive: true, force: true }); }
+});
+
+test("every logical layer has fresh high-tier readonly reviews with only a reporting channel", () => {
+  for (const [phase, role] of [["code-review", "code-reviewer"], ["qa", "qa"], ["security", "security"], ["writer-review", "technical-writer"]]) {
+    for (const [depth, logicalRole] of [[0, "orchestrator"], [1, "developer"], [2, "runner"]]) {
+      const tree = { depth, logicalRole, phase, candidate: "a".repeat(40) };
+      const execution = treeExecutionProfile({ role, tree, cwd: WORKTREE });
+      assert.equal(execution.review, true);
+      assert.equal(execution.readonly, true);
+      assert.throws(() => treeExecutionProfile({ role, tree, cwd: WORKTREE, resume: true }), /fresh session/);
+      const argv = buildClaudeArgs({ sessionId: SESSION, agent: role, tree: true, model: "sonnet", effort: "high", ...compileCeiling(role, { worktree: WORKTREE, tree: true, treeReadOnly: true }) });
+      assert.equal(flag(argv, "--allowedTools"), "mcp__tree__status,mcp__tree__review");
+      assert.match(flag(argv, "--disallowedTools"), /Write,Edit/);
+      assert.equal(flag(argv, "--model"), "sonnet");
+      assert.equal(flag(argv, "--effort"), "high");
+      assert.ok(settings(argv).sandbox.filesystem.denyWrite.includes(WORKTREE));
+    }
+  }
+});
+
+test("managed read owners and managers deny file writes while retaining their author control channel", () => {
+  for (const [depth, role] of [[0, "orchestrator"], [1, "developer"]]) for (const phase of ["implementation", "continuation"]) {
+    const profile = treeExecutionProfile({ role, tree: { depth, logicalRole: role, phase, execution: { mode: "read" } }, cwd: WORKTREE });
+    assert.equal(profile.readonly, true);
+    assert.equal(profile.review, false);
+    assert.match(treeFileWriteRefusal(profile, WORKTREE, "Edit", { file_path: `${WORKTREE}/src/file.mjs` }), /read-only/);
+    const argv = buildClaudeArgs({ sessionId: SESSION, agent: role, tree: true, treeReview: profile.review, model: "sonnet", effort: "high", ...compileCeiling(role, { worktree: WORKTREE, tree: true, treeReadOnly: profile.readonly }) });
+    assert.ok(settings(argv).sandbox.filesystem.denyWrite.includes(WORKTREE));
+    assert.ok(!argv.includes("--allowedTools"), "read-only author phases retain approved delegation/yield/complete rather than the verifier-only channel");
+    for (const tool of ["Write", "Edit", "NotebookEdit", "Agent", "Task"]) assert.ok(flag(argv, "--disallowedTools").split(",").includes(tool));
+  }
+  const legacyCeiling = compileCeiling("developer", { worktree: WORKTREE });
+  const legacy = buildClaudeArgs({ sessionId: SESSION, agent: "developer", ...legacyCeiling });
+  assert.equal(legacyCeiling.worktree, WORKTREE);
+  assert.ok(settings(legacy).permissions.allow.some((rule) => rule.startsWith("Write(")), "legacy developer permissions keep their original write ceiling");
+});
+
+test("managed read depth zero and one hand an empty product write scope to the kernel launcher", async (t) => {
+  if (process.platform !== "linux") return t.skip("the production launcher contract uses Linux paths; no native process is launched");
+  const control = mkdtempSync(path.join(os.tmpdir(), "den-read-kernel-contract-"));
+  const cwd = path.join(control, ".claude/worktrees/read-node");
+  const home = path.join(control, "home");
+  try {
+    mkdirSync(cwd, { recursive: true }); mkdirSync(home);
+    for (const dir of [".claude/agents", ".codex/agents"]) { mkdirSync(path.dirname(path.join(control, dir)), { recursive: true }); cpSync(path.join(fileURLToPath(new URL("../../..", import.meta.url)), dir), path.join(control, dir), { recursive: true }); }
+    const hooks = path.join(control, "empty-hooks"); mkdirSync(hooks);
+    const git = (...args) => execFileSync("git", ["-C", control, "-c", "core.hooksPath=" + hooks, "-c", "commit.gpgsign=false", "-c", "user.name=fixture", "-c", "user.email=fixture@localhost", ...args], { stdio: "pipe" });
+    git("init", "-q"); writeFileSync(path.join(control, "seed"), "seed\n"); git("add", "seed"); git("commit", "-qm", "seed");
+    for (const [depth, role] of [[0, "orchestrator"], [1, "developer"]]) {
+      let captured;
+      const runtime = createClaudeRuntime({ controlRoot: control, env: { HOME: home, PATH: process.env.PATH }, launcher: { enforced: true, scopedWrites: true, launch: async (input) => { captured = input; throw new Error("captured launcher contract; no process"); } } });
+      await assert.rejects(runtime.spawn({ role, cwd, root: control, mainGit: path.join(control, ".git"), prompt: "Inspect this fixed read-only planning task.", sessionId: SESSION, runId: `c-${"a".repeat(15)}${depth}`, model: "sonnet", effort: "high", tree: { depth, logicalRole: role, phase: "implementation", execution: { mode: "read", scopes: ["src"] } }, treeCredential: { url: "http://127.0.0.1:4317", token: "t".repeat(43) } }), /captured launcher contract/);
+      assert.deepEqual(captured.writeScope, { worktree: cwd, paths: [] });
+      assert.notEqual(captured.cwd, cwd, "the implicit writable process directory is outside the product worktree");
+      assert.ok(settings(captured.args).sandbox.filesystem.denyWrite.includes(cwd));
+      assert.ok(!captured.args.includes("--allowedTools"));
+    }
+  } finally { rmSync(control, { recursive: true, force: true }); }
+});
+
+test("tree and concurrent legacy profiles both close future artifact receipts and bridge-owned hook storage", () => {
+  const mainGit = "/work/den/.git";
+  const store = `${mainGit}/den-tree-artifacts`;
+  for (const tree of [false, true]) {
+    const profile = settings(buildClaudeArgs({ sessionId: SESSION, agent: "developer", ...(tree ? { tree: true } : {}), ...compileCeiling("developer", { worktree: WORKTREE, mainGit, ...(tree ? { tree: true } : {}) }) }));
+    assert.ok(profile.sandbox.filesystem.denyWrite.includes(store));
+    assert.ok(profile.sandbox.filesystem.denyRead.includes(store));
+    for (const rule of [`Read(/${store})`, `Read(/${store}/**)`, `Write(/${store}/**)`, `Edit(/${store}/**)`]) assert.ok(profile.permissions.deny.includes(rule));
+  }
+});
+
+test("artifact-store initialization refuses a preexisting link before changing its target permissions", (t) => {
+  if (process.platform !== "linux") return t.skip("POSIX mode and symbolic link regression");
+  const root = mkdtempSync(path.join(os.tmpdir(), "den-tree-linked-store-"));
+  try {
+    const mainGit = path.join(root, "common.git");
+    const external = path.join(root, "external");
+    mkdirSync(mainGit);
+    mkdirSync(external, { mode: 0o755 });
+    const before = statSync(external).mode & 0o777;
+    symlinkSync(external, path.join(mainGit, "den-tree-artifacts"));
+    assert.throws(() => treePrivateDirectories(mainGit), /not canonical/);
+    assert.equal(statSync(external).mode & 0o777, before);
+  } finally { rmSync(root, { recursive: true, force: true }); }
 });
