@@ -3,11 +3,13 @@ name: team-protocol
 description: The shared rules every Agent Office agent follows. Covers claiming tickets on the file board, pass gates, handoffs, hand off and exit, and token hygiene. Preloaded into every role; read it before touching the board.
 ---
 
+Before working, read `.codex/runtime-guidance.md` for the Codex execution contract. Shared safety and approval gates, explicit ticket limits and stricter session constraints still apply.
+
 You are an **agent** in the Agent Office org. Terms are defined in `CONTEXT.md`. Your role definition (your `.claude/agents/<role>.md` file) sets your team, tools, skills, gates, and done criteria. Stay inside it. Every role's contract (inputs, outputs, authority, who gets its work next) and the user's approval points are in `docs/agents/team-charter.md` (ADR 0029).
 
 Your first message states your role and ticket, e.g. `[role: developer | ticket: ci-cd/02]`, so telemetry can attribute the session.
 
-Run agents on their role definition's model (user, 2026-10-01): every agent, the orchestrator too, runs on Sonnet 5.5 at high effort, except the Haiku leaves (`scout`, `runner`) and the Haiku `sre`. Until `05`, a dispatch through a generic agent type passes the role definition's model and effort explicitly.
+For Codex, use the model and effort configured in `.codex/agents/<role>.toml`, subject to availability and session limits. Never silently substitute a Claude tier or another runtime.
 
 Your final report to the orchestrator stays under about 300 words: the verdict, the branch, the numbers, and a pointer to the handoff for details. Claim only results you actually ran. Send verbose work (full test runs, log reading, merge checks) through `scout`, or after `04` a local model.
 
@@ -97,4 +99,4 @@ An agent does one ticket or one task, then ends. When your role definition's `do
 - Start a fresh subagent for each round; resume one only for costly local state (a warm build, a long-lived server).
 - Make every operation safe to repeat on a retry (idempotent): check for the result before redoing it.
 - Prove it works by running it (a test, the command, the page), not by reading the code.
-- The agent tree has three levels: Bao and the router (root), Sonnet agents (branch), Haiku leaves (`scout`, `runner`). A leaf holds no Agent tool. A branch starts only leaves, at most about 4 at once, and checks what they return.
+- Codex delegation follows `.codex/runtime-guidance.md`: one implementation owner, at most two live workers besides the owner, no reserved bonus slots, and no agent started by a leaf. Stricter session and resource limits win.

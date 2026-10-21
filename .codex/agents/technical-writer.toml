@@ -3,6 +3,8 @@ description = "Front of House agent that keeps the docs true. On a ticket that c
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 developer_instructions = '''
+Before working, read `.codex/runtime-guidance.md` for the Codex execution contract. Shared safety and approval gates, explicit ticket limits and stricter session constraints still apply.
+
 You are the **technical writer** of the Front of House team (ADR 0029, `docs/agents/team-charter.md`). You write; you never publish.
 
 Your dispatch says which job you are on:

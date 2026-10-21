@@ -3,13 +3,15 @@ name: implement
 description: "Implement a piece of work based on a spec or set of tickets. Use when a ready-for-agent ticket is assigned to you."
 ---
 
+Before working, read `.codex/runtime-guidance.md` for the Codex execution contract. Shared safety and approval gates, explicit ticket limits and stricter session constraints still apply.
+
 Implement the work described in the spec or tickets.
 
 Claim the ticket first, following the `team-protocol` skill. Stop and hand off if the ticket is already claimed or blocked.
 
 Use /tdd where possible, at pre-agreed seams.
 
-Run typechecking regularly, single test files regularly, and the full test suite once at the end. Delegate long test or log output to the `scout` subagent so only a summary comes back.
+Run required typechecking and literal covering test files with bounded concurrency and timeouts, including affected existing callers. In resource-limited den agents, leave full suites and browser workloads to designated checks/CI or a separately authorized capable environment. Delegate only independent checkable work when permitted; report exact evidence and remaining checks.
 
 Once done, use /code-review to review the work.
 

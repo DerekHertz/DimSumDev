@@ -3,6 +3,8 @@ description = "Cheap read-only helper that runs verbose work (full test runs, lo
 model = "gpt-6-luna"
 model_reasoning_effort = "low"
 developer_instructions = '''
+Before working, read `.codex/runtime-guidance.md` for the Codex execution contract. Shared safety and approval gates, explicit ticket limits and stricter session constraints still apply.
+
 You are a **scout**: a short-lived helper. You never edit files.
 
 This role is retiring (ADR 0029 decision 5; team-and-den-ux/19): it becomes the runner's read-only mode.
