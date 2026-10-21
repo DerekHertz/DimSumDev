@@ -79,8 +79,8 @@ test('42 production App: real observations, exact/count keyboard inspection, lif
   await page.evaluate(()=>window.tool42offline());await page.waitForFunction(()=>document.querySelectorAll('.tool-bubble').length===0);
   await page.evaluate(s=>window.tool42emit('snapshot',s),{...snapshot,seq:3,transcripts:{[run]:{entries:[tool(2,{status:'ended'}),tool(3,{status:'failed'})]}}});
   assert.equal(await page.locator('.tool-bubble').count(),0);
-  // The real scene seats a busy role's meeting run on meeting:developer. The
-  // production bubble must join that guest's actual anchor and inspect its run.
+  // Deferred meeting visitors keep exact-source keyboard inspection in Team;
+  // they must not borrow a resident's scene anchor or tool bubble.
   await page.setViewportSize({width:1440,height:900});
   await page.getByRole('button',{name:'Close conversation',exact:true}).click();
   await page.locator('[data-rail=team]').click();
@@ -90,13 +90,13 @@ test('42 production App: real observations, exact/count keyboard inspection, lif
    [busy.id]:snapshot.transcripts[busy.id],
    [guestRun]:{entries:[tool(7,{source:guestSource,invocationId:'guest-own-call42',summary:'Guest42 own source'})],dropped:0},
   }};
-  // Owned admission may leave the guest at its fitting home while its seat
-  // route is unavailable. Inspect its actual anchor in the garden overview.
-  await page.getByRole('button',{name:'1 · Den',exact:true}).click();
   await page.evaluate(s=>window.tool42emit('snapshot',s),guestSnapshot);
-  const guestBubble=page.getByRole('button',{name:'Inspect 1 active tool call for developer: Read · Guest42 own source',exact:true});
-  await guestBubble.waitFor({state:'visible'});
-  await guestBubble.focus();assert.equal(await guestBubble.evaluate(el=>el===document.activeElement),true,'guest tool action receives native keyboard focus');await page.keyboard.press('Enter');
+  if(!await page.getByRole('list',{name:'Residents and visitors'}).isVisible())await page.locator('[data-rail=team]').click();
+  await page.getByRole('list',{name:'Residents and visitors'}).getByRole('button',{name:/, developer, Claude,.*visitor on fx\/46/}).click();
+  const guestInspect=page.locator('.forest-profile').getByRole('button',{name:'Inspect 1 active tool call',exact:true});
+  await page.locator('.forest-profile').getByText(/Scene visitor deferred/).waitFor();
+  assert.equal(await page.getByRole('button',{name:'Inspect 1 active tool call for developer: Read · Guest42 own source',exact:true}).count(),0,'deferred guest has no borrowed scene tool anchor');
+  await guestInspect.focus();assert.equal(await guestInspect.evaluate(el=>el===document.activeElement),true,'guest tool action receives native keyboard focus');await page.keyboard.press('Enter');
   await page.locator('[data-sheet=side] [aria-current=location]').waitFor();
   assert.equal(await page.locator('[data-sheet=side] [aria-current=location]').getAttribute('data-source'),JSON.stringify(['den','claude','developer',guestRun,7]));
   assert.equal(await page.locator('[data-sheet=side] .transcript-tool-head[aria-expanded=true]').count(),1);
