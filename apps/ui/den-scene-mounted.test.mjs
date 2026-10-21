@@ -249,6 +249,36 @@ test("a failed model load explains the garden failure and leaves the Team rail e
   } finally { await context.close(); }
 });
 
+// team-and-den-ux/24: Bao's new model and portrait each fail on their own back to the old appearance.
+test("a failed Bao portrait falls back to the old one in the same box, and a failed Bao model still readies the garden", { timeout: 90000 }, async () => {
+  const portrait = await openGarden({ failModels: '/den/portraits/bao-jade.webp' });
+  try {
+    await portrait.page.locator('[data-rail="team"]').click();
+    const images = portrait.page.getByRole('list', { name: 'Residents and visitors' }).locator('img');
+    await portrait.page.waitForFunction(() => [...document.querySelectorAll('.forest-portrait img')].some(image => new URL(image.currentSrc || image.src).pathname === '/den/portraits/orchestrator.webp' && image.complete && image.naturalWidth > 0));
+    const rows = await images.evaluateAll(list => list.map(image => { const box = image.closest('.forest-portrait').getBoundingClientRect(); return { path: new URL(image.currentSrc || image.src).pathname, width: box.width, height: box.height }; }));
+    assert.ok(rows.every(row => row.path !== '/den/portraits/bao-jade.webp'), 'the failed portrait is replaced');
+    const bao = rows.find(row => row.path === '/den/portraits/orchestrator.webp'), jiao = rows.find(row => row.path === '/den/portraits/codex-orchestrator.webp');
+    assert.ok(bao && jiao, 'Bao shows the old portrait and Jiao keeps hers');
+    assert.deepEqual([bao.width, bao.height], [jiao.width, jiao.height], 'the fallback keeps the fixed portrait box');
+    assert.deepEqual(portrait.errors, []);
+  } finally { await portrait.context.close(); }
+  const model = await openGarden({ failModels: '/den/models/characters/bao.glb.gz' });
+  try {
+    await ready(model.page);
+    assert.equal(await model.page.getByRole('alert').filter({ hasText: 'garden models could not load' }).count(), 0, 'only Bao fails, so the garden is not reported broken');
+    const bao = await model.page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(e => e.name.includes('react-three_fiber.js')).name;
+      const { _roots } = await import(url);
+      const world = _roots.get(document.querySelector('canvas')).store.getState().scene.getObjectByName('Dim Sum Dev · plush bamboo garden');
+      const found = []; world.traverse(n => { if (n.userData.actorKey === 'orchestrator') found.push({ species: n.userData.species ?? null, scale: n.scale.x }); });
+      return found;
+    });
+    assert.deepEqual(bao, [{ species: null, scale: 1.35 }], 'Bao falls back to the old body at the same scale');
+    assert.deepEqual(model.errors, []);
+  } finally { await model.context.close(); }
+});
+
 function screenPoint(box, x, y, z) {
   const camera = cameraConfig({ width: box.width, height: box.height });
   const scale = box.height / (camera.top - camera.bottom), pitch = Math.atan(1 / Math.SQRT2);

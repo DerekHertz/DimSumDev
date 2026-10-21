@@ -75,15 +75,24 @@ compared against its source geometry before the manifest is written.
 Generated through the user's existing Meshy workflow and supplied source
 assets; packaging itself makes no network or paid API calls.
 
-## Bao source reuse (team-and-den-ux/24)
+## Bao (team-and-den-ux/24)
 
-`characters.bao` is derived locally from the retained shipped `bao.glb.gz`, using
-`node apps/ui/assets-src/den/build-bao.mjs`. Run this **after** a full base repack:
-the original-artifact packager does not produce the derived Bao entry. The separate
-`bao-provenance.json` pins the input/output hashes, preserved face topology and zero
-paid tasks. Three's existing simplifier runs only in this offline authoring command;
-Pillow decodes the source colour map. The runtime has no new dependency or atlas.
-The original body remains shared by the other identities and available for fallback.
+`characters.bao` is packed from the user-selected Meshy A remesh,
+`remesh-a-7500.glb`, which is kept outside the repo:
+
+    node apps/ui/assets-src/den/build-bao.mjs --source /path/to/remesh-a-7500.glb
+
+The script refuses any source whose sha256 differs from the pinned one, then runs
+`pack-assets.py`'s `pack_asset` with a colour-only 512² atlas (the Bao-only texture
+allowance the user approved). It writes the manifest entry and
+`bao-provenance.json` (source tasks, hashes, 65 Meshy credits, zero purchases). It
+makes no network or paid calls.
+
+`characters.bao` is not in `sources.json` or `pack-audit.json`, so a full base repack
+drops it: run `build-bao.mjs` again **after** every repack.
+
+The original Bao body stays shared by the other identities and is the fallback when
+the Bao model fails to load.
 `characters.bao` selects only the Claude orchestrator; Codex orchestrator is Jiao.
 The matching portrait and its retained fallback are indexed in `role-portraits.mjs`.
 

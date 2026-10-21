@@ -1,4 +1,5 @@
 // CPU clearance on the delivered, deformed triangles at current scene scale.
+// node apps/ui/assets-src/den/bao-clearance.mjs <output.json> [--assert-chair]; bao-acceptance.test.mjs runs it.
 import fs from 'node:fs';
 import {gunzipSync} from 'node:zlib';
 import * as T from 'three';
@@ -117,7 +118,8 @@ try{
  result.navigation.routeToHost=gardenRoute(world,{x:0,y:GROUND,z:6},{x:home.position[0],z:home.position[2]});
  result.navigation.seats=seatSpots(6).map(s=>({...s,ground:world.navigation.groundAt(s.x,s.z,GROUND,.45),route:gardenRoute(world,{x:0,y:GROUND,z:6},s)}));
  result.summary={hostCollisionSamples:result.host.filter(p=>p.intersections.some(s=>s.triangles)).map(p=>({kind:p.kind,t:p.t,intersections:p.intersections.filter(s=>s.triangles)})),authoringSeatCollisionProbes:result.authoringSeats.filter(s=>s.tableOverlapTriangles),authoringDesk:result.authoringDesk,authoringChair:result.authoringChair,conversation:result.conversation,hostNavigationReachable:result.navigation.routeToHost.length>0};
- fs.writeFileSync(process.argv[2]||new URL('clearance.json',import.meta.url),JSON.stringify(result,null,2)+'\n');
+ const out=process.argv[2];if(!out||out.startsWith('--'))throw Error('usage: node bao-clearance.mjs <output.json> [--assert-chair|--search-chair]');
+ fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');
  console.log(JSON.stringify(result.chairContactFit||result.summary,null,2));
  if(process.argv.includes('--assert-chair')&&result.authoringChair[0].actualSolidCrossingTriangles)throw Error('Bao seated mesh penetrates the actual stool: '+result.authoringChair[0].actualSolidCrossingTriangles+' crossing triangles');
  if(process.argv.includes('--assert-chair')&&result.seatedContactCycle.some(p=>p.crossings||!p.nudgedCrossings||p.floor<product.position[1]))throw Error('Bao chair contact/floor cycle failed');
