@@ -1301,4 +1301,15 @@ describe("delivery reads its steps from the floor", () => {
     assert.deepEqual(t.sideEffects(), [], "no push, no pull request, no merge");
     assert.equal(t.git.pr, null);
   });
+
+  test("a floor that gains a role between the publish and the merge refuses the merge, and the job pauses floor-gap", async () => {
+    // The files read as plain code until the checks have been waited on, then as a user-merge path: security became required.
+    const t = await setup();
+    t.git.changed = async () => (t.sideEffects().includes("waitChecks") ? ["apps/bridge/agents/host.mjs"] : ["tools/x.mjs"]);
+    await t.start();
+    await t.toQaPass();
+    const waiting = await t.paused("floor-gap");
+    assert.match(waiting.pause.reason, /security/);
+    assert.deepEqual(t.sideEffects(), ["push", "openPr", "waitChecks"], "published, but never merged");
+  });
 });

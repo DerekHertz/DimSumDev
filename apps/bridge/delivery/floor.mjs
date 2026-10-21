@@ -8,8 +8,11 @@ import { isUiPath, isUserMergePath } from "./plan.mjs";
 
 export const FLOOR_ROLES = ["technical-writer", "code-reviewer", "qa", "security", "user-verdict"];
 
-// Path classes, as git prints paths. Anything that is neither docs nor instructions is code.
-const DOCS = (p) => p === "CONTEXT.md" || /(^|\/)README[^/]*$/.test(p) || (p.startsWith("docs/") && !p.startsWith("docs/adr/"));
+// Path classes, as git prints paths. A path is docs only in a docs location AND with a doc file type, so a script, a config
+// or an svg under docs/ is code. Anything that is neither docs nor instructions is code. The writer rule keys on location alone.
+const DOCS_LOCATION = (p) => p === "CONTEXT.md" || /(^|\/)README[^/]*$/.test(p) || (p.startsWith("docs/") && !p.startsWith("docs/adr/"));
+const DOC_TYPE = (p) => /\.(md|mdx|txt|png|jpe?g|gif|webp)$/i.test(p);
+const DOCS = (p) => DOCS_LOCATION(p) && DOC_TYPE(p);
 const INSTRUCTIONS = (p) => ["CLAUDE.md", "AGENTS.md"].includes(p) || [".claude/agents/", ".claude/skills/", ".agents/", ".codex/", "docs/adr/"].some((d) => p.startsWith(d));
 export const isDocsPath = (file) => typeof file === "string" && DOCS(file);
 export const isInstructionsPath = (file) => typeof file === "string" && !DOCS(file) && INSTRUCTIONS(file);
@@ -22,7 +25,7 @@ export function floor({ type, files, riskClean } = {}) {
   const why = {};
   const add = (role, reason) => { why[role] = why[role] ? `${why[role]}; ${reason}` : reason; };
   const some = (pred) => paths.filter(pred);
-  const [code, instructions, docs, userMerge, ui] = [some(isCodePath), some(isInstructionsPath), some(isDocsPath), some(isUserMergePath), some(isUiPath)];
+  const [code, instructions, docs, userMerge, ui] = [some(isCodePath), some(isInstructionsPath), some((p) => typeof p === "string" && DOCS_LOCATION(p)), some(isUserMergePath), some(isUiPath)];
 
   if (code.length) { add("code-reviewer", `${named(code)} is code`); add("qa", `${named(code)} is code`); }
   else if (type !== "docs" && paths.length === 0) { add("code-reviewer", "a code ticket whose paths are not known yet"); add("qa", "a code ticket whose paths are not known yet"); }

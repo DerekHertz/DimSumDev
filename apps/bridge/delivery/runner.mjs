@@ -368,15 +368,12 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     if (run.state !== "done") return giveUp(run.state === "terminated" ? "stopped" : "step-failed", `the ${role} run ${run.state === "terminated" ? "was stopped" : "failed"}${run.reason ? ` (${String(run.reason).slice(0, 80)})` : ""}`, "Resume to run the step again.");
     if (!run.sha || !run.startSha) return giveUp("environment", `the bridge could not record the ${role} run's commit`, "Resume to run the step again.");
 
-    if (WRITERS.has(role)) {
-      const author = role === authorOf(job);
-      if (run.sha === run.startSha) {
-        if (author) return giveUp("no-commit", `the ${role} committed nothing`, "Read its report in the thread, then Resume to run it again or close the delivery.");
-        job.evidence.writer = { sha: run.sha, runId }; // a writer that finds the docs already true commits nothing, and still counts
-      }
+    const author = WRITERS.has(role) && role === authorOf(job);
+    if (WRITERS.has(role) && run.sha === run.startSha) {
+      if (author) return giveUp("no-commit", `the ${role} committed nothing`, "Read its report in the thread, then Resume to run it again or close the delivery.");
+      job.evidence.writer = { sha: run.sha, runId }; // a writer that finds the docs already true commits nothing, and still counts
     }
     if (WRITERS.has(role) && run.sha !== run.startSha) {
-      const author = role === authorOf(job);
       job.candidate = { sha: run.sha, runId };
       // The technical writer's run is its own evidence at the commit it ended on, so it does not run again at it.
       if (role === "technical-writer") job.evidence.writer = { sha: run.sha, runId };
