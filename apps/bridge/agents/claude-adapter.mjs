@@ -120,14 +120,15 @@ export function parseGrants(grants) {
 const DENY_ABS_RE = /^(?:\/[A-Za-z0-9._@+-]+)+(?:\/\*\*)?$/;
 const DENY_ABS_MAX = GRANTS_MAX * 2 * FORBID_MAX;
 
-const sandboxFor = (wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials) => {
+const sandboxFor = (wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials, scopeWrites, readRoot, privatePaths) => {
   // Shell writes: the sandbox's own deny list, in the absolute form when the worktree is known, plus the governed paths of the
   // main checkout that a path grant reaches.
   const denyWrite = [...new Set([...(forbid?.write ?? []).map((p) => (worktree === undefined ? baseOf(p) : `${worktree}/${baseOf(p)}`)), ...(denyAbs ?? []).map(baseOf)])];
-  const filesystem = { ...(denyWrite.length === 0 ? {} : { denyWrite }), ...(writePaths?.length ? { allowWrite: [...writePaths] } : {}),
+  const allowedWrites = [...(writePaths ?? []), ...(scopeWrites ?? []).map((scope) => scope.path)];
+  const filesystem = { ...(denyWrite.length === 0 ? {} : { denyWrite }), ...(allowedWrites.length ? { allowWrite: allowedWrites } : {}),
     // The read limit for a shell command (live check, agent-os/02): the home directory is closed, the worktree, the ticket and granted paths re-opened,
     // and (the kernel review) the project and toolchain compileCeiling names.
-    ...(readLimit === true ? { denyRead: ["~/"], allowRead: [...(worktree === undefined ? [] : [worktree]), ...(ticketFile === undefined ? [] : [`/${ticketFile}`.slice(1)]), ...(writePaths ?? []), ...(readOpen ?? [])] } : credentials?.length ? { denyRead: [...credentials] } : {}) };
+    ...(readLimit === true ? { denyRead: ["~/", ...(privatePaths ?? [])], allowRead: [...(worktree === undefined ? [] : [worktree]), ...(readRoot === undefined ? [] : [readRoot]), ...(ticketFile === undefined ? [] : [`/${ticketFile}`.slice(1)]), ...(writePaths ?? []), ...(readOpen ?? [])] } : credentials?.length || privatePaths?.length ? { denyRead: [...(credentials ?? []), ...(privatePaths ?? [])] } : {}) };
   return {
     enabled: true,
     failIfUnavailable: true,
@@ -139,7 +140,7 @@ const sandboxFor = (wall, worktree, forbid, writePaths, readLimit, readOpen, tic
 };
 // A file tool's rule for a path: `//abs` for an absolute one (the adapter's form), `~/x` for a home one.
 const ruleForm = (p) => (p.startsWith("/") ? `/${p}` : p);
-const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials }) => {
+const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, scopeWrites, readRoot, privatePaths }) => {
   const allow = [
     // den-mvp/27: behind the wall every shell command is sandboxed and an unsandboxed one is refused, yet the CLI still asked
     // for some (a heredoc written after a cd, a write to $TMPDIR) despite autoAllowBashIfSandboxed. The request protected
@@ -150,6 +151,8 @@ const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit
     ...(ticketFile === undefined ? [] : [`Read(/${ticketFile})`]),
     ...(worktree === undefined ? [] : [`Write(/${worktree}/**)`, `Edit(/${worktree}/**)`]),
     ...(writePaths ?? []).flatMap((p) => [`Write(${ruleForm(p)}/**)`, `Edit(${ruleForm(p)}/**)`]),
+    ...(scopeWrites ?? []).flatMap(({ path: file, directory }) => [`Write(${ruleForm(file)}${directory ? "/**" : ""})`, `Edit(${ruleForm(file)}${directory ? "/**" : ""})`]),
+    ...(readRoot === undefined ? [] : [`Read(${ruleForm(readRoot)}/**)`]),
   ];
   const denyPaths = (forbid?.write ?? []).flatMap((p) => [p, ...(worktree === undefined ? [] : [`/${worktree}/${p}`])]);
   const deny = [
@@ -157,6 +160,7 @@ const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit
     ...denyPaths.flatMap((p) => [`Write(${p})`, `Edit(${p})`]),
     ...(denyAbs ?? []).flatMap((p) => [`Write(${ruleForm(p)})`, `Edit(${ruleForm(p)})`]),
     ...(credentials ?? []).flatMap((p) => [`Read(${p})`, `Read(${p}/**)`, `Edit(${p})`, `Edit(${p}/**)`]),
+    ...(privatePaths ?? []).flatMap((p) => [`Read(${ruleForm(p)})`, `Read(${ruleForm(p)}/**)`, `Write(${ruleForm(p)}/**)`, `Edit(${ruleForm(p)}/**)`]),
     // An infix rule, so a command wrapped in a newline, $(...), backticks or <(...) is still caught. Words are joined by "*",
     // so `git -C dir push` and a doubled space match too.
     ...(forbid?.run ?? []).map((words) => `Bash(*${words.split(" ").join(" *")}*)`),
@@ -166,7 +170,7 @@ const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit
     // outside the sandbox, from scripts in that worktree, which the agent can write. A bridge agent runs none of them.
     disableAllHooks: true,
     permissions: { deny: [...new Set(deny)], ...(allow.length === 0 ? {} : { allow }), ...(readLimit === true ? { blockReadsOutsideWorkingDirectories: true, ...(ticketFile === undefined ? {} : { additionalDirectories: [ticketFile.slice(0, ticketFile.lastIndexOf("/"))] }) } : {}) },
-    ...(wall === undefined ? {} : { sandbox: sandboxFor(wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials) }),
+    ...(wall === undefined ? {} : { sandbox: sandboxFor(wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials, scopeWrites, readRoot, privatePaths) }),
   });
 };
 
@@ -261,7 +265,7 @@ function governedUnder(grant, root, worktree) {
  * worktree undefined leaves the write rules out (the wall stays, the Write request stays). Any grant outside the fixed shape,
  * any grant for a role that cannot write, and a path grant that contains the worktree are TypeErrors.
  */
-export function compileCeiling(role, { worktree, grants, root, home, mainGit, credentials, remote, toolchain, tree } = {}) {
+export function compileCeiling(role, { worktree, grants, root, home, mainGit, credentials, remote, toolchain, tree, treeReadOnly = false, scopeWrites } = {}) {
   const { hosts: grantHosts, paths } = parseGrants(grants);
   if (credentials !== undefined && !(isDense(credentials) && credentials.every((p) => CREDENTIAL_PATHS.includes(p)))) throw new TypeError("compileCeiling: credentials must be paths from governance.json");
   if (root !== undefined && !isWorktreePath(root)) throw new TypeError("compileCeiling: root must be a plain absolute path");
@@ -269,8 +273,10 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
   if (home !== undefined && !isWorktreePath(home)) throw new TypeError("compileCeiling: home must be a plain absolute path");
   if (toolchain !== undefined && !isWorktreePath(toolchain)) throw new TypeError("compileCeiling: toolchain must be a plain absolute path");
   if (remote !== undefined && typeof remote !== "boolean") throw new TypeError("compileCeiling: remote must be a boolean");
+  if (treeReadOnly && tree !== true) throw new TypeError("compileCeiling: a read-only tree profile needs tree admission");
+  if (scopeWrites !== undefined && !(tree === true && role === "runner" && !treeReadOnly && worktree !== undefined && isScopeWrites(scopeWrites))) throw new TypeError("compileCeiling: scoped writes are for an admitted code runner");
   // Runner is a host-admitted tree leaf only; it never becomes a public direct-task role.
-  const ceiling = tree === true && role === "runner" ? { write: "none", hosts: [] } : Object.hasOwn(CEILINGS, role) ? CEILINGS[role] : undefined;
+  const ceiling = tree === true && (role === "runner" || treeReadOnly) ? { write: "none", hosts: [] } : Object.hasOwn(CEILINGS, role) ? CEILINGS[role] : undefined;
   if (ceiling === undefined) {
     if (grantHosts.length + paths.length > 0) throw new TypeError("compileCeiling: this role takes no grants");
     return null;
@@ -294,7 +300,8 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
   const denyAbs = [...new Set([
     ...(root === undefined ? [] : paths.flatMap((g) => governedUnder(expandHome(g, home), root, worktree))),
     ...(mainGit === undefined ? [] : MAIN_GIT_DENIED.map((name) => (name === "refs" ? `${mainGit}/refs/**` : `${mainGit}/${name}`))),
-    ...(tree === true && role === "runner" && worktree !== undefined ? [`${worktree}/**`] : []),
+    ...(mainGit === undefined ? [] : [`${mainGit}/den-tree-artifacts/**`]),
+    ...(tree === true && (role === "runner" || treeReadOnly) && scopeWrites === undefined && worktree !== undefined ? [`${worktree}/**`] : []),
   ])];
   const hosts = [...new Set([...ceiling.hosts, ...grantHosts])];
   const readLimit = hosts.length > 0 || remote === true;
@@ -305,7 +312,11 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
   return {
     wall: { hosts },
     ...options,
-    forbid: { write: [...GOVERNANCE.guardrailPaths, ...GOVERNANCE.ciPaths.filter((e) => !lifted(e))], run: [...GOVERNANCE.denyRun, ...(tree === true && role === "runner" ? ["git commit", "board"] : [])] },
+    forbid: { write: [...GOVERNANCE.guardrailPaths, ...GOVERNANCE.ciPaths.filter((e) => !lifted(e))], run: [...GOVERNANCE.denyRun, ...(tree === true && (role === "runner" || treeReadOnly) ? ["git commit", "board"] : [])] },
+    ...(scopeWrites === undefined ? {} : { scopeWrites }),
+    ...(tree === true && worktree !== undefined ? { readRoot: worktree } : {}),
+    ...(treeReadOnly ? { treeReadOnly: true } : {}),
+    ...(mainGit === undefined ? {} : { privatePaths: [`${mainGit}/den-tree-artifacts`] }),
     ...(denyAbs.length === 0 ? {} : { denyAbs }),
     ...(paths.length === 0 ? {} : { writePaths: paths }),
     ...(readLimit ? { readLimit: true } : {}),
@@ -353,6 +364,7 @@ const mcpConfigFor = (connections) => JSON.stringify({ mcpServers: Object.fromEn
  */
 export const mcpConfigWithTokens = (connections, tokens) => JSON.stringify({ mcpServers: Object.fromEntries(connections.map((c) => [c.name, serverOf(c, tokens[c.name])])) });
 const MCP_CONFIG_FILE_RE = /^\/[A-Za-z0-9._@+-]+(?:\/[A-Za-z0-9._@+-]+)*\.json$/;
+const isScopeWrites = (scopes) => isDense(scopes) && scopes.length > 0 && scopes.length <= 50 && scopes.every((scope) => isPlainObject(scope) && Object.keys(scope).length === 2 && isWorktreePath(scope.path) && typeof scope.directory === "boolean");
 
 /**
  * The whole argv (no binary name) for one child. Rejects anything outside { sessionId, agent, model?, ticketFile?,
@@ -362,11 +374,15 @@ const MCP_CONFIG_FILE_RE = /^\/[A-Za-z0-9._@+-]+(?:\/[A-Za-z0-9._@+-]+)*\.json$/
 export function buildClaudeArgs(options) {
   if (!isPlainObject(options)) throw new TypeError("buildClaudeArgs needs { sessionId, agent, model?, ticketFile?, wall?, worktree? }");
   for (const key of Object.keys(options)) {
-    if (!["sessionId", "resume", "agent", "model", "effort", "tree", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
+    if (!["sessionId", "resume", "agent", "model", "effort", "tree", "treeReadOnly", "scopeWrites", "readRoot", "privatePaths", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
   }
-  const { sessionId, resume, agent, model, effort, tree, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
+  const { sessionId, resume, agent, model, effort, tree, treeReadOnly, scopeWrites, readRoot, privatePaths, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
   if (tree !== undefined && tree !== true) throw new TypeError("buildClaudeArgs: tree must be true");
   if (effort !== undefined && !(tree === true && ["low", "medium", "high", "xhigh", "max"].includes(effort))) throw new TypeError("buildClaudeArgs: effort must be a configured tree effort");
+  if (treeReadOnly !== undefined && !(tree === true && treeReadOnly === true)) throw new TypeError("buildClaudeArgs: treeReadOnly needs admitted tree mode");
+  if (scopeWrites !== undefined && !(tree === true && agent === "runner" && !treeReadOnly && worktree === undefined && isScopeWrites(scopeWrites))) throw new TypeError("buildClaudeArgs: scoped file writes need an admitted code runner without a broad worktree allow");
+  if (readRoot !== undefined && !(tree === true && isWorktreePath(readRoot))) throw new TypeError("buildClaudeArgs: readRoot needs a plain admitted tree worktree");
+  if (privatePaths !== undefined && !(wall !== undefined && isDense(privatePaths) && privatePaths.length <= 4 && privatePaths.every(isWorktreePath))) throw new TypeError("buildClaudeArgs: privatePaths need plain protected paths with the wall");
   const target = project !== undefined && project.control === false;
   if (project !== undefined && (!isPlainObject(project) || typeof project.control !== "boolean")) throw new TypeError("buildClaudeArgs: project must be { control: boolean, root, pluginDir? }");
   if (target && !isWorktreePath(project.pluginDir)) throw new TypeError("buildClaudeArgs: a target project needs pluginDir, a plain absolute path");
@@ -401,7 +417,8 @@ export function buildClaudeArgs(options) {
     ...(model === undefined ? [] : ["--model", model]),
     ...(effort === undefined ? [] : ["--effort", effort]),
     // Every tree spawn goes through the bridge; native children would bypass its depth, ownership and capacity checks.
-    ...(tree === true ? ["--disallowedTools", agent === "runner" ? "Agent,Task,Write,Edit,NotebookEdit" : "Agent,Task"] : []),
+    ...(tree === true ? ["--disallowedTools", treeReadOnly || (agent === "runner" && scopeWrites === undefined) ? "Agent,Task,Write,Edit,NotebookEdit" : "Agent,Task,NotebookEdit"] : []),
+    ...(treeReadOnly && agent !== "runner" ? ["--allowedTools", "mcp__tree__status,mcp__tree__review"] : []),
     // den-mvp/48: a target project loads nothing from its own .claude/: no settings, and the den's role definitions come in as a plugin.
     "--setting-sources", target ? "" : "project,local",
     ...(target ? ["--plugin-dir", project.pluginDir] : []),
@@ -409,7 +426,7 @@ export function buildClaudeArgs(options) {
     "--strict-mcp-config",
     ...(inline === undefined || inline.length === 0 ? [] : ["--mcp-config", mcpConfigFor(inline)]),
     ...(mcpConfigFile === undefined ? [] : ["--mcp-config", mcpConfigFile]),
-    "--settings", settingsFor({ ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials }),
+    "--settings", settingsFor({ ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, scopeWrites, readRoot, privatePaths }),
   ];
 }
 

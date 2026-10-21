@@ -1,8 +1,9 @@
 // Structural task bounds are independent of process-slot and resource admission.
 // This index holds only bridge-created nodes; its journal is evidence, never replayed authority.
 import { randomBytes } from "node:crypto";
-import { appendFile, mkdir, readFile } from "node:fs/promises";
+import { mkdir, readFile, open, rm } from "node:fs/promises";
 import path from "node:path";
+import { hostname } from "node:os";
 
 export const TREE_FANOUT = 4;
 export const TREE_DEPTH = 2;
@@ -16,6 +17,13 @@ export function createTaskTrees(root) {
   const historical = new Map(); // display/evidence only: never used for admission or capabilities
   const dir = path.join(root, ".scratch", "_run");
   let chain = Promise.resolve();
+  const leaseFile = path.join(dir, "task-tree-runtime.lock");
+  let leaseNonce = null;
+  const syncDirectory = async () => {
+    if (process.platform === "win32") return;
+    const handle = await open(dir, "r");
+    try { await handle.sync(); } finally { await handle.close(); }
+  };
   const ready = (async () => {
     const text = await readFile(path.join(dir, "task-trees.jsonl"), "utf8").catch((err) => { if (err.code === "ENOENT") return ""; throw err; });
     for (const line of text.split("\n")) {
@@ -26,9 +34,13 @@ export function createTaskTrees(root) {
           if (!tree || !/^t-[0-9a-f]{16}$/.test(tree.id) || !Array.isArray(tree.nodes) || tree.nodes.length > 21 || JSON.stringify(tree).length > 1_000_000 || !tree.nodes.every((node) => /^c-[0-9a-f]{16}$/.test(node.id) && [0, 1, 2].includes(node.depth))) continue;
           historical.set(tree.id, { ...tree, closed: true, recordOnly: true, nodes: tree.nodes.map((node) => ({ ...node, state: "record-only", historicalState: node.state })) });
         } else if (event.event === "approved" && historical.has(event.revision)) historical.get(event.revision).approved = true;
+        else if (event.event === "discarded" && historical.has(event.revision) && !historical.get(event.revision).approved) historical.delete(event.revision);
         else if (event.event === "ended" && historical.has(event.treeId)) {
           const node = historical.get(event.treeId).nodes.find((entry) => entry.id === event.nodeId);
           if (node && ["done", "failed", "terminated"].includes(event.state)) { node.historicalState = event.state; node.candidate = /^[0-9a-f]{40,64}$/.test(event.candidate ?? "") ? event.candidate : null; }
+        } else if (event.event === "workflow" && historical.has(event.treeId) && event.workflow?.version === 1 && JSON.stringify(event.workflow).length <= 1_000_000) {
+          const node = historical.get(event.treeId).nodes.find((entry) => entry.id === event.nodeId);
+          if (node) node.workflow = structuredClone(event.workflow);
         }
       } catch { /* torn/foreign records never become execution authority */ }
     }
@@ -36,7 +48,10 @@ export function createTaskTrees(root) {
   const journal = (event) => {
     const run = chain.then(async () => {
       await mkdir(dir, { recursive: true, mode: 0o700 });
-      await appendFile(path.join(dir, "task-trees.jsonl"), `${JSON.stringify({ ts: new Date().toISOString(), ...event })}\n`, { mode: 0o600 });
+      const handle = await open(path.join(dir, "task-trees.jsonl"), "a", 0o600);
+      try { await handle.writeFile(`${JSON.stringify({ ts: new Date().toISOString(), ...event })}\n`); await handle.sync(); }
+      finally { await handle.close(); }
+      await syncDirectory();
     });
     chain = run.catch(() => {});
     return run;
@@ -44,7 +59,44 @@ export function createTaskTrees(root) {
   const describe = (node) => ({ treeId: node.treeId, nodeId: node.id, parentId: node.parentId, depth: node.depth, owner: node.owner, rootRef: node.rootRef, epoch: node.epoch });
   return {
     journal,
+    checkpoint(node) { return journal({ event: "workflow", treeId: node.treeId, nodeId: node.id, workflow: structuredClone(node.workflow) }); },
+    historical: (revision) => historical.has(revision) ? structuredClone(historical.get(revision)) : null,
     ready,
+    async acquireLease({ reconcile = false } = {}) {
+      if (leaseNonce) return true;
+      await mkdir(dir, { recursive: true, mode: 0o700 });
+      const nonce = randomBytes(24).toString("hex");
+      try {
+        const handle = await open(leaseFile, "wx", 0o600);
+        try { await handle.writeFile(JSON.stringify({ version: 1, pid: process.pid, nonce, platform: process.platform, host: hostname() })); await handle.sync(); }
+        finally { await handle.close(); }
+        await syncDirectory();
+        leaseNonce = nonce;
+        return true;
+      } catch (err) {
+        if (err.code !== "EEXIST" || !reconcile) throw new Error("another or unreconciled bridge owns task-tree execution");
+        const before = await readFile(leaseFile, "utf8");
+        const previous = JSON.parse(before);
+        if (!Number.isSafeInteger(previous.pid) || previous.pid < 1 || typeof previous.nonce !== "string") throw new Error("the prior runtime lease cannot be validated");
+        if (previous.platform !== process.platform || previous.host !== hostname()) throw new Error("a runtime lease from another platform or host needs explicit resource reconciliation");
+        try { process.kill(previous.pid, 0); throw new Error("the prior task-tree bridge is still alive"); }
+        catch (failure) { if (failure.code !== "ESRCH") throw failure; }
+        if (await readFile(leaseFile, "utf8") !== before) throw new Error("the runtime lease changed during reconciliation");
+        await rm(leaseFile);
+        return this.acquireLease();
+      }
+    },
+    async ownsLease() {
+      if (!leaseNonce) return false;
+      try { return JSON.parse(await readFile(leaseFile, "utf8")).nonce === leaseNonce; } catch { return false; }
+    },
+    async releaseLease() {
+      if (!leaseNonce) return;
+      if (JSON.parse(await readFile(leaseFile, "utf8")).nonce !== leaseNonce) throw new Error("the task-tree lease changed; refusing to remove it");
+      await rm(leaseFile);
+      leaseNonce = null;
+      await syncDirectory();
+    },
     describe,
     node: (nodeId) => nodes.get(nodeId),
     root({ ref, project, owner, epoch, runtime, scopes }) {
@@ -79,7 +131,7 @@ export function createTaskTrees(root) {
     approve(treeId) {
       const tree = trees.get(treeId);
       if (!tree || tree.closed || tree.superseded || tree.approved) throw new Error("the tree revision is absent, superseded or already started");
-      const unfinished = [...nodes.values()].filter((node) => { const owner = trees.get(node.treeId); return owner?.approved && !owner.closed && ["planned", "pending", "working"].includes(node.state); }).length;
+      const unfinished = [...nodes.values()].filter((node) => { const owner = trees.get(node.treeId); return owner?.approved && !owner.closed && (node.workflow ? !["accepted", "skipped"].includes(node.workflow.status) : ["planned", "pending", "working"].includes(node.state)); }).length;
       const additional = [...nodes.values()].filter((node) => node.treeId === treeId).length;
       if (unfinished + additional > 21) throw new Error("the global budget of twenty-one unfinished admitted nodes is full");
       tree.approved = true;
@@ -109,10 +161,24 @@ export function createTaskTrees(root) {
     },
     end(node, state) {
       node.state = state;
-      if (node.depth === 0 && trees.has(node.treeId)) trees.get(node.treeId).closed = true;
+      if (!node.workflow && node.depth === 0 && trees.has(node.treeId)) trees.get(node.treeId).closed = true;
+    },
+    close(node, accepted = false) {
+      const tree = trees.get(node.treeId);
+      if (tree) { tree.closed = true; tree.accepted = accepted; }
+    },
+    restore(record) {
+      // The host validates every contract/scope/owner/model again after explicit user approval.
+      // Native processes, tokens and permissions never come from this record.
+      if (trees.has(record.id)) throw new Error("this revision is already loaded");
+      const tree = { id: record.id, revision: record.id, ref: record.ref, project: record.project, rootId: record.rootId, closed: false, approved: false };
+      trees.set(tree.id, tree);
+      for (const item of record.nodes) nodes.set(item.id, { ...item, treeId: tree.id, rootRef: tree.ref, project: tree.project, parentId: item.parentId, children: item.children.slice(), state: "planned", cancelled: false, agent: undefined });
+      historical.delete(tree.id);
+      return nodes.get(tree.rootId);
     },
     snapshot() {
-      return [...historical.values()].map((tree) => structuredClone(tree)).concat([...trees.values()].map((tree) => ({ ...tree, nodes: [...nodes.values()].filter((node) => node.treeId === tree.id).map((node) => ({ ...describe(node), id: node.id, key: node.key ?? "owner", ref: node.ref, role: node.role, runtime: node.runtime, model: node.model, effort: node.effort, contract: node.contract ? structuredClone(node.contract) : null, state: node.state, scopes: node.scopes.slice(), children: node.children.slice() })) })));
+      return [...historical.values()].map((tree) => structuredClone(tree)).concat([...trees.values()].map((tree) => ({ ...tree, nodes: [...nodes.values()].filter((node) => node.treeId === tree.id).map((node) => ({ ...describe(node), id: node.id, key: node.key ?? "owner", ref: node.ref, role: node.role, runtime: node.runtime, model: node.model, effort: node.effort, contract: node.contract ? structuredClone(node.contract) : null, state: node.state, scopes: node.scopes.slice(), children: node.children.slice(), ...(node.workflow ? { workflow: structuredClone(node.workflow) } : {}) })) })));
     },
   };
 }

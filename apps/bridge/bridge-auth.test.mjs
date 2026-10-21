@@ -21,21 +21,103 @@ import { CODE, origin, send, login, authed } from "./bridge-auth-helpers.mjs";
 const { createFakeRuntime } = await import("./agents/runtime.mjs").catch(() => ({}));
 
 const DISPATCH_REF = `${FEATURE}/02-ready-p0`; // gate "dispatch" in the fixture
+const TREE_ROOT_CONTRACT = { outcome: "Verify the approved fixture task.", inputs: [], acceptanceCriteria: ["a criterion"], verificationCommands: [] };
 
-async function prepareTreeAuth({ plan = false } = {}) {
+async function prepareTreeAuth({ plan = false, scopes = ["src"] } = {}) {
   const control = fileURLToPath(new URL("../../", import.meta.url));
   for (const directory of [".claude/agents", ".codex/agents"]) {
     await mkdir(path.join(fx.root, path.dirname(directory)), { recursive: true });
     await cp(path.join(control, directory), path.join(fx.root, directory), { recursive: true });
   }
   fake.capabilities.treeDelegation = true;
+  fake.capabilities.artifactStoreProtection = true;
+  fake.config.cleanupConfirmed = true; // tree-only fake runs have no OS descendants
   fake.validateModel = async () => true;
   await bridge.host.admission.approve(DISPATCH_REF, { owner: "bao" });
   if (plan) {
-    const response = await send(bridge, { method: "POST", path: "/trees/plan", headers: authed(bridge, token), body: { ref: DISPATCH_REF, scopes: ["src"], nodes: [] } });
+    const response = await send(bridge, { method: "POST", path: "/trees/plan", headers: authed(bridge, token), body: { ref: DISPATCH_REF, scopes, nodes: [], rootContract: TREE_ROOT_CONTRACT } });
     assert.equal(response.status, 201, response.text);
     treeRevision = response.body.revision;
+    treeNodeId = response.body.tree.rootId;
   }
+}
+
+async function treeAuthOwner() {
+  const response = await send(bridge, { path: "/trees", headers: authed(bridge, token) });
+  assert.equal(response.status, 200, response.text);
+  return response.body.trees.find((tree) => tree.id === treeRevision)?.nodes.find((node) => node.id === treeNodeId);
+}
+
+// Auth happy paths use real candidate-bound workflow transitions. Injected model
+// processes have no OS descendants; no stored acceptance or historical authority is forged.
+async function driveTreeAuthReviews(untilStatus) {
+  const seen = new Set();
+  const deadline = Date.now() + 15000;
+  while (Date.now() < deadline) {
+    const owner = await treeAuthOwner();
+    if (owner?.workflow?.status === untilStatus) { treeCandidate = owner.workflow.receipt.candidate; return owner; }
+    if (owner?.workflow?.status === "paused") assert.fail(`auth tree paused: ${owner.workflow.error}`);
+    const review = fake.spawns.find((run) => !run.exited && !seen.has(run.args.runId) && run.args.tree?.nodeId === treeNodeId &&
+      ["code-reviewer", "qa", "security", "technical-writer"].includes(run.args.role));
+    if (review && owner?.workflow?.receipt?.candidate) {
+      const report = { candidate: owner.workflow.receipt.candidate, verdict: "pass", findings: [],
+        criteria: TREE_ROOT_CONTRACT.acceptanceCriteria.map((criterion) => ({ criterion, evidence: "The isolated fixture criterion was independently inspected." })),
+        checks: [], guardVerdicts: review.args.role === "qa" ? owner.workflow.guard.hits.map((hit) =>
+          ({ hit, verdict: "accept", reason: "This auth fixture has no changed tests; its exact criterion was inspected." })) : [],
+      };
+      const response = await send(bridge, { method: "POST", path: "/tree-tools/review", body: report,
+        headers: authed(bridge, review.args.treeCredential.token) });
+      assert.equal(response.status, 200, response.text);
+      seen.add(review.args.runId);
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+  }
+  assert.fail(`auth fixture never reached ${untilStatus}`);
+}
+
+async function prepareTreeVerifierAuth() {
+  await prepareTreeAuth({ plan: true, scopes: ["apps/ui"] });
+  const start = await send(bridge, { method: "POST", path: "/trees", headers: authed(bridge, token), body: { revision: treeRevision } });
+  assert.equal(start.status, 201, start.text);
+  const author = fake.spawns.find((run) => run.args.runId === start.body.agent.id);
+  // Put a UI candidate only in the disposable private worktree, so the planner
+  // requires a genuine final user verdict after all fresh independent reviews.
+  const directory = path.join(author.args.cwd, "apps/ui/src");
+  await mkdir(directory, { recursive: true });
+  await writeFile(path.join(directory, "auth-fixture.mjs"), "export const authFixture = true;\n");
+  const completion = await send(bridge, { method: "POST", path: "/tree-tools/complete", headers: authed(bridge, author.args.treeCredential.token),
+    body: { criteria: TREE_ROOT_CONTRACT.acceptanceCriteria.map((criterion) => ({ criterion, evidence: "The isolated UI fixture supplies this criterion." })), checks: [] } });
+  assert.equal(completion.status, 202, completion.text);
+  const awaiting = await driveTreeAuthReviews("awaiting-verifier");
+  assert.equal(awaiting.workflow.acceptance, null, "unavailable other-runtime verification cannot silently count as acceptance");
+  assert.equal(fake.spawns.some((run) => run.args.role === "qa"), false, "same-runtime QA starts only after an explicit user override");
+}
+
+async function prepareTreeVerdictAuth() {
+  await prepareTreeVerifierAuth();
+  const override = await send(bridge, { method: "POST", path: "/trees/verifier", headers: authed(bridge, token),
+    body: { revision: treeRevision, nodeId: treeNodeId, candidate: treeCandidate, runtime: "claude", reason: "Explicit same-runtime override for the isolated single-runtime auth fixture." } });
+  assert.equal(override.status, 202, override.text);
+  const journal = (await readFile(path.join(fx.root, ".scratch/_run/task-trees.jsonl"), "utf8")).trim().split("\n").map(JSON.parse);
+  const recorded = journal.findLast((row) => row.event === "verifier-override");
+  assert.equal(recorded.actor, "session-user");
+  assert.equal(recorded.candidate, treeCandidate);
+  assert.equal(recorded.runtime, "claude");
+  assert.match(recorded.reason, /Explicit same-runtime override/);
+  await driveTreeAuthReviews("waiting-user");
+}
+
+async function prepareTreeResumeAuth() {
+  await prepareTreeVerifierAuth();
+  assert.ok(fake.spawns.every((run) => run.exited), "recovery fixture has no live process to adopt");
+  fake.stillRunning = async (id) => {
+    const runs = fake.spawns.filter((record) => record.args.runId === id);
+    assert.ok(runs.length, "absence is proved only for an attempt this fake actually recorded");
+    return runs.some((run) => !run.exited);
+  };
+  await bridge.close();
+  bridge = await startBridge({ root: fx.root, port: 0, auth: { launchCode: CODE }, runtime: fake, denState });
+  token = await login(bridge);
 }
 
 // A real and a bogus body for every token-gated mutating row, keyed "METHOD path". The bogus one names an id
@@ -64,8 +146,13 @@ const BODIES = {
   "POST /admission/reconcile": { real: { id: "i-crashed00000000", outcome: "ended" }, bogus: { id: "i-none", outcome: "ended" } },
   "POST /trees": { get real() { return { revision: treeRevision }; }, bogus: { revision: "no-revision" },
     prepare: () => prepareTreeAuth({ plan: true }) },
-  "POST /trees/plan": { real: { ref: DISPATCH_REF, scopes: ["src"], nodes: [] }, bogus: { ref: `${FEATURE}/99-nope`, scopes: [] },
+  "POST /trees/plan": { real: { ref: DISPATCH_REF, scopes: ["src"], nodes: [], rootContract: TREE_ROOT_CONTRACT }, bogus: { ref: `${FEATURE}/99-nope`, scopes: [] },
     prepare: () => prepareTreeAuth() },
+  "POST /trees/resume": { get real() { return { revision: treeRevision }; }, bogus: { revision: "no-revision" }, prepare: prepareTreeResumeAuth },
+  "POST /trees/verifier": { get real() { return { revision: treeRevision, nodeId: treeNodeId, candidate: treeCandidate, runtime: "claude", reason: "Explicit same-runtime override for this isolated auth check." }; },
+    bogus: { revision: "no-revision", nodeId: "no-node", candidate: "a".repeat(40), runtime: "claude", reason: "No matching candidate." }, prepare: prepareTreeVerifierAuth },
+  "POST /trees/verdict": { get real() { return { revision: treeRevision, nodeId: treeNodeId, candidate: treeCandidate, verdict: "approve" }; },
+    bogus: { revision: "no-revision", nodeId: "no-node", candidate: "a".repeat(40), verdict: "decline" }, prepare: prepareTreeVerdictAuth },
   "POST /projects/active": { real: { slug: "den" }, bogus: { slug: "nope" } },
   "POST /requests": {
     real: { kind: "dispatch-approve", ref: DISPATCH_REF },
@@ -211,6 +298,8 @@ let file;
 let fake;
 let queuedMessageId; // set by the cancel row's prepare (organism-infra/107)
 let treeRevision; // exact proposal prepared for the tree-approval auth row
+let treeNodeId;
+let treeCandidate;
 
 beforeEach(async () => {
   fx = await makeStateFixture({ git: true });

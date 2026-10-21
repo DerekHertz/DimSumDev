@@ -17,7 +17,7 @@
 //     handle: string, events: AsyncIterable<CellEvent>,
 //     runtimeSessionId?: string,                  // acknowledged native identity, required for Codex; Claude omission uses bridge UUID
 //     closeInput(), signal("SIGTERM" | "SIGKILL")  // synchronous
-//     exited: Promise<{ code, signal }>            // resolves once, never rejects
+//     exited: Promise<{ code, signal, cleanupConfirmed? }> // resolves once, never rejects; tree artifacts require cleanupConfirmed === true
 //   }
 //   CellEvent = { type: "tool-start", id?, name, summary } | { type: "tool-end", id? }
 //             | { type: "usage", input, output, message?, tiers? } | { type: "model", model }
@@ -41,12 +41,13 @@ const CAPABILITIES = { spawn: true, stop: true, approve: true, send: false, hand
 // A fake runtime with test controls: see the contract at the top of host-core.test.mjs.
 //   config: spawnDelayMs, stdinCloseEnds, sigtermEnds, sigkillEnds, failSpawn, failSend (all mutable at runtime.config);
 //           send: true turns the send capability on (off by default, as before den-v1 loop S5)
+//           cleanupConfirmed defaults true for this in-memory fake (no OS descendants); explicit undefined models unknown cleanup
 //   spawns: one record per spawn() call { args, handle, calls, exited, sent, emit(event), exit({ code, signal }) }
 //   answer: { <role>: <reply> } - a run of that role replies and ends by itself, and is kept in `answered`, not `spawns`
 //           (team-and-den-ux/02: tests written before the code reviewer step keep their spawn numbers)
 //   peakLive: the most spawned-and-not-yet-exited processes at once
 export function createFakeRuntime(options = {}) {
-  const config = { spawnDelayMs: 0, stdinCloseEnds: true, sigtermEnds: true, sigkillEnds: true, failSpawn: false, failSend: false, send: false, ...options };
+  const config = { spawnDelayMs: 0, stdinCloseEnds: true, sigtermEnds: true, sigkillEnds: true, failSpawn: false, failSend: false, send: false, cleanupConfirmed: true, ...options };
   const spawns = [];
   let live = 0;
   let counter = 0;
@@ -58,6 +59,10 @@ export function createFakeRuntime(options = {}) {
     answered: [],
     peakLive: 0,
     resumeCommand: (sessionId) => `fake-claude --resume ${sessionId}`,
+    // This fake never creates an OS group. Tests for unknown/live historical
+    // resources override this probe explicitly rather than imply real cleanup.
+    stillRunning: async (id) => [...spawns, ...runtime.answered].some((record) => !record.exited &&
+      (record.args.runId === id || record.args.sessionId === id)),
     async spawn(args) {
       if (config.failSpawn) throw new Error("fake runtime: spawn failed");
       const record = makeRecord(args, `fake-${(counter += 1)}`, config, () => (live -= 1));
@@ -96,10 +101,12 @@ function makeRecord(args, handle, config, onExit) {
       if (w) w({ value: event, done: false });
       else queue.push(event);
     },
-    exit({ code = 0, signal = null } = {}) {
+    exit(info = {}) {
       if (record.exited) return;
+      const { code = 0, signal = null } = info;
+      const cleanupConfirmed = Object.hasOwn(info, "cleanupConfirmed") ? info.cleanupConfirmed : config.cleanupConfirmed;
       record.exited = true;
-      exitInfo = { code, signal };
+      exitInfo = { code, signal, ...(typeof cleanupConfirmed === "boolean" ? { cleanupConfirmed } : {}) };
       onExit();
       resolveExited(exitInfo);
       // Queued events still drain to the consumer, then the stream ends.

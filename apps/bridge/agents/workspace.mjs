@@ -5,7 +5,8 @@
 // bridge-minted agent id; git runs through execFile with an argument list, never a shell.
 // A worktree is a working-directory convention, not a security boundary: nothing here confines the child.
 import { execFile } from "node:child_process";
-import { access, appendFile, lstat, mkdir, readFile, realpath, rm, writeFile } from "node:fs/promises";
+import { access, appendFile, chmod, lstat, mkdir, open, readFile, readdir, realpath, rename, rm, rmdir, writeFile } from "node:fs/promises";
+import { createHash, randomBytes } from "node:crypto";
 import path from "node:path";
 import { promisify } from "node:util";
 import { AGENT_ID_RE, REF_RE, WORKSPACE_BRANCH_PREFIX, WORKTREES_DIR } from "./policy.mjs";
@@ -18,6 +19,225 @@ const execFileP = promisify(execFile);
 export const PUBLISH_BRANCH_RE = new RegExp(`^${WORKSPACE_BRANCH_PREFIX}/[a-z0-9][a-z0-9-]*/\\d{2,}-[a-z0-9][a-z0-9-]*-[0-9a-f]{8}$`);
 
 const COMMIT_RE = /^[0-9a-f]{40,64}$/;
+const MANAGED_COMMIT_RE = /^[0-9a-f]{40}(?:[0-9a-f]{24})?$/;
+const safeGitArgs = ["-c", "protocol.allow=never", "-c", "core.fsmonitor=false", "-c", "core.sparseCheckout=false", "-c", "index.sparse=false"];
+const managedPath = (name) => typeof name === "string" && !/[:\\\x00-\x1f\x7f\ufffd]/.test(name) && !path.posix.isAbsolute(name) && name.split("/").every((part) => part && ![".", ".."].includes(part) && !/[ .]$/.test(part) && !/^\.git$/i.test(part) && !/^(?:con|prn|aux|nul|com[1-9]|lpt[1-9])(?:\.|$)/i.test(part)) && !/^(?:\.den|\.scratch)(?:\/|$)/.test(name);
+const managedGit = (exec, dir, args, options = {}) => exec("git", ["-C", dir, ...safeGitArgs, ...args], { encoding: "utf8", timeout: 30000, maxBuffer: 32 << 20, ...options });
+export async function disabledManagedFilters(dir, exec = execFileP) {
+  const result = await managedGit(exec, dir, ["config", "--null", "--name-only", "--get-regexp", "^filter\\."]).catch((err) => { if (err.code === 1) return { stdout: "" }; throw err; });
+  const keys = String(result.stdout).split("\0").filter(Boolean);
+  if (keys.some((key) => !/^filter\.[^\x00-\x20]+\.[a-zA-Z][a-zA-Z0-9-]*$/.test(key))) throw new Error("workspace: unsafe managed filter configuration");
+  return keys.filter((key) => /^filter\..+\.(?:clean|smudge|process|required)$/.test(key)).flatMap((key) => ["-c", `${key}=${key.endsWith(".required") ? "false" : ""}`]);
+}
+
+async function managedHooks(root, exec) {
+  const common = String((await managedGit(exec, root, ["rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout).trim();
+  const store = path.join(await realpath(common), "den-tree-artifacts");
+  for (const dir of [store, path.join(store, "empty-hooks")]) {
+    await mkdir(dir, { mode: 0o700 }).catch((err) => { if (err.code !== "EEXIST") throw err; });
+    const info = await lstat(dir);
+    if (!info.isDirectory() || info.isSymbolicLink() || await realpath(dir) !== dir) throw new Error("workspace: managed metadata must be a canonical plain directory");
+    await chmod(dir, 0o700);
+  }
+  const hooks = path.join(store, "empty-hooks");
+  if ((await readdir(hooks)).length) throw new Error("workspace: managed hook directory must be empty");
+  return hooks;
+}
+
+async function managedTree(dir, commit, exec) {
+  if (!MANAGED_COMMIT_RE.test(commit ?? "") || String((await managedGit(exec, dir, ["rev-parse", "--verify", `${commit}^{commit}`])).stdout).trim() !== commit) throw new Error("workspace: managed checkout requires an exact commit");
+  const text = String((await managedGit(exec, dir, ["ls-tree", "-r", "-l", "-z", "--full-tree", commit])).stdout);
+  const storage = JSON.parse(await readFile(new URL("./limits.json", import.meta.url), "utf8")).storage;
+  if (!Number.isSafeInteger(storage?.jobMiB) || !Number.isSafeInteger(storage?.outputMiB) || storage.jobMiB <= 0 || storage.outputMiB <= 0) throw new Error("workspace: managed storage limits are unavailable");
+  let total = 0;
+  const aliases = new Set();
+  return text.split("\0").filter(Boolean).map((line) => {
+    const entry = /^(100644|100755) blob ([0-9a-f]{40}(?:[0-9a-f]{24})?) +([0-9]+)\t([\s\S]+)$/.exec(line);
+    if (!entry || !managedPath(entry[4])) throw new Error("workspace: managed checkout accepts regular files with safe relative paths only");
+    const size = Number(entry[3]);
+    const alias = entry[4].toLowerCase();
+    if (!Number.isSafeInteger(size) || size > storage.outputMiB * 1024 * 1024 || (total += size) > storage.jobMiB * 1024 * 1024 || aliases.has(alias)) throw new Error("workspace: managed checkout exceeds storage limits or aliases a path");
+    aliases.add(alias);
+    return { mode: entry[1], object: entry[2], size, name: entry[4] };
+  });
+}
+
+async function pathWithoutLinks(dir, name, { parents = false } = {}) {
+  let cursor = dir;
+  const parts = name.split("/");
+  for (let index = 0; index < parts.length; index++) {
+    cursor = path.join(cursor, parts[index]);
+    let info = await lstat(cursor).catch((err) => { if (["ENOENT", "ENOTDIR"].includes(err.code)) return null; throw err; });
+    if (info?.isSymbolicLink()) throw new Error("workspace: managed checkout refuses symbolic-link traversal");
+    if (parents && index < parts.length - 1) {
+      if (!info) { await mkdir(cursor); info = await lstat(cursor); }
+      if (!info.isDirectory()) throw new Error("workspace: managed checkout has a non-directory ancestor");
+    }
+  }
+  return cursor;
+}
+
+const fingerprint = (value) => createHash("sha256").update(JSON.stringify(value)).digest("hex");
+async function flushDirectory(dir) {
+  if (process.platform === "win32") return;
+  const handle = await open(dir, "r");
+  try { await handle.sync(); } finally { await handle.close(); }
+}
+async function writeTransition(file, record, exclusive = false) {
+  const temporary = exclusive ? file : `${file}.${randomBytes(8).toString("hex")}.tmp`;
+  const handle = await open(temporary, "wx", 0o600);
+  try { await handle.writeFile(`${JSON.stringify(record)}\n`); await handle.sync(); } finally { await handle.close(); }
+  if (!exclusive) await rename(temporary, file);
+  await flushDirectory(path.dirname(file));
+}
+async function rawFileState(dir, name, expected, { oldDirectory = false } = {}) {
+  const file = await pathWithoutLinks(dir, name);
+  const info = await lstat(file).catch((err) => { if (["ENOENT", "ENOTDIR"].includes(err.code)) return null; throw err; });
+  if (!info) return null;
+  // The recursive inventory already verified every child belongs to the
+  // old/new trees. A tracked old directory is absence of the target file until
+  // its known children are removed; no unknown directory is treated this way.
+  if (info.isDirectory() && oldDirectory) return null;
+  if (!info.isFile() || !expected.some((entry) => entry && entry.size === info.size)) throw new Error("workspace: transition contains unknown content or a non-file path");
+  const content = await readFile(file);
+  const format = expected.find(Boolean).object.length === 64 ? "sha256" : "sha1";
+  return { object: createHash(format).update(`blob ${content.length}\0`).update(content).digest("hex"), mode: process.platform === "win32" ? null : info.mode & 0o111 ? "100755" : "100644" };
+}
+const stateMatches = (state, entry) => entry ? state?.object === entry.object && (state.mode === null || state.mode === entry.mode) : state === null;
+async function checkTransitionFiles(dir, before, after, fresh, resume) {
+  const names = new Set([...before.keys(), ...after.keys()]);
+  const walk = async (base = "") => {
+    for (const entry of await readdir(path.join(dir, ...base.split("/").filter(Boolean)), { withFileTypes: true })) {
+      if (!base && [".git", ".den", ".scratch"].includes(entry.name)) continue;
+      const name = base ? `${base}/${entry.name}` : entry.name;
+      if (entry.isSymbolicLink()) throw new Error("workspace: transition contains a symbolic link");
+      if (entry.isDirectory()) {
+        if (![...names].some((path) => path.startsWith(`${name}/`))) throw new Error("workspace: transition contains an unexpected extra path");
+        await walk(name);
+      }
+      else if (!entry.isFile() || !names.has(name)) throw new Error("workspace: transition contains an unexpected extra path");
+    }
+  };
+  await walk();
+  for (const name of names) {
+    const old = before.get(name), next = after.get(name);
+    const oldDirectory = !old && next && [...before.keys()].some((path) => path.startsWith(`${name}/`));
+    const state = await rawFileState(dir, name, [old, next], { oldDirectory });
+    if (!stateMatches(state, old) && !(resume && stateMatches(state, next))) throw new Error(`workspace: transition content differs from its old/new binding: ${name}`);
+    if (fresh && !resume && state !== null) throw new Error("workspace: fresh managed checkout is not empty");
+  }
+}
+
+// Trusted bridge-only raw checkout. Caller holds exclusive ownership and proves
+// every process using this private worktree has stopped before changing it.
+// Git never populates files: cat-file bytes bypass attributes, filters, encoding,
+// autocrlf, smudge/process helpers, and checkout hooks on every platform.
+export async function checkoutManagedWorktree({ dir, commit, expectedHead, fresh = false, resume = false, checkpoint = async () => {}, exec = execFileP } = {}) {
+  if (!MANAGED_COMMIT_RE.test(expectedHead ?? "")) throw new Error("workspace: managed checkout needs its expected detached HEAD");
+  const hooks = await managedHooks(dir, exec);
+  const filters = await disabledManagedFilters(dir, exec);
+  const run = (args, options) => managedGit(exec, dir, ["-c", `core.hooksPath=${hooks}`, ...filters, ...args], options);
+  const head = String((await run(["rev-parse", "HEAD"])).stdout).trim();
+  if (!(resume ? [expectedHead, commit].includes(head) : head === expectedHead) || await run(["symbolic-ref", "-q", "HEAD"]).then(() => true, () => false)) throw new Error("workspace: managed checkout expected a private detached HEAD");
+  const target = await managedTree(dir, commit, exec);
+  const previous = fresh ? [] : await managedTree(dir, expectedHead, exec);
+  const before = new Map(previous.map((entry) => [entry.name, entry]));
+  const after = new Map(target.map((entry) => [entry.name, entry]));
+  await checkTransitionFiles(dir, before, after, fresh, resume);
+  if (!fresh) {
+    const atBase = String((await run(["diff-index", "--cached", "--name-only", "-z", expectedHead, "--"])).stdout) === "";
+    const atCandidate = resume && String((await run(["diff-index", "--cached", "--name-only", "-z", commit, "--"])).stdout) === "";
+    if (!atBase && !atCandidate) throw new Error("workspace: private index differs from both transition endpoints");
+  }
+  const input = { dir: await realpath(dir), base: expectedHead, candidate: commit, fresh, previous: fingerprint(previous), target: fingerprint(target) };
+  const inputHash = fingerprint(input);
+  const journal = path.join(path.dirname(hooks), `checkout-${inputHash}.json`);
+  let transition;
+  try { transition = JSON.parse(await readFile(journal, "utf8")); }
+  catch (err) { if (err.code !== "ENOENT") throw err; }
+  if (transition && (transition.version !== 1 || transition.inputHash !== inputHash || fingerprint(transition.input) !== inputHash || !["intent", "complete"].includes(transition.status))) throw new Error("workspace: transition journal differs from its immutable inputs");
+  if (!transition) {
+    transition = { version: 1, input, inputHash, status: "intent", done: [] };
+    await writeTransition(journal, transition, true);
+  } else if (!resume && !fresh) throw new Error("workspace: an existing raw transition needs explicit reconciliation");
+  const progress = async (name) => {
+    transition.done = [...new Set([...transition.done, name])];
+    await writeTransition(journal, transition);
+    await checkpoint({ kind: "file", name });
+  };
+  const changed = target.filter((entry) => fresh || before.get(entry.name)?.object !== entry.object || before.get(entry.name)?.mode !== entry.mode);
+  for (const entry of previous.filter((entry) => !after.has(entry.name))) {
+    const filename = await pathWithoutLinks(dir, entry.name);
+    const state = await rawFileState(dir, entry.name, [entry]);
+    if (state !== null && !stateMatches(state, entry)) throw new Error("workspace: deletion changed during transition");
+    if (state !== null) { await rm(filename); await flushDirectory(path.dirname(filename)); }
+    await progress(entry.name);
+  }
+  // Remove empty obsolete tracked parents; never remove untracked contents.
+  const obsolete = [...new Set(previous.filter((entry) => !after.has(entry.name)).flatMap((entry) => entry.name.split("/").slice(0, -1).map((_, index, all) => all.slice(0, index + 1).join("/"))))].sort((a, b) => b.length - a.length);
+  for (const name of obsolete) await rmdir(await pathWithoutLinks(dir, name)).catch((err) => { if (!["ENOENT", "ENOTEMPTY", "EEXIST"].includes(err.code) && !(err.code === "ENOTDIR" && after.has(name))) throw err; });
+  for (let start = 0; start < changed.length;) {
+    const batch = [];
+    let bytes = 0;
+    while (start < changed.length && batch.length < 64 && (batch.length === 0 || bytes + changed[start].size < 20 * 1024 * 1024)) { const entry = changed[start++]; batch.push(entry); bytes += entry.size; }
+    let blobs;
+    if (exec === execFileP) {
+      const job = run(["cat-file", "--batch"], { encoding: "buffer", maxBuffer: bytes + batch.length * 160 + 1024 });
+      job.child.stdin.on("error", () => {});
+      job.child.stdin.end(`${batch.map((entry) => entry.object).join("\n")}\n`);
+      const data = (await job).stdout;
+      let offset = 0;
+      blobs = batch.map((entry) => {
+        const newline = data.indexOf(10, offset);
+        if (newline < 0 || data.subarray(offset, newline).toString("ascii") !== `${entry.object} blob ${entry.size}`) throw new Error("workspace: managed blob batch differs from its tree");
+        const blob = data.subarray(newline + 1, newline + 1 + entry.size);
+        offset = newline + entry.size + 2;
+        if (blob.length !== entry.size || data[offset - 1] !== 10) throw new Error("workspace: managed blob batch was truncated");
+        return blob;
+      });
+      if (offset !== data.length) throw new Error("workspace: managed blob batch has unexpected data");
+    } else {
+      // Exec test seams need no stream contract; production execFile takes the
+      // bounded batch path above without spawning one process per file.
+      blobs = await Promise.all(batch.map(async (entry) => (await run(["cat-file", "blob", entry.object], { encoding: "buffer", maxBuffer: entry.size + 1024 })).stdout));
+    }
+    for (let index = 0; index < batch.length; index++) {
+      const entry = batch[index], blob = blobs[index];
+      const format = entry.object.length === 64 ? "sha256" : "sha1";
+      if (blob.length !== entry.size || createHash(format).update(`blob ${blob.length}\0`).update(blob).digest("hex") !== entry.object) throw new Error("workspace: raw blob failed its exact tree binding");
+      const state = await rawFileState(dir, entry.name, [before.get(entry.name), entry]);
+      if (!stateMatches(state, entry)) {
+        if (!stateMatches(state, before.get(entry.name))) throw new Error("workspace: file changed during transition");
+        const filename = await pathWithoutLinks(dir, entry.name, { parents: true });
+        const temporary = path.join(path.dirname(hooks), `blob-${randomBytes(16).toString("hex")}`);
+        const handle = await open(temporary, "wx", entry.mode === "100755" ? 0o755 : 0o644);
+        try { await handle.writeFile(blob); await handle.sync(); } finally { await handle.close(); }
+        await rename(temporary, filename);
+        await flushDirectory(path.dirname(filename));
+      }
+      await progress(entry.name);
+    }
+  }
+  await run(["read-tree", "--reset", "-i", commit]);
+  if (head !== commit) await run(["update-ref", "--no-deref", "HEAD", commit, expectedHead]);
+  transition.status = "complete";
+  await writeTransition(journal, transition);
+}
+
+export async function isManagedWorktreeClean({ dir, commit, exec = execFileP } = {}) {
+  const entries = await managedTree(dir, commit, exec);
+  const names = new Set(entries.map((entry) => entry.name));
+  for (const entry of entries) {
+    const file = await pathWithoutLinks(dir, entry.name);
+    const info = await lstat(file).catch((err) => { if (err.code === "ENOENT") return null; throw err; });
+    if (!info?.isFile() || info.size !== entry.size || process.platform !== "win32" && (info.mode & 0o111 ? "100755" : "100644") !== entry.mode) return false;
+    const content = await readFile(file);
+    if (createHash(entry.object.length === 64 ? "sha256" : "sha1").update(`blob ${content.length}\0`).update(content).digest("hex") !== entry.object) return false;
+  }
+  const files = String((await managedGit(exec, dir, ["ls-files", "-c", "-o", "--exclude-standard", "-z"])).stdout).split("\0").filter(Boolean);
+  if (files.some((name) => !names.has(name))) return false;
+  return String((await managedGit(exec, dir, ["diff-index", "--cached", "--name-only", "-z", commit, "--"])).stdout) === "";
+}
 
 /** { worktree, branch } for one agent: the worktree's repo-relative path and its branch. Throws on a bad ref or id. */
 export function workspaceNames({ ref, agentId } = {}) {
@@ -43,10 +263,26 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
   return {
     // -> { dir, worktree, branch }: `dir` is the resolved absolute path the child runs in. `branch` is only the name to publish to.
     // den-mvp outcome 3: `base` is the commit a delivery step starts from (a full commit id the bridge recorded); without it, HEAD.
-    async create({ ref, agentId, base } = {}) {
+    async create({ ref, agentId, base, managed = false } = {}) {
       const { worktree, branch } = workspaceNames({ ref, agentId });
       if (base !== undefined && (typeof base !== "string" || !COMMIT_RE.test(base))) throw new TypeError("workspace: base must be a full commit id");
-      await git("worktree", "add", "--detach", path.join(root, ...worktree.split("/")), base ?? "HEAD");
+      if (typeof managed !== "boolean") throw new TypeError("workspace: managed must be boolean");
+      const target = path.join(root, ...worktree.split("/"));
+      if (managed) {
+        const hooks = await managedHooks(root, exec);
+        const filters = await disabledManagedFilters(root, exec);
+        const exact = base ?? String((await managedGit(exec, root, ["rev-parse", "HEAD"])).stdout).trim();
+        await managedTree(root, exact, exec);
+        await pathWithoutLinks(root, worktree);
+        await managedGit(exec, root, ["-c", `core.hooksPath=${hooks}`, ...filters, "worktree", "add", "--detach", "--no-checkout", target, exact]);
+        try { await checkoutManagedWorktree({ dir: target, commit: exact, expectedHead: exact, fresh: true, exec }); }
+        catch (err) {
+          // No agent has started in this new worktree. Remove only the exact
+          // worktree we just registered; preserve the protected failure journal.
+          await managedGit(exec, root, ["-c", `core.hooksPath=${hooks}`, ...filters, "worktree", "remove", "--force", target]).catch((cleanup) => { err.cleanup = cleanup.message; });
+          throw err;
+        }
+      } else await git("worktree", "add", "--detach", target, base ?? "HEAD");
       return { dir: await realpath(path.join(root, ...worktree.split("/"))), worktree, branch };
     },
     // The commit a worktree is at now. -> a full commit id.
@@ -79,14 +315,23 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
     // now, so publish can tell whether the follow-up committed anything. -> { dir, worktree, branch, base, reopened: true }.
     // `catchUp` (Bao's desk, which reopens one worktree for every message): a worktree with no change of its own whose
     // HEAD is behind the root's moves up to it first, so the run reads today's repository, its role file included.
-    async reopen({ ref, agentId, origin, catchUp = false } = {}) {
+    async reopen({ ref, agentId, origin, catchUp = false, managed = false } = {}) {
       const { worktree } = workspaceNames({ ref, agentId: origin });
       const { branch } = workspaceNames({ ref, agentId });
       const dir = await realpath(path.join(root, ...worktree.split("/")));
       const listed = String((await git("worktree", "list", "--porcelain")).stdout).split("\n").filter((l) => l.startsWith("worktree ")).map((l) => l.slice(9));
       const resolved = await Promise.all(listed.map((p) => realpath(p).catch(() => p)));
       if (!resolved.includes(dir)) throw new Error("workspace: the earlier run's directory is no longer a worktree of this repository");
-      if (catchUp) await moveUp(dir);
+      if (typeof managed !== "boolean") throw new TypeError("workspace: managed must be boolean");
+      if (managed) {
+        await pathWithoutLinks(root, worktree);
+        const current = String((await managedGit(exec, dir, ["rev-parse", "HEAD"])).stdout).trim();
+        if (!(await isManagedWorktreeClean({ dir, commit: current, exec }))) throw new Error("workspace: managed reopen requires clean raw candidate bytes");
+        if (catchUp) {
+          const main = String((await managedGit(exec, root, ["rev-parse", "HEAD"])).stdout).trim();
+          if (current !== main && await managedGit(exec, root, ["merge-base", "--is-ancestor", current, main]).then(() => true, () => false)) await checkoutManagedWorktree({ dir, commit: main, expectedHead: current, exec });
+        }
+      } else if (catchUp) await moveUp(dir);
       const base = String((await exec("git", ["-C", dir, "rev-parse", "HEAD"])).stdout).trim();
       return { dir, worktree, branch, base, reopened: true };
     },

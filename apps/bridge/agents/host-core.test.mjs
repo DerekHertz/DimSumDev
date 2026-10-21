@@ -73,7 +73,7 @@ describe("the fake runtime (agents/runtime.mjs)", () => {
     rec.emit({ type: "tool-start", name: "Read", summary: "a.md" });
     assert.deepEqual((await it.next()).value, { type: "tool-start", name: "Read", summary: "a.md" });
     rec.exit({ code: 3 });
-    assert.deepEqual(await proc.exited, { code: 3, signal: null });
+    assert.deepEqual(await proc.exited, { code: 3, signal: null, cleanupConfirmed: true });
     assert.equal((await it.next()).done, true, "the event stream ends when the process exits");
   });
 });

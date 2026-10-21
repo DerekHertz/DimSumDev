@@ -429,6 +429,7 @@ test("Codex concurrency is task-adaptive while current bridge limits remain expl
   ];
   for (const text of outputs) {
     assert.doesNotMatch(text, /(?:at most|ceiling of) two live workers besides the owner|within the Codex worker ceiling|Codex uses the worker ceiling/);
+    assert.doesNotMatch(text, /two-agent limit counts a batch as one agent/);
   }
   const policy = await import(pathToFileURL(path.join(ROOT, "apps/bridge/agents/policy.mjs")).href);
   assert.deepEqual(policy.SLOTS, { worker: 2, bao: 1, scout: 1 });
