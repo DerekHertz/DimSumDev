@@ -21,7 +21,12 @@ export function createSurfaceNavigation(objects,{placement=.18,floorRadius=29,fl
    if(!mesh.isMesh||!mesh.geometry?.attributes.position)return;
    for(let p=mesh;p;p=p.parent)if(!p.visible)return;
    const attr=mesh.geometry.attributes.position,indices=mesh.geometry.index;
+   // Baked material meshes retain the original solid ranges. Keep each part's
+   // occupied interval separate; disconnected floor and roof share no volume.
+   const parts=mesh.userData.navigationParts;let partIndex=0;
    for(let i=0;i<(indices?.count||attr.count);i+=3){
+    while(parts&&partIndex+1<parts.length&&i>=parts[partIndex].start+parts[partIndex].count)partIndex++;
+    const solid=parts?.[partIndex]??mesh,walkable=parts?solid.walkable:mesh.userData.navigationSurface==='walkable';
     const triangle=[0,1,2].map(j=>point.fromBufferAttribute(attr,indices?indices.getX(i+j):i+j).applyMatrix4(mesh.matrixWorld).clone());
     const low=Math.min(...triangle.map(v=>v.y)),high=Math.max(...triangle.map(v=>v.y));
     if(high<baseY-STEP_DOWN||low>7)continue;
@@ -33,8 +38,8 @@ export function createSurfaceNavigation(objects,{placement=.18,floorRadius=29,fl
      for(const [axis,bound,greater]of [['x',x*placement,true],['x',(x+1)*placement,false],['z',z*placement,true],['z',(z+1)*placement,false]]){polygon=clip(polygon,axis,bound,greater);if(!polygon.length)break;}
      if(!polygon.length)continue;
      const id=key(x,z);let column=columns.get(id);if(!column)columns.set(id,column={surfaces:[],volumes:new Map()});
-     const bottom=Math.min(...polygon.map(v=>v.y)),top=Math.max(...polygon.map(v=>v.y));let volume=column.volumes.get(mesh);
-     if(volume){volume[0]=Math.min(volume[0],bottom);volume[1]=Math.max(volume[1],top);}else{volume=[bottom,top,mesh.userData.navigationSurface==='walkable',excluded,0];column.volumes.set(mesh,volume);}
+     const bottom=Math.min(...polygon.map(v=>v.y)),top=Math.max(...polygon.map(v=>v.y));let volume=column.volumes.get(solid);
+     if(volume){volume[0]=Math.min(volume[0],bottom);volume[1]=Math.max(volume[1],top);}else{volume=[bottom,top,walkable,excluded,0];column.volumes.set(solid,volume);}
      if(supports)volume[4]+=Math.abs(polygon.reduce((area,p,i)=>{const next=polygon[(i+1)%polygon.length];return area+p.x*next.z-next.x*p.z;},0))/2;
      if(supports&&!excluded)column.surfaces.push((bottom+top)/2);
     }

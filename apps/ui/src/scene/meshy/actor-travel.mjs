@@ -28,8 +28,7 @@ export function createActorTravel(world,places,{speed=.65,getActors=()=>[],prove
  const unavailable=a=>{const t=a.travel;t.status='unavailable';t.path=[];if(t.placeId!==a.homePlace)places.release(t.placeId,owner(a));t.navigationRevision=world.navigation.revision;t.placeRevision=places.get(t.placeId)?.revision;};
  function attempt(a,work=null){
   const t=a.travel,p=places.get(t.placeId);t.attempts++;t.retryAt=time+8;
-  if(proveRoute){const proof=p&&proveRoute(a,p,work);t.path=proof?.path??[];t.status=proof?.arrived?'arrived':t.path.length?'moving':'waiting';if(proof?.arrived)places.occupy(p.id,owner(a));}
-  else if(!p||!places.reserve(p.id,owner(a),a.envelope,work)){t.path=[];t.status='waiting';}
+  if(!p||!places.reserve(p.id,owner(a),a.envelope,work)){t.path=[];t.status='waiting';}
   else{const obstacles=[...(world.obstacles??[]),...getActors().filter(b=>b!==a&&b.panda?.model.visible!==false).map(b=>({...position(b),type:'circle',radius:b.envelope.radius+.03}))],navigation=work?{...world.navigation,groundAt:(...args)=>work.groundAt(world.navigation,...args)}:world.navigation;t.path=gardenRoute({...world,navigation,obstacles},position(a),p.position,a.envelope,work);t.status=t.path.length?'moving':'waiting';}
   if(t.status==='waiting'&&t.attempts>=3)unavailable(a);
  }
@@ -87,7 +86,7 @@ export function createActorTravel(world,places,{speed=.65,getActors=()=>[],prove
      if(t.attempts>=3){unavailable(a);continue;}
      t.attempts++;
      const obstacles=[...(world.obstacles??[]),...sorted.filter(b=>b!==a).map(b=>({...position(b),type:'circle',radius:b.envelope.radius+.03}))];
-     const detour=proveRoute?(proveRoute(a,destination,null)?.path??[]):gardenRoute({...world,obstacles},p,destination.position,a.envelope);if(detour.length)t.path=detour;t.replanAt=time+4;
+     const detour=gardenRoute({...world,obstacles},p,destination.position,a.envelope);if(detour.length)t.path=detour;t.replanAt=time+4;
     }
     continue;
    }

@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { createSurfaceNavigation } from './navigation.mjs';
+import {bakeCrafted} from './crafted-architecture.mjs';
 import { walk } from '../procedural/walk.mjs';
 function block(root,size,position){const m=new THREE.Mesh(new THREE.BoxGeometry(...size));m.position.set(...position);root.add(m);return m;}
 
@@ -42,6 +43,12 @@ test('36 cached footprint candidates retain exact sub-cell positions and body he
  assert.equal(nav.groundAt(.05,0,0,.09,1.8),0);
  assert.equal(nav.groundAt(.15,0,0,.09,1.8),null,'same centre cell but footprint now intersects the solid cell');
  assert.equal(nav.groundAt(.05,0,0,.09,1.8),0);
+ const overhead=new THREE.Group();block(overhead,[.31,.15,.31],[.55,1.1,.55]);
+ const headroom=createSurfaceNavigation([overhead],{placement:.2,baseY:0});
+ assert.equal(headroom.groundAt(0,0,0,1.23,.9),0,'short body clears the interior overhead solid');
+ assert.equal(headroom.groundAt(0,0,0,1.23,1.8),null,'same footprint and cell require fresh full-disc body-height clearance');
+ assert.equal(headroom.groundAt(0,0,0,1.23,.9),0,'cached candidate columns do not cache a tall-body verdict');
+ overhead.traverse(n=>{n.geometry?.dispose();n.material?.dispose();});
  root.traverse(n=>{n.geometry?.dispose();n.material?.dispose();});
 });
 
@@ -49,6 +56,10 @@ test('36 leading-edge stair support never lets the centre stand inside a raised 
  const root=new THREE.Group(),floor=block(root,[4,.7,4],[0,.35,0]);floor.userData.navigationSurface='walkable';
  const nav=createSurfaceNavigation([root],{placement:.1,baseY:0});
  assert.equal(nav.groundAt(0,0,0,1.23,2.28),null);assert.equal(nav.groundAt(0,0,.7,1.23,2.28),.7);
+ assert.equal(nav.groundAt(2.8,0,0,1.23,2.28),0,'a wide leading edge may overlap the authored step before its centre climbs');
+ assert.equal(nav.groundAt(1.9,0,0,1.23,2.28),null,'leading-edge support cannot bury the centre inside that same step');
+ floor.userData.navigationSurface='solid';const furniture=createSurfaceNavigation([root],{placement:.1,baseY:0});
+ assert.equal(furniture.groundAt(2.8,0,0,1.23,2.28),null,'the identical unmarked furniture volume cannot support a leading edge');
  root.traverse(n=>{n.geometry?.dispose();n.material?.dispose();});
 });
 
@@ -58,4 +69,17 @@ test('36 water needs complete local bridge support rather than a partly covered 
  const nav=createSurfaceNavigation([root],{placement:.1,baseY:0,excludedObjects:[water]});
  assert.equal(nav.groundAt(0,0,.5,.19,1.8),.5);assert.equal(nav.groundAt(0,0,.5,.26,1.8),null,'a body wider than the bridge cannot stand above its water margin');
  root.traverse(n=>{n.geometry?.dispose();n.material?.dispose();});water.geometry.dispose();water.material.dispose();
+});
+
+test('material-batched floors and overhead retain their empty gap while furniture stays solid',()=>{
+ const source=new THREE.Group(),material=new THREE.MeshStandardMaterial();
+ const floor=block(source,[4,.24,4],[0,.12,0]);floor.material=material;floor.userData.navigationSurface='walkable';
+ block(source,[4,.2,4],[0,2.8,0]).material=material;
+ block(source,[.5,1,.5],[1,.74,0]).material=material;
+ const baked=bakeCrafted(source),nav=createSurfaceNavigation([baked],{placement:.1});
+ assert.equal(baked.children.length,1,'render batching stays unchanged');
+ assert.equal(nav.groundAt(0,0,0,.26,2.04),.24,'the floor-to-overhead gap remains traversable');
+ assert.equal(nav.groundAt(1,0,.24,.26,2.04),null,'same-material furniture retains its occupied volume');
+ assert.equal(nav.groundAt(0,0,.24,.26,2.6),null,'actual overhead still blocks a tall body');
+ baked.traverse(n=>{n.geometry?.dispose();n.material?.dispose();});
 });
