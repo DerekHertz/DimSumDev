@@ -28,7 +28,7 @@ const TOOLS = [
       }, required: ["title", "text", "goal"] } },
     }, required: ["tickets"] } },
   { name: "start_delivery", description: "Start the den's delivery of a ready-for-agent ticket the user asked to start. Asks the user first.",
-    inputSchema: { type: "object", properties: { ref: REF }, required: ["ref"] } },
+    inputSchema: { type: "object", properties: { ref: REF, roles: { type: "array", items: { type: "string", enum: ["technical-writer", "code-reviewer", "qa", "security", "user-verdict"] }, maxItems: 5, description: "Roles to add to the ticket's required ones. Nothing here removes a role." } }, required: ["ref"] } },
   { name: "release_propose", description: "Draft the next release from the pull requests merged since the last tag: the version, the commit and the notes. The user approves or declines the draft in the den; only their Approve tags and publishes.",
     inputSchema: { type: "object", properties: {} } },
 ];
