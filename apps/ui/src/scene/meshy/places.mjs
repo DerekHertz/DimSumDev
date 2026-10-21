@@ -29,11 +29,25 @@ export function createPlaceRegistry(world,{getBodies=()=>[]}={}){
  function cancel(owner,keepPlaceId=null){for(const p of places.values())if(p.owner===owner&&p.id!==keepPlaceId)release(p.id,owner);}
  function disposeActor(owner){for(const p of places.values())if(p.owner===owner)clear(p);}
  function rebind(from,to){if(from===to)return;for(const p of places.values())if(p.owner===from)p.owner=to;revision++;}
- function find({id,kind,near,owner,envelope,validate=()=>true,work=null}){
+ function find({id,kind,near,owner,envelope,validate=()=>true,work=null,continuation=null}){
   const existing=places.get(id);if(existing?.owner)return (!work||work.take('candidates'))&&validate(existing.position)?reserve(id,owner,envelope,work):null;
   const candidates=[{...near}];
   for(let ring=1;ring<=8;ring++)for(let step=0;step<16;step++){const angle=step*Math.PI/8,r=ring*Math.max(.8,envelope.radius*1.5);candidates.push({x:near.x+Math.sin(angle)*r,y:near.y,z:near.z+Math.cos(angle)*r});}
-  for(const position of candidates){if(work?.exhausted)break;const y=ground(position,envelope,work);if(y===null)continue;position.y=y;if(!fits(position,envelope,owner,null,work))continue;if(work&&!work.take('candidates'))break;if(!validate(position))continue;const place=define({id,kind,position});if(existing)place.position={...position};if(reserve(place.id,owner,envelope,work))return place;}
+  // The caller scopes a continuation to one immutable physical snapshot. The
+  // signature also prevents carrying a rejected point into another purpose.
+  const signature=JSON.stringify([id,kind,near,owner,envelope]);
+  if(continuation&&(continuation.signature!==signature||continuation.validate!==validate)){continuation.signature=signature;continuation.validate=validate;continuation.cursor={index:0,stage:0};}
+  const cursor=continuation?.cursor??{index:0,stage:0};
+  const next=()=>{cursor.index++;cursor.stage=0;cursor.position=null;};
+  while(cursor.index<candidates.length&&!work?.exhausted){
+   const position=cursor.position??={...candidates[cursor.index]};
+   if(cursor.stage===0){const y=ground(position,envelope,work);if(y===null){if(work?.exhausted)break;next();continue;}position.y=y;cursor.stage=1;}
+   if(cursor.stage===1){if(!fits(position,envelope,owner,null,work)){if(work?.exhausted)break;next();continue;}cursor.stage=2;}
+   if(cursor.stage===2){if(work&&!work.take('candidates'))break;cursor.stage=3;}
+   if(cursor.stage===3){if(!validate(position)){if(work?.exhausted)break;next();continue;}cursor.stage=4;}
+   const place=define({id,kind,position});if(existing)place.position={...position};if(reserve(place.id,owner,envelope,work))return place;
+   if(work?.exhausted)break;next();
+  }
   return null;
  }
  return {define,get:id=>places.get(id),values:()=>places.values(),reserve,occupy,release,cancel,disposeActor,rebind,clearDeparted,find,fits,get revision(){return revision;},dispose(){places.clear();revision++;}};

@@ -23,6 +23,30 @@ test('36 occupied centre gives each actor an owned landing and a real second arr
  }finally{f.dispose();}
 });
 
+test('36 phased landing search resumes a partial outgoing anchor and arrives at its owned place',()=>{
+ // Ten fitting but isolated disks consume ninety candidate/anchor attempts.
+ // The next disk's eighth anchor has a swept corridor: primary cuts off part
+ // way through that disk, and staging must continue instead of starting over.
+ const radius=.45,step=.8,d=2*radius+.15,disks=[{x:0,z:0}];
+ for(let i=0;i<10;i++)disks.push({x:Math.sin(i*Math.PI/8)*step,z:Math.cos(i*Math.PI/8)*step});
+ const from=disks.at(-1),angle=Math.atan2(from.z,from.x)+7*Math.PI/4,to={x:from.x+Math.cos(angle)*d,z:from.z+Math.sin(angle)*d};
+ const segmentDistance=(x,z)=>{const dx=to.x-from.x,dz=to.z-from.z,t=Math.max(0,Math.min(1,((x-from.x)*dx+(z-from.z)*dz)/(d*d)));return Math.hypot(x-from.x-t*dx,z-from.z-t*dz);};
+ let queries=0;
+ const ground=(x,z,y,r)=>{assert.ok(++queries<=250000,'all phases and actual travel stay externally bounded');return disks.some(p=>Math.hypot(x-p.x,z-p.z)+r<=radius+1e-6)||segmentDistance(x,z)+r<=radius+1e-6?0:null;};
+ const f=fixture(ground,0);
+ try{
+  const a=f.actor('continuation',-10);
+  assert.equal(f.transport.prepare(a,'visitor',a.home,{arrival:true}),true);
+  f.actors.set(a.id,a);const home=f.transport.places.get(a.homePlace);
+  assert.equal(home.owner,a.identity);assert.equal(home.occupied,true);assert.equal(home.kind,'staging');
+  assert.ok(Math.hypot(home.position.x-from.x,home.position.z-from.z)<1e-6);
+  assert.equal(a.panda.model.visible,true);assert.equal(a.arriving,true);assert.equal(a.travel.status,'moving');
+  const before=a.panda.model.position.clone();f.transport.update(.1,false);assert.ok(a.panda.model.position.distanceTo(before)>0);
+  for(let i=0;i<30;i++)f.transport.update(.1,false);
+  assert.equal(a.travel.status,'arrived');assert.equal(home.owner,a.identity);assert.ok(a.panda.model.position.distanceTo(new T.Vector3(home.position.x,home.position.y,home.position.z))<.02);
+ }finally{f.dispose();}
+});
+
 for(const change of ['body','envelope','lease','navigation'])test(`36 snapshot revalidates ${change} changes without stale placement or a budget reset`,()=>{
  let queries=0,changed=false,f;
  const ground=(x,z)=>{assert.ok(++queries<=250000,'snapshot replay shares original external query ceiling');if(!changed){changed=true;if(change==='body')other.panda.model.position.set(10,0,0);if(change==='envelope')other.envelope={radius:12,height:2};if(change==='lease'){f.transport.places.define({id:'foreign',kind:'work',position:{x:10,y:0,z:0}});f.transport.places.reserve('foreign','foreign',{radius:.45,height:2});}if(change==='navigation')f.navigation.revision++;}return change==='navigation'&&changed?null:0;};

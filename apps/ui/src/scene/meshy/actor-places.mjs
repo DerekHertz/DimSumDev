@@ -48,23 +48,33 @@ export function createActorPlaces(den,actors,speed){
   const reverse=(from,path)=>[...path.slice(0,-1).reverse(),from];
   // A fitting point is insufficient: prove a nonzero swept departure and its
   // reverse beyond the occupied-place release threshold, without a grid search.
-  function outgoing(from,centre=staging,origin=from){
+  function outgoing(from,centre=staging,origin=from,progress={index:0,stage:0}){
    const d=2*a.envelope.radius+.15,angle=distance(from,centre)>1e-6?Math.atan2(from.z-centre.z,from.x-centre.x):0;
-   for(let i=0;i<8&&!work.exhausted;i++){
-    const theta=angle+i*Math.PI/4,to={x:from.x+Math.cos(theta)*d,y:from.y,z:from.z+Math.sin(theta)*d};
-    if(distance(origin,to)<d-1e-6||!work.take('candidates'))continue;
-    const y=work.groundAt(physical.navigation,to.x,to.z,to.y,a.envelope.radius,a.envelope.height);if(y===null)continue;to.y=y;
-    if(!places.fits(to,a.envelope,a.identity,null,work)||!preservesExits(to))continue;
-    if(sweep(from,[to])&&sweep(to,[from]))return [to];
+   const next=()=>{progress.index++;progress.stage=0;progress.to=null;};
+   while(progress.index<8&&!work.exhausted){
+    const theta=angle+progress.index*Math.PI/4,to=progress.to??={x:from.x+Math.cos(theta)*d,y:from.y,z:from.z+Math.sin(theta)*d};
+    if(progress.stage===0){if(distance(origin,to)<d-1e-6){next();continue;}if(!work.take('candidates'))return null;progress.stage=1;}
+    if(progress.stage===1){const y=work.groundAt(physical.navigation,to.x,to.z,to.y,a.envelope.radius,a.envelope.height);if(y===null){if(work.exhausted)return null;next();continue;}to.y=y;progress.stage=2;}
+    if(progress.stage===2){if(!places.fits(to,a.envelope,a.identity,null,work)){if(work.exhausted)return null;next();continue;}progress.stage=3;}
+    if(progress.stage===3){if(!preservesExits(to)){if(work.exhausted)return null;next();continue;}progress.stage=4;}
+    if(progress.stage===4){if(!sweep(from,[to])){if(work.exhausted)return null;next();continue;}progress.stage=5;}
+    if(!sweep(to,[from])){if(work.exhausted)return null;next();continue;}return [to];
    }
    return null;
   }
+  let landingSearch={},landingAttempts=new WeakMap(),landingPath;
+  const validateLanding=position=>{
+   let attempt=landingAttempts.get(position);
+   if(!attempt){attempt={preserved:false,outgoing:{index:0,stage:0}};landingAttempts.set(position,attempt);}
+   if(!attempt.preserved){if(!preservesExits(position))return false;attempt.preserved=true;}
+   landingPath=outgoing(position,staging,position,attempt.outgoing);return !!landingPath;
+  };
   function findLanding(){
-   let path;
-   const place=places.find({id:'staging:'+a.id,kind:'staging',near:staging,owner:a.identity,envelope:a.envelope,work,validate:position=>{
-    if(!preservesExits(position))return false;path=outgoing(position);return !!path;
-   }});
-   return place?{place,path}:null;
+   // Never reuse a rejection after a body, lease, envelope or navigation change.
+   // A resulting certificate still goes through the bounded revalidation below.
+   if(!same(snapshot())){landingSearch={};landingAttempts=new WeakMap();}
+   const place=places.find({id:'staging:'+a.id,kind:'staging',near:staging,owner:a.identity,envelope:a.envelope,work,validate:validateLanding,continuation:landingSearch});
+   return place?{place,path:landingPath}:null;
   }
   let landing=a.approach?null:findLanding(),exit;
   const accessible=position=>{
