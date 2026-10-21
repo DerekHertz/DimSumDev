@@ -38,7 +38,7 @@ export function createActorTravel(world,places,{speed=.65,getActors=()=>[]}={}){
   if(a.travel&&a.travel.placeId!==a.homePlace)places.release(a.travel.placeId,owner(a));
   a.travel={placeId,path:[],attempts:0,status:'waiting',retryAt:time};attempt(a,work);return a.travel;
  }
- function cancel(a){if(a.travel)places.release(a.travel.placeId,owner(a));a.travel=null;places.cancel(owner(a));}
+ function cancel(a){if(a.travel&&a.travel.placeId!==a.homePlace)places.release(a.travel.placeId,owner(a));a.travel=null;places.cancel(owner(a),a.homePlace);}
  function update(actors,dt,reduced=false,held=null){
   time+=Math.min(dt,.1);const sorted=[...actors].sort((a,b)=>owner(a).localeCompare(owner(b)));
   for(const a of sorted){const t=a.travel,p=position(a);a.travelMoved=0;places.clearDeparted(owner(a),p,a.envelope);if(!t||a.id===held)continue;

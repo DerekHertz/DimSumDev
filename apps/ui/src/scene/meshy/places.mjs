@@ -26,7 +26,7 @@ export function createPlaceRegistry(world,{getBodies=()=>[]}={}){
  function release(id,owner){const p=places.get(id);if(p?.owner!==owner)return;if(p.occupied){p.departing=true;}else clear(p);}
  function occupy(id,owner){const p=places.get(id);if(p?.owner!==owner)return false;p.occupied=true;p.departing=false;return true;}
  function clearDeparted(owner,position,envelope){for(const p of places.values())if(p.owner===owner&&p.departing&&distance(position,p.position)>envelope.radius+p.envelope.radius+.1)clear(p);}
- function cancel(owner){for(const p of places.values())if(p.owner===owner&&p.kind!=='work')release(p.id,owner);}
+ function cancel(owner,keepPlaceId=null){for(const p of places.values())if(p.owner===owner&&p.id!==keepPlaceId)release(p.id,owner);}
  function disposeActor(owner){for(const p of places.values())if(p.owner===owner)clear(p);}
  function rebind(from,to){if(from===to)return;for(const p of places.values())if(p.owner===from)p.owner=to;revision++;}
  function find({id,kind,near,owner,envelope,validate=()=>true,work=null}){

@@ -41,6 +41,15 @@ test('segments and final approach reject geometry, height and radius violations 
  assert.deepEqual(gardenRoute(world,{x:0,y:0,z:0},{x:2,y:0,z:0},{radius:.4,height:3}),[]);
 });
 function actor(id,x,z=0){return{id,identity:id,envelope:body,position:{x,y:0,z}};}
+for(const kind of ['work','visitor','staging'])test(`36 cancellation away retains ${kind} home and disposal clears every lease`,()=>{
+ const places=createPlaceRegistry(flat),travel=createActorTravel(flat,places),a=actor('one',0);a.homePlace='home';
+ for(const [id,x] of [['home',0],['temporary',3],['unused',6]]){places.define({id,kind,position:{x,y:0,z:0}});places.reserve(id,a.identity,body);}
+ places.occupy('home',a.identity);places.occupy('temporary',a.identity);a.position.x=3;travel.request(a,'home');travel.cancel(a);
+ assert.equal(places.get('home').owner,a.identity);assert.equal(places.get('home').departing,false);assert.equal(places.get('unused').owner,null);assert.equal(places.get('temporary').owner,a.identity);assert.equal(places.get('temporary').departing,true);
+ places.clearDeparted(a.identity,a.position,body);assert.equal(places.get('home').owner,a.identity);assert.equal(places.get('temporary').owner,a.identity);
+ a.position.x=5;places.clearDeparted(a.identity,a.position,body);assert.equal(places.get('temporary').owner,null);assert.equal(places.get('home').owner,a.identity);
+ places.disposeActor(a.identity);assert.equal([...places.values()].some(p=>p.owner===a.identity),false);
+});
 test('failed routes hold with bounded three attempts, release destination and never report arrival even in reduced motion',()=>{
  let calls=0;const world={navigation:{groundAt:()=>{calls++;return null;}}},places=createPlaceRegistry(world),travel=createActorTravel(world,places);
  places.define({id:'tea',kind:'leisure',position:{x:3,y:0,z:0}});

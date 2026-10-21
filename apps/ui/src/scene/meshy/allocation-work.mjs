@@ -14,7 +14,7 @@ export function createAllocationWork(){
   return {take,get exhausted(){return phaseExhausted||exhausted;},groundAt(navigation,x,z,y,radius,height){
    if(phaseExhausted||exhausted)return null;
    // Exact keys retain height/step semantics; all phases share this cache.
-   const key=JSON.stringify([x,z,y,radius,height]);if(cache.has(key))return cache.get(key);
+   const key=JSON.stringify([navigation.revision??null,x,z,y,radius,height]);if(cache.has(key))return cache.get(key);
    if(!take('queries'))return null;
    const value=navigation.groundAt(x,z,y,radius,height);if(cache.size>=32768)cache.delete(cache.keys().next().value);cache.set(key,value);return value;
   }};
