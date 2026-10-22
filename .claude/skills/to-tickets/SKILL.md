@@ -80,7 +80,7 @@ Do NOT close or modify any parent issue.
 
 **Out of scope:** what an agent must not do here, so it does not optimise the checklist.
 
-**Cause:** left empty on creation. On a `bug`, the developer fills it with the cause note before writing any test.
+**Cause:** left empty on creation. On a `bug`, the developer posts the cause note in this ticket's `## Comments` (`board comment`) before writing any test.
 
 **Estimate:** ~Nk tokens
 
@@ -121,7 +121,7 @@ What an agent must not do here.
 
 ## Cause
 
-Left empty; the developer fills it on a `bug`.
+Left empty. On a `bug`, the developer posts the cause note in `## Comments` (`board comment`) before any test.
 
 ## Estimate
 

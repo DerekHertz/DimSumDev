@@ -46,6 +46,14 @@ test("developer.md routes a bug ticket to diagnosing-bugs and requires the cause
   assert.match(read(".codex/agents/developer.toml"), /cause note/i);
 });
 
+test("the cause note lives in the ticket's comments everywhere; the Cause field stays empty", () => {
+  for (const rel of [...BOTH("to-tickets"), "docs/agents/issue-tracker.md"]) assert.match(read(rel), /cause note in[^\n]*`## Comments`/i, rel);
+  assert.match(read(".claude/agents/developer.md"), /cause note as a ticket comment[^\n]*field stays empty/i);
+  assert.match(read(".claude/agents/code-reviewer.md"), /cause note \(look in the ticket's `## Comments`\)/);
+  assert.match(read(".codex/agents/developer.toml"), /cause note as a ticket comment/i);
+  assert.match(read(".codex/agents/code-reviewer.toml"), /cause note \(in the ticket's Comments\)/);
+});
+
 test("developer.md files discovered work as a new ticket, not a Comments note", () => {
   assert.match(read(".claude/agents/developer.md"), /new ticket/i);
   assert.doesNotMatch(read(".claude/agents/developer.md"), /add it to `## Comments` for the orchestrator/);
