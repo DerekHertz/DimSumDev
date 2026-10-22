@@ -107,7 +107,34 @@ export const LION = Object.freeze({
   envelope: { standing: { radius: 2.02, height: 3.23 }, moving: { radius: 1.98, height: 3.11 }, seated: { radius: 2.02, height: 3.04 }, head: { top: 3.23, radius: 1.3 } },
 });
 
+const LUCKY_CAT_REST = restTable({
+  torso: [['Pelvis', [0, .5, 0]], ['Spine', [0, .9, 0]], ['Chest', [0, 1.3, .05]], ['Neck', [0, 1.7, .1]], ['Head', [0, 2.1, .05]]],
+  head: { jaw: [0, 1.85, .8], hat: [0, 2.95, 0] }, ears: [.6, 2.6, -.1],
+  arm: [[.8, 1.4, .1], [1.2, 1.8, .1], [1.4, 2, .1], [1.45, 2.05, .1]],
+  leg: [[.55, .5, 0], [.55, .3, .05], [.55, .12, .1], [.55, .05, .5]],
+  tail: [[-.8, .3, -.85], [-1.1, .55, -.9], [-1.4, .95, -.9], [-1.4, 1.3, -.9]],
+});
+export const LUCKY_CAT = Object.freeze({
+  id: 'lucky-cat', label: 'Lucky cat release manager', role: 'release-manager', height: 3, offset: [0, 0],
+  foot: ankleOf(LUCKY_CAT_REST), rest: LUCKY_CAT_REST,
+  weightsFor: capsuleWeights(LUCKY_CAT_REST, {
+    Pelvis: 1, Spine: 1, Chest: .95, Neck: .6, Head: .95, ...legs([.5, .45, .4, .35]),
+    Tail1: .3, Tail2: .3, Tail3: .3, TailTip: .25,
+  }, {
+    softness: .1, sole: .05,
+    // The seated cat rests on one round haunch: its whole underside stays on the grass.
+    rigid: p => p.y < .3 ? planted(p.y) : null,
+  }),
+  animate: tailSway(.14, .05),
+  sit: { drop: .2, planted: true },
+  weightSmoothing: FUSED_SMOOTHING,
+  heldProps: ['paw_L', 'paw_R'],
+  // The raised paw stays raised: it is the cat's native beckon, and follows the torso.
+  arms: FUSED_ARMS, greeting: 'body',
+  envelope: { standing: { radius: 1.96, height: 3.23 }, moving: { radius: 2.03, height: 3.12 }, seated: { radius: 1.96, height: 2.95 }, head: { top: 3.23, radius: 1 } },
+});
+
 // A profile joins CAST_PROFILES (the factory selects it) once cast-rig.test.mjs passes for it.
 // CAST_DRAFTS holds profiles still being fitted; run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
 export const CAST_DRAFTS = Object.freeze({});
-export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, lion: LION });
+export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, lion: LION, "lucky-cat": LUCKY_CAT });
