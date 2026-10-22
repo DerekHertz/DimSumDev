@@ -1,0 +1,102 @@
+{
+  "kind": "approved-single-offline-stage-diagnostic",
+  "sourceCandidate": "7ad7c4e8d0916012cbf03aa89aee6aee43276cd3",
+  "scriptSha256": "7108ded7126f9c1d7f672f7e39fc6097438531bc2aa3946134b003290ae50afe",
+  "command": "timeout --signal=TERM 90s node /tmp/codex-stage-diagnostic.mjs --run-once",
+  "workingDirectory": "/home/dhertzell/dimsumden/.worktrees/standalone-codex",
+  "authority": "Derek explicitly approved this one stage diagnostic in chat; no retry, model, account or auth calls",
+  "sourceScope": "Seven pinned canary/profile/launcher files matched. Concurrent uncommitted adapter/host/test/doc correction files were outside this dependency closure and were not exercised by this diagnostic.",
+  "environment": {
+    "node": "v22.23.3",
+    "platform": "linux",
+    "architecture": "x64",
+    "codexPackageVersion": "0.163.0",
+    "nativeHelperSha256": "399ff69c431c066e40de318fba45c2b07f45a76b19939d247ee4828fc70c4215",
+    "credentialsUsed": false
+  },
+  "exitCode": 1,
+  "capturedResult": {
+    "candidate": "7ad7c4e8d0916012cbf03aa89aee6aee43276cd3",
+    "head": "7ad7c4e8d0916012cbf03aa89aee6aee43276cd3",
+    "elapsedMs": 532,
+    "failed": true,
+    "abortReason": null,
+    "preflightCleanupIndependentlyObserved": false,
+    "records": [
+      {
+        "event": "begin",
+        "candidate": "7ad7c4e8d0916012cbf03aa89aee6aee43276cd3",
+        "head": "7ad7c4e8d0916012cbf03aa89aee6aee43276cd3",
+        "transformedCanarySha256": "f2cd9685d1d219e5c3f58731343d2d54229d31ebc903ffe5134723710cc0d257",
+        "helperSha256": "399ff69c431c066e40de318fba45c2b07f45a76b19939d247ee4828fc70c4215"
+      },
+      {
+        "event": "resource-launched",
+        "executable": "codex",
+        "pid": 58072,
+        "unit": "den-run-codex-profile-da4f7867a8253a4f.scope",
+        "slice": "den-agents-codex-task2"
+      },
+      {
+        "event": "canary-launched",
+        "unit": "den-run-codex-profile-da4f7867a8253a4f.scope",
+        "slice": "den-agents-codex-task2",
+        "fixtureRoot": "/tmp/den-codex-profile-task2-XdgC7k"
+      },
+      {
+        "event": "child-exit",
+        "executable": "codex",
+        "pid": 58072,
+        "code": 1,
+        "signal": null
+      },
+      {
+        "event": "child-close",
+        "executable": "codex",
+        "pid": 58072,
+        "code": 1,
+        "signal": null,
+        "stdoutBytes": 0,
+        "stderrBytes": 0,
+        "stageMarkerSeen": false
+      },
+      {
+        "event": "canary-cleanup",
+        "unit": "den-run-codex-profile-da4f7867a8253a4f.scope",
+        "settled": true
+      },
+      {
+        "event": "canary-result",
+        "elapsedMs": 532,
+        "ok": false,
+        "status": {
+          "code": 1,
+          "signal": null
+        },
+        "settled": true,
+        "outputDrained": true,
+        "stageMarkerSeen": false,
+        "stdoutBytes": 0,
+        "stderrBytes": 0,
+        "totalBytes": 0,
+        "stdoutExcerpt": "",
+        "stderrExcerpt": "",
+        "resultsPresent": false,
+        "results": null,
+        "connections": 0,
+        "markersPreserved": true,
+        "overflow": false
+      },
+      {
+        "event": "independent-group-settled",
+        "unit": "den-run-codex-profile-da4f7867a8253a4f.scope",
+        "slice": "den-agents-codex-task2",
+        "settled": true
+      }
+    ],
+    "droppedRecords": 0,
+    "telemetryBytes": 0
+  },
+  "postRunFixtureAbsent": true,
+  "interpretation": "Pinned helper exited1 before observed disposable-probe entry, with zero output/results. Exact startup cause is unresolved. No app-server/model/hierarchy or containment pass; no retry."
+}

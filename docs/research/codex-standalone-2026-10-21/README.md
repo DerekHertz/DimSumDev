@@ -1,6 +1,6 @@
 # Standalone Codex evidence — 2026-10-21
 
-Production use remains gated. Implementation source candidate `817c76e` supplies an unregistered standalone Codex CellRuntime over the bridge's existing protocol, lifecycle, resource and hierarchy interfaces. The single approved offline diagnostic failed before any native shell probe produced results. No live Codex model, headless Codex hierarchy or production enablement is proved by this record. Registration remains disabled; independent final-candidate review and publication checks are recorded separately by the relay.
+Production use remains gated. Implementation source candidate `4a520cd` supplies an unregistered standalone Codex CellRuntime over the bridge's existing protocol, lifecycle, resource and hierarchy interfaces, correcting initial implementation `817c76e`. Both newly approved offline diagnostics failed before any native shell probe produced results. No live Codex model, headless Codex hierarchy or production enablement is proved by this record. Registration remains disabled; independent final-candidate review and publication checks are recorded separately by the relay.
 
 ## Preserved work and ownership
 
@@ -19,6 +19,10 @@ The [captured receipt](diagnostic-receipt.json) records the command, environment
 
 A subsequent read-only filesystem check confirmed the diagnostic's exact disposable fixture `/tmp/den-codex-profile-task2-G2CT0K` was absent after confirmed group settlement.
 
+Derek separately approved one materially changed stage diagnostic after independent security review of script SHA-256 `7108ded7126f9c1d7f672f7e39fc6097438531bc2aa3946134b003290ae50afe`. The [stage receipt](stage-diagnostic-receipt.json) records its source closure at `7ad7c4e`, environment and output; [the preserved script](stage-diagnostic-script.mjs) retains the reviewed bytes. It launches the same pinned native helper directly with the same sandbox arguments, environment, profile and limits, and adds one disposable-probe entry marker. The transformed source SHA-256 was `f2cd9685d1d219e5c3f58731343d2d54229d31ebc903ffe5134723710cc0d257`.
+
+That attempt also failed: exit 1 after 532 ms, zero stdout/stderr, no observed entry marker and no probe results. The exact group `den-run-codex-profile-da4f7867a8253a4f.scope` settled and was independently rechecked; streams drained, dummy markers stayed intact and the listener saw zero connections. A subsequent read-only check confirmed `/tmp/den-codex-profile-task2-XdgC7k` was absent. This narrows the observation to startup before observed probe entry, without identifying the precise cause. The launcher's internal preflight cleanup remains inherited rather than independently observed. No model/account/auth call or retry followed; this second allowance is also exhausted.
+
 The native helper was a regular executable (mode 0755) with SHA-256 `399ff69c431c066e40de318fba45c2b07f45a76b19939d247ee4828fc70c4215`; Node was v22.23.3, Linux x64. Authentication contents were not inspected or used.
 
 ## What the checks establish
@@ -31,11 +35,27 @@ The native helper was a regular executable (mode 0755) with SHA-256 `399ff69c431
 
 The developer's exact 236-test command was `timeout 180 node --test --test-concurrency=2 apps/bridge/agents/effective-role-policy.test.mjs apps/bridge/agents/host-codex-usage.test.mjs apps/bridge/agents/host-runtime-identity.test.mjs apps/bridge/agents/codex-permissions-canary.test.mjs apps/bridge/agents/claude-adapter.test.mjs apps/bridge/agents/claude-tree-adapter.test.mjs` (exit 0, 13,200 ms). Its output is retained in the development transcript, not a separate log artifact.
 
+## Independent review checkpoint `7ad7c4e`
+
+Code review and full QA independently bounced this same candidate on three integration defects: the task ticket was outside readable roots; valid four-child prompts exceeded the native turn-input bound; failed startup with uncertain resource cleanup lost host admission/worktree ownership. Both reports preceded one consolidated correction batch. These verdicts do not cover a corrected candidate.
+
+QA ran 23 literal affected test files: 1,236 tests passed with zero failures, skips or cancellations. Four separate fake-only boundary reproductions confirmed the three defects despite the green repository tests. Those reproductions use the actual host/runtime interfaces with substituted Codex/launcher processes; they establish implementation defects, not native conformance. The relay's candidate-bound handoffs retain the commands and criterion map.
+
+The UI build, mirror synchronization and whitespace checks passed at this checkpoint. Risk-check reported 61 hits and requires independent security review. The required boxed test guard ran in a self-contained disposable clone on the existing dedicated guard slice and reported 15 hits, with no execution notes: 13 static findings and two tests passing on the merge base. QA individually accepted all 15 as platform guards, fake responder control flow, explicit Codex usage-policy changes, request payloads or preserved regression controls. This is an accepted disposition report, not a clean guard exit. Explicit live-resource cases were not run and remain unverified.
+
+Jev's advisory verify returned `pick: null`, `fallback: http`, exit 0. Full QA was explicitly retained; no inferred automated verdict replaced it. There was no full local `npm test` run and no fresh native/model/account/auth call during review.
+
+## Consolidated correction `4a520cd`
+
+The developer added bounded read-only admission for the host-supplied task ticket and control recipe, a separate complete-turn transport bound with validation before launch, and attributable failed-start resource ownership retained by the host until positive settlement. Regressions cover the actual host/runtime seam with Node/substituted launcher fixtures, valid four-child prompts, oversized rendered review/dependency input, failed startup, recovery, fresh UUIDs and later confirmed settlement.
+
+The developer reported 1,272 tests passing across 24 literal affected files, zero failures/skips/cancellations, in 75,423 ms; seven changed-module syntax checks and whitespace checks passed. The original QA specify files stayed unchanged. This is implementation/fixture evidence only. The evidence-only commit following this product commit is the frozen candidate for new independent review and final checks; the relay records those verdicts and remote CI against its exact SHA. Earlier reviews remain historical.
+
 ## Remaining gates
 
 Ticket 16 builds the disabled adapter/shared policy integration. Tickets 72 and 02 require actual launch-path conformance for native tools, filesystem/credential/network restrictions, approved connections, effective models/tools, approval handling, exact resume, resource limits and cleanup. Actual Codex delegation must return results through parent acceptance/handoff and exercise failure/cancellation; injected runtimes cannot satisfy this gate. Registration requires the separate reviewed user-merge change after those protections pass. This task authorizes no merge or deployment.
 
-The approved diagnostic allowance is exhausted. The smallest remaining live step is an explicitly reviewed, materially informative bounded native startup diagnostic, retaining the same protected profile and task-only slice; it must distinguish wrapper/helper startup and inner sandbox execution. No additional native attempt is authorized by this record. Safe code work and review may continue while native execution is held.
+Both newly approved diagnostic allowances are exhausted. The blocking check is the offline named-permission shell canary: the pinned helper exits before observed probe entry. The next diagnostic must obtain a native startup error under the unchanged protected profile and task-only slice; another identical attempt would add no evidence. It must be made concrete, independently reviewed and explicitly authorized before execution. After that blocker is fixed, actual app-server, effective-model/tool, containment, credentialed-connection and hierarchy conformance still remain. Safe code work and review may continue while native execution is held.
 
 ## Failed calls and limitations
 
@@ -45,3 +65,6 @@ The approved diagnostic allowance is exhausted. The smallest remaining live step
 - Two proposed diagnostic wrappers failed independent review before execution (incomplete source pins/timeout/exit handling, then unbounded cleanup and a slice-variable scope error). The final reviewed wrapper fixed those findings and passed fake-only checks.
 - Before the controlled entry existed, three new RED test calls accidentally selected the real task-slice preflight. Each failed before launch: `could not set the limits of den-agents-codex-task2.slice: Failed to connect to bus: No data available`. The test path was stopped, given a missing-capability assertion before invocation and separated from the default launcher. No Codex/resource group launched; no disposable canary roots remained.
 - The single user-approved native diagnostic exited 1 as recorded above. This is failed validation, not passing containment or production evidence. No retry followed.
+- The separately approved direct-helper stage diagnostic also exited 1, with no observed entry marker, as recorded above. Its allowance is exhausted; no retry followed. Security's fake-only comparison command returned the expected `diff` exit 1 because the wrappers differ; it was not an execution failure.
+- The first boxed guard harness used a clone under `/tmp`, hidden by the required box, and failed its working-directory check. A second attempt started before the replacement clone finished and could not read an ancestor object. After clone completion and an explicit successful merge-base check, the final candidate-bound run completed with the 15 findings described above. No global worktree pruning was applied to the shared repository.
+- Initial independent-review dispatches encountered the same Git LFS metadata denial; scoped metadata escalation succeeded. QA corrected a temporary reproduction that expected turn validation before preparing a thread; no repository assertion was changed. A reviewer release retained `claimed` status without a lock; QA claimed normally and released from main at `in-review`.
