@@ -7,7 +7,8 @@ effort: high
 color: purple
 skills:
   - team-protocol
-  - ponytail
+  - principle-laziness-protocol
+  - principle-subtract-before-you-add
 org:
   team: pass
   purpose: Decide structure, seams, and interfaces so developer agents can work in small, testable slices.
