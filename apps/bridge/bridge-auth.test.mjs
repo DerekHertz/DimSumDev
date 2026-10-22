@@ -120,6 +120,7 @@ const BODIES = {
   },
   "POST /deliveries/:id/stop": { real: {}, bogus: {}, prepare: () => delivery() },
   "POST /deliveries/:id/resume": { real: {}, bogus: {}, prepare: () => delivery({ stopped: true }) },
+  "POST /deliveries/sweep": { real: {}, bogus: {} },
   "POST /deliveries/:id/close": { real: {}, bogus: {}, prepare: () => delivery({ stopped: true }) },
   // den-mvp/88: the router records a stop it met; a dismiss needs one waiting, which `prepare` records and returns the id of.
   "POST /router-stops": {
