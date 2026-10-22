@@ -145,7 +145,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   // codex-residents/05: leaving the live map also settles the attempt in the admission journal, so the work can start again.
   const drop = (agent) => {
     liveByRef.delete(refKey(agent));
-    if (agent.intentId) {
+    if (agent.intentId && agent.cleanupConfirmed !== false) {
       const id = agent.intentId;
       agent.intentId = null;
       admission.settle(id, "ended");
@@ -335,11 +335,22 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const resumeFor = (a) => validRuntimeSession(a.runtimeSessionId) && typeof adapterOf(a)?.resumeCommand === "function" ? adapterOf(a).resumeCommand(a.runtimeSessionId) : null;
 
   async function replay() {
-    for (const h of await sessions.replay()) {
+    await admission.ready;
+    const history = await sessions.replay();
+    // Session history can be unwritable or absent after a failed startup. The
+    // prelaunch admission record still owns the exact group and workspace.
+    for (const intent of admission.uncertain()) {
+      if (intent.resourceUnverified) resourceHolds.set(intent.id, { id: intent.id, intentId: intent.id });
+      if (!intent.resource) continue;
+      const r = intent.resource;
+      resourceHolds.set(r.agentId, { id: r.agentId, intentId: intent.id, runtimeId: r.runtime, project: r.project, resourceId: r.resourceId });
+      if (!history.some(h => h.agentId === r.agentId)) history.push({ ...r, startedAt: r.ts, endedAt: null, state: "failed", reason: UNVERIFIED, cleanupConfirmed: false });
+    }
+    for (const h of history) {
       projectByRun.set(h.agentId, h.project);
       const resource = { id: h.agentId, runtimeId: h.runtime, project: h.project ?? "den", resourceId: h.resourceId ?? (h.resumeOf ? h.agentId : h.sessionId) };
       historicalResources.set(h.agentId, resource);
-      if (h.reason === UNVERIFIED || h.cleanupConfirmed === false) resourceHolds.set(h.agentId, resource);
+      if (h.reason === UNVERIFIED || h.cleanupConfirmed === false) resourceHolds.set(h.agentId, { ...resource, ...resourceHolds.get(h.agentId) });
       const runtime = adapters[h.runtime];
       agents.set(h.agentId, {
         id: h.agentId, ref: h.ref, role: h.role, mode: null, runtimeId: h.runtime, sessionId: h.sessionId, runtimeSessionId: h.runtimeSessionId, resourceId: h.resourceId,
@@ -448,10 +459,15 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       let ended = false;
       try { ended = await adapterOf(earlier)?.stillRunning?.(earlier.resourceId) === false; } catch { /* unknown remains held */ }
       if (!ended) return refuse(503, "an earlier resource group has unconfirmed cleanup; admission is held until it is proven stopped");
+      if (earlier.intentId) {
+        const settled = await admission.settle(earlier.intentId, "ended");
+        if (!settled.ok && settled.status !== 404) return settled;
+      }
       if (earlier.failedStart) {
         // No process handle was acknowledged. Preserve its workspace and slot
         // until the runtime positively settles the exact attempted resource.
         // Keep failed work for inspection, as with an acknowledged failed run.
+        earlier.failedStart.intentId = null;
         drop(earlier.failedStart);
       }
       resourceHolds.delete(earlier.id);
@@ -1428,6 +1444,14 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     let proc;
     try {
       runtime.validatePrompt?.(args.prompt);
+      const owned = await admission.bindResource(agent.intentId, { agentId: agent.id, sessionId: agent.sessionId, resourceId: agent.id, runtimeSessionId: agent.runtimeSessionId ?? null, worktree: agent.worktree, branch: agent.branch, ...(agent.resumeOf ? { resumeOf: agent.resumeOf, origin: agent.origin } : {}), ...(agent.treeNode ? { treeManaged: true } : {}) });
+      if (!owned.ok) {
+        await workspaces.remove(workspace);
+        drop(agent);
+        if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
+        if (agent.treeTokenHash) treeTokens.delete(agent.treeTokenHash);
+        return owned;
+      }
       proc = await runtime.spawn(args);
     } catch (err) {
       if (err?.cleanupConfirmed === false) {
@@ -1441,7 +1465,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         agent.reason = UNVERIFIED;
         agents.set(agent.id, agent);
         projectByRun.set(agent.id, agent.project);
-        resourceHolds.set(agent.id, { id: agent.id, runtimeId: agent.runtimeId, project: agent.project, resourceId: agent.id, failedStart: agent });
+        resourceHolds.set(agent.id, { id: agent.id, intentId: agent.intentId, runtimeId: agent.runtimeId, project: agent.project, resourceId: agent.id, failedStart: agent });
         try {
           await sessions.append({ event: "spawn", agentId: agent.id, ref: agent.ref, role: agent.role, sessionId: agent.sessionId, runtime: agent.runtimeId, runtimeSessionId: null, resourceId: agent.id, route: routeName, project: agent.project, worktree: agent.worktree, branch: agent.branch, ...(agent.treeNode ? { treeManaged: true } : {}) });
           await sessions.append({ event: "end", agentId: agent.id, ref: agent.ref, state: "failed", reason: UNVERIFIED, cleanupConfirmed: false });
@@ -1583,7 +1607,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     })();
     const info = await agent.proc.exited.catch(() => null);
     agent.cleanupConfirmed = info?.cleanupConfirmed === true;
-    if (!agent.cleanupConfirmed) resourceHolds.set(agent.id, { id: agent.id, runtimeId: agent.runtimeId, project: agent.project ?? "den", resourceId: agent.resourceId ?? agent.id });
+    if (!agent.cleanupConfirmed) resourceHolds.set(agent.id, { id: agent.id, intentId: agent.intentId, runtimeId: agent.runtimeId, project: agent.project ?? "den", resourceId: agent.resourceId ?? agent.id });
     agent.exitCode = info?.code ?? null;
     noteLimit(agent, info?.resourceLimit);
     agent.exited = true;

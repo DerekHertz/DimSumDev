@@ -1,10 +1,11 @@
 // codex-residents/05: the one admission transaction, ownership and the runtime allowlist.
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, rm, symlink, writeFile, readFile } from "node:fs/promises";
+import { mkdtemp, mkdir, rm, symlink, writeFile, readFile, rename } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createAdmission } from "./admission.mjs";
+import { workspaceNames } from "./workspace.mjs";
 
 let root;
 beforeEach(async () => {
@@ -40,6 +41,31 @@ describe("single attempt per identified work", () => {
 });
 
 describe("crash recovery", () => {
+  test("resource ownership survives history-independent replay and a failed settlement write", async () => {
+    const a = open();
+    const first = await ask(a, { role: "developer" });
+    const agentId = "c-0123456789abcdef";
+    const resource = { agentId, resourceId: agentId, sessionId: "0b8f1c1e-5c1a-4c0e-9a55-3f2d9e7a4b10", ...workspaceNames({ ref: first.intent.ref, agentId }) };
+    assert.equal((await a.bindResource(first.intent.id, resource)).ok, true);
+    const b = open();
+    await b.ready;
+    assert.equal(b.uncertain()[0].resource.resourceId, agentId);
+    assert.equal(b.uncertain()[0].resource.worktree, resource.worktree);
+    const journal = path.join(root, ".scratch", "_run", "admission.jsonl");
+    await rename(journal, `${journal}.saved`);
+    await mkdir(journal);
+    assert.equal((await b.settle(first.intent.id)).status, 503);
+    assert.equal(b.uncertain()[0].resource.resourceId, agentId, "failed writes cannot forget ownership in memory either");
+    await rm(journal, { recursive: true });
+    await rename(`${journal}.saved`, journal);
+    const c = open();
+    await c.ready;
+    assert.equal(c.uncertain()[0].resource.resourceId, agentId);
+    assert.equal((await c.settle(first.intent.id)).ok, true);
+    const d = open();
+    await d.ready;
+    assert.deepEqual(d.uncertain(), []);
+  });
   test("an intent with no settlement is uncertain after a restart and blocks a respawn", async () => {
     const a = open();
     const first = await ask(a);

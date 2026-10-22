@@ -4,7 +4,7 @@ import { mkdtemp, mkdir, writeFile, readFile, rm, stat, cp } from "node:fs/promi
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
-import { existsSync } from "node:fs";
+import { existsSync, renameSync, mkdirSync } from "node:fs";
 import { createHost } from "./host.mjs";
 import { makeStateFixture } from "../bridge-fixture.mjs";
 
@@ -139,6 +139,52 @@ test("positive settlement of a failed start releases its original host reservati
   assert.ok(existsSync(path.join(f.fx.root, failed.worktree)), "failed work stays available for inspection after admission is released");
   assert.equal(f.host.snapshot().find(agent => agent.id === failed.id).state, "failed");
   await f.host.stop(next.agent.id);
+});
+
+test("failed session audit cannot lose resource ownership after restart or admit a different ticket", async t => {
+  const f = await hostFixture(t, "startup-fail");
+  const sessionFile = `${f.fx.root}/.scratch/_run/sessions.jsonl`;
+  await mkdir(sessionFile, { recursive: true }); // reproduce the independently reviewed EISDIR failure
+  f.confirm(false);
+  const input = { ref: "fx/02-ready-p0", role: "architect", runtime: "codex" };
+  assert.equal((await f.host.start(input)).status, 502);
+  const failed = f.host.snapshot().find(agent => agent.state === "failed");
+  assert.equal((await f.host.start({ ...input, ref: "fx/07-bumpable" })).status, 503);
+  await f.host.shutdown();
+  const restarted = createHost({ root: f.fx.root, runtimes: { codex: f.runtime }, policy: { killGraceMs: 20 } });
+  await restarted.ready;
+  t.after(() => restarted.shutdown());
+  assert.equal((await restarted.start({ ...input, ref: "fx/07-bumpable" })).status, 503, "different refs must not bypass ownership lost from sessions.jsonl");
+  assert.equal(f.launches.length, 1);
+  const replayed = restarted.snapshot().find(agent => agent.id === failed.id);
+  assert.equal(replayed?.worktree, failed.worktree, "the durable owner retains its exact workspace");
+  assert.ok(existsSync(path.join(f.fx.root, failed.worktree)));
+  const unresolved = restarted.admission.uncertain().find(intent => intent.ref === input.ref);
+  assert.equal(unresolved.resource.resourceId, f.groups[0].id);
+  assert.equal(unresolved.resource.sessionId, failed.sessionId);
+  await rm(sessionFile, { recursive: true }); // repair history only after proving fail-closed recovery
+  f.confirm(true);
+  f.groups[0].dead = true;
+  f.setMode("hang");
+  const next = await restarted.start({ ...input, ref: "fx/07-bumpable" });
+  assert.equal(next.status, 201, JSON.stringify(next));
+  assert.equal(restarted.admission.intentOf(unresolved.id), null, "positive exact-resource settlement clears the recovered reservation");
+  assert.ok(existsSync(path.join(f.fx.root, failed.worktree)), "settlement keeps failed work for inspection");
+  await restarted.stop(next.agent.id);
+});
+
+test("a failed prelaunch ownership write refuses the standalone spawn", async t => {
+  const f = await hostFixture(t);
+  const journal = `${f.fx.root}/.scratch/_run/admission.jsonl`;
+  const validate = f.runtime.validatePrompt;
+  f.runtime.validatePrompt = prompt => {
+    validate(prompt);
+    renameSync(journal, `${journal}.saved`);
+    mkdirSync(journal); // admission succeeded; its required ownership write must now fail
+  };
+  const result = await f.host.start({ ref: "fx/02-ready-p0", role: "architect", runtime: "codex" });
+  assert.equal(result.status, 503, JSON.stringify(result));
+  assert.equal(f.launches.length, 0, "no resource may start before its durable ownership record");
 });
 
 test("oversized rendered input is refused before a native group is launched", async t => {

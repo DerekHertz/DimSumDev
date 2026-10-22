@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { readFileSync } from "node:fs";
 import { RUNTIMES } from "./identity.mjs";
+import { validateLine } from "./sessions.mjs";
 
 export const COORDINATORS = ["bao", "jiao"];
 export const ALLOWLISTS = ["both", "codex", "claude"];
@@ -59,6 +60,11 @@ export function createAdmission({ root, governed = governedPrefixes() }) {
     else if (e.event === "intent" && typeof e.id === "string" && typeof e.ref === "string" && typeof e.project === "string") {
       intents.set(e.id, e);
       if (RUNTIMES.includes(e.runtime)) runtimes.set(keyOf(e.project, e.ref), e.runtime);
+    } else if (e.event === "resource" && intents.has(e.id)) {
+      const intent = intents.get(e.id);
+      const resource = validateLine(e.resource);
+      if (resource?.event === "spawn" && resource.resourceId && resource.ref === intent.ref && resource.runtime === intent.runtime && resource.project === intent.project && resource.role === intent.role) intent.resource = resource;
+      else intent.resourceUnverified = true; // malformed ownership never becomes permission to launch
     } else if ((e.event === "settled" || e.event === "reconciled") && intents.has(e.id)) {
       intents.delete(e.id);
       uncertainIds.delete(e.id);
@@ -195,11 +201,31 @@ export function createAdmission({ root, governed = governedPrefixes() }) {
   async function settle(id, outcome = "ended") {
     const intent = intents.get(id);
     if (!intent) return refuse(404, "no such attempt");
+    try { await append({ event: "settled", id, outcome }); }
+    catch (err) {
+      console.error(`bridge: could not write the admission journal: ${err?.message ?? err}`);
+      return refuse(503, "could not record the attempt's settlement");
+    }
     intents.delete(id);
     uncertainIds.delete(id);
     const key = keyOf(intent.project, intent.ref);
     if (held.get(key) === id) held.delete(key);
-    await append({ event: "settled", id, outcome }).catch((err) => console.error(`bridge: could not write the admission journal: ${err?.message ?? err}`));
+    return { ok: true };
+  }
+
+  // Persist exact ownership before a runtime may create any descendants. This
+  // journal, rather than the later UI/session audit, is the admission authority.
+  async function bindResource(id, raw) {
+    const intent = intents.get(id);
+    if (!intent || intent.resource) return refuse(409, "the attempt cannot acquire another resource");
+    const resource = validateLine({ ...raw, event: "spawn", ts: new Date().toISOString(), ref: intent.ref, runtime: intent.runtime, project: intent.project, role: intent.role });
+    if (!resource?.resourceId) return refuse(400, "invalid attempted resource ownership");
+    try { await append({ event: "resource", id, resource }); }
+    catch (err) {
+      console.error(`bridge: could not record resource ownership before launch: ${err?.message ?? err}`);
+      return refuse(503, "could not record resource ownership before starting the agent");
+    }
+    intent.resource = resource;
     return { ok: true };
   }
 
@@ -207,9 +233,9 @@ export function createAdmission({ root, governed = governedPrefixes() }) {
     await ready;
     if (!uncertainIds.has(id)) return refuse(404, "no such unconfirmed attempt");
     if (outcome !== "ended" && outcome !== "never-started") return refuse(400, "outcome must be ended or never-started");
+    await append({ event: "reconciled", id, outcome });
     intents.delete(id);
     uncertainIds.delete(id);
-    await append({ event: "reconciled", id, outcome });
     return { ok: true };
   }
 
@@ -264,7 +290,7 @@ export function createAdmission({ root, governed = governedPrefixes() }) {
   }
 
   return {
-    ready, admit, settle, reconcile, approve, transfer, capability, ownerOf, setAllowlist, changeRuntime, checkScopes, checkReturned,
+    ready, admit, bindResource, settle, reconcile, approve, transfer, capability, ownerOf, setAllowlist, changeRuntime, checkScopes, checkReturned,
     allowlist: () => allow,
     intentOf: (id) => intents.get(id) ?? null,
     active: () => [...held.values()],
