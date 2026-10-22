@@ -107,7 +107,37 @@ export const CRANE = Object.freeze({
   envelope: { standing: { radius: 2.12, height: 3.17 }, moving: { radius: 2.15, height: 3.11 }, seated: { radius: 2.12, height: 2.89 }, head: { top: 3.17, radius: 1.1 } },
 });
 
+const TORTOISE_REST = restTable({
+  torso: [['Pelvis', [0, .6, -.55]], ['Spine', [0, .9, .05]], ['Chest', [0, 1.1, .85]], ['Neck', [0, 1.7, 1.5]], ['Head', [0, 2.15, 1.75]]],
+  head: { jaw: [0, 2, 2.15], hat: [0, 2.8, 1.4] }, ears: [.75, 2.5, 1.25],
+  arm: [[.8, 1.2, .9], [.9, .9, 1], [.95, .7, 1.1], [.95, .5, 1.1]],
+  leg: [[.8, .8, .9], [.85, .5, .95], [.85, .15, .95], [.85, .05, 1.3]],
+  tail: [[0, .45, -1.2], [0, .4, -1.45], [0, .35, -1.65], [0, .3, -1.8]],
+});
+export const TORTOISE = Object.freeze({
+  id: 'cloud-tortoise', label: 'Cloud tortoise SRE', role: 'sre', height: 3, offset: [0, -.25],
+  foot: ankleOf(TORTOISE_REST), rest: TORTOISE_REST,
+  weightsFor: capsuleWeights(TORTOISE_REST, {
+    Pelvis: .9, Spine: 1, Chest: .9, Neck: .45, Head: .7, ...legs([.3, .25, .25, .22]),
+  }, {
+    softness: .1, sole: .05,
+    rigid: p => {
+      // The cloud curls and the face follow the head.
+      if (p.y > 1.9 && p.z > .8) return 'Head';
+      // The hind feet and plastron stay on the grass; the shell is one piece, riding the spine.
+      if (p.z < .3 && p.y < .55) return planted(p.y);
+      return p.z < 1.1 && p.y > .55 ? 'Spine' : null;
+    },
+  }),
+  sit: { drop: .15, planted: true },
+  weightSmoothing: FUSED_SMOOTHING,
+  heldProps: ['paw_L', 'paw_R'],
+  arms: FUSED_ARMS, greeting: 'body',
+  // Measured maxima over every pose (the shell sets the radius), plus 5%.
+  envelope: { standing: { radius: 2.8, height: 3.27 }, moving: { radius: 2.78, height: 3.09 }, seated: { radius: 2.76, height: 3 }, head: { top: 3.27, radius: 1.4 } },
+});
+
 // A profile joins CAST_PROFILES (the factory selects it) once cast-rig.test.mjs passes for it.
 // CAST_DRAFTS holds profiles still being fitted; run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
 export const CAST_DRAFTS = Object.freeze({});
-export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, crane: CRANE });
+export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, crane: CRANE, tortoise: TORTOISE });
