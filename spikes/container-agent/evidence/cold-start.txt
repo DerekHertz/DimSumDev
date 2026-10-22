@@ -1,0 +1,6 @@
+## cold start (5 runs each, ms)
+container-true 814  container-claude-version 746  host-claude-version 13
+container-true 751  container-claude-version 788  host-claude-version 17
+container-true 791  container-claude-version 758  host-claude-version 12
+container-true 732  container-claude-version 789  host-claude-version 12
+container-true 755  container-claude-version 766  host-claude-version 11

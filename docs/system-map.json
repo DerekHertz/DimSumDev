@@ -12,7 +12,7 @@
     { "id": "roles", "paths": [".claude/agents/**", ".codex/agents/**", ".codex/*.md", ".claude/commands/**", "CLAUDE.md", "AGENTS.md"] },
     { "id": "skills", "paths": [".claude/skills/**", ".agents/skills/**", ".claude/.claude-plugin/**", ".claude-plugin/**", "skills-lock.json"], "folders": [".claude/skills", ".agents/skills"] },
     { "id": "mods", "paths": ["mods/**"], "folders": ["mods"] },
-    { "id": "docs", "paths": ["docs/**", "CONTEXT.md", "README.md", "design-brief.md", "LICENSE", "NOTICE"], "folders": ["docs/images", "docs/videos"] },
+    { "id": "docs", "paths": ["docs/**", "spikes/**", "CONTEXT.md", "README.md", "design-brief.md", "LICENSE", "NOTICE"], "folders": ["docs/images", "docs/videos"] },
     { "id": "design", "paths": ["design/**"], "folders": ["design/3d"] },
     { "id": "repo", "paths": ["package.json", "package-lock.json", ".gitignore", ".gitattributes"] }
   ],
