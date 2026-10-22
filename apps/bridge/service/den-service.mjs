@@ -2,9 +2,9 @@
 // bridge under a systemd user service and move it to a new release. Both print what they will do first and each step's
 // result, and both check the host before changing anything, so a refusal leaves nothing half-installed. No bridge route and
 // no agent calls them: nothing under apps/bridge imports this file, and a test says so.
-//   install()  fetch main, packages, first release, the four links, the launcher and the unit, enable and start, check it answers
+//   install()  fetch main, packages, first release, the agent image, the four links, the launcher and the unit, enable and start, check it answers
 //   update(t)  fetch main and tags, packages if the lockfile changed, a release of the newest v* tag (or --main, or tag t),
-//              the links, restart (skipped when nothing changed). A bare update never goes back to an older release or
+//              the agent image if its Dockerfile changed (hardening/12), the links, restart (skipped when nothing changed). A bare update never goes back to an older release or
 //              to one that failed to start; naming it (t or --main) is the user's say (den-mvp/77).
 import { execFile, spawnSync } from "node:child_process";
 import { copyFile, mkdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
@@ -16,6 +16,7 @@ import { createResourceLauncher, findUserBus } from "../agents/resource-group.mj
 import { createBuildBox, findBwrap } from "../build/box.mjs";
 import { clearUpdateFailure, createReleases, currentRelease, isOlder, readUpdateFailure } from "../build/releases.mjs";
 import { ensureServiceToken } from "../../router/service-token.mjs";
+import { ensureAgentImage } from "./agent-image.mjs";
 
 export const UNIT_NAME = "den.service";
 export const SLICE_NAME = "den.slice"; // the bound around the whole den; copied as is, it holds no machine value
@@ -77,9 +78,9 @@ const defaultAnswers = async (url, { tries = 30, waitMs = 500 } = {}) => {
 
 /**
  * The host and its parts, each replaceable by a test. `systemctl(args)` -> { ok, out, err }; `answers(url)` -> boolean;
- * `releases` is a createReleases object; `git(args)` -> { ok, out, err } in the checkout.
+ * `releases` is a createReleases object; `docker(args)` -> { ok, out, err } (the rootless daemon); `git(args)` -> { ok, out, err } in the checkout.
  */
-export function createDen({ env = process.env, say = (line) => console.log(line), platform = process.platform, node = process.execPath, repo, stateDir, unitDir, bus, bwrap, systemctl, git, answers = defaultAnswers, releases, remote = "origin", journal, linkWaitMs = 250, ask = askOnTerminal } = {}) {
+export function createDen({ env = process.env, say = (line) => console.log(line), platform = process.platform, node = process.execPath, repo, stateDir, unitDir, bus, bwrap, systemctl, git, answers = defaultAnswers, releases, docker, remote = "origin", journal, linkWaitMs = 250, ask = askOnTerminal } = {}) {
   repo ??= resolveRoot(process.cwd(), env);
   const home = env.HOME || os.homedir();
   stateDir ??= path.join(env.XDG_STATE_HOME || path.join(home, ".local", "state"), "den");
@@ -92,6 +93,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
   if (bwrap === undefined) bwrap = findBwrap(); // null means there is none
   systemctl ??= (args) => run("systemctl", ["--user", ...args], { env: bus.env ?? {} });
   git ??= (args) => run("git", ["-C", repo, ...args]);
+  docker ??= (args) => run("docker", args, { env, timeout: 900_000 }); // a build runs minutes, not the 2 minutes of the other calls
   journal ??= (args) => run("journalctl", ["--user", ...args], { env: { ...env, ...(bus.env ?? {}) } });
   releases ??= () => createReleases({ stateDir, repo, main: `${remote}/main`, box: createBuildBox({ launcher: createResourceLauncher({ env }) }) });
   let made;
@@ -183,6 +185,14 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
       return lock.slice(0, 12);
     }],
     ["build the release in the box", async () => (await rel().makeRelease(state.sha, state.tag ? { tag: state.tag } : {})).id],
+    // hardening/12: before the links switch, so a failed image build leaves the running release untouched. No daemon or no Dockerfile is a skip.
+    ["build the agent image if its Dockerfile changed", async () => {
+      const release = path.join(stateDir, "releases", state.sha.slice(0, 12));
+      const out = await ensureAgentImage({ dockerfile: path.join(release, "apps", "bridge", "agents", "image", "Dockerfile"), stateDir, docker, say });
+      if (out.skipped) return `skipped, ${out.skipped}`;
+      await writeFile(path.join(release, "agent-image.json"), `${JSON.stringify({ imageId: out.imageId, key: out.key })}\n`);
+      return `${out.built ? "built" : "unchanged"} ${out.imageId.slice(0, 19)}`;
+    }],
   ];
 
   const LINKS = "switch the ui and bridge links";
