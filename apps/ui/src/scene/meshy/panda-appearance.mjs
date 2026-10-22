@@ -21,7 +21,7 @@ export function createPandaAppearanceFactory({body,characters={},castProfiles=CA
   if(bao||cast||characters[role]){
    // Same species and silhouette for both runtimes (labels and badges tell them apart); props are fused in the mesh.
    const profile=bao?BAO_PRODUCTION:cast||CHARACTER_PROFILES[role],source=bao||(cast?characters[species]:characters[role]),rig=createRig(source,profile);
-   rig.model.userData={roleId:role,actorKey:role,runtime,species:profile.id};rig.model.scale.setScalar(bao?1.35:.68);
+   rig.model.userData={roleId:role,actorKey:role,runtime,species:profile.id};rig.model.scale.setScalar(role==='orchestrator'?1.35:.68);
    instances.set(rig.model,{rig,tool:null});return {model:rig.model,rig};
   }
   const key=runtime+':'+role;

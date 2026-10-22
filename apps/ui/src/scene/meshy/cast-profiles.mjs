@@ -158,7 +158,33 @@ export const GOLDEN_MONKEY = Object.freeze({
   envelope: { standing: { radius: 1.83, height: 3.17 }, moving: { radius: 1.88, height: 3.12 }, seated: { radius: 1.83, height: 3.03 }, head: { top: 3.17, radius: 1.1 } },
 });
 
+const JIAO_REST = restTable({
+  torso: [['Pelvis', [0, .55, 0]], ['Spine', [0, .95, -.05]], ['Chest', [0, 1.35, 0]], ['Neck', [0, 1.8, .05]], ['Head', [0, 2.3, .05]]],
+  head: { jaw: [0, 1.95, .75], hat: [0, 3, .05] }, ears: [.75, 2.8, -.1],
+  arm: [[.8, 1.4, .1], [.95, 1.1, .3], [.7, .95, .55], [.55, .9, .6]],
+  leg: [[.5, .5, 0], [.5, .3, .05], [.5, .1, .05], [.5, .05, .45]],
+  tail: [[0, .45, -.6], [0, .45, -.75], [0, .45, -.85], [0, .45, -.9]],
+});
+// The codex orchestrator: a panda like Bao, but its own identity (dusty-blue wrap, own face), worn by runtime 'codex'.
+export const JIAO = Object.freeze({
+  id: 'jiao', label: 'Jiao orchestrator', role: 'orchestrator', runtime: 'codex', height: 3, offset: [0, 0],
+  foot: ankleOf(JIAO_REST), rest: JIAO_REST,
+  weightsFor: capsuleWeights(JIAO_REST, {
+    Pelvis: .85, Spine: 1, Chest: 1, Neck: .6, Head: .95, ...legs([.45, .4, .35, .3]),
+    Tail1: .1, Tail2: .1, Tail3: .1, TailTip: .1,
+  }, { softness: .1, sole: .05 }),
+  animate: tailSway(.1, .03),
+  sit: { drop: .1, planted: true },
+  gait: { stride: .4, lift: .07 },
+  // Heavier smoothing than the others: the feet and the belly are one black-and-cream mass.
+  weightSmoothing: Object.freeze({ ...FUSED_SMOOTHING, iterations: 120, pin: p => p.y < .015 }),
+  heldProps: ['paw_L', 'paw_R'],
+  // Both paws are fused to the wrap and never swing (the user chose a head-and-body hello).
+  arms: FUSED_ARMS, greeting: 'body',
+  envelope: { standing: { radius: 1.39, height: 3.2 }, moving: { radius: 1.45, height: 3.12 }, seated: { radius: 1.37, height: 3.06 }, head: { top: 3.2, radius: 1.2 } },
+});
+
 // A profile joins CAST_PROFILES (the factory selects it) once cast-rig.test.mjs passes for it.
 // CAST_DRAFTS holds profiles still being fitted; run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
 export const CAST_DRAFTS = Object.freeze({});
-export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, lion: LION, "lucky-cat": LUCKY_CAT, "golden-monkey": GOLDEN_MONKEY });
+export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, lion: LION, "lucky-cat": LUCKY_CAT, "golden-monkey": GOLDEN_MONKEY, jiao: JIAO });
