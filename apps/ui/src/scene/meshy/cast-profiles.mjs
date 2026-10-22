@@ -280,7 +280,7 @@ const JIAO_REST = restTable({
 });
 // The codex orchestrator: a panda like Bao, but its own identity (dusty-blue wrap, own face), worn by runtime 'codex'.
 export const JIAO = Object.freeze({
-  id: 'jiao', label: 'Jiao orchestrator', role: 'orchestrator', runtime: 'codex', height: 3, offset: [0, 0],
+  id: 'jiao', label: 'Jiao orchestrator', role: 'orchestrator', runtime: 'codex', height: 3, offset: [0, .15],
   foot: ankleOf(JIAO_REST), rest: JIAO_REST,
   weightsFor: capsuleWeights(JIAO_REST, {
     Pelvis: .85, Spine: 1, Chest: 1, Neck: .6, Head: .95, ...legs([.45, .4, .35, .3]),
