@@ -1,0 +1,74 @@
+{
+  "kind": "diagnostic-control-only",
+  "nativeCodexCalls": 0,
+  "wrapperSha256": "aa673f505236e289d4d952fe947f3211bf8b81c77040a73f4c2e9c4a5471ddf8",
+  "instrumentation": "Original corrected formatter/encoder exported unchanged before CLI dispatch; real resource launcher + outer bwrap wall; command is strace Node dummy instead of Codex; no native Codex profile applied.",
+  "fixtureRoot": "/tmp/codex-diagnostic-control-RmFfvh",
+  "records": [
+    {
+      "event": "preflight",
+      "ok": true
+    },
+    {
+      "event": "launched",
+      "unit": "den-run-diagnostic-node-control-28545.scope",
+      "slice": "den-agents-codex-task2",
+      "dir": "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/den.slice/den-agents.slice/den-agents-codex.slice/den-agents-codex-task2.slice/den-run-diagnostic-node-control-28545.scope",
+      "pid": 28631
+    },
+    {
+      "event": "settled",
+      "unit": "den-run-diagnostic-node-control-28545.scope",
+      "slice": "den-agents-codex-task2",
+      "settled": true
+    },
+    {
+      "event": "independent-group-settled",
+      "unit": "den-run-diagnostic-node-control-28545.scope",
+      "slice": "den-agents-codex-task2",
+      "fixtureRoot": "/tmp/codex-diagnostic-control-RmFfvh",
+      "settled": true
+    }
+  ],
+  "formatterControls": "passed",
+  "command": {
+    "bin": "/usr/bin/strace",
+    "args": [
+      "-f",
+      "-e",
+      "trace=execve,execveat,clone,fork,vfork,exit,exit_group",
+      "-s",
+      "160",
+      "--",
+      "/home/dhertzell/.nvm/versions/node/v22.23.3/bin/node",
+      "/tmp/codex-diagnostic-control-RmFfvh/dummy.mjs"
+    ],
+    "cwd": "/tmp/codex-diagnostic-control-RmFfvh"
+  },
+  "observation": {
+    "status": {
+      "code": 23,
+      "signal": null
+    },
+    "bytes": 1038,
+    "overflow": false,
+    "drained": true,
+    "captured": {
+      "stageMarkerSeen": false,
+      "stdoutExcerpt": "{\"reopen\":\"ENXIO\"}",
+      "stderrExcerpt": "execve(\"/home/dhertzell/.nvm/versions/node/v22.23.3/bin/node\", [\"/home/dhertzell/.nvm/versions/node/v22.23.3/bin/node\", \"/tmp/codex-diagnostic-control-RmFfvh/dummy.mjs\"], 0x7ffd44c1fa48 /* 4 vars */) = 0\n/usr/bin/strace: Process 6 attached\n/usr/bin/strace: Process 7 attached\n/usr/bin/strace: Process 8 attached\n/usr/bin/strace: Process 9 attached\n/usr/bin/strace: Process 10 attached\n/usr/bin/strace: Process 11 attached\nNODE_CONTROL_STARTUP_FAILURE_ONLY\n[pid    10] exit(0 <unfinished ...>\n[pid     9] exit(0 <",
+      "traceLines": [
+        "execve(\"/home/dhertzell/.nvm/versions/node/v22.23.3/bin/node\", [\"/home/dhertzell/.nvm/versions/node/v22.23.3/bin/node\", \"/tmp/codex-diagnostic-control-RmFfvh/du",
+        "[pid    10] exit(0 <unfinished ...>",
+        "[pid     9] exit(0 <unfinished ...>",
+        "[pid     8] exit(0)                     = ?",
+        "[pid     7] exit(0)                     = ?",
+        "[pid     6] exit(0)                     = ?",
+        "[pid     5] exit_group(23)              = ?"
+      ],
+      "traceLineCount": 7
+    }
+  },
+  "readiness": "pass",
+  "fixtureRemoved": true
+}
