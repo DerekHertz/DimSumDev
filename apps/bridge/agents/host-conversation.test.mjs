@@ -341,7 +341,7 @@ describe("what an ask and a stop leave in the thread (organism-infra/230)", () =
 
     // After a tool result the earlier words explain nothing; a request with no description has no intent.
     run.rec.emit({ type: "tool-result", id: "x", ok: true, text: "ok" });
-    ask(run.rec, "r2", { file_path: "/tmp/a.txt" }, "Write");
+    ask(run.rec, "r2", { file_path: "a.txt" }, "Write");
     const b = await until(async () => (await approvalsOf(t, run.id)).find((x) => x.tool === "Write"), { what: "the second approval" });
     assert.deepEqual([b.says, b.intent], [null, null]);
 

@@ -10,6 +10,7 @@
 //                     whose id comes back on the child's replay of it and reads as message-applied
 import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
+import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { cleanText, safeToolInput } from "../../shared/safe-text.mjs";
 import { COST_MAX_USD, MODEL_RE, REQUEST_ID_MAX, REQUEST_IDS_PER_AGENT, ROLES, UUID_RE, WORKTREES_DIR } from "./policy.mjs";
@@ -36,6 +37,25 @@ const DENY_RULES = ["Write(.claude/**)", "Edit(.claude/**)", "Bash(git push:*)",
 const TICKET_FILE_RE = /^(?:\/[A-Za-z0-9._@+-]+)*\/\.scratch\/[A-Za-z0-9._-]+\/issues\/[A-Za-z0-9._-]+\.md$/;
 export function isTicketFilePath(file) {
   return typeof file === "string" && TICKET_FILE_RE.test(file) && !file.split("/").some((part) => part === "." || part === "..");
+}
+// hardening/01 (ADR 0021 l.107): the host answers deny to a Read, Write, Edit or NotebookEdit request outside the worktree.
+// Returns the reason to deny with, or null when the call is not this rule's to refuse. Paths are resolved lexically (a relative
+// one against the worktree, `..` folded) and compared on a segment boundary, so `<worktree>-evil` is outside. A file tool with
+// no usable path is denied too: the rule fails closed. The agent's own ticket file may be read, never written, and a path the user
+// granted (a "path" grant) counts as inside.
+// shortcut: lexical, so a symlink inside the worktree is not followed; upgrade to realpath if an agent can create one.
+const FILE_TOOL_PATH = { Read: "file_path", Write: "file_path", Edit: "file_path", NotebookEdit: "notebook_path" };
+export function fileToolRefusal({ tool, input, worktree, ticketFile, grantPaths = [], home }) {
+  const key = Object.hasOwn(FILE_TOOL_PATH, tool) ? FILE_TOOL_PATH[tool] : undefined;
+  if (key === undefined) return null;
+  const given = input?.[key];
+  if (typeof given !== "string" || given === "" || given.includes("\0") || typeof worktree !== "string" || !path.isAbsolute(worktree)) return `Refused: ${tool} needs a plain file path inside the worktree.`;
+  const base = path.resolve(worktree);
+  const file = path.resolve(base, given);
+  const inside = (dir) => file === dir || file.startsWith(dir + path.sep);
+  if (inside(base) || grantPaths.some((g) => inside(path.resolve(expandHome(g, home))))) return null;
+  if (tool === "Read" && ticketFile !== undefined && file === path.resolve(ticketFile)) return null;
+  return `Refused: ${tool} on ${file} is outside the worktree (${base}); a file tool may only reach inside it.`;
 }
 const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
@@ -195,7 +215,7 @@ export function wallTables() {
     return [role, {
       takesGrants: !none,
       runs: none ? ["Read the project", "Read the web"] : security ? ["Read the project", "Write its report in its worktree"] : ["Write in its worktree", "Read the project"],
-      asks: none ? ["Nothing. It cannot write, push or merge."] : security ? ["Any host", "Any other write"] : ["Any host", "Any path outside"],
+      asks: none ? ["Nothing. It cannot write, push or merge."] : security ? ["Any host", "Any other write"] : ["Any host"], // hardening/01: a path outside the worktree is refused by the host, not asked
     }];
   }));
 }

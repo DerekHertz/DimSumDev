@@ -31,7 +31,7 @@ import {
   TRANSCRIPT_AGENTS, TRANSCRIPT_ENTRIES, TRANSCRIPT_RESULT_MAX, TRANSCRIPT_TEXT_MAX, REPLY_EXCERPT_MAX, USAGE_MESSAGES,
   MESSAGE_MAX_BYTES, MESSAGE_QUEUE_MAX, MESSAGE_SETTLE_MS, CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS,
 } from "./policy.mjs";
-import { ceilingOf, grantContainsWorktrees, parseGrants } from "./claude-adapter.mjs";
+import { ceilingOf, fileToolRefusal, grantContainsWorktrees, parseGrants } from "./claude-adapter.mjs";
 import { parseCatalog } from "../library/catalog.mjs";
 import { createLibrary } from "../library/library.mjs";
 import { grantRefusal } from "./grant-policy.mjs";
@@ -920,6 +920,13 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       // den-mvp outcome 4: a connection's tool is answered from the catalog first. A tool the catalog does not give this
       // role is refused here and never becomes a question, and so is a call whose input looks like a secret; a read with a
       // short input is allowed; any other is asked as usual.
+      // hardening/01 (ADR 0021 l.107): a Read, Write or Edit outside the worktree is denied here and never asked. A connection's
+      // tool (mcp__*) is not a file tool and falls through to the catalog below.
+      const outside = !agent.workspace?.dir ? null : fileToolRefusal({ tool: event.tool, input: event.input, worktree: agent.workspace.dir, ticketFile: ticketFile(agent.ref, agent.projectRoot), grantPaths: agent.grants.filter((g) => g.kind === "path").map((g) => g.value), home: homedir() });
+      if (outside !== null) {
+        Promise.resolve(agent.proc.decide(event.requestId, { allow: false, reason: outside })).catch(() => {});
+        return touch(agent);
+      }
       let verdict = library.decide(agent.role, event.tool, event.input);
       if (verdict !== null) {
         if (verdict.kind === "allow") {

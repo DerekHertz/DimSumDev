@@ -152,7 +152,7 @@ describe("a permission request in the transcript", () => {
     const t = await setup();
     const { agent } = (await t.dispatch("architect")).body;
     const rec = t.fake.spawns[0];
-    rec.emit({ type: "permission-request", requestId: "r-1", tool: "Write", input: { file_path: "/tmp/x.txt", content: "INPUT-MARKER-1" } });
+    rec.emit({ type: "permission-request", requestId: "r-1", tool: "Write", input: { file_path: "x.txt", content: "INPUT-MARKER-1" } });
     rec.emit({ type: "permission-request", requestId: "r-2", tool: "Bash", input: { command: "echo INPUT-MARKER-2" } });
     await t.waitFor(agent.id, (e) => e.id === 2 && e.kind === "permission", "both requests");
     const [first, second] = (await t.state()).approvals;
@@ -285,7 +285,7 @@ describe("replaying the recorded live run through the stub fills the transcript 
   // What the panel shows for a buffer, every tool row opened.
   const rowsOf = (buffer) => transcriptView(buffer, { expanded: buffer.entries.map((e) => e.n) }).rows;
 
-  test("F shows both writes with their results, both answered requests, the agent's reply and the end", { timeout: 30000 }, async () => {
+  test("F shows both writes with their results, the agent's reply and the end; the host denied both recorded writes at once (hardening/01)", { timeout: 30000 }, async () => {
     const t = await boot();
     const res = await t.post("/agents", { ref: DISPATCH_REF, role: "architect" });
     assert.equal(res.status, 201, res.text);
@@ -300,7 +300,7 @@ describe("replaying the recorded live run through the stub fills the transcript 
       }
       return !LIVE_STATES.includes(s.agents.find((x) => x.id === id).state);
     }, { ms: 20000, every: 25, what: "the replayed run to end" });
-    assert.equal(answered.size, 2, "the fixture raises two permission requests");
+    assert.equal(answered.size, 0, "the fixture raises two permission requests, both outside this worktree: the host answers them, none is held");
     await until(() => t.sse.frames.some((f) => f.data.type === "transcript" && f.data.entry.kind === "ended"), { what: "the ended frame" });
 
     // A page that was open for the whole run: every frame through the UI's own buffer.
@@ -310,8 +310,8 @@ describe("replaying the recorded live run through the stub fills the transcript 
       if (line) buffers = appendTranscript(buffers, line.agentId, line.entry);
     }
     const rows = rowsOf(buffers[id]);
-    assert.deepEqual(rows.map((r) => r.kind), ["tool", "permission", "tool", "permission", "message", "ended"]);
-    const [w1, p1, w2, p2, message, ended] = rows;
+    assert.deepEqual(rows.map((r) => r.kind), ["tool", "tool", "message", "ended"]);
+    const [w1, w2, message, ended] = rows;
     for (const w of [w1, w2]) {
       assert.deepEqual({ name: w.name, status: w.status }, { name: "Write", status: "done" });
       assert.match(w.result.text, /^File created successfully at: /);
@@ -319,7 +319,6 @@ describe("replaying the recorded live run through the stub fills the transcript 
     }
     assert.match(w1.summary, /inside\.txt$/);
     assert.match(w2.summary, /live-check\.txt$/);
-    for (const p of [p1, p2]) assert.deepEqual({ name: p.name, label: p.label }, { name: "Write", label: "Allowed by you" });
     assert.equal(message.speaker, "Agent");
     assert.match(message.text, /^LIVE-CHECK-OK\./);
     assert.equal(ended.label, "Agent ended: done");

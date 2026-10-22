@@ -14,7 +14,7 @@ import { randomBytes, randomUUID } from "node:crypto";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import path from "node:path";
-import { buildClaudeArgs, encodeControlResponse, encodeUserMessage } from "./claude-adapter.mjs";
+import { buildClaudeArgs, encodeControlResponse, encodeUserMessage, fileToolRefusal } from "./claude-adapter.mjs";
 import { scrubLive } from "./conformance-live.mjs";
 
 export const WALL_ROLE = "scout"; // a known role: the production argv template accepts nothing else
@@ -182,9 +182,9 @@ export function evaluateWall({ init, turns, disk, p, limits = null }) {
     const r = asked(id).filter((x) => x.tool === tool).length;
     return `${id}: ${r ? "raised a request" : "NO request"}; ${res(id)}`;
   };
-  // hardening/01: question 6 asks whether the file tools outside the worktree are refused by rule, not merely asked about.
-  // A refused call raises no request and its tool result is an error; the disk keeps nothing the harness could have allowed.
-  const outsideRefused = ["read-outside", "write-outside", "edit-outside"].every((id) => made(id) && asked(id).length === 0 && t(id).results.every((r) => r.error));
+  // hardening/01 (approach A): question 6 asks whether the host denies the file tools outside the worktree. The CLI still raises
+  // a request; the host's answer is deny, so the tool result is an error and the disk keeps nothing the harness could have allowed.
+  const outsideRefused = ["read-outside", "write-outside", "edit-outside"].every((id) => made(id) && asked(id).length > 0 && t(id).results.every((r) => r.error));
   a.q6 = {
     answer: outsideRefused && !disk.outsideWrite && !disk.outsideAllowed && disk.outsideReadText.includes(p.mark) ? "yes" : "no",
     evidence: [
@@ -220,7 +220,7 @@ export async function runWall(ctx) {
   const p = makeWallRepo({ model: ctx.model });
   const plan = wallTurns(p);
   try {
-    const args = buildClaudeArgs({ sessionId: randomUUID(), agent: WALL_ROLE, model: ctx.model, wall: { hosts: [WALL_HOST] }, worktree: p.worktree }); // the production argv: the worktree brings dontAsk (hardening/01)
+    const args = buildClaudeArgs({ sessionId: randomUUID(), agent: WALL_ROLE, model: ctx.model, wall: { hosts: [WALL_HOST] }, worktree: p.worktree }); // the production argv: the host answer in the loop below is the outside-worktree deny (hardening/01)
     const child = ctx.start(args, p.worktree);
     let current = null;
     let answered = 0;
@@ -228,8 +228,10 @@ export async function runWall(ctx) {
       for (; answered < child.lines.length; answered += 1) {
         const o = child.lines[answered].obj;
         if (!o || o.type !== "control_request" || o.request?.subtype !== "can_use_tool") continue;
-        const allow = current?.answer === "allow" && o.request.input !== null && typeof o.request.input === "object";
-        child.send(encodeControlResponse(allow ? { requestId: o.request_id, allow: true, input: o.request.input } : { requestId: o.request_id, allow: false, reason: "Denied by the wall check" }));
+        // hardening/01: the host's rule answers first, as it does in the bridge (a file tool outside the worktree is denied).
+        const refusal = fileToolRefusal({ tool: o.request.tool_name, input: o.request.input, worktree: p.worktree });
+        const allow = refusal === null && current?.answer === "allow" && o.request.input !== null && typeof o.request.input === "object";
+        child.send(encodeControlResponse(allow ? { requestId: o.request_id, allow: true, input: o.request.input } : { requestId: o.request_id, allow: false, reason: refusal ?? "Denied by the wall check" }));
       }
     });
     const turns = {};
