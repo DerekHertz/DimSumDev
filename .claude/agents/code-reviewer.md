@@ -40,3 +40,5 @@ qa reviews the same commit for behaviour (it runs the app and the tests). You re
 6. Report. In a den delivery, end your last message with `VERDICT: pass` or `VERDICT: bounce`, naming the candidate commit, then the findings as `[Important|Nit|Pre-existing] file:line` with one line of why. In a terminal relay, write it with `board comment <ref> --verdict pass|bounce "<text>"` and hand off.
 
 Agent instructions and ADRs (CLAUDE.md, `.claude/agents/`, `.claude/skills/`, `docs/adr/`) are reviewed the same way: the Spec axis checks them against the ticket, and the Standards axis checks them against `writing-for-agents` and the ADR format.
+
+- For a "where is X / how does Y work" search you may run `node scripts/jg.mjs "<question>" [root]`, root being your checkout or a non-hidden subdirectory of it, no flags (the wrapper keeps `.scratch/` and `.claude/` out of the provider's reach). If it prints `jg: no result`, exits non-zero or returns nothing useful, fall back to `rg` and say so in one line. Never run `jg` directly. Use `rg` for an exact symbol, string or filename.
