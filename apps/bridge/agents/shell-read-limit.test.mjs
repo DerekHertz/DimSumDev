@@ -59,8 +59,8 @@ describe("a shell command cannot read outside the worktree, with no host and no 
     assert.equal(shellCanRead(fs, `${HOME}/.ssh/id_rsa`), false);
   });
 
-  test("the file tools are limited the same way (blockReadsOutsideWorkingDirectories) and the ticket's folder is reopened", () => {
-    const s = settingsFor("developer");
+  test("with a way out, the file tools are limited the same way (blockReadsOutsideWorkingDirectories) and the ticket's folder is reopened", () => {
+    const s = settingsFor("developer", { remote: true });
     assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, true);
     assert.deepEqual(s.permissions.additionalDirectories, [`${ROOT}/.scratch/den/issues`]);
   });

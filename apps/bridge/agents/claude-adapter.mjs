@@ -38,15 +38,17 @@ const TICKET_FILE_RE = /^(?:\/[A-Za-z0-9._@+-]+)*\/\.scratch\/[A-Za-z0-9._-]+\/i
 export function isTicketFilePath(file) {
   return typeof file === "string" && TICKET_FILE_RE.test(file) && !file.split("/").some((part) => part === "." || part === "..");
 }
-// hardening/01 (ADR 0021 l.107): the host answers deny to a Read, Write, Edit or NotebookEdit request outside the worktree.
+// hardening/01 (ADR 0021 l.107): the host answers deny to a Read, Write, Edit, NotebookEdit, Glob or Grep request outside the worktree.
 // Returns the reason to deny with, or null when the call is not this rule's to refuse. Paths are resolved lexically (a relative
 // one against the worktree, `..` folded) and compared on a segment boundary, so `<worktree>-evil` is outside. A file tool with
 // no usable path is denied too: the rule fails closed. The agent's own ticket file may be read, never written, and a path the user
-// granted (a "path" grant) counts as inside.
+// granted (a "path" grant) counts as inside. A leading `~` or `~/` is the home folder (the CLI expands it too), so it is expanded against `home`
+// before resolving; with no home to expand against, the path is refused. Glob and Grep carry an optional `path`: none means the cwd, which is inside.
 // Symlinks are followed (hardening/01 addendum): the check judges where the path really leads, by the realpath of its longest existing
 // prefix plus the segments after it, so a new file under a real directory stays allowed, and a dangling link or a linked directory
 // that leaves the worktree is refused. The worktree and the grants are resolved the same way, so a worktree behind a linked /tmp works.
-const FILE_TOOL_PATH = { Read: "file_path", Write: "file_path", Edit: "file_path", NotebookEdit: "notebook_path" };
+const FILE_TOOL_PATH = { Read: "file_path", Write: "file_path", Edit: "file_path", NotebookEdit: "notebook_path", Glob: "path", Grep: "path" };
+const PATH_OPTIONAL = new Set(["Glob", "Grep"]);
 // null when the path cannot be resolved (a link loop, a path through a file): the rule then fails closed.
 function realish(p, depth = 0) {
   if (depth > 40) return null;
@@ -69,9 +71,12 @@ export function fileToolRefusal({ tool, input, worktree, ticketFile, grantPaths 
   const key = Object.hasOwn(FILE_TOOL_PATH, tool) ? FILE_TOOL_PATH[tool] : undefined;
   if (key === undefined) return null;
   const given = input?.[key];
-  if (typeof given !== "string" || given === "" || given.includes("\0") || typeof worktree !== "string" || !path.isAbsolute(worktree)) return `Refused: ${tool} needs a plain file path inside the worktree.`;
+  if (given === undefined && PATH_OPTIONAL.has(tool)) return null;
+  const tilde = typeof given === "string" && (given === "~" || given.startsWith("~/"));
+  const homed = tilde && typeof home === "string" && path.isAbsolute(home) ? home + given.slice(1) : given;
+  if (typeof given !== "string" || given === "" || given.includes("\0") || (tilde && homed === given) || typeof worktree !== "string" || !path.isAbsolute(worktree)) return `Refused: ${tool} needs a plain file path inside the worktree.`;
   const base = path.resolve(worktree);
-  const file = path.resolve(base, given);
+  const file = path.resolve(base, homed);
   if (tool === "Read" && ticketFile !== undefined && file === path.resolve(ticketFile)) return null;
   const real = realish(file);
   const within = (dir) => {
@@ -183,7 +188,7 @@ const sandboxFor = (wall, worktree, forbid, writePaths, readLimit, readOpen, tic
 };
 // A file tool's rule for a path: `//abs` for an absolute one (the adapter's form), `~/x` for a home one.
 const ruleForm = (p) => (p.startsWith("/") ? `/${p}` : p);
-const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials }) => {
+const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit, wayOut, readOpen, denyAbs, credentials }) => {
   const allow = [
     // den-mvp/27: behind the wall every shell command is sandboxed and an unsandboxed one is refused, yet the CLI still asked
     // for some (a heredoc written after a cd, a write to $TMPDIR) despite autoAllowBashIfSandboxed. The request protected
@@ -209,7 +214,7 @@ const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit
     // den-mvp/03 (live probe, 2026-10-13): the CLI runs the hooks and the status line of the worktree's own settings,
     // outside the sandbox, from scripts in that worktree, which the agent can write. A bridge agent runs none of them.
     disableAllHooks: true,
-    permissions: { deny: [...new Set(deny)], ...(allow.length === 0 ? {} : { allow }), ...(readLimit === true ? { blockReadsOutsideWorkingDirectories: true, ...(ticketFile === undefined ? {} : { additionalDirectories: [ticketFile.slice(0, ticketFile.lastIndexOf("/"))] }) } : {}) },
+    permissions: { deny: [...new Set(deny)], ...(allow.length === 0 ? {} : { allow }), ...(readLimit === true && wayOut === true ? { blockReadsOutsideWorkingDirectories: true, ...(ticketFile === undefined ? {} : { additionalDirectories: [ticketFile.slice(0, ticketFile.lastIndexOf("/"))] }) } : {}) },
     ...(wall === undefined ? {} : { sandbox: sandboxFor(wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials) }),
   });
 };
@@ -299,8 +304,10 @@ export const roleWrites = (role) => Object.hasOwn(CEILINGS, role) && CEILINGS[ro
 /**
  * The buildClaudeArgs options for a role's ceiling plus its task grants: the wall with the ceiling's hosts and the granted
  * ones, Write and Edit allow rules for the worktree when the role writes and for each granted path, and the governance
- * denies (CI and guardrail paths, and the commands). A way out (a host, or `remote`: a remote connection, which the shell
- * sandbox does not cover) brings a read limit with it, which reopens the worktree, the project's node_modules and main .git, the Node install
+ * denies (CI and guardrail paths, and the commands). A worktree brings a shell read limit (a command cannot read $HOME), and so does a
+ * way out (a host, or `remote`: a remote connection, which the shell sandbox does not cover); only a way out also brings the file-tool limit
+ * (`wayOut`: blockReadsOutsideWorkingDirectories and the ticket's folder as an additional directory), because the host already denies a
+ * file tool outside the worktree. The read limit reopens the worktree, the project's node_modules and main .git, the Node install
  * (toolchain), ~/.gitconfig and the Playwright browsers; one of those that reaches a credential store is a TypeError, so the
  * run is refused rather than started with a store open. Forbid beats permit: no grant lifts
  * a deny, except that a role in governance.json's ciGrantRoles (security) drops the CI-path denies a granted path covers.
@@ -356,6 +363,7 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
     ...(denyAbs.length === 0 ? {} : { denyAbs }),
     ...(paths.length === 0 ? {} : { writePaths: paths }),
     ...(readLimit ? { readLimit: true } : {}),
+    ...(wayOut ? { wayOut: true } : {}),
     ...(readOpen.length === 0 ? {} : { readOpen }),
     ...(credentials?.length ? { credentials: [...credentials] } : {}),
   };
@@ -409,9 +417,9 @@ const MCP_CONFIG_FILE_RE = /^\/[A-Za-z0-9._@+-]+(?:\/[A-Za-z0-9._@+-]+)*\.json$/
 export function buildClaudeArgs(options) {
   if (!isPlainObject(options)) throw new TypeError("buildClaudeArgs needs { sessionId, agent, model?, ticketFile?, wall?, worktree? }");
   for (const key of Object.keys(options)) {
-    if (!["sessionId", "resume", "agent", "model", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
+    if (!["sessionId", "resume", "agent", "model", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "wayOut", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
   }
-  const { sessionId, resume, agent, model, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
+  const { sessionId, resume, agent, model, ticketFile, wall, worktree, forbid, writePaths, readLimit, wayOut, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
   const target = project !== undefined && project.control === false;
   if (project !== undefined && (!isPlainObject(project) || typeof project.control !== "boolean")) throw new TypeError("buildClaudeArgs: project must be { control: boolean, root, pluginDir? }");
   if (target && !isWorktreePath(project.pluginDir)) throw new TypeError("buildClaudeArgs: a target project needs pluginDir, a plain absolute path");
@@ -425,6 +433,7 @@ export function buildClaudeArgs(options) {
   if (forbid !== undefined && !isForbid(forbid)) throw new TypeError("buildClaudeArgs: forbid must be { write: [plain paths], run: [plain words] }");
   if (writePaths !== undefined && !(isDense(writePaths) && writePaths.length <= GRANTS_MAX && writePaths.every(isGrantPath))) throw new TypeError("buildClaudeArgs: writePaths must be plain absolute or ~/ paths");
   if (readLimit !== undefined && readLimit !== true) throw new TypeError("buildClaudeArgs: readLimit must be true");
+  if (wayOut !== undefined && !(wayOut === true && readLimit === true)) throw new TypeError("buildClaudeArgs: wayOut must be true, with the read limit");
   if (readOpen !== undefined && !(readLimit === true && isDense(readOpen) && readOpen.length <= 8 && readOpen.every(isWorktreePath))) throw new TypeError("buildClaudeArgs: readOpen must be plain absolute paths, with the read limit");
   if (denyAbs !== undefined && !(isDense(denyAbs) && denyAbs.length <= DENY_ABS_MAX && denyAbs.every((p) => typeof p === "string" && DENY_ABS_RE.test(p) && !p.split("/").some((part) => part === "." || part === "..")))) throw new TypeError("buildClaudeArgs: denyAbs must be plain absolute paths");
   if (wall === undefined && (forbid !== undefined || writePaths !== undefined || readLimit !== undefined || denyAbs !== undefined)) throw new TypeError("buildClaudeArgs: forbid, writePaths, readLimit and denyAbs need the wall");
@@ -451,7 +460,7 @@ export function buildClaudeArgs(options) {
     "--strict-mcp-config",
     ...(inline === undefined || inline.length === 0 ? [] : ["--mcp-config", mcpConfigFor(inline)]),
     ...(mcpConfigFile === undefined ? [] : ["--mcp-config", mcpConfigFile]),
-    "--settings", settingsFor({ ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials }),
+    "--settings", settingsFor({ ticketFile, wall, worktree, forbid, writePaths, readLimit, wayOut, readOpen, denyAbs, credentials }),
   ];
 }
 

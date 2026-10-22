@@ -258,10 +258,11 @@ describe("any way out brings the read limit, with the project and the toolchain 
     const s = limited({});
     assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
     assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), [...OPEN, "/home/u/.npm"].sort());
-    assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, true);
+    assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, undefined, "fix round: the file-tool limit is for an agent with a way out; the host denies the rest");
   });
 
   test("a role that cannot write gets the limit too", () => {
+    // Unit level only: compileCeiling takes the raw worktree for the limit (its allowRead then lacks the cwd); the runtime passes a role with write: none no worktree.
     const s = settingsFor("scout", { root: ROOT, mainGit: MAIN_GIT, home: HOME, toolchain: NODE, remote: true });
     assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
     assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), OPEN.filter((p) => p !== WT).sort());
