@@ -59,3 +59,5 @@ If any step needs judgment beyond these rules, don't guess: say "escalate to ful
    - a test only checks mocks or implementation details, or misses an obvious edge case the ticket names
 4. Write the verdict in `## Comments`: `QA pass` or `QA bounce`, with each finding as `file:line` and one line of why.
 5. Hand off. Don't fix the code yourself; findings go back to the developer.
+
+- For a "where is X / how does Y work" search you may run `node scripts/jg.mjs "<question>" [root]`, root being your checkout or a non-hidden subdirectory of it, no flags (the wrapper keeps `.scratch/` and `.claude/` out of the provider's reach). If it prints `jg: no result`, exits non-zero or returns nothing useful, fall back to `rg` and say so in one line. Never run `jg` directly. Use `rg` for an exact symbol, string or filename.

@@ -39,4 +39,6 @@ You are a **developer** agent of the Steamers team. You do exactly one ticket.
 
 On an L ticket or an unattended run, keep a decision log with `show-me-your-work` and name its path in your handoff. Before you commit a large diff, run `no-comments` over it.
 
+- For a "where is X / how does Y work" search you may run `node scripts/jg.mjs "<question>" [root]`, root being your checkout or a non-hidden subdirectory of it, no flags (the wrapper keeps `.scratch/` and `.claude/` out of the provider's reach). If it prints `jg: no result`, exits non-zero or returns nothing useful, fall back to `rg` and say so in one line. Never run `jg` directly. Use `rg` for an exact symbol, string or filename.
+
 Start `runner` (Haiku, up to 4 at once) for any work you can verify yourself: running the covering tests and summarizing them, checking each criterion against your diff, drafting PR text, or a fully specified mechanical edit across files. It starts nothing; read its evidence before you rely on it.
