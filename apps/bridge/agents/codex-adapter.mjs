@@ -23,7 +23,7 @@ export class CodexProtocolError extends Error {
   constructor(reason) { super(`Codex protocol: ${reason}`); this.name = "CodexProtocolError"; }
 }
 
-export function createCodexProtocol({ write, close: closeTransport = () => {}, authorizeExecution, limits: requested = {} } = {}) {
+export function createCodexProtocol({ write, close: closeTransport = () => {}, authorizeExecution, executeTool, limits: requested = {} } = {}) {
   if (typeof write !== "function" || typeof closeTransport !== "function") throw new TypeError("Codex protocol needs a transport writer and closer");
   const limits = { ...DEFAULTS };
   for (const [name, value] of Object.entries(requested)) {
@@ -48,6 +48,10 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
   const serverIds = new Set();
   const seenTurns = new Set(); // Never evict: an old native identity must never become current again.
   const questions = new Map();
+  const tools = new Map();
+  const allowedTools = new Set();
+  const toolCallIds = new Set();
+  const earlyTools = [];
   const messages = new Map();
   const earlyEvents = [];
   const events = [];
@@ -62,6 +66,9 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     pending.clear();
     for (const question of questions.values()) clearTimeout(question.timer);
     questions.clear();
+    for (const tool of tools.values()) { clearTimeout(tool.timer); tool.controller.abort(); }
+    tools.clear();
+    earlyTools.length = 0;
     messages.clear();
     earlyEvents.length = 0;
     try { closeTransport(); } catch { /* closing an already-failed transport cannot reopen it */ }
@@ -101,11 +108,41 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       if (!closed) errorReply(question.nativeId, -32000, reason);
       questions.delete(publicId);
     }
+    for (const [publicId, tool] of tools) {
+      clearTimeout(tool.timer);
+      tool.controller.abort();
+      if (!closed) errorReply(tool.nativeId, -32000, reason);
+      tools.delete(publicId);
+    }
   }
-  function serverRequest(message) {
+  function serverRequest(message, replay = false) {
     const requestKey = key(message.id);
-    if (serverIds.has(requestKey) || serverIds.size >= limits.serverRequests) return fail("duplicate server request or request limit reached");
-    serverIds.add(requestKey);
+    if (!replay) {
+      if (serverIds.has(requestKey) || serverIds.size >= limits.serverRequests) return fail("duplicate server request or request limit reached");
+      serverIds.add(requestKey);
+    }
+    if (message.method === "item/tool/call") {
+      if (startingTurn) {
+        if (earlyTools.length >= limits.pending) return fail("early tool queue limit reached");
+        earlyTools.push(message);
+        return;
+      }
+      const params = message.params;
+      if (!active(params) || !nativeId(params.callId) || toolCallIds.has(params.callId) || params.namespace != null || !allowedTools.has(params.tool) || !object(params.arguments) ||
+          hasSecret(JSON.stringify(params.arguments)) || tools.size >= limits.pending || typeof executeTool !== "function") return errorReply(message.id, -32602, "Unsupported or stale tool call");
+      toolCallIds.add(params.callId);
+      const publicId = `tool-${++questionSequence}`;
+      const controller = new AbortController();
+      const timer = setTimeout(() => {
+        if (!tools.delete(publicId)) return;
+        controller.abort();
+        if (!closed) errorReply(message.id, -32000, "Tool call expired; outcome may be uncertain");
+      }, limits.questionTimeoutMs);
+      timer.unref?.();
+      tools.set(publicId, { nativeId: message.id, turnId, params, controller, timer, deciding: false });
+      emit({ type: "permission-request", requestId: publicId, tool: params.tool, input: params.arguments });
+      return;
+    }
     // Native accepts can escape confinement or persist grants. Bounded changes
     // must instead be recompiled and admitted by the eventual host integration.
     if (["item/commandExecution/requestApproval", "item/fileChange/requestApproval"].includes(message.method)) {
@@ -263,7 +300,10 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     ensureOpen();
     if (!object(policy) || typeof policy.profileId !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(policy.profileId) ||
         !text(policy.cwd, 4096) || !policy.cwd.startsWith("/") || (policy.config !== undefined && !object(policy.config)) ||
-        (policy.developerInstructions !== undefined && !text(policy.developerInstructions))) throw new CodexProtocolError("protected execution integration refused the policy");
+        (policy.developerInstructions !== undefined && !text(policy.developerInstructions, 128000)) ||
+        (policy.dynamicTools !== undefined && (!Array.isArray(policy.dynamicTools) || policy.dynamicTools.length > 100 ||
+          policy.dynamicTools.some(tool => !object(tool) || tool.type !== "function" || !/^mcp__[a-z][a-z0-9-]*__[A-Za-z0-9][A-Za-z0-9_-]*$/.test(tool.name ?? "") || !text(tool.description, 8192) || !object(tool.inputSchema)) ||
+          new Set(policy.dynamicTools.map(tool => tool.name)).size !== policy.dynamicTools.length))) throw new CodexProtocolError("protected execution integration refused the policy");
     return policy;
   }
   async function prepareThread({ model, effort, resumeThreadId } = {}) {
@@ -279,11 +319,13 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
         allowProviderModelFallback: false, multiAgentMode: "explicitRequestOnly",
         ...(policy.config === undefined ? {} : { config: policy.config }),
         ...(policy.developerInstructions === undefined ? {} : { developerInstructions: policy.developerInstructions }),
+        ...(resumeThreadId === undefined && policy.dynamicTools !== undefined ? { dynamicTools: policy.dynamicTools } : {}),
         ...(resumeThreadId === undefined ? {} : { threadId: resumeThreadId }),
       });
       if (!object(response) || !nativeId(response.thread?.id) || (resumeThreadId !== undefined && response.thread.id !== resumeThreadId) || response.model !== model ||
           response.cwd !== policy.cwd || response.activePermissionProfile?.id !== policy.profileId || (response.reasoningEffort != null && response.reasoningEffort !== effort)) throw fail("thread acknowledgement differs from the requested identity, model or profile");
       thread = Object.freeze({ id: response.thread.id, model, effort, profileId: policy.profileId, cwd: policy.cwd });
+      for (const tool of policy.dynamicTools ?? []) allowedTools.add(tool.name);
       emit({ type: "model", model });
       return thread.id;
     } finally { preparing = false; }
@@ -306,6 +348,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       endedTurn = null;
       startingTurn = false;
       for (const event of earlyEvents.splice(0)) notification(event.method, event.params);
+      for (const request of earlyTools.splice(0)) serverRequest(request, true);
       if (response.turn.status !== "inProgress") notification("turn/completed", { threadId: thread.id, turn: response.turn });
       ensureOpen();
       return response.turn.id;
@@ -348,6 +391,33 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     clearTimeout(question.timer);
     send({ id: question.nativeId, result: { answers } });
   }
+  async function decideTool(publicId, { allow, reason } = {}) {
+    ensureOpen();
+    const tool = tools.get(publicId);
+    if (!tool || tool.deciding || tool.turnId !== turnId || interrupting) throw new CodexProtocolError("no pending tool for the active turn");
+    tool.deciding = true;
+    let result;
+    try {
+      result = allow === true
+        ? await executeTool(tool.params.tool, tool.params.arguments, { signal: tool.controller.signal, threadId: thread.id, turnId, callId: tool.params.callId })
+        : { isError: true, content: [{ type: "text", text: text(reason, 500) ? reason : "Refused by the bridge." }] };
+    } catch { result = { isError: true, content: [{ type: "text", text: "Protected tool failed; do not retry an uncertain action." }] }; }
+    if (closed || tools.get(publicId) !== tool || tool.turnId !== turnId || interrupting) return false;
+    tools.delete(publicId);
+    clearTimeout(tool.timer);
+    if (!object(result) || !Array.isArray(result.content) || result.content.length > 20 || result.content.some(item => item?.type !== "text" || !text(item.text)) || hasSecret(JSON.stringify(result))) {
+      result = { isError: true, content: [{ type: "text", text: "Protected tool result was withheld." }] };
+    }
+    send({ id: tool.nativeId, result: { success: result.isError !== true, contentItems: result.content.map(item => ({ type: "inputText", text: item.text })) } });
+    return true;
+  }
+  async function rejectQuestion(publicId) {
+    ensureOpen();
+    const question = questions.get(publicId);
+    if (!question || question.turnId !== turnId || interrupting) throw new CodexProtocolError("no pending question for the active turn");
+    questions.delete(publicId); clearTimeout(question.timer);
+    errorReply(question.nativeId, -32000, "Question declined by the bridge");
+  }
   async function interrupt() {
     ensureOpen();
     if (!turnId) return false;
@@ -360,7 +430,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
   }
 
   return {
-    feed, initialize, supportsModel, prepareThread, startTurn, enqueueMessage, cancelMessage, flushMessage, answerQuestion, interrupt,
+    feed, initialize, supportsModel, prepareThread, startTurn, enqueueMessage, cancelMessage, flushMessage, answerQuestion, rejectQuestion, decideTool, interrupt,
     close: () => fail("closed"),
     end: () => fail(buffer.length ? "transport ended with a partial frame" : "transport ended"),
     state: () => ({ initialized, closed: closed !== null, threadId: thread?.id ?? null, turnId, pending: pending.size, questions: questions.size }),

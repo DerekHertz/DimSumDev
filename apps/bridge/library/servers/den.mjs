@@ -4,11 +4,12 @@
 // the bridge minted for this run, and the bridge does the work with its own board and git-host rights. The address
 // and token come from this process's environment, which the bridge wrote into the run's 0600 MCP config.
 import { createInterface } from "node:readline";
+import { pathToFileURL } from "node:url";
 
 const BRIDGE = process.env.DEN_BRIDGE_URL ?? "";
 const TOKEN = process.env.DEN_RUN_TOKEN ?? "";
 const REF = { type: "string", description: "A ticket ref, such as den-mvp/02 or den-mvp/02-job-storage-quota." };
-const TOOLS = [
+export const DEN_TOOLS = [
   { name: "board_resolve", description: "Resolve a ticket whose pull request has merged. The bridge checks the merge first.",
     inputSchema: { type: "object", properties: { ref: REF, pr: { type: "integer", description: "The merged pull request's number." } }, required: ["ref", "pr"] } },
   { name: "board_comment", description: "Add a comment to a ticket, as Bao.",
@@ -50,7 +51,7 @@ async function call(name, args) {
   }
 }
 
-createInterface({ input: process.stdin }).on("line", async (line) => {
+function serve() { createInterface({ input: process.stdin }).on("line", async (line) => {
   let msg;
   try {
     msg = JSON.parse(line);
@@ -64,11 +65,13 @@ createInterface({ input: process.stdin }).on("line", async (line) => {
   } else if (method === "ping") {
     send({ id, result: {} });
   } else if (method === "tools/list") {
-    send({ id, result: { tools: TOOLS } });
+    send({ id, result: { tools: DEN_TOOLS } });
   } else if (method === "tools/call") {
-    if (!TOOLS.some((t) => t.name === params?.name)) return send({ id, error: { code: -32602, message: "unknown tool" } });
+    if (!DEN_TOOLS.some((t) => t.name === params?.name)) return send({ id, error: { code: -32602, message: "unknown tool" } });
     send({ id, result: await call(params.name, params.arguments) });
   } else {
     send({ id, error: { code: -32601, message: "unknown method" } });
   }
-});
+}); }
+
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) serve();
