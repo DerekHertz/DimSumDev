@@ -9,7 +9,7 @@ Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with 
 | Skill | Status | Local changes |
 |---|---|---|
 | grilling (two older stub skills were folded into it, den-mvp/90) | **adapted** | Counts open questions per round; when the frontier grows for two rounds or a second area of fog opens, stops and offers a hand-off note to wayfinder (den-mvp/60). |
-| domain-modeling, codebase-design | as-is | none |
+| domain-modeling, codebase-design | as-is | none (codebase-design's front-matter description is shortened for the Codex preload budget) |
 | prototype, research | as-is | none |
 | tdd | as-is | Carries the post-pin seam note (what each seam catches and misses). |
 | diagnosing-bugs | **adapted** | Adds a "where else does this cause exist" step after the cause is confirmed, and fixes at the cause's layer (hardening/02). Wording says "interactive debugging" and "next person" instead of the retired role's name (`role-definition-trim.test.mjs` forbids it). Carries the post-pin forced-mutation check. |
@@ -57,4 +57,4 @@ The one-release stub from ADR 0028 is removed. Nothing in code, roles or skills 
 
 ## jevgrep
 
-Source: https://github.com/dzhng/jevgrep, `skills/jevgrep/SKILL.md`, in `.agents/skills/` only. Refreshed 2026-10-22 to `28cf384` (adds "Phrasing Queries"). `skills-lock.json` still holds the old `computedHash`; the hash algorithm is the skills CLI's, so run `npx skills update` to refresh it.
+Source: https://github.com/dzhng/jevgrep, `skills/jevgrep/SKILL.md`, in `.agents/skills/` only. Refreshed 2026-10-22 to `28cf384` (adds "Phrasing Queries"); the front-matter description is shortened to keep Codex roles under the 16 KB preload test. `skills-lock.json` still holds the old `computedHash`; the hash algorithm is the skills CLI's, so run `npx skills update` to refresh it.
