@@ -4,7 +4,7 @@ import { accessSync, chmodSync, closeSync, constants, existsSync, lstatSync, mkd
 import { createHash } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createCodexProtocol } from "./codex-adapter.mjs";
+import { createCodexProtocol, validateCodexTurnInput } from "./codex-adapter.mjs";
 import { compileEffectiveRolePolicy, CREDENTIAL_PATHS, isWorktreePath } from "./effective-role-policy.mjs";
 import { compileCodexPermissions, renderCodexConfig } from "./codex-permissions.mjs";
 import { createResourceLauncher, EnforcementError, watchStorage, measureTree } from "./resource-group.mjs";
@@ -73,18 +73,18 @@ function detachedGitWrites(cwd, mainGit) {
 
 // This is a narrower, explicit representation of the shared read ceiling.
 // Network grants cannot be represented by this offline profile and refuse.
-function nativeProfile({ role, cwd, root, home, mainGit, grants, profile, nativeStore, scratch, skills, binaries, authFile }) {
+function nativeProfile({ role, cwd, root, home, mainGit, grants, profile, nativeStore, scratch, skills, binaries, authFile, taskReads }) {
   const policy = compileEffectiveRolePolicy(role, { worktree: cwd, root, home, mainGit, grants, credentials: CREDENTIAL_PATHS,
     ...(profile ? { tree: true, treeReadOnly: profile.readonly, scopeWrites: profile.scopeWrites } : {}) });
   if (!policy) throw new EnforcementError("the role has no shared launch policy");
   const f = policy.filesystem;
   const expand = p => p.startsWith("~/") ? `${home}/${p.slice(2)}` : p;
-  const readable = [cwd, scratch, skills, ...binaries, ...f.openReadPaths.filter(existsSync), ...(mainGit ? [mainGit] : [])];
+  const readable = [cwd, scratch, skills, ...taskReads, ...binaries, ...f.openReadPaths.filter(existsSync), ...(mainGit ? [mainGit] : [])];
   const writes = [scratch, ...(f.writeWorktree ? [f.writeWorktree, ...(!profile ? detachedGitWrites(cwd, mainGit) : [])] : []), ...f.writePaths.map(expand), ...(f.scopeWrites ?? []).map(scope => scope.path)];
   for (const file of [...readable, ...writes]) if (existsSync(file) && realpathSync(file) !== file) throw new EnforcementError("an admitted filesystem root is not canonical");
   return compileCodexPermissions({ profileId: "bridge-role", worktree: cwd, nativeStore,
     policy: { version: 1, readRoots: [...new Set(readable)], writeRoots: [...new Set(writes)],
-      readOnlyPaths: [...new Set([...f.deniedRelativeWritePatterns.map(p => `${cwd}/${base(p)}`), ...f.deniedAbsoluteWritePatterns.map(base), ...[".codex", ".agents", ".den", ".scratch"].map(p => `${cwd}/${p}`)])],
+      readOnlyPaths: [...new Set([...taskReads, ...f.deniedRelativeWritePatterns.map(p => `${cwd}/${base(p)}`), ...f.deniedAbsoluteWritePatterns.map(base), ...[".codex", ".agents", ".den", ".scratch"].map(p => `${cwd}/${p}`)])],
       denyPaths: [...new Set([...f.credentials.map(expand), ...f.privatePaths, authFile, nativeStore])],
       denyCommands: policy.execution.deniedCommands.map(command => command.split(" ")), hosts: policy.network.hosts } });
 }
@@ -99,6 +99,7 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
   const control = realpathSync(controlRoot);
   const shellRoot = scratchRoot ?? `${control}/.scratch/_run/codex-shell`;
   const activeSessions = new Set();
+  const uncertainLocks = new Map();
   const enforce = () => {
     if (launcher.enforced !== true || launcher.scopedWrites !== true) throw new EnforcementError("Codex requires the protected resource/scoped-write launcher");
     if (typeof authFile !== "string") throw new EnforcementError("protected authentication must be explicitly configured and authorized");
@@ -113,15 +114,30 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
     capabilities: { spawn: true, stop: true, approve: true, send: true, handover: true, resume: true, treeDelegation: true, artifactStoreProtection: launcher.enforced === true && launcher.scopedWrites === true },
     validateModel: selection => [...ROLES, "runner"].some(role => { const configured = resolveTreeRole({ controlRoot: control, role, runtime: "codex" }); return configured.model === selection?.model && configured.effort === selection?.effort; }),
     async preflight() { try { enforce(); return await launcher.preflight(); } catch (error) { return { ok: false, reason: error.message }; } },
-    stillRunning: id => typeof launcher.active === "function" ? launcher.active(id) : Promise.reject(new EnforcementError("native resource liveness is unavailable")),
+    validatePrompt: validateCodexTurnInput,
+    async stillRunning(id) {
+      if (typeof launcher.active !== "function") throw new EnforcementError("native resource liveness is unavailable");
+      const active = await launcher.active(id);
+      if (active === false) { uncertainLocks.get(id)?.(); uncertainLocks.delete(id); }
+      return active;
+    },
     // Resuming requires this protected runtime/store, rather than the user's
     // personal CLI state. Do not suggest a misleading personal `codex resume`.
     resumeCommand: () => null,
     async spawn(input = {}) {
       const { role, cwd, project, sessionId, runId, prompt, mainGit, tree, treeCredential, grants, resume, runtimeSessionId, promptId } = input;
       if (!UUID_RE.test(sessionId ?? "") || !AGENT_ID_RE.test(runId ?? "") || !isWorktreePath(cwd) || realpathSync(cwd) !== cwd || typeof prompt !== "string" || !prompt.trim()) throw new TypeError("codex runtime: invalid trusted run identity, worktree or prompt");
+      validateCodexTurnInput(prompt); // Full rendered review/dependency input, before stores or launch.
       const configured = resolveTreeRole({ controlRoot: control, role, runtime: "codex" });
       const recipe = `${control}/.codex/agents/${role}.toml`;
+      const taskReads = [recipe];
+      if (input.ticketFile !== undefined) {
+        const ticket = input.ticketFile;
+        if (!isWorktreePath(ticket) || !within(ticket, `${project?.root ?? control}/.scratch`) || realpathSync(ticket) !== ticket) throw new EnforcementError("the trusted task ticket is not canonical");
+        const info = lstatSync(ticket);
+        if (!info.isFile() || info.nlink !== 1 || info.size > 256_000) throw new EnforcementError("the trusted task ticket is not a bounded regular file");
+        taskReads.push(ticket);
+      }
       if (project?.recipeFile !== undefined && project.recipeFile !== recipe || input.model !== undefined && input.model !== configured.model || input.effort !== undefined && input.effort !== configured.effort) throw new TypeError("codex runtime: model or recipe differs from the trusted role");
       if (!project && !within(cwd, control)) throw new TypeError("codex runtime: a target run needs its trusted project");
       if ((tree !== undefined) !== (treeCredential !== undefined)) throw new TypeError("codex runtime: managed trees require a scoped bridge credential");
@@ -152,7 +168,7 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
         const nodePrefix = realpathSync(path.dirname(path.dirname(process.execPath)));
         const installedPrefix = realpathSync(path.dirname(path.dirname(bin)));
         const root = project?.root ?? control;
-        const compiled = nativeProfile({ role, cwd, root, home: env.HOME, mainGit, grants, profile, nativeStore, scratch, skills, binaries: [...new Set([nodePrefix, installedPrefix, realpathSync("/usr")])], authFile });
+        const compiled = nativeProfile({ role, cwd, root, home: env.HOME, mainGit, grants, profile, nativeStore, scratch, skills, binaries: [...new Set([nodePrefix, installedPrefix, realpathSync("/usr")])], authFile, taskReads });
         broker = toolBroker ? await toolBroker({ ...input, controlRoot: control, credentialRoot: `${env.HOME}/.local/state/den/credentials`, fetcher, profile }) : null;
         if (input.connections?.length && !broker) throw new EnforcementError("approved connections require protected bridge interposition");
         const treeTools = tree ? TREE_TOOLS.filter(tool => profile.review ? ["status", "review"].includes(tool.name) : tree.depth === 2 ? ["status", "complete"].includes(tool.name) : tool.name !== "review") : [];
@@ -194,6 +210,7 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
           protocol.close(); group.kill();
           try { cleanupConfirmed = await group.settled(3000) === true; } catch { cleanupConfirmed = false; }
           if (cleanupConfirmed) unlock();
+          else uncertainLocks.set(runId, unlock);
           await broker?.close?.();
           resolve({ code, signal, cleanupConfirmed, ...(resourceLimit ? { resourceLimit } : {}) });
         }; });
@@ -243,6 +260,11 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
         stopStorage?.(); clearInterval(monitor);
         if (launched) { launched.group.kill(); if (processInfo) await processInfo.exited; else { try { cleanupConfirmed = await launched.group.settled(3000) === true; } catch {} } }
         if (!launched || cleanupConfirmed) unlock();
+        if (launched) {
+          error.resourceId = runId;
+          error.cleanupConfirmed = cleanupConfirmed;
+          if (!cleanupConfirmed) uncertainLocks.set(runId, unlock);
+        }
         await broker?.close?.();
         throw error;
       }

@@ -42,7 +42,7 @@ The smallest Codex implementation is a disabled adapter in a separately reviewed
 
 Fixture protocol tests precede actual filesystem, credentialed-connection, network, permission, resource and recovery tests through that launch path. The native per-turn workspace-write profile alone cannot encode the required credential-deny and readable-root restrictions. Session-wide approvals, permission/policy amendments and file `grantRoot` choices cannot be translated into an ordinary bridge Allow. Inspect and pin the actual installed native schema before implementing those decisions.
 
-Reversible adapter implementation is covered by the user's request. Production registration is separate: [codex-residents/02](https://github.com/DerekHertz/DimSumDen-board/blob/main/codex-residents/issues/02-protected-codex-runtime.md) says, "Do not register Codex until01,72,16 and all actual launch-path protections pass." The separate reviewed user-merge gate and this task's report-before-publication restriction remain in force. No new dependency, credential, account or resource-limit change is implied by this plan.
+Reversible adapter implementation and a focused draft PR are covered by the user's current handoff. Production registration is separate: [codex-residents/02](https://github.com/DerekHertz/DimSumDen-board/blob/main/codex-residents/issues/02-protected-codex-runtime.md) says, "Do not register Codex until01,72,16 and all actual launch-path protections pass." The separate reviewed user-merge gate remains; this handoff authorizes no merge or deployment. No new dependency, credential, account or resource-limit change is implied by this plan.
 
 ## Lifecycle data for replay consumers
 

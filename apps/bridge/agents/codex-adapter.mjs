@@ -7,6 +7,13 @@ import { hasSecret } from "../../../scripts/exposure.mjs";
 
 export const CODEX_PRODUCTION_ENABLED = false;
 export const MAX_FRAME_BYTES = 1_000_000;
+// A complete tree turn includes its fixed contract, four direct children,
+// accepted dependency evidence and fresh review/check data. Keep this separate
+// from the smaller interactive message/result limit and leave frame overhead.
+export const MAX_TURN_INPUT_BYTES = 256_000;
+export function validateCodexTurnInput(input) {
+  if (typeof input !== "string" || !input.trim() || Buffer.byteLength(input) > MAX_TURN_INPUT_BYTES || Buffer.byteLength(JSON.stringify(input)) > MAX_FRAME_BYTES / 2) throw new CodexProtocolError("invalid turn input");
+}
 const DEFAULTS = Object.freeze({ frameBytes: MAX_FRAME_BYTES, pending: 32, events: 256, serverRequests: 1000,
   messages: 200, turns: 1000, pages: 32, models: 1000, requestTimeoutMs: 10000, questionTimeoutMs: 600000 });
 const BODY_MAX = 16000;
@@ -333,7 +340,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
   async function startTurn(input) {
     ensureOpen();
     if (!thread || turnId || startingTurn) throw new CodexProtocolError("no prepared idle thread");
-    if (!text(input) || !input.trim()) throw new CodexProtocolError("invalid turn input");
+    validateCodexTurnInput(input);
     if (seenTurns.size >= limits.turns) throw fail("turn identity limit reached; a fresh protocol session is required");
     startingTurn = true;
     try {

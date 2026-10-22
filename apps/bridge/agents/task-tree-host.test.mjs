@@ -8,6 +8,7 @@ import { createHost } from "./host.mjs";
 import { createFakeRuntime } from "./runtime.mjs";
 import { createTaskTrees } from "./task-tree.mjs";
 import { makeStateFixture } from "../bridge-fixture.mjs";
+import { createCodexProtocol } from "./codex-adapter.mjs";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const REF = "fx/02-ready-p0";
@@ -44,6 +45,30 @@ async function setup(runtime = "claude", config = {}, extraHost = {}) {
   const close = async () => { await host.shutdown(); await fx.cleanup(); };
   return { fx, fake, host, options, plan, close };
 }
+
+test("four valid large child outcomes survive the actual host rendering and Codex turn transport", async () => {
+  const t = await setup("codex");
+  try {
+    const proposal = await t.plan(Array.from({ length: 4 }, (_, i) => ({ ...contract(`m${i}`), outcome: "x".repeat(5000) })));
+    assert.equal(proposal.status, 201, proposal.error);
+    assert.equal((await t.host.startTree({ revision: proposal.revision })).status, 201);
+    const prompt = t.fake.spawns[0].args.prompt;
+    assert.ok(prompt.length > 20000, "exercise the complete child list rather than a shortened stand-in");
+    let sentInput;
+    const protocol = createCodexProtocol({ authorizeExecution: async () => ({ profileId: "fixture", cwd: "/fixture" }), write(line) {
+      const message = JSON.parse(line);
+      if (!message.method || message.id === undefined) return;
+      const results = { initialize: { userAgent: "fixture" }, "model/list": { data: [{ id: "gpt-6.1-sol", model: "gpt-6.1-sol", supportedReasoningEfforts: [{ reasoningEffort: "high" }] }], nextCursor: null }, "thread/start": { thread: { id: "thread" }, model: "gpt-6.1-sol", cwd: "/fixture", activePermissionProfile: { id: "fixture" } }, "turn/start": { turn: { id: "turn", status: "inProgress" } } };
+      if (message.method === "turn/start") sentInput = message.params.input[0].text;
+      queueMicrotask(() => protocol.feed(JSON.stringify({ id: message.id, result: results[message.method] }) + "\n"));
+    } });
+    try {
+      await protocol.prepareThread({ model: "gpt-6.1-sol", effort: "high" });
+      await protocol.startTurn(prompt);
+      assert.equal(sentInput, prompt, "the bounded protocol preserves all approved task data");
+    } finally { protocol.close(); }
+  } finally { await t.close(); }
+});
 
 for (const runtime of ["claude", "codex"]) {
   test(`${runtime} executes only approved parent-bound nodes at the configured manager/runner tiers`, { timeout: 15000 }, async () => {

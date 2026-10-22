@@ -6,6 +6,11 @@
 //     spawn({ role, mode?, ref, cwd, prompt, model?, sessionId, runtimeSessionId?, resume?, runId, promptId?, ticketFile?, project? }) -> Promise<CellProcess>,
 //       (project.recipeFile is the bridge-derived trusted control-project recipe; no target config chooses it)
 //       (ticketFile: the absolute path of the agent's ticket, built by the host; a runtime may let the agent read it unasked)
+//       A failure after launch must carry cleanupConfirmed:false when group
+//       settlement is uncertain; the host retains the runId/workspace/admission
+//       until stillRunning(runId) is positively false. Prelaunch/settled failures
+//       can throw normally. Resource identity is always the host-minted runId.
+//     validatePrompt?(prompt) -> void            // validates the full rendered turn before spawn; throw to refuse
 //       (resume: true continues `runtimeSessionId` in `cwd`; sessionId remains the bridge UUID, for a runtime whose `resume`
 //       capability is true; runId is the new run's own id; promptId is the id of the first message, which the runtime
 //       reports with a message-applied event once the child takes it)

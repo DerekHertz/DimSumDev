@@ -448,6 +448,12 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       let ended = false;
       try { ended = await adapterOf(earlier)?.stillRunning?.(earlier.resourceId) === false; } catch { /* unknown remains held */ }
       if (!ended) return refuse(503, "an earlier resource group has unconfirmed cleanup; admission is held until it is proven stopped");
+      if (earlier.failedStart) {
+        // No process handle was acknowledged. Preserve its workspace and slot
+        // until the runtime positively settles the exact attempted resource.
+        // Keep failed work for inspection, as with an acknowledged failed run.
+        drop(earlier.failedStart);
+      }
       resourceHolds.delete(earlier.id);
       if (agents.has(earlier.id)) agents.get(earlier.id).cleanupConfirmed = true;
     }
@@ -1421,10 +1427,30 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     }
     let proc;
     try {
+      runtime.validatePrompt?.(args.prompt);
       proc = await runtime.spawn(args);
     } catch (err) {
-      await workspaces.remove(workspace);
-      drop(agent);
+      if (err?.cleanupConfirmed === false) {
+        // The failed spawn may still own descendants. A new session UUID must
+        // not free its admission or delete files those descendants may use.
+        agent.resourceId = agent.id;
+        agent.runtimeSessionId = null;
+        agent.cleanupConfirmed = false;
+        agent.exited = true;
+        agent.state = "failed";
+        agent.reason = UNVERIFIED;
+        agents.set(agent.id, agent);
+        projectByRun.set(agent.id, agent.project);
+        resourceHolds.set(agent.id, { id: agent.id, runtimeId: agent.runtimeId, project: agent.project, resourceId: agent.id, failedStart: agent });
+        try {
+          await sessions.append({ event: "spawn", agentId: agent.id, ref: agent.ref, role: agent.role, sessionId: agent.sessionId, runtime: agent.runtimeId, runtimeSessionId: null, resourceId: agent.id, route: routeName, project: agent.project, worktree: agent.worktree, branch: agent.branch, ...(agent.treeNode ? { treeManaged: true } : {}) });
+          await sessions.append({ event: "end", agentId: agent.id, ref: agent.ref, state: "failed", reason: UNVERIFIED, cleanupConfirmed: false });
+        } catch (auditError) { console.error(`bridge: could not record failed-start resource ownership: ${auditError?.message ?? auditError}`); }
+        publish(agent);
+      } else {
+        await workspaces.remove(workspace);
+        drop(agent);
+      }
       if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
       if (agent.treeTokenHash) treeTokens.delete(agent.treeTokenHash);
       console.error(`bridge: runtime failed to spawn ${agent.role} for ${agent.ref}: ${err?.message ?? err}`);

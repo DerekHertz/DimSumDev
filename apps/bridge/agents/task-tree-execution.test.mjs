@@ -10,6 +10,7 @@ import { createHost } from "./host.mjs";
 import { createFakeRuntime } from "./runtime.mjs";
 import { createTreeArtifacts } from "./tree-artifacts.mjs";
 import { makeStateFixture } from "../bridge-fixture.mjs";
+import { validateCodexTurnInput } from "./codex-adapter.mjs";
 
 const ROOT = fileURLToPath(new URL("../../../", import.meta.url));
 const REF = "fx/02-ready-p0";
@@ -50,6 +51,7 @@ async function reviewAll(t, nodeId, revision, until = "accepted") {
     if (t.node(nodeId).workflow.status === until) break;
     const run = t.runtime.spawns.find((run) => run.args.tree?.nodeId === nodeId && ["code-review", "qa", "security", "writer-review"].includes(run.args.tree.phase) && !run.exited);
     const current = t.node(nodeId);
+    assert.doesNotThrow(() => validateCodexTurnInput(run.args.prompt), "actual review/check data fits the native turn bound");
     assert.equal(run.args.model, "sonnet", "review is pinned to the configured stronger tier");
     assert.equal(run.args.resume, undefined, "independent verification is a fresh native session");
     assert.equal((await t.host.delegate(run.args.runId, { nodeId })).status, 409, "a review phase has no author delegation authority");
@@ -59,6 +61,19 @@ async function reviewAll(t, nodeId, revision, until = "accepted") {
     await wait(() => run.exited && t.node(nodeId).workflow.status !== "reviewing");
   }
 }
+
+test("oversized rendered review risk/guard data refuses before runtime spawn", { timeout: 20000 }, async () => {
+  const t = await fixture({}, { treeChecks: { risk: async () => ({ clean: true, hits: ["x".repeat(260000)] }), guard: async () => ({ hits: [] }) } });
+  t.runtime.validatePrompt = validateCodexTurnInput;
+  try {
+    const proposed = await t.plan();
+    const root = proposed.tree.rootId;
+    assert.equal((await t.host.completeTree(root, evidence)).status, 202);
+    await wait(() => t.node(root).workflow.status === "paused", () => JSON.stringify(t.node(root).workflow));
+    assert.equal(t.runtime.spawns.length, 1, "the oversized reviewer never enters the native spawn seam");
+    assert.equal(t.node(root).workflow.acceptance, null);
+  } finally { await t.close(); }
+});
 
 test("managed code leaf is captured, independently reviewed, integrated, and wakes each stopped parent within current capacity", { timeout: 90000 }, async () => {
   const t = await fixture();
@@ -160,6 +175,9 @@ test("accepted sibling dependency is integrated before the dependent runner read
     await reviewAll(t, a, proposed.revision);
     await wait(() => t.runtime.spawns.some((run) => run.args.runId === b), () => JSON.stringify(t.node(manager).workflow));
     const authorB = t.runtime.spawns.find((run) => run.args.runId === b);
+    assert.match(authorB.args.prompt, /Accepted dependency inputs already integrated/);
+    assert.ok(authorB.args.prompt.includes(t.node(a).workflow.receipt.candidate));
+    assert.doesNotThrow(() => validateCodexTurnInput(authorB.args.prompt), "actual rendered accepted dependency input fits the native turn bound");
     assert.equal(await readFile(path.join(authorB.args.cwd, "src/shared/api.mjs"), "utf8"), "export const answer = () => 42;\n", "dependent receives actual accepted API output in its frozen base");
     assert.ok(t.node(manager).workflow.integratedChildren.includes(a));
     assert.equal(t.runtime.spawns.filter((run) => run.args.tree.nodeId === manager && run.args.tree.phase === "continuation").length, 0, "manager stays stopped until the complete barrier is accepted");

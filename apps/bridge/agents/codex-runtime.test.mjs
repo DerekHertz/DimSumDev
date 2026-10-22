@@ -1,10 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtemp, mkdir, writeFile, readFile, rm, stat } from "node:fs/promises";
+import { mkdtemp, mkdir, writeFile, readFile, rm, stat, cp } from "node:fs/promises";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { existsSync } from "node:fs";
+import { createHost } from "./host.mjs";
+import { makeStateFixture } from "../bridge-fixture.mjs";
 
 const moduleUrl = new URL("./codex-runtime.mjs", import.meta.url);
 const runtimeModule = existsSync(moduleUrl) ? await import(moduleUrl) : {};
@@ -18,7 +20,7 @@ const out=x=>process.stdout.write(JSON.stringify(x)+'\n');
 const input=createInterface({input:process.stdin});
 input.on('line',line=>{const m=JSON.parse(line);if(!m.method||!m.id)return;
 let result;
-if(m.method==='initialize')result={userAgent:'codex-subprocess-fixture/0.163.0'};
+if(m.method==='initialize')result=mode==='startup-fail'?{}:{userAgent:'codex-subprocess-fixture/0.163.0'};
 else if(m.method==='model/list')result={data:[{id:'gpt-6.1-sol',model:'gpt-6.1-sol',supportedReasoningEfforts:[{reasoningEffort:'high'}]},{id:'gpt-6-luna',model:'gpt-6-luna',supportedReasoningEfforts:[{reasoningEffort:'low'}]}],nextCursor:null};
 else if(m.method==='thread/start'||m.method==='thread/resume')result={thread:{id:mode==='replace'?'replacement':m.params.threadId??'opaque-native-thread'},model:m.params.model,cwd:m.params.cwd,activePermissionProfile:{id:m.params.permissions}};
 else if(m.method==='turn/start'){
@@ -33,7 +35,7 @@ else result={};
 out({id:m.id,result});
 });`;
 
-async function fixture(t, mode = "reply") {
+async function fixture(t, mode = "reply", control = CONTROL) {
   assert.equal(typeof runtimeModule.createCodexRuntime, "function", "the standalone production Codex CellRuntime is missing");
   const root = await mkdtemp("/tmp/den-codex-runtime-fixture-");
   const worktree = `${root}/worktree`, accountHome = `${root}/account`, stateRoot = `${accountHome}/.local/state/den/credentials/codex`, auth = `${root}/dummy-auth.json`;
@@ -43,6 +45,7 @@ async function fixture(t, mode = "reply") {
   await writeFile(auth, "dummy-provider-marker", { mode: 0o600 });
   await writeFile(`${root}/stub.mjs`, STUB);
   const launches = [], groups = [];
+  let confirmed = true;
   const launcher = {
     enforced: true, scopedWrites: true,
     limits: { storage: { jobMiB: 1, outputMiB: 1 } },
@@ -53,16 +56,98 @@ async function fixture(t, mode = "reply") {
       const child = spawn(process.execPath, [`${root}/stub.mjs`, mode], { env: input.env, stdio: ["pipe", "pipe", "pipe"] });
       const group = { id: input.id, unit: `fixture-${input.id}.scope`, kills: 0, dead: false,
         kill() { this.kills++; child.kill("SIGKILL"); }, exhausted() { return null; },
-        async settled() { if (child.exitCode === null && child.signalCode === null) await new Promise(resolve => child.once("exit", resolve)); this.dead = true; return true; } };
+        async settled() { if (child.exitCode === null && child.signalCode === null) await new Promise(resolve => child.once("exit", resolve)); this.dead = confirmed; return confirmed; } };
       groups.push(group);
       return { child, group };
     },
   };
   t.after(async () => { for (const group of groups) { group.kill(); await group.settled(); } await rm(root, { recursive: true, force: true }); });
-  const runtime = runtimeModule.createCodexRuntime({ controlRoot: CONTROL, stateRoot, scratchRoot: `${root}/shell`, launcher, codexBin: process.execPath, bwrapBin: process.execPath, authFile: auth, env: { HOME: accountHome, PATH: "/usr/bin:/bin", OPENAI_API_KEY: "must-not-inherit", DEN_RUN_TOKEN: "must-not-inherit" } });
+  const runtime = runtimeModule.createCodexRuntime({ controlRoot: control, stateRoot, scratchRoot: `${root}/shell`, launcher, codexBin: process.execPath, bwrapBin: process.execPath, authFile: auth, env: { HOME: accountHome, PATH: "/usr/bin:/bin", OPENAI_API_KEY: "must-not-inherit", DEN_RUN_TOKEN: "must-not-inherit" } });
   const args = { role: "developer", cwd: worktree, project: { root: worktree, recipeFile: `${CONTROL}/.codex/agents/developer.toml` }, mainGit: `${root}/main-git`, sessionId: SESSION, runId: "c-0123456789abcdef", prompt: "Inspect the fixture." };
-  return { runtime, args, root, worktree, stateRoot, launches, groups, auth, setMode(next) { mode = next; } };
+  return { runtime, args, root, worktree, stateRoot, launches, groups, auth, setMode(next) { mode = next; }, confirm(value) { confirmed = value; } };
 }
+
+async function hostFixture(t, mode = "hang") {
+  const fx = await makeStateFixture({ git: true });
+  await mkdir(`${fx.root}/.claude/agents`, { recursive: true });
+  await cp(`${CONTROL}/.claude/agents`, `${fx.root}/.claude/agents`, { recursive: true });
+  await mkdir(`${fx.root}/.codex/agents`, { recursive: true });
+  await cp(`${CONTROL}/.codex/agents`, `${fx.root}/.codex/agents`, { recursive: true });
+  await cp(`${CONTROL}/.codex/runtime-guidance.md`, `${fx.root}/.codex/runtime-guidance.md`);
+  await mkdir(`${fx.root}/.agents/skills`, { recursive: true });
+  const f = await fixture(t, mode, fx.root);
+  const host = createHost({ root: fx.root, runtimes: { codex: f.runtime }, policy: { killGraceMs: 20 }, checkGate: async () => "ok" });
+  await host.ready;
+  t.after(async () => { await host.shutdown(); await fx.cleanup(); });
+  return { ...f, fx, host };
+}
+
+for (const direct of [false, true]) test(`actual host/runtime ${direct ? "direct" : "ordinary"} task admits the exact ticket read-only`, async t => {
+  const f = await hostFixture(t);
+  const ref = "fx/02-ready-p0";
+  const result = direct
+    ? await f.host.direct({ role: "architect", runtime: "codex", createTicket: async () => ({ ref }) })
+    : await f.host.start({ ref, role: "architect", runtime: "codex" });
+  assert.equal(result.status, 201, JSON.stringify(result));
+  const config = await readFile(`${f.launches[0].env.CODEX_HOME}/config.toml`, "utf8");
+  assert.ok(config.includes(`"${f.fx.root}/.scratch/fx/issues/02-ready-p0.md" = "read"`), "the host's task path must be readable under the actual profile");
+  assert.ok(!config.includes(`"${f.fx.root}/.scratch" = "write"`));
+  await f.host.stop(result.agent.id);
+});
+
+test("startup failure retains host worktree and fresh-session admission until positive settlement, across replay", async t => {
+  const f = await hostFixture(t, "startup-fail");
+  f.confirm(false);
+  const input = { ref: "fx/02-ready-p0", role: "architect", runtime: "codex" };
+  assert.equal((await f.host.start(input)).status, 502);
+  assert.equal(f.launches.length, 1);
+  const failed = f.host.snapshot().find(agent => agent.state === "failed");
+  assert.ok(failed, "the failed attempt keeps attributable host ownership");
+  const record = JSON.parse(await readFile(`${f.fx.root}/.scratch/_run/sessions.jsonl`, "utf8").then(text => text.trim().split("\n")[0]));
+  assert.equal(record.resourceId, f.groups[0].id);
+  assert.ok(existsSync(path.join(f.fx.root, failed.worktree)));
+  assert.equal((await f.host.start({ ...input, ref: "fx/07-bumpable" })).status, 503, "a fresh UUID/task cannot bypass an unconfirmed resource");
+  await f.host.shutdown();
+  const restarted = createHost({ root: f.fx.root, runtimes: { codex: f.runtime }, policy: { killGraceMs: 20 } });
+  await restarted.ready;
+  t.after(() => restarted.shutdown());
+  assert.equal((await restarted.start({ ...input, ref: "fx/07-bumpable" })).status, 503);
+  f.confirm(true);
+  f.groups[0].dead = true; // positive launcher liveness proof, independent of the root process exit
+  f.setMode("hang");
+  const next = await restarted.start({ ...input, ref: "fx/07-bumpable" });
+  assert.equal(next.status, 201, JSON.stringify(next));
+  assert.notEqual(f.launches[1].id, f.launches[0].id);
+  await restarted.stop(next.agent.id);
+});
+
+test("positive settlement of a failed start releases its original host reservation and native lock", async t => {
+  const f = await hostFixture(t, "startup-fail");
+  f.confirm(false);
+  const input = { ref: "fx/02-ready-p0", role: "architect", runtime: "codex" };
+  assert.equal((await f.host.start(input)).status, 502);
+  const failed = f.host.snapshot()[0];
+  const lock = `${f.stateRoot}/${failed.sessionId}/active.lock`;
+  assert.ok(existsSync(lock));
+  assert.equal((await f.host.start(input)).status, 503);
+  f.confirm(true);
+  f.groups[0].dead = true;
+  f.setMode("hang");
+  const next = await f.host.start(input);
+  assert.equal(next.status, 201, JSON.stringify(next));
+  assert.equal(existsSync(lock), false);
+  assert.ok(existsSync(path.join(f.fx.root, failed.worktree)), "failed work stays available for inspection after admission is released");
+  assert.equal(f.host.snapshot().find(agent => agent.id === failed.id).state, "failed");
+  await f.host.stop(next.agent.id);
+});
+
+test("oversized rendered input is refused before a native group is launched", async t => {
+  const f = await fixture(t);
+  await assert.rejects(f.runtime.spawn({ ...f.args, prompt: "x".repeat(300000) }), /turn input|prompt/);
+  assert.equal(f.launches.length, 0);
+  await assert.rejects(f.runtime.spawn({ ...f.args, prompt: "\u0001".repeat(100000) }), /turn input/);
+  assert.equal(f.launches.length, 0, "JSON escaping must fit the transport frame before launch too");
+});
 
 test("standalone runtime acknowledges a native session and returns real subprocess results behind trusted launcher", async t => {
   const f = await fixture(t);
