@@ -80,7 +80,34 @@ export const DEER = Object.freeze({
   envelope: { standing: { radius: 1.46, height: 3.2 }, moving: { radius: 1.53, height: 3.11 }, seated: { radius: 1.44, height: 3 }, head: { top: 3.2, radius: 1.4 } },
 });
 
+const LION_REST = restTable({
+  torso: [['Pelvis', [0, .55, -.2]], ['Spine', [0, .9, -.1]], ['Chest', [0, 1.25, 0]], ['Neck', [0, 1.6, .3]], ['Head', [0, 2.05, .4]]],
+  head: { jaw: [0, 1.85, 1.1], hat: [0, 3, .4] }, ears: [.75, 2.55, .5],
+  arm: [[.85, 1.3, .4], [1, .95, .6], [.7, .8, .9], [.5, .75, 1.05]],
+  leg: [[.65, .6, -.3], [.7, .35, -.25], [.7, .12, -.2], [.7, .05, .25]],
+  tail: [[-.5, .4, -.85], [-.7, .5, -1.05], [-.7, .7, -1.25], [-.7, .9, -1.4]],
+});
+export const LION = Object.freeze({
+  id: 'lion', label: 'Lion code reviewer', role: 'code-reviewer', height: 3, offset: [0, .1],
+  foot: ankleOf(LION_REST), rest: LION_REST,
+  weightsFor: capsuleWeights(LION_REST, {
+    Pelvis: .9, Spine: .9, Chest: .85, Neck: .6, Head: .95, ...legs([.55, .5, .45, .35]),
+    Tail1: .3, Tail2: .3, Tail3: .3, TailTip: .25,
+  }, {
+    softness: .1, sole: .05,
+    // The belly between the paws rests on the grass.
+    rigid: p => p.y < .25 && Math.abs(p.x) < .45 && p.z > .3 ? planted(p.y) : null,
+  }),
+  animate: tailSway(.12, .04),
+  sit: { drop: .12, planted: true },
+  gait: { stride: .4, lift: .07 },
+  weightSmoothing: FUSED_SMOOTHING,
+  heldProps: ['paw_L', 'paw_R'],
+  arms: FUSED_ARMS, greeting: 'body',
+  envelope: { standing: { radius: 2.02, height: 3.23 }, moving: { radius: 1.98, height: 3.11 }, seated: { radius: 2.02, height: 3.04 }, head: { top: 3.23, radius: 1.3 } },
+});
+
 // A profile joins CAST_PROFILES (the factory selects it) once cast-rig.test.mjs passes for it.
 // CAST_DRAFTS holds profiles still being fitted; run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
 export const CAST_DRAFTS = Object.freeze({});
-export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER });
+export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, lion: LION });

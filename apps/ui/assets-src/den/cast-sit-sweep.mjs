@@ -7,7 +7,7 @@ import * as C from '../../src/scene/meshy/cast-profiles.mjs';
 const id = process.argv[2], manifest = JSON.parse(readFileSync(new URL('../../public/den/manifest.json', import.meta.url))).assets;
 const src = readGlbGeometry(gunzipSync(readFileSync(new URL('../../public' + manifest['characters.' + id].url, import.meta.url))));
 const profile = { ...(C.CAST_DRAFTS?.[id] || C.CAST_PROFILES[id]), sit: { drop: 0, hip: 0, knee: 0, splay: 0, planted: true } }; if (process.env.IT) profile.weightSmoothing = { iterations: +process.env.IT, alpha: .5, pin: p => p.y < +(process.env.PIN || 0) };
-const f = createPandaAppearanceFactory({ characters: { [id]: src }, castProfiles: { [id]: profile } }), { rig, model } = f.createPanda(profile.role); model.scale.setScalar(1);
+const f = createPandaAppearanceFactory({ characters: { [id]: src }, castProfiles: { [id]: profile } }), { rig, model } = f.createPanda(profile.role, { runtime: profile.runtime }); model.scale.setScalar(1);
 const m = rig.meshes[0], pos = m.geometry.attributes.position, idx = m.geometry.index, rest = Array.from({ length: pos.count }, (_, i) => new T.Vector3().fromBufferAttribute(pos, i));
 const rows = [];
 for (const hip of [0]) for (const knee of [0]) for (const splay of [0]) for (const drop of [0, .03, .06, .1, .15, .2, .25]) {

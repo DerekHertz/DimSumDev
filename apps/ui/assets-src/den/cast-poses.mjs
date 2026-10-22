@@ -9,7 +9,7 @@ import * as C from '../../src/scene/meshy/cast-profiles.mjs';
 const [id, out] = process.argv.slice(2), manifest = JSON.parse(readFileSync(new URL('../../public/den/manifest.json', import.meta.url))).assets;
 const src = readGlbGeometry(gunzipSync(readFileSync(new URL('../../public' + manifest['characters.' + id].url, import.meta.url))));
 const profile = C.CAST_DRAFTS?.[id] || C.CAST_PROFILES[id];
-const f = createPandaAppearanceFactory({ characters: { [id]: src }, castProfiles: { [id]: profile } }), { rig, model } = f.createPanda(profile.role); model.scale.setScalar(1);
+const f = createPandaAppearanceFactory({ characters: { [id]: src }, castProfiles: { [id]: profile } }), { rig, model } = f.createPanda(profile.role, { runtime: profile.runtime }); model.scale.setScalar(1);
 const g = createLeisureGesture(rig), m = rig.meshes[0], pos = m.geometry.attributes.position;
 for (const [name, fn] of [['idle', () => rig.poseIdle(0)], ['walk', () => rig.poseWaddle(.3)], ['sit', () => rig.poseSit(0)], ['hello', () => { rig.poseIdle(.3); g.pose('greeting', .3); }]]) {
   g.pose(null, 0); fn(); model.updateMatrixWorld(true);
