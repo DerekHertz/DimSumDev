@@ -14,7 +14,8 @@
 //   waiting   null, or a string that says why nothing was started (a wait is never a stop)
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { decide, STOP_AT_PERCENT, BRIDGE_DOWN_MS } from "./decide.mjs";
+import { readFileSync } from "node:fs";
+import { decide, STOP_AT_PERCENT, BRIDGE_DOWN_MS, RESUMABLE, LOOK_INTERVAL_MS } from "./decide.mjs";
 
 const full = (n) => `fx/${String(n).padStart(2, "0")}-slug`;
 const tk = (n, { status = "ready-for-agent", paths = ["apps/a/default.mjs"], locked = false, blockedBy = "None", type = "feature" } = {}) => ({
@@ -213,5 +214,45 @@ describe("pairing by files (from 83)", () => {
     const holder = tk(1, { status: "claimed", paths: ["apps/b/server.mjs"] });
     for (const p of ["apps/b/", "apps/*.mjs", "apps/b/server.mjs"]) assert.deepEqual(starts(run({ order: order("2"), tickets: [holder, tk(2, { paths: [p] })], state })), [], p);
     assert.deepEqual(starts(run({ order: order("2"), tickets: [holder, tk(2, { paths: ["apps/bb/"] })], state })), [full(2)]);
+  });
+});
+
+describe("den-mvp/106: a look at a guardrail or ci-pending pause", () => {
+  const T0 = 5_000_000;
+  test("both kinds are resumed, never more often than the look interval, and a look takes no room", () => {
+    for (const kind of ["guardrail", "ci-pending"]) {
+      const state = bridge({ room: 0, deliveries: [dl(2, "paused", kind)] });
+      assert.deepEqual(resumes(run({ state, nowMs: T0 })), ["d-2"], kind);
+      const looked = new Map([["d-2", T0]]);
+      assert.deepEqual(resumes(run({ state, looked, nowMs: T0 + LOOK_INTERVAL_MS - 1 })), [], kind);
+      assert.deepEqual(resumes(run({ state, looked, nowMs: T0 + LOOK_INTERVAL_MS })), ["d-2"], kind);
+    }
+  });
+  test("a guardrail pause is still a stop (the merge is the user's), once; ci-pending is not", () => {
+    const g = run({ state: bridge({ deliveries: [dl(2, "paused", "guardrail")] }), nowMs: T0 });
+    assert.equal(g.stops.length, 1);
+    assert.deepEqual(run({ state: bridge({ deliveries: [{ ...dl(2, "paused", "guardrail"), updatedAt: "later" }] }), stops: [g.stops[0].key], nowMs: T0 }).stops, [], "a look that pauses again is not a new stop");
+    assert.deepEqual(run({ state: bridge({ deliveries: [dl(2, "paused", "ci-pending")] }), nowMs: T0 }).stops, []);
+  });
+  test("a ticket blocked only by a ticket that just merged starts on the next tick", () => {
+    const ctx = { order: order("1", "2"), state: bridge({ room: 1 }) };
+    assert.deepEqual(starts(run({ ...ctx, tickets: [tk(1, { status: "in-review" }), tk(2, { blockedBy: "fx/1" })] })), []);
+    assert.deepEqual(starts(run({ ...ctx, tickets: [tk(1, { status: "resolved" }), tk(2, { blockedBy: "fx/1" })] })), [full(2)]);
+  });
+  test("RESUMABLE matches the runner's ROUTER_RESUMES", () => {
+    const src = readFileSync(new URL("../bridge/delivery/runner.mjs", import.meta.url), "utf8");
+    const list = /const ROUTER_RESUMES = new Set\(\[([^\]]*)\]\)/.exec(src)[1].match(/"([^"]+)"/g).map((x) => x.slice(1, -1));
+    assert.deepEqual([...RESUMABLE].sort(), list.sort());
+  });
+});
+
+describe("den-mvp/107: a parked ticket's delivery holds no files", () => {
+  test("a paused or running delivery on a parked ticket does not hold its files, nor keep a not-beside apart", () => {
+    for (const state of ["paused", "running"]) {
+      const d = dl(1, state, state === "paused" ? "failed-twice" : null);
+      const tickets = [tk(1, { status: "parked", paths: ["apps/a/x.mjs"] }), tk(2, { paths: ["apps/a/x.mjs"] })];
+      assert.deepEqual(starts(run({ order: order("2"), tickets, state: bridge({ room: 1, deliveries: [d] }) })), [full(2)], state);
+      assert.deepEqual(starts(run({ order: order(["2", ["1"]]), tickets, state: bridge({ room: 1, deliveries: [d] }) })), [full(2)], state);
+    }
   });
 });

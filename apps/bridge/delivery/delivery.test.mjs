@@ -913,7 +913,7 @@ describe("what the router's service token may do on the delivery routes", () => 
   });
 
   test("it resumes bridge-restart, usage and no-room pauses", async () => {
-    for (const kind of ["bridge-restart", "usage", "no-room"]) {
+    for (const kind of ["bridge-restart", "usage", "no-room", "ci-pending"]) {
       const t = await setup({ serviceToken: SERVICE, preWrite: pausedJob(kind) });
       const res = await t.post(`/deliveries/${ID}/resume`, {}, asService(t));
       assert.equal(res.status, 202, `${kind}: ${JSON.stringify(res.body)}`);
@@ -923,7 +923,7 @@ describe("what the router's service token may do on the delivery routes", () => 
   });
 
   test("any other pause is a 403 with a reason, and the delivery is untouched", async () => {
-    for (const kind of ["stopped", "guardrail", "failed-twice", "visual-verdict", "conflict", "environment", "board", "busy"]) {
+    for (const kind of ["stopped", "failed-twice", "visual-verdict", "conflict", "environment", "board", "busy"]) {
       const t = await setup({ serviceToken: SERVICE, preWrite: pausedJob(kind) });
       const res = await t.post(`/deliveries/${ID}/resume`, {}, asService(t));
       assert.equal(res.status, 403, kind);
@@ -1311,5 +1311,78 @@ describe("delivery reads its steps from the floor", () => {
     const waiting = await t.paused("floor-gap");
     assert.match(waiting.pause.reason, /security/);
     assert.deepEqual(t.sideEffects(), ["push", "openPr", "waitChecks"], "published, but never merged");
+  });
+});
+
+// den-mvp/106: the router looks again at a guardrail or ci-pending pause; the bridge never merges what is the user's.
+describe("a router resume of a guardrail or ci-pending pause (den-mvp/106)", () => {
+  const SERVICE = "S".repeat(10) + "e".repeat(33);
+  const asService = (t) => ({ Origin: `http://127.0.0.1:${t.bridge.port}`, Authorization: `Bearer ${SERVICE}` });
+  const toGuardrail = async () => {
+    const t = await setup({ serviceToken: SERVICE });
+    await t.start();
+    t.git.files = ["apps/bridge/agents/host.mjs"];
+    await t.toQaPass();
+    t.work(await t.spawn(2), { say: "VERDICT: pass" });
+    return { t, waiting: await t.paused("guardrail") };
+  };
+
+  test("a merged pull request resolves the ticket with no click; an open one is left alone, never merged, and nothing is saved", async () => {
+    const { t, waiting } = await toGuardrail();
+    const open = await t.post(`/deliveries/${waiting.id}/resume`, {}, asService(t));
+    assert.equal(open.status, 200);
+    const same = await t.job();
+    assert.deepEqual([same.state, same.pause.kind, same.updatedAt], ["paused", "guardrail", waiting.updatedAt], "no new event, no flicker");
+    assert.equal(t.sideEffects().includes("merge"), false, "the bridge does not merge the user's change");
+    t.git.pr.state = "MERGED";
+    assert.equal((await t.post(`/deliveries/${waiting.id}/resume`, {}, asService(t))).status, 202);
+    await t.when((j) => j.state === "merged", "the delivery to close");
+    assert.equal(t.status(), "resolved");
+    assert.equal(t.sideEffects().includes("merge"), false);
+  });
+
+  test("ci-pending that turns green merges when the change is not the user's, and pauses as guardrail when it is", async () => {
+    for (const files of [null, ["apps/bridge/agents/host.mjs"]]) {
+      const t = await setup({ serviceToken: SERVICE });
+      t.git.checks = [{ name: "test", done: false, ok: false }];
+      await t.start();
+      if (files) t.git.files = files;
+      await t.toQaPass();
+      if (files) t.work(await t.spawn(2), { say: "VERDICT: pass" });
+      const waiting = await t.paused("ci-pending");
+      t.git.checks = [{ name: "test", done: true, ok: true }];
+      assert.equal((await t.post(`/deliveries/${waiting.id}/resume`, {}, asService(t))).status, 202);
+      if (files) {
+        await t.paused("guardrail");
+        assert.equal(t.sideEffects().includes("merge"), false);
+      } else {
+        await t.when((j) => j.state === "merged", "the merge");
+        assert.equal(t.status(), "resolved");
+      }
+      await t.close();
+      cleanups.length = 0;
+    }
+  });
+});
+
+// den-mvp/106: work merged outside a delivery.
+describe("the sweep of in-review tickets whose branch was merged elsewhere (den-mvp/106)", () => {
+  const SERVICE = "S".repeat(10) + "e".repeat(33);
+  const asService = (t) => ({ Origin: `http://127.0.0.1:${t.bridge.port}`, Authorization: `Bearer ${SERVICE}` });
+  const inReview = async (t, state) => {
+    const file = path.join(t.root, ".scratch", FEATURE, "issues", "08-plain.md");
+    writeFileSync(file, readFileSync(file, "utf8").replace(/\*\*Status:\*\* .+/, "**Status:** in-review") + "\nWork is on branch den/fx-08-plain.\n");
+    t.git.pr = state ? { number: 41, url: "https://github.com/o/r/pull/41", state, sha: "a".repeat(40) } : null;
+  };
+  test("a merged branch pull request resolves the ticket; an open or closed one is left alone", async () => {
+    for (const [state, want] of [["OPEN", "in-review"], ["CLOSED", "in-review"], [null, "in-review"], ["MERGED", "resolved"]]) {
+      const t = await setup({ serviceToken: SERVICE });
+      await inReview(t, state);
+      const res = await t.post("/deliveries/sweep", {}, asService(t));
+      assert.equal(res.status, 200, JSON.stringify(res.body));
+      assert.equal(t.status(), want, String(state));
+      await t.close();
+      cleanups.length = 0;
+    }
   });
 });

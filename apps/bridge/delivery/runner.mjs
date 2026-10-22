@@ -121,7 +121,7 @@ const unionRoles = (floorRoles, added) => FLOOR_ROLES.filter((r) => floorRoles?.
 // The bridge's steps that belong to the release manager (ADR 0029 decision 5).
 const RELEASE_STEPS = new Set(["push", "pr", "merge", "resolve"]);
 
-export function createDelivery({ host, board, git, log, readTicket, activeProject = async () => "den", onChange = () => {}, build = null, checks = null, ciWaitMs = 15000 }) {
+export function createDelivery({ host, board, git, log, readTicket, readInReview = async () => [], activeProject = async () => "den", onChange = () => {}, build = null, checks = null, ciWaitMs = 15000 }) {
   const jobs = new Map(); // id -> job; insertion order is snapshot order
   let mergeChain = Promise.resolve(); // merges go one at a time
   // The preview that is open for the job's candidate: { url, sha } | null.
@@ -724,7 +724,9 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     }
   }
 
-  const ROUTER_RESUMES = new Set(["bridge-restart", "usage", "no-room"]);
+  // den-mvp/106: guardrail and ci-pending are the router's to look at again (a merge by the user, checks that finished).
+  // Keep in step with RESUMABLE in apps/router/decide.mjs (a test compares them).
+  const ROUTER_RESUMES = new Set(["bridge-restart", "usage", "no-room", "guardrail", "ci-pending"]);
   const find = (id) => (typeof id === "string" && JOB_ID_RE.test(id) ? jobs.get(id) : undefined);
 
   /** The user's Resume. What the git host said is forgotten and asked again; nothing else is run twice. */
@@ -734,6 +736,13 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     if (job.state !== "paused") return refuse(409, job.state === "running" ? "the delivery is running" : "the delivery has ended");
     // den-mvp/88: the router's service token resumes the three pauses of ADR 0027 decision 8; every other pause is the user's.
     if (router && !ROUTER_RESUMES.has(job.pause.kind)) return refuse(403, `this delivery is paused (${job.pause.kind}) and the decision is yours; the router does not resume it`);
+    // den-mvp/106: a router look at a guardrail pause reads the pull request first. Still open: nothing changes, nothing is
+    // saved, the den shows no flicker. The bridge never merges here: a resume of a userMerge change pauses as guardrail again.
+    if (router && job.pause.kind === "guardrail" && job.pr?.number) {
+      const seen = await git.prState({ number: job.pr.number }).catch(() => null);
+      if (!seen || seen.state !== "MERGED") return { ok: true, status: 200, looked: true, delivery: view(job) };
+      if (job.state !== "paused") return refuse(409, "the delivery has moved on");
+    }
     if (body?.verdict !== undefined) {
       if (job.pause.kind !== "visual-verdict" || !["approve", "decline"].includes(body.verdict) || !job.candidate) return refuse(409, "this delivery is not waiting for a visual verdict");
       const { sha } = job.candidate;
@@ -780,6 +789,29 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
       await advance(job);
     });
     return { ok: true, status: 202, delivery: view(job) };
+  }
+
+  /**
+   * den-mvp/106: work merged outside a delivery. An in-review ticket with no live delivery whose branch has a MERGED pull
+   * request is resolved with that number. A pull request that is open or closed leaves the ticket alone.
+   * readInReview() -> [{ ref, branches: [name] }]. -> { ok, status: 200, resolved: [ref] }
+   */
+  async function sweep() {
+    await ready;
+    if (closing) return refuse(503, "the bridge is shutting down");
+    if ((await activeProject()) !== "den") return refuse(409, DEN_ONLY);
+    const resolved = [];
+    for (const { ref, branches } of await readInReview().catch(() => [])) {
+      if ([...jobs.values()].some((j) => j.ref === ref && live(j))) continue;
+      for (const branch of branches.slice(0, 5)) {
+        const pr = await git.findPr({ branch }).catch(() => null);
+        if (pr?.state !== "MERGED") continue;
+        const ok = await board.resolve(ref, pr.number).then(() => true, (err) => (console.error(`bridge: sweep could not resolve ${ref}: ${errorText(err)}`), false));
+        if (ok) resolved.push(ref);
+        break;
+      }
+    }
+    return { ok: true, status: 200, resolved };
   }
 
   /** The user's Stop: the job waits, and its running step is stopped. */
@@ -831,5 +863,5 @@ export function createDelivery({ host, board, git, log, readTicket, activeProjec
     clearTimeout(timer);
   }
 
-  return { ready, start, resume, stop, close, onEnd, shutdown, snapshot: () => [...jobs.values()].map(view) };
+  return { ready, start, resume, sweep, stop, close, onEnd, shutdown, snapshot: () => [...jobs.values()].map(view) };
 }

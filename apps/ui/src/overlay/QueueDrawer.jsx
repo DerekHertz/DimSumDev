@@ -90,6 +90,11 @@ export function QueueDrawer({ snapshot, now, open, onClose, onOpenNeeds, onOpenT
                               <span className="queue-state">{STATE_LABEL[t.state]}</span>
                               {t.waitsOn.length ? <span className="queue-waits">waits on {t.waitsOn.map((s) => s.split("-")[0]).join(", ")}</span> : null}
                             </button>
+                            {t.mergeWait ? (
+                              <p className="queue-merge-wait small">
+                                Waiting on your merge: {t.mergeWait.url ? <a href={t.mergeWait.url} target="_blank" rel="noreferrer noopener">PR #{t.mergeWait.number}</a> : `PR #${t.mergeWait.number}`}
+                              </p>
+                            ) : null}
                             {expanded === t.ref ? (
                               <div className="queue-ticket-actions">
                                 {controls ? controls({ ref: t.ref, type: t.type }) : null}

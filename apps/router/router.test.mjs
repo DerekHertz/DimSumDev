@@ -11,7 +11,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { createRouter } from "./router.mjs";
-import { BRIDGE_DOWN_MS } from "./decide.mjs";
+import { BRIDGE_DOWN_MS, LOOK_INTERVAL_MS } from "./decide.mjs";
 
 const text = (n, paths = ["apps/a/x.mjs"]) => `# ${n}\n\n**Type:** feature\n\n**Status:** ready-for-agent\n\n**Blocked by:** None\n\n## What to build\n${paths.map((p) => `\`${p}\``).join(" ")}\n`;
 const REF = "fx/01-slug";
@@ -297,5 +297,22 @@ describe("files a delivery holds (stalled queue, 2026-10-18)", () => {
     const r = rig({ stateNow: st([held]), readBoard: board, readChanged: async () => { throw new Error("git"); } });
     await r.router().tick();
     assert.deepEqual(r.calls.start, []);
+  });
+});
+
+describe("den-mvp/106: looks and the sweep", () => {
+  test("a guardrail pause is looked at once per interval by the fake clock, and the sweep is asked on the same cadence", async () => {
+    const r = rig();
+    const sweeps = [];
+    r.parts.bridge.sweep = async () => (sweeps.push(r.clock.t), { ok: true });
+    r.parts.stateNow = st([paused("guardrail")]);
+    const router = r.router();
+    await router.tick();
+    await router.tick();
+    assert.deepEqual(r.calls.resume, ["d-9"], "asked once");
+    r.clock.t += LOOK_INTERVAL_MS;
+    await router.tick();
+    assert.deepEqual(r.calls.resume, ["d-9", "d-9"]);
+    assert.equal(sweeps.length, 2);
   });
 });
