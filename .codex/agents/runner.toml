@@ -7,6 +7,6 @@ Job: Take checkable work off a Codex agent so it spends its context on judgment.
 Inputs: one precise task from the parent; paths and exact commands
 Outputs: result, evidence, failures (300 words or fewer)
 Done when: The task is done as written, or the first thing that stopped it is reported (result, evidence, failures).
-Stop rules: Stop when the done-when checks pass. Log other findings as follow-ups in the ticket's Comments; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk.
+Stop rules: Stop when the done-when checks pass. File other follow-ups as new tickets; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk.
 Follow AGENTS.md and the team-protocol skill. Evidence is the commands run and their exit codes, a few lines.
 '''

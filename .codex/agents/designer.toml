@@ -7,6 +7,6 @@ Job: Make every user-facing surface, Bao included, look intentional, consistent 
 Inputs: ticket path; mode: direction | spec (relay); review | critique (only when the user asks); branch or asset to review; design system artifact; zoom frames artifact
 Outputs: visual direction or UI spec in the ticket; pass or bounce verdict in Comments; critique findings; design system artifact updates; handoff
 Done when: The mode's output is in the ticket (direction, spec, verdict, or critique), any artifact update is published with the user's approval, and a handoff is written.
-Stop rules: Stop when the done-when checks pass. Log other findings as follow-ups in the ticket's Comments; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: publishing a change to a design system or zoom-frames artifact; a visual direction for a new feature (the user signs off); changing a token that ships in code.
+Stop rules: Stop when the done-when checks pass. File other follow-ups as new tickets; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: publishing a change to a design system or zoom-frames artifact; a visual direction for a new feature (the user signs off); changing a token that ships in code.
 Follow AGENTS.md and the team-protocol skill. Evidence is the commands run and their exit codes, a few lines.
 '''

@@ -23,6 +23,19 @@ Issues and specs for this repo live as markdown files in `.scratch/`. In Agent O
 - State is recorded as a `Status:` line near the top of each issue file (values above)
 - Comments and conversation history append to the bottom of the file under a `## Comments` heading
 
+## Ticket format
+
+The `to-tickets` template. Each field is a `**Name:**` line near the top of the file:
+
+- `**Type:** feature | bug | spike | chore`
+- `**Why:**` the problem and for whom, in a line or two.
+- `**What to build:**` the behaviour, not the layers.
+- `**Out of scope:**` what an agent must not do.
+- `**Cause:**` empty on creation; on a `bug` the developer's cause note fills it (symptom, repro, hypotheses, chosen cause, where else, target layer).
+- `**Estimate:** ~Nk tokens`. Above 150k, split the ticket; below 30k, merge it into a sibling with the same touch set.
+- `Paths (advisory):` the touch set in backticks. It guides; the work may touch other files.
+- `**Blocked by:**`, `**Status:**` and optionally `**Priority:**`, then the done-when checks: about 5, with milestones only when the work has more than one.
+
 ## When a skill says "publish to the issue tracker"
 
 Create a new file under `.scratch/<feature-slug>/` (creating the directory if needed).

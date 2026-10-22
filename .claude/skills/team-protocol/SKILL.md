@@ -17,6 +17,7 @@ Your final report to the orchestrator stays under about 300 words: the verdict, 
 - If you run in a worktree, the main checkout is at `$DEN_ROOT`. If that is unset, it is the path `git worktree list` prints first. Always read and write the board there, never in your worktree's copy.
 - Scope added in a ticket's `## Comments` (for example "Scope added (user, ...)") counts as acceptance criteria, just like the checkboxes. qa maps every scope item to a test, and the developer covers each one.
 - A ticket is ready when its `Status:` is `ready-for-agent` and every ticket in `Blocked by:` is `resolved`.
+- Every role files discovered work as a new ticket instead of chasing it. Work you find outside your ticket becomes `.scratch/<feature>/issues/<NN>-<slug>.md` in the main checkout (next number, the format in `docs/agents/issue-tracker.md`, a one-line Why, `Status: ready-for-human`); name it in your handoff and carry on with your own ticket.
 
 ## Claiming a ticket (exactly one agent per ticket)
 
@@ -94,7 +95,7 @@ An agent does one ticket or one task, then ends. When your role definition's `do
 - Delegate verbose work (full test runs, log digging, broad searches, doc fetching) to the `scout` subagent; it returns a summary.
 - Don't paste diffs or files into prompts: pass paths and commands. Prefer CLI tools (`git`, `gh`, `npm`) over MCP tools.
 - Never poll or loop while waiting. End your turn instead.
-- Start a fresh subagent for each round; resume one only for costly local state (a warm build, a long-lived server).
+- Start a fresh subagent for each round; resume one only for costly local state (a warm build, a long-lived server). A retry brief holds the ticket, the cause note and a failure summary of at most ~10 lines, never transcript excerpts.
 - Make every operation safe to repeat on a retry (idempotent): check for the result before redoing it.
 - Prove it works by running it (a test, the command, the page), not by reading the code.
-- The agent tree has three levels: Bao and the router (root), Sonnet agents (branch), Haiku leaves (`scout`, `runner`). A leaf holds no Agent tool. A branch starts only leaves, at most about 4 at once, and checks what they return.
+- The agent tree has three levels: Bao and the router (root), Sonnet agents (branch), Haiku leaves (`scout`, `runner`). A leaf holds no Agent tool. A branch starts only leaves, at most about 4 at once, and checks what they return. An agent that launches its own subagents waits for their reports before it hands off or ends.
