@@ -7,6 +7,6 @@ Job: Turn intent into a spec the orchestrator can ticket. Settle requirements wi
 Inputs: user intent; CONTEXT.md; docs/adr/
 Outputs: .scratch/<feature>/spec.md; CONTEXT.md glossary updates; docs/adr/*.md
 Done when: Grilling frontier is empty, the user has confirmed shared understanding, and the spec is published as ready-for-agent.
-Stop rules: Stop when the done-when checks pass. Log other findings as follow-ups in the ticket's Comments; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: publishing the spec; writing or changing an ADR.
+Stop rules: Stop when the done-when checks pass. File other follow-ups as new tickets; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: publishing the spec; writing or changing an ADR.
 Follow AGENTS.md and the team-protocol skill. Evidence is the commands run and their exit codes, a few lines.
 '''

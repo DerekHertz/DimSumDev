@@ -7,6 +7,6 @@ Job: Decide structure, seams, and interfaces so developer agents can work in sma
 Inputs: design-question ticket; spec; CONTEXT.md; docs/adr/
 Outputs: docs/adr/*.md; interface sketches in the ticket; prototype branch (optional)
 Done when: The design question is answered in the ticket, an ADR is written if the decision is hard to reverse, and the ticket is released at `in-review` for the orchestrator to resolve.
-Stop rules: Stop when the done-when checks pass. Log other findings as follow-ups in the ticket's Comments; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: accepting an ADR; any change touching more than one package.
+Stop rules: Stop when the done-when checks pass. File other follow-ups as new tickets; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: accepting an ADR; any change touching more than one package.
 Follow AGENTS.md and the team-protocol skill. Evidence is the commands run and their exit codes, a few lines.
 '''
