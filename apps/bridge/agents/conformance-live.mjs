@@ -1,7 +1,9 @@
 // den-v1 loop S3: the live check, run as spike `Live` of conformance.mjs (`npm run smoke:live`). Unlike the other
 // spikes, which drive the CLI directly, this one goes through the production path: startBridge, the Claude runtime,
-// the host's worktree and its fixed prompt. A throwaway git repository holds a probe role file for `scout`; the role
-// file, not the prompt, tells the model to write one file inside its worktree and one outside it. The harness plays
+// the host's worktree and its fixed prompt. A throwaway git repository holds a probe role file for `developer` (a role that takes grants); the role
+// file, not the prompt, tells the model to write one file inside its worktree, one in a granted directory and one outside
+// both. hardening/01: the host denies the last at once and holds the granted one for the user, so the harness plays the den
+// for the granted write only. The harness plays
 // the den: it watches GET /state for the held approval, reads the full input, allows it and waits for the end.
 // den-v1 loop S5: while that request is held it also sends the agent one message (POST /agents/:id/message), and the
 // evaluator checks that the CLI replayed it with the id the bridge gave it and that the bridge marked it received.
@@ -25,7 +27,7 @@ import { decodeControlRequest } from "./claude-adapter.mjs";
 import { createClaudeRuntime } from "./claude-runtime.mjs";
 
 export const LIVE_REF = "den/01-live-check";
-export const LIVE_ROLE = "scout"; // a known role: the production argv template accepts nothing else
+export const LIVE_ROLE = "developer"; // a known role that writes, so it takes a path grant (scout takes none)
 export const LIVE_MARKER = "LIVE-CHECK-OK";
 const INSIDE_FILE = "inside.txt";
 const ENDED = ["done", "failed", "terminated"];
@@ -35,7 +37,7 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ---- the throwaway repository ---------------------------------------------------------------
 
-const roleFile = ({ model, target, body, insideBody, ticket, neighbour }) => `---
+const roleFile = ({ model, target, outside, body, insideBody, ticket, neighbour }) => `---
 name: ${LIVE_ROLE}
 description: Live-check probe role (throwaway)
 tools: Read, Write
@@ -45,13 +47,15 @@ You are a conformance probe in a throwaway repository. There is no board${ticket
 
 Do exactly this, in this order, and nothing else:
 ${ticket ? `- Use the Read tool to read the file ${ticket}\n- Use the Read tool to read the file ${neighbour}\n` : ""}${insideBody ? `- Use the Write tool to create the file ${INSIDE_FILE} in your current working directory with exactly this content: ${insideBody}\n` : ""}- Use the Write tool to create the file ${target} with exactly this content: ${body}
+- Use the Write tool to create the file ${outside} with exactly this content: ${body}
 
 If a tool call is refused, do not retry it and do not try another way. Begin your final reply with the word ${LIVE_MARKER}, then say in one sentence what happened to each write.
 `;
 
 /**
- * A git repository with one commit holding the probe role file. `target` is in the repository root, so it is outside
- * every agent worktree (.claude/worktrees/...). insideBody: null leaves the inside write out.
+ * A git repository with one commit holding the probe role file. `grant` is a second temp dir that the run grants and `target` is in
+ * it: outside every agent worktree, and a write the host holds for the user. `outside` is in the repository root: outside every
+ * worktree and every grant, so the host denies it. insideBody: null leaves the inside write out.
  */
 export function makeLiveRepo({ model = "haiku", body = `LIVE-BODY-${randomBytes(3).toString("hex").toUpperCase()}`, insideBody = null, ticketWord = null } = {}) {
   if (typeof model !== "string" || !MODEL_RE.test(model)) throw new TypeError("makeLiveRepo: model must be a plain model name");
@@ -59,7 +63,9 @@ export function makeLiveRepo({ model = "haiku", body = `LIVE-BODY-${randomBytes(
     if (typeof b !== "string" || !BODY_RE.test(b)) throw new TypeError("makeLiveRepo: a body is one line of letters, digits, spaces, dots, dashes and underscores");
   }
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "den-live-")));
-  const target = path.join(dir, "live-check.txt");
+  const grant = realpathSync(mkdtempSync(path.join(tmpdir(), "den-live-grant-")));
+  const target = path.join(grant, "live-check.txt");
+  const outside = path.join(dir, "live-outside.txt");
   mkdirSync(path.join(dir, ".claude", "agents"), { recursive: true });
   mkdirSync(path.join(dir, ".scratch"));
   // ticketWord: the probe's own ticket file, where the host says it is (the main checkout's board, outside the worktree).
@@ -70,12 +76,12 @@ export function makeLiveRepo({ model = "haiku", body = `LIVE-BODY-${randomBytes(
     writeFileSync(neighbour, "# 02: neighbour\n\n**Status:** ready-for-agent\n");
     writeFileSync(ticket, `# 01: live check\n\n**Status:** ready-for-agent\n\n## What to build\n\n> ${ticketWord}\n`);
   }
-  writeFileSync(path.join(dir, ".claude", "agents", `${LIVE_ROLE}.md`), roleFile({ model, target, body, insideBody, ticket, neighbour }));
+  writeFileSync(path.join(dir, ".claude", "agents", `${LIVE_ROLE}.md`), roleFile({ model, target, outside, body, insideBody, ticket, neighbour }));
   const git = (...args) => execFileSync("git", ["-C", dir, "-c", "user.name=live", "-c", "user.email=live@example.invalid", "-c", "commit.gpgsign=false", "-c", "core.hooksPath=/dev/null", ...args], { stdio: "pipe" });
   git("init", "-q", "-b", "main");
   git("add", `.claude/agents/${LIVE_ROLE}.md`);
   git("commit", "-q", "-m", "live check probe");
-  return { dir, target, body, insideBody, ticket, neighbour, cleanup: () => rmSync(dir, { recursive: true, force: true }) };
+  return { dir, grant, target, outside, body, insideBody, ticket, neighbour, cleanup: () => { rmSync(dir, { recursive: true, force: true }); rmSync(grant, { recursive: true, force: true }); } };
 }
 
 // ---- the recording wrapper --------------------------------------------------------------------
@@ -321,6 +327,17 @@ export function evaluateLive({ main, stdin, bridge } = {}) {
   if (!final?.fileExists || !final?.bodyMatches) bad(`the file is ${final?.fileExists ? "on disk with the wrong content" : "not on disk"} after the allow`);
   else good("the file is on disk with the content asked for");
 
+  // hardening/01: the write outside the worktree and every grant is denied by the host at once: a Write request answered deny
+  // on the child's stdin, never held, and no file on disk. A setup with no `outside` (an older capture) is scored as before.
+  if (setup.outside) {
+    const outReq = approvals.find((r) => r.d.tool === "Write" && rel(r.d.input.file_path) === rel(setup.outside));
+    const outReply = outReq ? inn.map((r) => r.o).find((o) => o.type === "control_response" && o.response?.request_id === outReq.d.requestId)?.response?.response : undefined;
+    if (!outReq) bad("the probe never tried the write outside the worktree and the grants, so the run does not show that the host denies it");
+    else if (outReply?.behavior !== "deny") bad(`the write outside the worktree was not denied on the child's stdin (answer ${outReply?.behavior ?? "none"})`);
+    else if (final?.outsideExists !== false) bad("a file exists outside the worktree after the write was denied");
+    else good(`the write outside the worktree and the grants was denied by the host (${flat(outReply.message ?? "")}), never held, and nothing was written`);
+  }
+
   // The write inside the worktree, when the probe was asked for one: an agent must be able to work where it is put.
   if (setup.inside) {
     const use = uses.find((u) => u.name === "Write" && rel(u.input?.file_path) === rel(setup.inside));
@@ -416,7 +433,7 @@ export async function runLive(ctx, _outDir, { repo, exitWaitMs = 20_000, killGra
     const token = session.body?.token;
     if (typeof token !== "string") throw new Error(`the bridge refused the launch code: ${session.status}`);
     sse = openSse(bridge, (event, data) => note({ type: "sse", event, data }));
-    const started = await bridge.host.start({ ref: LIVE_REF, role: LIVE_ROLE });
+    const started = await bridge.host.start({ ref: LIVE_REF, role: LIVE_ROLE, grants: [{ kind: "path", value: repo.grant }] });
     if (!started.ok) note({ type: "check", check: "start-failed", status: started.status, error: started.error });
     else {
       const id = started.agent.id;
@@ -460,10 +477,18 @@ export async function runLive(ctx, _outDir, { repo, exitWaitMs = 20_000, killGra
         await sleep(100);
       }
       const me = ((await call(bridge, "GET", "/state")).body?.agents ?? []).find((a) => a.id === id);
+      // The setup names the outside path once the child has asked to write it, so the evaluator scores that step (the evaluator reads
+      // it from the setup check). A run in which the child never asks is scored as before.
+      const tried = readTee(logFile, errFile).main.lines.some(({ obj: o }) => (o?.type === "control_request" && o.request?.input?.file_path === repo.outside) || (o?.type === "assistant" && Array.isArray(o.message?.content) && o.message.content.some((b) => b?.type === "tool_use" && b.input?.file_path === repo.outside)));
+      const setupNote = notes.find((n) => n.obj.check === "setup");
+      if (tried && setupNote) {
+        setupNote.obj.outside = repo.outside;
+        setupNote.raw = JSON.stringify(setupNote.obj);
+      }
       const read = (file) => (file && existsSync(file) ? readFileSync(file, "utf8").trim() : null);
       note({
         type: "check", check: "final", agentState: me?.state ?? null, endedByItself,
-        fileExists: existsSync(repo.target), bodyMatches: read(repo.target) === repo.body,
+        fileExists: existsSync(repo.target), bodyMatches: read(repo.target) === repo.body, outsideExists: existsSync(repo.outside),
         ...(inside === null ? {} : { insideExists: existsSync(inside), insideBodyMatches: read(inside) === repo.insideBody }),
       });
     }

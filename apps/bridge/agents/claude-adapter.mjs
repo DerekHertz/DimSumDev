@@ -9,7 +9,7 @@
 //   encodeUserMessage a user message as one stdin line: the prompt, or (den-v1 loop S5) a message to a running child,
 //                     whose id comes back on the child's replay of it and reads as message-applied
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { lstatSync, readFileSync, readlinkSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { StringDecoder } from "node:string_decoder";
 import { cleanText, safeToolInput } from "../../shared/safe-text.mjs";
@@ -43,8 +43,28 @@ export function isTicketFilePath(file) {
 // one against the worktree, `..` folded) and compared on a segment boundary, so `<worktree>-evil` is outside. A file tool with
 // no usable path is denied too: the rule fails closed. The agent's own ticket file may be read, never written, and a path the user
 // granted (a "path" grant) counts as inside.
-// shortcut: lexical, so a symlink inside the worktree is not followed; upgrade to realpath if an agent can create one.
+// Symlinks are followed (hardening/01 addendum): the check judges where the path really leads, by the realpath of its longest existing
+// prefix plus the segments after it, so a new file under a real directory stays allowed, and a dangling link or a linked directory
+// that leaves the worktree is refused. The worktree and the grants are resolved the same way, so a worktree behind a linked /tmp works.
 const FILE_TOOL_PATH = { Read: "file_path", Write: "file_path", Edit: "file_path", NotebookEdit: "notebook_path" };
+// null when the path cannot be resolved (a link loop, a path through a file): the rule then fails closed.
+function realish(p, depth = 0) {
+  if (depth > 40) return null;
+  try {
+    return realpathSync(p);
+  } catch (err) {
+    if (err?.code !== "ENOENT" && err?.code !== "ENOTDIR") return null;
+  }
+  try {
+    if (lstatSync(p).isSymbolicLink()) return realish(path.resolve(path.dirname(p), readlinkSync(p)), depth + 1); // dangling: judge its target
+  } catch {
+    // nothing at p: fall through to its parent
+  }
+  const parent = path.dirname(p);
+  if (parent === p) return p;
+  const real = realish(parent, depth + 1);
+  return real === null ? null : path.join(real, path.basename(p));
+}
 export function fileToolRefusal({ tool, input, worktree, ticketFile, grantPaths = [], home }) {
   const key = Object.hasOwn(FILE_TOOL_PATH, tool) ? FILE_TOOL_PATH[tool] : undefined;
   if (key === undefined) return null;
@@ -52,10 +72,14 @@ export function fileToolRefusal({ tool, input, worktree, ticketFile, grantPaths 
   if (typeof given !== "string" || given === "" || given.includes("\0") || typeof worktree !== "string" || !path.isAbsolute(worktree)) return `Refused: ${tool} needs a plain file path inside the worktree.`;
   const base = path.resolve(worktree);
   const file = path.resolve(base, given);
-  const inside = (dir) => file === dir || file.startsWith(dir + path.sep);
-  if (inside(base) || grantPaths.some((g) => inside(path.resolve(expandHome(g, home))))) return null;
   if (tool === "Read" && ticketFile !== undefined && file === path.resolve(ticketFile)) return null;
-  return `Refused: ${tool} on ${file} is outside the worktree (${base}); a file tool may only reach inside it.`;
+  const real = realish(file);
+  const within = (dir) => {
+    const d = realish(dir);
+    return real !== null && d !== null && (real === d || real.startsWith(d + path.sep));
+  };
+  if (within(base) || grantPaths.some((g) => within(path.resolve(expandHome(g, home))))) return null;
+  return `Refused: ${tool} on ${file}${real !== null && real !== file ? ` (which leads to ${real})` : ""} is outside the worktree (${base}); a file tool may only reach inside it.`;
 }
 const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
 
@@ -269,6 +293,9 @@ function governedUnder(grant, root, worktree) {
   return out;
 }
 
+// hardening/01: a role with `write: none` (scout, orchestrator; both retiring) keeps its shell read as it was; the runtime passes it no worktree.
+export const roleWrites = (role) => Object.hasOwn(CEILINGS, role) && CEILINGS[role].write === "worktree";
+
 /**
  * The buildClaudeArgs options for a role's ceiling plus its task grants: the wall with the ceiling's hosts and the granted
  * ones, Write and Edit allow rules for the worktree when the role writes and for each granted path, and the governance
@@ -315,10 +342,12 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
     ...(mainGit === undefined ? [] : MAIN_GIT_DENIED.map((name) => (name === "refs" ? `${mainGit}/refs/**` : `${mainGit}/${name}`))),
   ])];
   const hosts = [...new Set([...ceiling.hosts, ...grantHosts])];
-  const readLimit = hosts.length > 0 || remote === true;
+  // hardening/01 (user, 2026-10-22): a worktree alone brings the read limit, so a shell cannot read $HOME; a way out brings it too.
+  const readLimit = worktree !== undefined || hosts.length > 0 || remote === true;
+  const wayOut = hosts.length > 0 || remote === true;
   // What the work reads outside the worktree: the project's node_modules and main .git, node and npm, git's identity, the browsers.
   // Never the project root itself: it holds the worktree, and reopening it re-mounts the worktree read-only (live probe, 2026-10-18).
-  const readOpen = !readLimit ? [] : [...new Set([root === undefined ? undefined : `${root}/node_modules`, mainGit, toolchain, ...(home === undefined ? [] : [`${home}/.gitconfig`, `${home}/.cache/ms-playwright`])].filter((p) => p !== undefined))];
+  const readOpen = !readLimit ? [] : [...new Set([root === undefined ? undefined : `${root}/node_modules`, mainGit, toolchain, ...(home === undefined ? [] : [`${home}/.gitconfig`, `${home}/.cache/ms-playwright`, ...(wayOut ? [] : [`${home}/.npm`])])].filter((p) => p !== undefined))];
   if (readOpen.some((p) => grantTouchesCredential(p, home))) throw new TypeError("compileCeiling: a path the read limit reopens may not reach a credential store");
   return {
     wall: { hosts },

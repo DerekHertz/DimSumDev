@@ -163,9 +163,10 @@ describe("the read limit keeps the ticket file readable", () => {
     assert.ok(s.permissions.allow.includes(`Read(/${TICKET})`));
   });
 
-  test("with no read limit there is no additional directory", () => {
+  // hardening/01 addendum: the read limit no longer waits for a way out, so an agent with a worktree gets the ticket's directory too.
+  test("with no way out, an agent with a worktree gets the ticket's directory as well", () => {
     const s = settingsOf({ compiled: { ...compile("developer", []), ticketFile: TICKET } });
-    assert.equal(s.permissions.additionalDirectories, undefined);
+    assert.deepEqual(s.permissions.additionalDirectories, ["/work/den/.scratch/den/issues"]);
   });
 });
 
