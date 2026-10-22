@@ -406,8 +406,8 @@ test("each real role toml is 2 KB or less and has job, inputs, outputs, done whe
   }
 });
 
-test("instructions loaded before a ticket (AGENTS.md, team-protocol skill, role) total 16 KB or less for every role", () => {
-  const fixed = size("AGENTS.md") + size(".agents/skills/team-protocol/SKILL.md");
+test("instructions loaded before a ticket (AGENTS.md, runtime-guidance.md, team-protocol skill, role) total 16 KB or less for every role", () => {
+  const fixed = size("AGENTS.md") + size(".codex/runtime-guidance.md") + size(".agents/skills/team-protocol/SKILL.md");
   for (const role of ROLE_DEFINITIONS) {
     const total = fixed + size(`.codex/agents/${role}.toml`);
     assert.ok(total <= PRELOAD_MAX, `${role} loads ${total} bytes before a ticket`);
@@ -419,7 +419,7 @@ test("the 16 KB budget also holds with every skill's name and description, which
   const meta = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && existsSync(path.join(dir, e.name, "SKILL.md")))
     .map((e) => readFileSync(path.join(dir, e.name, "SKILL.md"), "utf8").match(/^---\r?\n([\s\S]*?)\r?\n---/)[1])
     .reduce((n, fm) => n + Buffer.byteLength(fm), 0);
-  const fixed = size("AGENTS.md") + size(".agents/skills/team-protocol/SKILL.md") + meta;
+  const fixed = size("AGENTS.md") + size(".codex/runtime-guidance.md") + size(".agents/skills/team-protocol/SKILL.md") + meta;
   for (const role of ROLE_DEFINITIONS) assert.ok(fixed + size(`.codex/agents/${role}.toml`) <= PRELOAD_MAX, `${role} loads ${fixed + size(`.codex/agents/${role}.toml`)} bytes with skill metadata`);
 });
 
@@ -495,4 +495,21 @@ test("Codex runtime guidance keeps the gates, the one-owner rule and the verific
   assert.match(g, /exit codes/i);
   const agents = readFileSync(path.join(ROOT, "AGENTS.md"), "utf8");
   assert.doesNotMatch(agents, /\b(?:Sonnet|Haiku)\b|reserved slot beside them|Cloud sessions|Token hygiene/);
+});
+
+test("the Codex team-protocol keeps the user's approval points and the orchestrator's autonomy defers to them", () => {
+  const p = readFileSync(path.join(ROOT, ".agents/skills/team-protocol/SKILL.md"), "utf8");
+  const gates = p.slice(p.indexOf("## Gates"), p.indexOf("## Handoff"));
+  for (const k of [/user-merge list/, /visual verdicts/, /twice-failed ticket/, /5-hour usage at 90%/, /open scope question/]) assert.match(gates, k, `Gates lacks ${k}`);
+  assert.match(parseToml(roleToml("orchestrator")).developer_instructions, /except the user-kept approvals in team-protocol Gates/);
+});
+
+test("the generated implement skill keeps den agents off the full suite", () => {
+  const implement = readFileSync(path.join(ROOT, ".agents/skills/implement/SKILL.md"), "utf8");
+  assert.doesNotMatch(implement, /full test suite once at the end/);
+  assert.match(implement, /literal covering test files/);
+});
+
+test("AGENTS.md tells a session asked to act as an agent to read .codex/agents/<role>.toml", () => {
+  assert.match(readFileSync(path.join(ROOT, "AGENTS.md"), "utf8"), /read its definition `\.codex\/agents\/<role>\.toml`/);
 });

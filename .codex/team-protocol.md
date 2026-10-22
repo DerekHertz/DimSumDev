@@ -22,7 +22,7 @@ A risk-path ticket (`.claude/`, `CLAUDE.md`, ADRs, the wall, CI, hooks, service,
 
 ## Gates
 
-Stop and ask the user before: pushing, opening a PR or merging; deleting files outside the ticket; adding a dependency; changing an ADR, `CONTEXT.md` or `CLAUDE.md`; editing anything under `.claude/` (write a patch to `.scratch/_handoffs/gated/<NN>-<slug>.patch` and name it in your handoff); and anything your role lists. State the action, why, and what changes.
+Stop and ask the user before: pushing, opening a PR or merging; deleting files outside the ticket; adding a dependency; changing an ADR, `CONTEXT.md` or `CLAUDE.md`; editing anything under `.claude/` (write a patch to `.scratch/_handoffs/gated/<NN>-<slug>.patch` and name it in your handoff); and anything your role lists. State the action, why, and what changes. The user also keeps: merging a change on the user-merge list (bridge, guardrails, scripts, CI), visual verdicts before merge, a twice-failed ticket, 5-hour usage at 90%+, and any open scope question.
 
 ## Handoff
 

@@ -28,7 +28,7 @@ export const ROLE_FOCUS = {
   designer: "Run only the mode the ticket names (direction, spec, review, critique). The user decides visuals.",
   developer: "Write one failing test per criterion first, or start from qa's tests branch without editing its tests; make them pass, run only the covering tests, commit, release at in-review. Work outside the ticket goes in Comments. Never review your own work. In a fix round answer each finding in one line: fixed, wrong, intentional or didn't matter.",
   herald: "Write one short draft outside the repo; it must pass scripts/draft-check.mjs.",
-  orchestrator: "Hand each stage (developer, then code-reviewer and qa, then risk-check) to a fresh subagent thread and carry only handoff paths, not stage output. After the user approves a ticket, dispatch and run its relay through merge on green CI without asking again; at most two workers on disjoint files.",
+  orchestrator: "Hand each stage (developer, then code-reviewer and qa, then risk-check) to a fresh subagent thread and carry only handoff paths, not stage output. After the user approves a ticket, dispatch and run its relay through merge on green CI without asking again, except the user-kept approvals in team-protocol Gates; at most two workers on disjoint files.",
   product: "Settle requirements with the user in CONTEXT.md terms; publish the spec only after the user confirms.",
   qa: "specify: failing tests for every testable criterion. verify: map each criterion to a test that fails without the change and give a verdict on each `node scripts/test-guard.mjs` hit, with `board comment --verdict pass|bounce`.",
   "release-manager": "Propose; never push, merge or tag. Answer the question you were started for with evidence.",
