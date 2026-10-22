@@ -137,7 +137,34 @@ export const TORTOISE = Object.freeze({
   envelope: { standing: { radius: 2.8, height: 3.27 }, moving: { radius: 2.78, height: 3.09 }, seated: { radius: 2.76, height: 3 }, head: { top: 3.27, radius: 1.4 } },
 });
 
+const PANGOLIN_REST = restTable({
+  torso: [['Pelvis', [0, .8, -.7]], ['Spine', [0, 1.3, -.45]], ['Chest', [0, 1.7, -.1]], ['Neck', [0, 2.1, .4]], ['Head', [0, 2.3, .8]]],
+  head: { jaw: [0, 2, 1.3], hat: [0, 2.9, .5] }, ears: [.5, 2.6, .5],
+  arm: [[.8, 1.5, .2], [.85, 1.2, .3], [.85, 1, .4], [.7, 1, .5]],
+  leg: [[.45, .75, -.15], [.45, .45, -.15], [.45, .15, -.2], [.45, .05, .45]],
+  tail: [[0, .7, -1], [0, .65, -1.4], [0, .6, -1.8], [0, .55, -2.1]],
+});
+export const PANGOLIN = Object.freeze({
+  id: 'pangolin', label: 'Pangolin security', role: 'security', height: 3, offset: [0, .3],
+  foot: ankleOf(PANGOLIN_REST), rest: PANGOLIN_REST,
+  weightsFor: capsuleWeights(PANGOLIN_REST, {
+    Pelvis: .65, Spine: .75, Chest: .75, Neck: .45, Head: .6, ...legs([.25, .22, .2, .2]),
+    Tail1: .45, Tail2: .35, Tail3: .28, TailTip: .2,
+  }, {
+    softness: .1, sole: .05,
+    // The belly behind the feet stays on the grass; the crown plates follow the head.
+    rigid: p => p.y > 2.6 && p.z > .3 ? 'Head' : p.z < -.3 && p.z > -.9 && p.y < .4 ? planted(p.y) : null,
+  }),
+  animate: tailSway(.14, .05),
+  sit: { drop: .25, planted: true },
+  weightSmoothing: FUSED_SMOOTHING,
+  heldProps: ['paw_L', 'paw_R'],
+  arms: FUSED_ARMS, greeting: 'body',
+  // Measured maxima over every pose (the tail sets the radius), plus 5%.
+  envelope: { standing: { radius: 2.32, height: 3.24 }, moving: { radius: 2.36, height: 3.1 }, seated: { radius: 2.32, height: 2.89 }, head: { top: 3.24, radius: 1.2 } },
+});
+
 // A profile joins CAST_PROFILES (the factory selects it) once cast-rig.test.mjs passes for it.
 // CAST_DRAFTS holds profiles still being fitted; run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
 export const CAST_DRAFTS = Object.freeze({});
-export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, crane: CRANE, tortoise: TORTOISE });
+export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, crane: CRANE, tortoise: TORTOISE, pangolin: PANGOLIN });
