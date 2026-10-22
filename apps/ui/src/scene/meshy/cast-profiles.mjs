@@ -1,22 +1,18 @@
 import { capsuleWeights, restTable, tailSway } from './character-profiles.mjs';
 
-// team-and-den-ux/25-35 (slice 2a): rig profiles for crane, tortoise, pangolin, otter and deer on the shared
+// team-and-den-ux/25-35 (slice 2a): rig profiles for the ten cast species on the shared
 // rig. Rig space as in character-profiles.mjs (feet y=0, front +Z, character's left +X); anchors were read off
-// orthographic front/side grids of the packed meshes (all five face +Z). Jiao, fox, lion, lucky-cat and
-// golden-monkey have no profile yet, so CAST_PROFILES omits them and they keep the old panda body.
+// orthographic front/side grids of the packed meshes (all ten face +Z). CAST_PROFILES holds all ten; a
+// species whose source fails to load keeps the old panda body.
 // Not in CHARACTER_PROFILES on purpose: character-rig.test.mjs iterates that table.
 
-const limbs = (arm, leg) => Object.fromEntries(['L', 'R'].flatMap(s => [
-  ['Shoulder_' + s, arm[0]], ['Elbow_' + s, arm[1]], ['Wrist_' + s, arm[2]], ['paw_' + s, arm[3]],
-  ['Hip_' + s, leg[0]], ['Knee_' + s, leg[1]], ['Ankle_' + s, leg[2]], ['Toe_' + s, leg[3]],
-]));
-// Fused arms never move against the body, so their vertices follow the torso capsules (no arm/belly seam to tear).
+// Weight limits for the four bones of each leg, both sides.
 const legs = leg => Object.fromEntries(['L', 'R'].flatMap(s => ['Hip_', 'Knee_', 'Ankle_', 'Toe_'].map((n, i) => [n + s, leg[i]])));
 // A haunch on the grass stays put while the hips bob or settle, easing into the pelvis above it.
 const planted = (y, height = .25) => y >= height ? 'Pelvis' : [['Root', 1 - y / height], ['Pelvis', y / height]].filter(([, w]) => w > 0);
 // Legs and the haunch merge at the grass: diffuse weights across the seam, but keep the soles on their own bones.
 const FUSED_SMOOTHING = Object.freeze({ iterations: 60, alpha: .5, pin: p => p.y < .03 });
-// Sitting is a crouch: the hips lower and the knees bend over planted feet (a swung leg would tear the haunch).
+// Fused arms never move against the body, so their vertices follow the torso capsules (no arm/belly seam to tear).
 const FUSED_ARMS = Object.freeze({ drop: 0, swing: Object.freeze({ L: 0, R: 0 }) });
 const inBox = (p, [x0, x1], [y0, y1], [z0, z1]) => p.x > x0 && p.x < x1 && p.y > y0 && p.y < y1 && p.z > z0 && p.z < z1;
 const ankleOf = rest => { const [, , [x, y, z]] = rest.find(([n]) => n === 'Ankle_L'); return { x, y, z }; };
@@ -41,6 +37,7 @@ export const OTTER = Object.freeze({
     rigid: p => p.z < .12 && p.z > -.6 && p.y < .95 ? planted(p.y) : null,
   }),
   animate: tailSway(.16, .05),
+  // Sitting is a crouch: the hips lower and the knees bend over planted feet (a swung leg would tear the haunch).
   sit: { drop: .1, planted: true },
   // A shorter, lower step: its feet merge into the haunch behind them.
   gait: { stride: .4, lift: .07 },

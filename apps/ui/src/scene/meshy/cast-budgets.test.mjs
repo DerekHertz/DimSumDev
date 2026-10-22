@@ -4,7 +4,7 @@ import { readFileSync } from 'node:fs';
 import { gunzipSync } from 'node:zlib';
 
 // team-and-den-ux/25-35: structural budgets (docs/design/character-performance-method.md) for the ten cast
-// characters, plus the full-cast aggregate. Rig, envelope, pose and portrait tests join this file in the next slice.
+// characters, plus the full-cast aggregate. Rig, envelope and pose tests are in cast-rig.test.mjs, portraits in cast-portraits.test.mjs.
 const manifest = JSON.parse(readFileSync(new URL('../../../public/den/manifest.json', import.meta.url))).assets;
 const sources = JSON.parse(readFileSync(new URL('../../../assets-src/den/cast-sources.json', import.meta.url))).characters;
 

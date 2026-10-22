@@ -95,7 +95,32 @@ test('each role picks its species for both runtimes; Jiao is the codex orchestra
     assert.equal(factory.createPanda('orchestrator').model.scale.x, 1.35);
   } finally { factory.dispose(); }
   const failed = createPandaAppearanceFactory({ body, vest: body, characters: {}, castProfiles: CAST_PROFILES });
-  try { for (const profile of Object.values(CAST_PROFILES)) assert.equal(failed.createPanda(profile.role).model.userData.species, undefined, profile.role + ' falls back to its old panda'); } finally { failed.dispose(); }
+  try {
+    for (const profile of Object.values(CAST_PROFILES)) assert.equal(failed.createPanda(profile.role).model.userData.species, undefined, profile.role + ' falls back to its old panda');
+    const jiao = failed.createPanda('orchestrator', { runtime: 'codex' });
+    assert.equal(jiao.model.userData.species, undefined, 'a missing Jiao source gives the codex orchestrator the old panda'); assert.equal(jiao.model.scale.x, 1.35);
+  } finally { failed.dispose(); }
+  // The source loaded but its profile is missing: the species is skipped just the same.
+  const unprofiled = createPandaAppearanceFactory({ body, vest: body, characters: { fox: load('fox'), jiao: load('jiao') }, castProfiles: {} });
+  try {
+    assert.equal(unprofiled.createPanda('product').model.userData.species, undefined);
+    assert.equal(unprofiled.createPanda('orchestrator', { runtime: 'codex' }).model.userData.species, undefined);
+  } finally { unprofiled.dispose(); }
+});
+
+test('smoothed skin weights are computed once per source, profile and transform, and shared by every body', () => {
+  const profile = CAST_PROFILES.fox; let calls = 0;
+  const counted = { ...profile, weightSmoothing: { ...profile.weightSmoothing, pin: p => { calls++; return profile.weightSmoothing.pin(p); } } };
+  const characters = { fox: load('fox') }, factory = createPandaAppearanceFactory({ characters, castProfiles: { fox: counted } });
+  try {
+    const first = factory.createPanda(profile.role, { runtime: 'claude' }), afterFirst = calls;
+    assert.ok(afterFirst > 0, 'the first body smooths');
+    const second = factory.createPanda(profile.role, { runtime: 'codex' });
+    assert.equal(calls, afterFirst, 'the second body reuses the smoothed weights');
+    first.rig.meshes.forEach((m, k) => ['skinIndex', 'skinWeight'].forEach(name => assert.deepEqual(second.rig.meshes[k].geometry.attributes[name].array, m.geometry.attributes[name].array, name)));
+    const other = createPandaAppearanceFactory({ characters: { fox: load('fox') }, castProfiles: { fox: counted } });
+    try { other.createPanda(profile.role); assert.ok(calls > afterFirst, 'another source smooths for itself'); } finally { other.dispose(); }
+  } finally { factory.dispose(); }
 });
 
 // team-and-den-ux/35: the whole live cast through the factory, every role on both runtimes plus Bao and Jiao.

@@ -20,7 +20,7 @@ export function createLeisureGesture(rig){
   }else if(kind==='greeting'&&rig.profile?.greeting==='body'){
    // Paws fused to the belly or a prop cannot lift without tearing (team-and-den-ux/25-35): a nod, a lean and a small bounce.
    const beat=Math.sin(time*5);
-   bones.Spine.rotation.x=.07;bones.Head.rotation.x=.16+.08*beat;bones.Head.rotation.z=.09*Math.sin(time*2.5);bones.Pelvis.position.y+=.035*Math.abs(beat);
+   b.Spine.rotation.x=.07;b.Head.rotation.x=.16+.08*beat;b.Head.rotation.z=.09*Math.sin(time*2.5);b.Pelvis.position.y+=.035*Math.abs(beat);
   }else if(kind==='greeting'){
    b.Shoulder_L.rotation.z=(rig.profile?.greetingDirection??-1)*((rig.profile?.greetingLift??1.7)+.17*Math.sin(time*5));b.Shoulder_L.rotation.x=-.5;b.Elbow_L.rotation.x=-.25;b.Elbow_L.rotation.z=rig.profile?.greetingElbowLift??0;
   }else if(kind==='mahjong'){

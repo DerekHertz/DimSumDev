@@ -92,6 +92,17 @@ export function sampleWaddle(time, settings = {}) {
 /** The shared rig's per-species data; Bao's is the original Balanced Bao contract. */
 export const BAO_PROFILE = Object.freeze({ id: 'bao', label: 'Balanced Bao', rest: REST, weightsFor, height: 3, offset: [0, 0], foot: BAO_FOOT });
 
+// Smoothing costs 100-360 ms per source and depends only on the source geometry, the profile and the applied
+// transform, so the den's ~18 cast bodies share one result per species. Read-only: callers must not mutate it.
+const smoothed = new WeakMap();
+function cachedSmoothWeights(geometry, profile, matrix, compute) {
+  let byProfile = smoothed.get(geometry); if (!byProfile) smoothed.set(geometry, byProfile = new WeakMap());
+  let byMatrix = byProfile.get(profile); if (!byMatrix) byProfile.set(profile, byMatrix = new Map());
+  const key = matrix.elements.join(','); let weights = byMatrix.get(key);
+  if (!weights) byMatrix.set(key, weights = Object.freeze(compute().map(list => Object.freeze(list.map(pair => Object.freeze(pair))))));
+  return weights;
+}
+
 /** Build an independent skeleton and skinned meshes from the approved GLTF scene. */
 export function createBalancedPandaRig(source) { return createRig(source, BAO_PROFILE); }
 
@@ -128,13 +139,15 @@ export function createRig(source, profile) {
     object.traverse(node => {
       if (!node.isMesh || !node.geometry) return;
       if (node.isSkinnedMesh) throw Error('Expected an unrigged ' + profile.label + ' asset');
-      const geometry = node.geometry.clone().applyMatrix4(transform.clone().multiply(node.matrixWorld));
+      const applied = transform.clone().multiply(node.matrixWorld), geometry = node.geometry.clone().applyMatrix4(applied);
       const positions = geometry.attributes.position, skinIndices = new Uint16Array(positions.count * 4), skinWeights = new Float32Array(positions.count * 4), colors = new Float32Array(positions.count * 3);
       const position = new T.Vector3(), color = new T.Color(), attachment = node.userData.attachBone, head = headOnly || Boolean(node.userData.headwearRole);
       if(attachment&&!bones[attachment])throw Error('Unknown outfit attachment bone: '+attachment);
-      let all = Array.from({ length: positions.count }, (_, i) => attachment ? [[attachment, 1]] : profile.weightsFor(position.fromBufferAttribute(positions, i), head));
+      const weigh = () => Array.from({ length: positions.count }, (_, i) => attachment ? [[attachment, 1]] : profile.weightsFor(position.fromBufferAttribute(positions, i), head));
       // Fused sources (team-and-den-ux/25-35) diffuse their weights along the surface; others keep position-only weights.
-      if (profile.weightSmoothing && !attachment && !head && geometry.index) all = smoothWeights(positions, geometry.index, all, profile.weightSmoothing);
+      const all = profile.weightSmoothing && !attachment && !head && geometry.index
+        ? cachedSmoothWeights(node.geometry, profile, applied, () => smoothWeights(positions, geometry.index, weigh(), profile.weightSmoothing))
+        : weigh();
       for (let i = 0; i < positions.count; i++) {
         const weights = all[i];
         weights.forEach(([name, weight], slot) => { skinIndices[i * 4 + slot] = indices[name]; skinWeights[i * 4 + slot] = weight; });
