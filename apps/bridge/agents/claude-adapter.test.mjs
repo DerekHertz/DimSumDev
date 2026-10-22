@@ -1166,61 +1166,47 @@ describe("buildClaudeArgs: a connection with a credential (den-mvp/33)", () => {
 });
 
 // ---- the file tools outside the worktree (hardening/01, ADR 0021 l.107) --------------------------------
-
-// Before this, Read, Write and Edit outside the worktree were "ask": the sandbox does not cover them, and nothing refused
-// them but the absence of someone to answer. The inline settings must refuse them by rule. A deny rule wins over an
-// allow, so a path deny cannot carve the worktree, the granted paths and the ticket file back out; the settings can only
-// refuse everything an allow rule does not name (the CLI's "dontAsk" mode). This model of the CLI's order is why the test
-// reads the settings through a decision and not for a particular key: deny rules, then allow rules, then the mode.
-describe("buildClaudeArgs: Read, Write and Edit outside the worktree are denied by rule (hardening/01)", () => {
+//
+// Approach A (user, 2026-10-22). The first cut set the CLI's permissions.defaultMode to "dontAsk", which refuses every tool no
+// allow rule names: it would also refuse the connection tools the bridge's host answers from the library catalog, and
+// possibly Agent, Skill, WebSearch and Bash outside the sandbox. So the deny does NOT live in these settings. It lives in the
+// host's answer to a can_use_tool request (host-file-tools-outside.test.mjs). What the settings must keep is everything the
+// host's answer rests on: the CLI still raises a request for a file tool outside the worktree (no mode that refuses it
+// first), the deny rules, the ticket-file allow, the worktree and granted-path allows.
+describe("buildClaudeArgs: the inline settings leave the file-tool deny to the host (hardening/01)", () => {
   const WORKTREE = "/home/u/den/.claude/worktrees/den-fx-01-abcd1234";
   const TICKET = "/home/u/den/.scratch/fx/issues/01-a.md";
   const GRANT = "/home/u/shared";
   const build = (o) => need("buildClaudeArgs")({ sessionId: SID, agent: "developer", ...o });
   const settingsOf = (argv) => JSON.parse(argv[argv.indexOf("--settings") + 1]);
 
-  // One rule `Tool(//abs/**)`, `Tool(//abs)` or a path relative to the worktree, against an absolute path.
-  const matches = (rule, tool, file) => {
-    const m = /^([A-Za-z]+)\((.*)\)$/.exec(rule);
-    if (!m || m[1] !== tool) return false;
-    const pattern = m[2].startsWith("//") ? m[2].slice(1) : m[2].startsWith("/") || m[2].startsWith("~") ? null : `${WORKTREE}/${m[2]}`;
-    if (pattern === null) return false;
-    if (pattern.endsWith("/**")) return file === pattern.slice(0, -3) || file.startsWith(pattern.slice(0, -2));
-    return file === pattern;
-  };
-  // The decision for one file-tool call. A Read inside the worktree is the CLI's own free read.
-  const decide = (settings, tool, file) => {
-    const { deny = [], allow = [], defaultMode } = settings.permissions;
-    if (deny.some((r) => matches(r, tool, file))) return "deny";
-    if (allow.some((r) => matches(r, tool, file))) return "allow";
-    if (tool === "Read" && file.startsWith(`${WORKTREE}/`)) return "allow";
-    return defaultMode === "dontAsk" ? "deny" : "ask";
-  };
-
   const variants = {
     "the wall with no host": { wall: { hosts: [] }, worktree: WORKTREE, ticketFile: TICKET, writePaths: [GRANT] },
     "the wall with a host and the read limit": { wall: { hosts: ["example.com"] }, worktree: WORKTREE, ticketFile: TICKET, writePaths: [GRANT], readLimit: true },
+    "a worktree and nothing else": { worktree: WORKTREE },
   };
-  const OUTSIDE = ["/home/u/secret.txt", "/home/u/.ssh/id_rsa", "/home/u/den/package.json", "/home/u/den/.claude/worktrees/other/src/a.mjs", "/etc/passwd"];
 
   for (const [name, extra] of Object.entries(variants)) {
-    test(`${name}: Read, Write and Edit on a path outside the worktree are denied, not asked`, () => {
+    test(`${name}: no defaultMode "dontAsk", so a tool the host answers (a connection's) is still asked about`, () => {
       const settings = settingsOf(build(extra));
-      for (const tool of ["Read", "Write", "Edit"]) for (const file of OUTSIDE) assert.equal(decide(settings, tool, file), "deny", `${tool} ${file}`);
+      assert.notEqual(settings.permissions.defaultMode, "dontAsk");
+      assert.ok(!JSON.stringify(settings).includes("dontAsk"), "dontAsk appears nowhere in the settings");
     });
 
-    test(`${name}: the agent's own ticket file stays readable, the worktree and a granted path stay as they were`, () => {
-      const settings = settingsOf(build(extra));
-      assert.equal(decide(settings, "Read", TICKET), "allow", "the ticket file");
-      assert.equal(decide(settings, "Write", TICKET), "deny", "the ticket is read, not written");
-      for (const tool of ["Read", "Write", "Edit"]) assert.equal(decide(settings, tool, `${WORKTREE}/src/a.mjs`), "allow", `${tool} inside the worktree`);
-      for (const tool of ["Write", "Edit"]) assert.equal(decide(settings, tool, `${GRANT}/notes.txt`), "allow", `${tool} on a granted path`);
-    });
-
-    test(`${name}: every deny rule that was there stays, and the worktree's .claude/ is still refused`, () => {
+    test(`${name}: every deny rule that was there stays`, () => {
       const settings = settingsOf(build(extra));
       for (const rule of DENY_RULES) assert.ok(settings.permissions.deny.includes(rule), rule);
-      for (const tool of ["Write", "Edit"]) assert.equal(decide(settings, tool, `${WORKTREE}/.claude/settings.json`), "deny", tool);
+    });
+  }
+
+  for (const [name, extra] of Object.entries(variants).filter(([, v]) => v.ticketFile !== undefined)) {
+    test(`${name}: the ticket-file allow, the worktree allows and the granted-path allows stay`, () => {
+      const { allow } = settingsOf(build(extra)).permissions;
+      assert.ok(allow.includes(`Read(/${TICKET})`), "the ticket file");
+      for (const tool of ["Write", "Edit"]) {
+        assert.ok(allow.includes(`${tool}(/${WORKTREE}/**)`), `${tool} in the worktree`);
+        assert.ok(allow.includes(`${tool}(/${GRANT}/**)`), `${tool} on the granted path`);
+      }
     });
   }
 

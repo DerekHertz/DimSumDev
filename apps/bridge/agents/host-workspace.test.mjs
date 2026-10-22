@@ -91,24 +91,17 @@ describe("the child's working directory", () => {
     assert.equal(spawn.branch, branch);
   });
 
-  test("a write outside the worktree is held as an approval and never performed without an allow", async () => {
+  test("a write outside the worktree is denied by the host at once (hardening/01), never held and never performed", async () => {
     const t = await boot({ mode: "write" });
     const res = await t.post("/agents", { ref: DISPATCH_REF, role: "architect" });
     assert.equal(res.status, 201, res.text);
     const { id, worktree } = res.body.agent;
-    const approval = await until(async () => (await t.state()).approvals?.find((a) => a.agentId === id && a.state === "pending"), { what: "a pending approval" });
-    assert.equal(approval.tool, "Write");
-
-    const full = await t.get(`/approvals/${approval.id}`);
-    const cwd = await realpath(path.join(t.fx.root, worktree));
-    assert.ok(path.relative(cwd, full.body.input.file_path).startsWith(".."), "the requested path is outside the agent's worktree");
-    assert.equal((await t.state()).agents.find((a) => a.id === id).state, "waiting_on_user");
-    assert.equal(await exists(t.outside), false, "nothing is written while the request is held");
-
-    const denied = await t.post(`/approvals/${approval.id}`, { decision: "deny" });
-    assert.equal(denied.status, 200, denied.text);
-    const answer = await until(async () => (await t.stub.stdinLines()).find((l) => l.type === "control_response"), { what: "the answer on the child's stdin" });
+    const answer = await until(async () => (await t.stub.stdinLines()).find((l) => l.type === "control_response"), { what: "the host's answer on the child's stdin" });
     assert.equal(answer.response.response.behavior, "deny");
+    assert.match(answer.response.response.message, /outside/i);
+    const cwd = await realpath(path.join(t.fx.root, worktree));
+    assert.ok(path.relative(cwd, t.outside).startsWith(".."), "the stub's write is outside the agent's worktree");
+    assert.deepEqual(((await t.state()).approvals ?? []).filter((a) => a.agentId === id), [], "no approval is held for the user");
     await until(async () => (await t.state()).agents.find((a) => a.id === id)?.state === "done", { what: "the agent to end" });
     assert.equal(await exists(t.outside), false, "a denied write leaves no file");
   });

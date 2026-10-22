@@ -50,7 +50,7 @@ test("the recorded run: the answers the spike reported", () => {
   assert.equal(r.verdict, "go");
   assert.deepEqual(answers(r), recorded.answers);
   assert.deepEqual(recorded.answers, { q1: "yes", q2: "partly", q3: "yes", q4: "partly", q5: "unknown", q6: "no", q7: "partly" });
-  // q6 changed meaning (hardening/01): "refused by rule, not asked". The 2026-10-10 stream predates the rule, so its file tools asked: no.
+  // q6 changed meaning (hardening/01): "the host denied every outside call and the disk is untouched". In the 2026-10-10 stream the harness allowed two outside calls and one write landed: no.
 });
 
 test("the recorded run: what each answer rests on", () => {
@@ -115,40 +115,40 @@ test("a turn the model did not make leaves its question unknown, not answered", 
   assert.equal(r.verdict, "no-go");
 });
 
-// ---- question 6 after hardening/01: the file tools outside the worktree are denied by rule, not asked ----------------
-// The recorded stream above is of the old behaviour: each outside call raised a request (ADR 0021 l.107). The bridge now
-// refuses them by rule, so the CLI raises no request, the tool result is an error, and the harness's "allow" answer never
-// gets the chance to write. These cases replay that shape over the same fixture. The live run (the Wall spike with the
-// production argv, worktree included) is human-verified.
-const denied = { error: true, text: "Permission to use the tool has been denied." };
-const denyOutside = (i) => {
+// ---- question 6 after hardening/01 (approach A): the host denies the file tools outside the worktree ----------------
+// The CLI still raises a request for a Read, a Write or an Edit outside the worktree (ADR 0021 l.107). The bridge's host
+// now answers it deny, with a reason, whatever the user could have said: the tool result is an error and the disk keeps
+// nothing. Question 6 is yes only when every outside call raised a request, none was allowed, and the disk is untouched.
+// The recorded stream is of the old behaviour: the harness answered "allow" on two turns and the outside write landed on
+// disk (disk.outsideAllowed), so the recorded run is a no. The live run (the Wall spike with the production argv and the
+// host's rule answering) is human-verified.
+const hostDenied = { error: true, text: "Refused: a file tool may not reach outside the worktree." };
+const hostDenies = (i) => {
   for (const id of ["read-outside", "write-outside", "write-outside-allowed", "read-outside-allowed", "edit-outside"]) {
-    i.turns[id].requests = [];
-    i.turns[id].results = [denied];
+    assert.ok(i.turns[id].requests.length > 0, `${id} raised a request`);
+    i.turns[id].results = [hostDenied];
   }
   i.disk.outsideAllowed = false;
 };
 
-test("question 6: a Read, a Write and an Edit outside the worktree that are refused with no request, and leave the disk alone, answer yes", () => {
-  const r = run(denyOutside);
+test("question 6: outside calls that raised a request, were denied by the host, errored, and left the disk alone, answer yes", () => {
+  const r = run(hostDenies);
   assert.equal(r.answers.q6.answer, "yes");
-  for (const id of ["read-outside", "write-outside", "edit-outside"]) assert.ok(r.answers.q6.evidence.some((e) => e.startsWith(`${id}: NO request`)), id);
+  for (const id of ["read-outside", "write-outside", "edit-outside"]) assert.ok(r.answers.q6.evidence.some((e) => e.startsWith(`${id}: raised a request`) && e.includes("error")), id);
 });
 
-test("question 6: an outside call the CLI only asks about is no longer a yes", () => {
-  const r = run(); // the recorded run: each outside call raised "Path is outside allowed working directories"
+test("question 6: the recorded run, where the harness allowed an outside write and it landed, is a no", () => {
+  const r = run();
   assert.equal(r.answers.q6.answer, "no");
+  assert.equal(recorded.disk.outsideAllowed, true);
 });
 
-test("question 6: a denied-looking run that still wrote or changed a file outside the worktree is a no", () => {
-  assert.equal(run((i) => { denyOutside(i); i.disk.outsideWrite = true; }).answers.q6.answer, "no", "the denied write appeared");
-  assert.equal(run((i) => { denyOutside(i); i.disk.outsideAllowed = true; }).answers.q6.answer, "no", "the write the harness would allow appeared");
-  assert.equal(run((i) => { denyOutside(i); i.disk.outsideReadText = `${p.outBody}\n`; }).answers.q6.answer, "no", "the outside file was edited");
-});
-
-test("question 6: a Read that was not refused, only left unasked, is a no", () => {
-  const r = run((i) => { denyOutside(i); i.turns["read-outside"].results = [{ error: false, text: p.mark }]; });
-  assert.equal(r.answers.q6.answer, "no");
+test("question 6: a host that allowed an outside call, or a disk that changed, is a no", () => {
+  assert.equal(run((i) => { hostDenies(i); i.disk.outsideWrite = true; }).answers.q6.answer, "no", "the denied write appeared");
+  assert.equal(run((i) => { hostDenies(i); i.disk.outsideAllowed = true; }).answers.q6.answer, "no", "the write the harness would allow appeared");
+  assert.equal(run((i) => { hostDenies(i); i.disk.outsideReadText = `${p.outBody}\n`; }).answers.q6.answer, "no", "the outside file was edited");
+  assert.equal(run((i) => { hostDenies(i); i.turns["read-outside"].results = [{ error: false, text: p.mark }]; }).answers.q6.answer, "no", "the Read returned the file");
+  assert.equal(run((i) => { hostDenies(i); i.turns["edit-outside"].results = [{ error: false, text: "The file has been edited" }]; }).answers.q6.answer, "no", "the Edit succeeded");
 });
 
 // ---- question 5: the Limits spike, replayed over fixtures/limits.jsonl and limits-results.json ---------------
