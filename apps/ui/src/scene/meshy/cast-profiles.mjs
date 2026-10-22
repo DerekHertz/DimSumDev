@@ -134,7 +134,31 @@ export const LUCKY_CAT = Object.freeze({
   envelope: { standing: { radius: 1.96, height: 3.23 }, moving: { radius: 2.03, height: 3.12 }, seated: { radius: 1.96, height: 2.95 }, head: { top: 3.23, radius: 1 } },
 });
 
+const MONKEY_REST = restTable({
+  torso: [['Pelvis', [.05, .55, -.05]], ['Spine', [.1, .95, -.05]], ['Chest', [.15, 1.3, 0]], ['Neck', [.25, 1.75, 0]], ['Head', [.35, 2.3, 0]]],
+  head: { jaw: [.35, 1.95, .65], hat: [.35, 2.95, 0] }, ears: [.9, 2.3, 0],
+  arm: [[.6, 1.4, .1], [.8, 1.1, .3], [.85, .95, .5], [.85, .9, .55]],
+  leg: [[.4, .5, -.05], [.4, .3, 0], [.4, .1, .05], [.4, .05, .45]],
+  tail: [[-.5, .45, -.55], [-1.25, .8, -.5], [-1.65, 1.4, -.45], [-1.25, 1.75, -.45]],
+});
+export const GOLDEN_MONKEY = Object.freeze({
+  id: 'golden-monkey', label: 'Golden monkey runner', role: 'runner', height: 3, offset: [.05, 0],
+  foot: ankleOf(MONKEY_REST), rest: MONKEY_REST,
+  weightsFor: capsuleWeights(MONKEY_REST, {
+    Pelvis: .6, Spine: .6, Chest: .6, Neck: .4, Head: .85, ...legs([.4, .35, .32, .28]),
+    Tail1: .2, Tail2: .2, Tail3: .2, TailTip: .18,
+  }, { softness: .1, sole: .05 }),
+  animate: tailSway(.2, .06),
+  sit: { drop: .12, planted: true },
+  gait: { stride: .4, lift: .07 },
+  weightSmoothing: FUSED_SMOOTHING,
+  heldProps: ['paw_L', 'paw_R'],
+  // The scroll and satchel ride the torso: both paws are fused to the body and never swing.
+  arms: FUSED_ARMS, greeting: 'body',
+  envelope: { standing: { radius: 1.83, height: 3.17 }, moving: { radius: 1.88, height: 3.12 }, seated: { radius: 1.83, height: 3.03 }, head: { top: 3.17, radius: 1.1 } },
+});
+
 // A profile joins CAST_PROFILES (the factory selects it) once cast-rig.test.mjs passes for it.
 // CAST_DRAFTS holds profiles still being fitted; run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
 export const CAST_DRAFTS = Object.freeze({});
-export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, lion: LION, "lucky-cat": LUCKY_CAT });
+export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, lion: LION, "lucky-cat": LUCKY_CAT, "golden-monkey": GOLDEN_MONKEY });
