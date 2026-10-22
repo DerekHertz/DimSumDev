@@ -1,0 +1,178 @@
+{
+  "sessionId": "731b85af-3033-48ff-8318-021bda2f21a4",
+  "timings": {
+    "initMs": 870,
+    "firstResultMs": 3514
+  },
+  "turns": {
+    "bash-in": {
+      "permission": [],
+      "tools": [
+        {
+          "name": "Bash",
+          "input": {
+            "command": "echo IN > /tmp/den-ctr-2BPkav/main/.claude/worktrees/probe/in-bash.txt",
+            "description": "Write IN to in-bash.txt in the probe worktree"
+          }
+        }
+      ],
+      "result": {
+        "is_error": false,
+        "text": "(Bash completed with no output)"
+      }
+    },
+    "write-home": {
+      "permission": [
+        {
+          "tool": "Write",
+          "allowed": true
+        }
+      ],
+      "tools": [
+        {
+          "name": "Write",
+          "input": {
+            "file_path": "/home/dhertzell/den-ctr-outside-probe.txt",
+            "content": "OUT-HOME"
+          }
+        }
+      ],
+      "result": {
+        "is_error": true,
+        "text": "EROFS: read-only file system, mkdir '/home/dhertzell'"
+      }
+    },
+    "read-host-creds": {
+      "permission": [],
+      "tools": [
+        {
+          "name": "Read",
+          "input": {
+            "file_path": "/home/dhertzell/.claude/.credentials.json"
+          }
+        }
+      ],
+      "result": {
+        "is_error": true,
+        "text": "File does not exist. Note: your current working directory is /tmp/den-ctr-2BPkav/main/.claude/worktrees/probe."
+      }
+    }
+  },
+  "usage": [
+    {
+      "turn": "bash-in",
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 1099,
+        "cache_read_input_tokens": 6264,
+        "output_tokens": 133,
+        "output_tokens_details": {
+          "thinking_tokens": 0
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 1099
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "cost": 0.000266915,
+      "ms": 2689
+    },
+    {
+      "turn": "write-home",
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 272,
+        "cache_read_input_tokens": 7600,
+        "output_tokens": 147,
+        "output_tokens_details": {
+          "thinking_tokens": 44
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 272
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "cost": 0.00045081499999999997,
+      "ms": 3303
+    },
+    {
+      "turn": "read-host-creds",
+      "usage": {
+        "input_tokens": 4,
+        "cache_creation_input_tokens": 353,
+        "cache_read_input_tokens": 8131,
+        "output_tokens": 220,
+        "output_tokens_details": {
+          "thinking_tokens": 148
+        },
+        "server_tool_use": {
+          "web_search_requests": 0,
+          "web_fetch_requests": 0
+        },
+        "service_tier": "standard",
+        "cache_creation": {
+          "ephemeral_1h_input_tokens": 0,
+          "ephemeral_5m_input_tokens": 353
+        },
+        "inference_geo": "global",
+        "iterations": [],
+        "speed": "standard",
+        "fallback_credit": null
+      },
+      "cost": 0.0006866499999999999,
+      "ms": 5516
+    }
+  ],
+  "init": {
+    "tools": [
+      "Bash",
+      "Read",
+      "Write",
+      "Edit"
+    ],
+    "model": "claude-haiku-5-5",
+    "cwd": "/tmp/den-ctr-2BPkav/main/.claude/worktrees/probe",
+    "permissionMode": "default",
+    "apiKeySource": "ANTHROPIC_API_KEY"
+  },
+  "inspect": {
+    "env": "HTTPS_PROXY=http://den-proxy:8080\nNO_PROXY=den-proxy\nANTHROPIC_BASE_URL=http://den-proxy:8080\nANTHROPIC_API_KEY=sk-ant-dummy-not-a-key\n",
+    "credFiles": "total 0\ndrwxr-xr-x 7 root root 140 Oct 22 16:08 .\ndrwx------ 3 root root  80 Oct 22 16:08 ..\ndrwxr-xr-x 2 root root  60 Oct 22 16:08 backups\ndrwx------ 3 root root  60 Oct 22 16:08 projects\ndrwxr-xr-x 3 root root  60 Oct 22 16:08 session-env\ndrwx------ 2 root root  80 Oct 22 16:08 sessions\ndrwxr-xr-x 2 root root  60 Oct 22 16:08 shell-snapshots\ndone\n",
+    "mainConfigWrite": "exit 255: error: could not lock config file /tmp/den-ctr-2BPkav/main/.git/config: Read-only file system\n",
+    "mainRefsWrite": "exit 2: sh: 1: cannot create /tmp/den-ctr-2BPkav/main/.git/refs/heads/main: Read-only file system\n",
+    "otherWorktreeMeta": "probe\n",
+    "rootfsWrite": "exit 2: sh: 1: cannot create /etc/x: Read-only file system\n",
+    "mounts": "/ ro,relatime\n/proc rw,nosuid,nodev,noexec,relatime\n/dev rw,nosuid\n/dev/pts rw,nosuid,noexec,relatime\n/sys ro,nosuid,nodev,noexec,relatime\n/sys/fs/cgroup ro,nosuid,nodev,noexec,relatime\n/dev/mqueue rw,nosuid,nodev,noexec,relatime\n/dev/shm rw,nosuid,nodev,noexec,relatime\n/root rw,nosuid,nodev,noexec,relatime\n/tmp rw,nosuid,nodev,relatime\n/tmp/den-ctr-2BPkav/ro ro,relatime\n/tmp/den-ctr-2BPkav/main/.git ro,relatime\n/tmp/den-ctr-2BPkav/main/.git/logs rw,relatime\n/tmp/den-ctr-2BPkav/main/.git/objects rw,relatime\n/tmp/den-ctr-2BPkav/main/.claude/worktrees/probe rw,relatime\n/tmp/den-ctr-2BPkav/main/.git/worktrees/probe rw,relatime\n/tmp/den-ctr-2BPkav/main/.git/refs/heads/den rw,relatime\n/proc/acpi ro,relatime\n/proc/scsi ro,relatime\n/sys/firmware ro,relatime\n"
+  },
+  "exit": 0,
+  "stderr": "",
+  "disk": {
+    "inBash": true,
+    "inWrite": false,
+    "denied": false,
+    "home": false,
+    "outsideBash": false,
+    "outsideWrite": false,
+    "roContent": "read only\n",
+    "mainConfigHooks": null,
+    "branchLog": "110a92f spike"
+  }
+}
