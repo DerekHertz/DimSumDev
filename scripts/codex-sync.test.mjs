@@ -1,12 +1,14 @@
-// den-mvp/103: Codex reads the same relay as Claude. .claude/ is the one source; scripts/codex-sync.mjs
-// generates .codex/agents/*.toml, .agents/skills/ and AGENTS.md from it, and --check is the drift test.
-// Red until scripts/codex-sync.mjs exists and its output is generated and committed.
+// den-mvp/103, den-revival/05: Codex reads the same relay as Claude, in lean outcome-first form.
+// scripts/codex-sync.mjs generates .codex/agents/*.toml from a short per-role template (job, inputs, outputs,
+// done when, stop rules) fed by the role definition's org block, .agents/skills/ from .claude/skills (except
+// team-protocol, which is the Codex-only .codex/team-protocol.md), and AGENTS.md from CLAUDE.md plus
+// .codex/runtime-guidance.md. --check is the drift test.
 //
 // Interface these tests pin (see the qa handoff for the Codex doc citations behind it):
 //   export render(roleDefinitionMarkdown: string) -> string   one .codex/agents/<role>.toml
 //   export renderAgents(claudeMd: string) -> string   AGENTS.md
 //   export MODEL_MAP   { haiku, sonnet, opus } -> Codex model id
-//   export EFFORT_MAP  { low, medium, high, ... } -> model_reasoning_effort value
+//   export CODEX_EFFORT { default, <role>: effort } -> model_reasoning_effort (the Claude effort field is not read)
 //   export RULES       [{ name, pattern: RegExp, action: "rewrite" | "drop", ... }] the Claude-only line rules
 //   CLI: node scripts/codex-sync.mjs [--check] [--root <dir>]
 //        write mode regenerates every mirror (and removes stale ones); --check writes nothing, prints each
@@ -52,8 +54,12 @@ color: green
 skills:
   - team-protocol
 org:
-  station: tea-pantry
-  purpose: Sample.
+  team: tea-pantry
+  purpose: Sample the pipeline.
+  inputs: ["ticket path", "diff"]
+  outputs: ["verdict", "handoff"]
+  gates: ["adding a dependency"]
+  done: "The verdict is written."
 ---
 
 You are a **sample** agent.
@@ -66,15 +72,36 @@ A path with a backslash: ${MARK}
 
 // ---------- pure render ----------
 
-test("render carries name and description, and the body verbatim as developer_instructions", async () => {
+test("render carries name and description, then the template sections; the Claude body is not copied", async () => {
   const { render } = await mod();
   const t = parseToml(render(SAMPLE()));
   assert.equal(t.name, "sample");
   assert.equal(t.description, 'A "quoted" sample role definition (with a backslash \\ in it)');
-  assert.match(t.developer_instructions, /You are a \*\*sample\*\* agent\./);
-  assert.ok(t.developer_instructions.includes("Plain line that stays exactly as written."));
-  assert.ok(t.developer_instructions.includes(MARK), "backslashes in the body must survive");
-  assert.ok(!t.developer_instructions.startsWith("---"), "front matter leaked into the instructions");
+  const b = t.developer_instructions;
+  assert.match(b, /^Job: Sample the pipeline\./m);
+  assert.match(b, /^Inputs: ticket path; diff$/m);
+  assert.match(b, /^Outputs: verdict; handoff$/m);
+  assert.match(b, /^Done when: The verdict is written\.$/m);
+  assert.match(b, /^Stop rules: /m);
+  assert.match(b, /adding a dependency/, "gates become ask-first stop rules");
+  assert.ok(!b.includes("Plain line that stays exactly as written."), "the Claude workflow body was copied");
+  assert.ok(!b.includes(MARK));
+  assert.ok(!b.startsWith("---"), "front matter leaked into the instructions");
+});
+
+test("stop rules: stop when checks pass, log other findings as follow-ups, one fix round for nonblocking findings, block only on unmet criteria or material risk", async () => {
+  const { render } = await mod();
+  const rules = parseToml(render(SAMPLE())).developer_instructions.match(/^Stop rules: .*$/m)[0];
+  assert.match(rules, /Stop when the done-when checks pass/i);
+  assert.match(rules, /follow-ups/i);
+  assert.match(rules, /at most one fix round for nonblocking findings/i);
+  assert.match(rules, /unmet criterion or material risk/i);
+});
+
+test("a role with no gates (a leaf) has no ask-first clause", async () => {
+  const { render } = await mod();
+  const noGates = SAMPLE().replace('  gates: ["adding a dependency"]\n', "  gates: []\n");
+  assert.ok(!/Ask the user/i.test(parseToml(render(noGates)).developer_instructions));
 });
 
 test("render leaves Claude front matter keys out of the TOML (Codex has no per-agent tools, color or turns)", async () => {
@@ -84,25 +111,28 @@ test("render leaves Claude front matter keys out of the TOML (Codex has no per-a
   assert.deepEqual(Object.keys(t).sort(), ["description", "developer_instructions", "model", "model_reasoning_effort", "name"]);
 });
 
-test("render maps model through MODEL_MAP and effort through EFFORT_MAP, one table each", async () => {
-  const { render, MODEL_MAP, EFFORT_MAP } = await mod();
-  for (const k of ["haiku", "sonnet", "opus"]) {
-    assert.match(MODEL_MAP[k] ?? "", /^gpt-/, `MODEL_MAP.${k} must be a Codex model id`);
-  }
+test("render maps model through MODEL_MAP", async () => {
+  const { render, MODEL_MAP } = await mod();
+  for (const k of ["haiku", "sonnet", "opus"]) assert.match(MODEL_MAP[k] ?? "", /^gpt-/, `MODEL_MAP.${k} must be a Codex model id`);
   assert.notEqual(MODEL_MAP.haiku, MODEL_MAP.opus, "cheap and deepest tiers must differ");
-  assert.equal(EFFORT_MAP.low, "low");
-  for (const [model, effort] of [["haiku", "low"], ["sonnet", "high"], ["opus", "high"]]) {
-    const t = parseToml(render(SAMPLE({ model, effort })));
-    assert.equal(t.model, MODEL_MAP[model]);
-    assert.equal(t.model_reasoning_effort, EFFORT_MAP[effort]);
+  for (const model of ["haiku", "sonnet", "opus"]) assert.equal(parseToml(render(SAMPLE({ model }))).model, MODEL_MAP[model]);
+});
+
+test("effort is medium by default and high for architect and security, whatever the Claude effort says", async () => {
+  const { render, CODEX_EFFORT } = await mod();
+  assert.deepEqual(CODEX_EFFORT, { default: "medium", architect: "high", security: "high" });
+  for (const claudeEffort of ["low", "high", "max"]) {
+    assert.equal(parseToml(render(SAMPLE({ effort: claudeEffort }))).model_reasoning_effort, "medium");
+    for (const name of ["architect", "security"]) assert.equal(parseToml(render(SAMPLE({ name, effort: claudeEffort }))).model_reasoning_effort, "high");
   }
 });
 
-test("render fails closed on an unknown model, an unknown effort or a file with no front matter", async () => {
+test("render fails closed on an unknown model, no front matter, or an org block missing its job or done line", async () => {
   const { render } = await mod();
   assert.throws(() => render(SAMPLE({ model: "gemini" })), /model/i);
-  assert.throws(() => render(SAMPLE({ effort: "turbo" })), /effort/i);
   assert.throws(() => render("no front matter here\n"), /front matter/i);
+  assert.throws(() => render(SAMPLE().replace("  purpose: Sample the pipeline.\n", "")), /purpose/i);
+  assert.throws(() => render(SAMPLE().replace('  done: "The verdict is written."\n', "")), /done/i);
 });
 
 // ---------- the rewrite-rules table ----------
@@ -118,25 +148,6 @@ test("RULES is one table of named rules, each rewrite or drop", async () => {
     assert.ok(r.pattern instanceof RegExp, `${r.name}: pattern must be a RegExp`);
     assert.ok(["rewrite", "drop"].includes(r.action), `${r.name}: action must be rewrite or drop`);
   }
-});
-
-test("Agent(a, b) in a body becomes Codex subagent wording; the plain words 'Agent tool' are untouched", async () => {
-  const { render } = await mod();
-  const body = parseToml(render(SAMPLE())).developer_instructions;
-  assert.ok(!/Agent\(/.test(body), "Agent(...) survived");
-  const line = body.split("\n").find((l) => l.startsWith("Delegate big reads"));
-  assert.ok(line, "the delegation sentence was dropped; a rewrite should keep its meaning");
-  assert.match(line, /scout/);
-  assert.match(line, /runner/);
-  assert.match(line, /subagent/i);
-  assert.ok(body.includes("You hold no Agent tool."), "prose that merely says Agent tool must stay");
-});
-
-test("mcp__* tool names do not reach Codex (mapped or dropped) and the rest of the body survives", async () => {
-  const { render } = await mod();
-  const out = render(SAMPLE());
-  assert.ok(!/mcp__/.test(out), "mcp__ name survived");
-  assert.ok(parseToml(out).developer_instructions.includes("Plain line that stays exactly as written."));
 });
 
 // ---------- AGENTS.md ----------
@@ -170,8 +181,18 @@ test("AGENTS.md rules are the same RULES table (renderAgents applies Agent(...) 
   assert.match(out, /scout/);
 });
 
-test("the real AGENTS.md fits Codex's project_doc_max_bytes (32 KiB)", () => {
-  assert.ok(statSync(path.join(ROOT, "AGENTS.md")).size <= 32768);
+test("renderAgents drops the Claude-relay sections of CLAUDE.md (they live in the lean Codex team-protocol) and keeps the rest", async () => {
+  const { renderAgents } = await mod();
+  const md = `${CLAUDE_MD}\n## Agents\n\nLong relay prose.\n\n## Cloud sessions\n\nContainer setup.\n\n## Agent skills\n\n### Issue tracker\n\nBoard is local.\n\n## Token hygiene\n\nPro plan.\n\n# Compact instructions\n\nKeep the ticket.\n`;
+  const out = renderAgents(md);
+  for (const gone of ["Long relay prose.", "Container setup.", "Pro plan.", "Keep the ticket."]) assert.ok(!out.includes(gone), `${gone} should be dropped`);
+  for (const kept of ["Single paragraph that Codex needs too.", "- keep this bullet", "Board is local."]) assert.ok(out.includes(kept), `${kept} should be kept`);
+});
+
+test("the real AGENTS.md fits Codex's project_doc_max_bytes (32 KiB) and is lean (6 KiB)", () => {
+  const size = statSync(path.join(ROOT, "AGENTS.md")).size;
+  assert.ok(size <= 32768);
+  assert.ok(size <= 6144, `AGENTS.md is ${size} bytes`);
 });
 
 // ---------- CLI against a fixture tree: write, check, drift ----------
@@ -187,8 +208,10 @@ function fixture() {
   w(".claude/skills/VENDORED.md", "# vendored\n");
   w("CLAUDE.md", CLAUDE_MD);
   w(".codex/runtime-guidance.md", "# Codex execution contract\n\nKeep explicit one-attempt limits and human publication gates.\n");
+  w(".codex/team-protocol.md", CODEX_PROTOCOL);
   return { dir, w };
 }
+const CODEX_PROTOCOL = "---\nname: team-protocol\ndescription: Lean Codex protocol.\n---\nClaim, gates, handoff, end.\n";
 const run = (dir, ...args) => spawnSync("node", [SCRIPT, "--root", dir, ...args], { encoding: "utf8", timeout: 60000 });
 const out = (r) => `${r.stdout}${r.stderr}`;
 
@@ -214,12 +237,12 @@ test("--check fails and names the file when a role definition changes without re
   const { dir, w } = fixture();
   try {
     run(dir);
-    w(".claude/agents/alpha.md", SAMPLE({ name: "alpha" }).replace("Plain line", "Edited line"));
+    w(".claude/agents/alpha.md", SAMPLE({ name: "alpha" }).replace("Sample the pipeline.", "Edited purpose."));
     const c = run(dir, "--check");
     assert.notEqual(c.status, 0);
     assert.match(out(c), /\.codex\/agents\/alpha\.toml/);
     assert.ok(!/beta\.toml/.test(out(c)), "only the drifted mirror should be named");
-    assert.ok(!readFileSync(path.join(dir, ".codex/agents/alpha.toml"), "utf8").includes("Edited line"), "--check must not write");
+    assert.ok(!readFileSync(path.join(dir, ".codex/agents/alpha.toml"), "utf8").includes("Edited purpose"), "--check must not write");
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -306,7 +329,8 @@ test(".agents/skills/ renders the shared files with Codex runtime adaptations an
   for (const f of src) {
     const dst = path.join(ROOT, ".agents/skills", f);
     assert.ok(existsSync(dst), `.agents/skills/${f} missing`);
-    assert.ok(readFileSync(dst).equals(Buffer.from(renderSkill(f,readFileSync(path.join(ROOT, ".claude/skills", f))))), `.agents/skills/${f} differs`);
+    const expected = f === "team-protocol/SKILL.md" ? readFileSync(path.join(ROOT, ".codex/team-protocol.md")) : Buffer.from(renderSkill(f, readFileSync(path.join(ROOT, ".claude/skills", f))));
+    assert.ok(readFileSync(dst).equals(expected), `.agents/skills/${f} differs`);
     assert.ok(tracked.has(`.agents/skills/${f}`), `.agents/skills/${f} is not tracked in git`);
   }
   const extra = walk(path.join(ROOT, ".agents/skills")).filter((f) => !src.includes(f) && !f.startsWith("jevgrep/"));
@@ -318,7 +342,7 @@ test("AGENTS.md on disk is generated from CLAUDE.md, not the 5-line stub", async
   const { renderAgents } = await mod();
   const disk = readFileSync(path.join(ROOT, "AGENTS.md"), "utf8");
   assert.equal(disk, renderAgents(readFileSync(path.join(ROOT, "CLAUDE.md"), "utf8"),readFileSync(path.join(ROOT,".codex/runtime-guidance.md"),"utf8")));
-  assert.ok(disk.split("\n").length > 20);
+  assert.ok(disk.split("\n").length > 10);
 });
 
 // ---------- hooks: Codex documents no project-dir variable ----------
@@ -339,14 +363,6 @@ test(".codex/hooks.json walks up to the den root, not a nested repo, and does no
 
 // ---------- den-mvp/104 ----------
 
-test("every generated role body carries the Codex caveat about instruction-only tool limits", async () => {
-  const { render } = await mod();
-  const body = parseToml(render(SAMPLE())).developer_instructions;
-  assert.match(body, /Codex caveat/);
-  assert.match(body, /instructions, not enforced/);
-  assert.match(body, /read-only or workspace-write sandbox and approvals on/);
-});
-
 test("skills are mirrored from git ls-files: an untracked file is never copied", () => {
   const { dir, w } = fixture();
   try {
@@ -361,26 +377,6 @@ test("skills are mirrored from git ls-files: an untracked file is never copied",
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test("Codex runtime guidance resolves inherited models, worker bonuses and full-suite conflicts without changing gates", async () => {
-  const {render,renderAgents,renderSkill} = await mod();
-  const shared=readFileSync(path.join(ROOT,".claude/skills/team-protocol/SKILL.md"),"utf8");
-  const protocol=renderSkill("team-protocol/SKILL.md",shared);
-  assert.doesNotMatch(protocol,/\b(?:Sonnet|Haiku)\b|at most about 4/);
-  assert.match(protocol,/\.codex\/runtime-guidance\.md/);
-  const gates=shared.slice(shared.indexOf("## Pass gates"),shared.indexOf("## Environment issues"));
-  assert.ok(protocol.includes(gates),"shared approval gates must remain byte-identical");
-  const implement=renderSkill("implement/SKILL.md",readFileSync(path.join(ROOT,".claude/skills/implement/SKILL.md"),"utf8"));
-  assert.doesNotMatch(implement,/full test suite once at the end/);
-  assert.match(implement,/literal covering test files/);
-  const agents=renderAgents(readFileSync(path.join(ROOT,"CLAUDE.md"),"utf8"),"Honor explicit one-attempt limits; no publication authority.");
-  assert.doesNotMatch(agents,/\b(?:Sonnet|Haiku)\b|reserved slot beside them/);
-  assert.match(agents,/Honor explicit one-attempt limits/);
-  const developer=parseToml(render(readFileSync(path.join(ROOT,".claude/agents/developer.md"),"utf8")));
-  assert.doesNotMatch(developer.developer_instructions,/\bHaiku\b|up to 4 at once/);
-  assert.match(developer.developer_instructions,/\.codex\/runtime-guidance\.md/);
-  assert.match(developer.developer_instructions,/When independent delegation is useful and permitted/);
-});
-
 test("the hand-maintained Codex supplement participates in drift checks and is required before writing", () => {
   const {dir,w}=fixture();
   try{
@@ -391,4 +387,112 @@ test("the hand-maintained Codex supplement participates in drift checks and is r
     rmSync(path.join(dir,".codex/runtime-guidance.md"));
     const missing=run(dir);assert.notEqual(missing.status,0);assert.match(out(missing),/runtime-guidance\.md/);
   }finally{rmSync(dir,{recursive:true,force:true});}
+});
+
+// ---------- den-revival/05: lean, outcome-first Codex roles ----------
+
+const roleToml = (role) => readFileSync(path.join(ROOT, `.codex/agents/${role}.toml`), "utf8");
+const size = (rel) => statSync(path.join(ROOT, rel)).size;
+const ROLE_MAX = 2048; // "about 2 KB or less" per role
+const PRELOAD_MAX = 16 * 1024; // AGENTS.md + team-protocol skill + role, before a ticket
+
+test("each real role toml is 2 KB or less and has job, inputs, outputs, done when and stop rules", () => {
+  for (const role of ROLE_DEFINITIONS) {
+    const text = roleToml(role);
+    assert.ok(Buffer.byteLength(text) <= ROLE_MAX, `${role}.toml is ${Buffer.byteLength(text)} bytes`);
+    const b = parseToml(text).developer_instructions;
+    for (const label of ["Job", "Inputs", "Outputs", "Done when", "Stop rules"]) assert.match(b, new RegExp(`^${label}: \\S`, "m"), `${role}: no ${label} line`);
+    assert.match(b, /at most one fix round for nonblocking findings/, `${role}: no fix-round stop rule`);
+  }
+});
+
+test("instructions loaded before a ticket (AGENTS.md, team-protocol skill, role) total 16 KB or less for every role", () => {
+  const fixed = size("AGENTS.md") + size(".agents/skills/team-protocol/SKILL.md");
+  for (const role of ROLE_DEFINITIONS) {
+    const total = fixed + size(`.codex/agents/${role}.toml`);
+    assert.ok(total <= PRELOAD_MAX, `${role} loads ${total} bytes before a ticket`);
+  }
+});
+
+test("the 16 KB budget also holds with every skill's name and description, which Codex lists up front", () => {
+  const dir = path.join(ROOT, ".agents/skills");
+  const meta = readdirSync(dir, { withFileTypes: true }).filter((e) => e.isDirectory() && existsSync(path.join(dir, e.name, "SKILL.md")))
+    .map((e) => readFileSync(path.join(dir, e.name, "SKILL.md"), "utf8").match(/^---\r?\n([\s\S]*?)\r?\n---/)[1])
+    .reduce((n, fm) => n + Buffer.byteLength(fm), 0);
+  const fixed = size("AGENTS.md") + size(".agents/skills/team-protocol/SKILL.md") + meta;
+  for (const role of ROLE_DEFINITIONS) assert.ok(fixed + size(`.codex/agents/${role}.toml`) <= PRELOAD_MAX, `${role} loads ${fixed + size(`.codex/agents/${role}.toml`)} bytes with skill metadata`);
+});
+
+test("a den-agent role never asks for the full suite: the developer's done line names the covering tests", () => {
+  assert.match(parseToml(roleToml("developer")).developer_instructions, /^Done when: .*covering tests pass/m);
+  assert.doesNotMatch(parseToml(roleToml("developer")).developer_instructions, /full test suite/);
+});
+
+test("real roles run at medium effort, architect and security at high", () => {
+  for (const role of ROLE_DEFINITIONS) {
+    assert.equal(parseToml(roleToml(role)).model_reasoning_effort, ["architect", "security"].includes(role) ? "high" : "medium", role);
+  }
+});
+
+test("no role carries the Codex caveat or Claude-only wording; read-only roles rely on the parent's sandbox", () => {
+  for (const role of ROLE_DEFINITIONS) {
+    const b = parseToml(roleToml(role)).developer_instructions;
+    assert.doesNotMatch(b, /Codex caveat|instructions, not enforced|workspace-write sandbox/, `${role} still carries the caveat`);
+    assert.doesNotMatch(b, /\b(?:Sonnet|Haiku)\b|Agent\(|mcp__|claude --agent/, `${role} carries Claude-only wording`);
+  }
+  assert.match(readFileSync(path.join(ROOT, "AGENTS.md"), "utf8"), /subagents inherit the parent session's sandbox/i);
+});
+
+test("the orchestrator hands each stage to a fresh subagent thread instead of carrying the relay in one context", () => {
+  assert.match(parseToml(roleToml("orchestrator")).developer_instructions, /fresh subagent/);
+});
+
+test("the Codex team-protocol skill is Codex-only, lean, and keeps claims, gates, handoff and end", () => {
+  const p = readFileSync(path.join(ROOT, ".agents/skills/team-protocol/SKILL.md"), "utf8");
+  assert.ok(Buffer.byteLength(p) <= 4096, `team-protocol is ${Buffer.byteLength(p)} bytes`);
+  assert.match(p, /^---\r?\nname: team-protocol\r?\n/);
+  for (const h of ["Board", "Gates", "Handoff", "End"]) assert.match(p, new RegExp(`^## ${h}\\b`, "m"), `no ## ${h} section`);
+  for (const cmd of ["claim", "comment", "handoff", "release"]) assert.match(p, new RegExp(`board -- ${cmd}\\b`), `no board ${cmd} command`);
+  for (const gate of [/push/, /merge/, /dependency/, /\.claude\//, /ADR/]) assert.match(p, gate, `gate ${gate} missing`);
+  assert.doesNotMatch(p, /\bClaude\b|Sonnet|Haiku|runtime-guidance/, "Claude-only wording in the Codex protocol");
+});
+
+test("the hand-maintained Codex team-protocol participates in drift checks and is required before writing", () => {
+  const { dir, w } = fixture();
+  try {
+    assert.equal(run(dir).status, 0);
+    assert.equal(readFileSync(path.join(dir, ".agents/skills/team-protocol/SKILL.md"), "utf8"), CODEX_PROTOCOL);
+    w(".codex/team-protocol.md", CODEX_PROTOCOL.replace("end.", "end, fast."));
+    const drift = run(dir, "--check");
+    assert.notEqual(drift.status, 0);
+    assert.match(out(drift), /\.agents\/skills\/team-protocol\/SKILL\.md/);
+    rmSync(path.join(dir, ".codex/team-protocol.md"));
+    const missing = run(dir);
+    assert.notEqual(missing.status, 0);
+    assert.match(out(missing), /team-protocol\.md/);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("the Claude team-protocol skill is not the Codex mirror source, and Claude files are untouched by a sync", () => {
+  const { dir, w } = fixture();
+  try {
+    w(".claude/skills/team-protocol/SKILL.md", "---\nname: team-protocol\ndescription: Claude long form.\n---\nLong Claude workflow.\n");
+    const files = [".claude/agents/alpha.md", ".claude/agents/beta.md", ".claude/skills/team-protocol/SKILL.md", ".claude/skills/one/SKILL.md", "CLAUDE.md"];
+    const before = files.map((f) => readFileSync(path.join(dir, f), "utf8"));
+    for (const args of [[], ["--check"], []]) run(dir, ...args);
+    assert.deepEqual(files.map((f) => readFileSync(path.join(dir, f), "utf8")), before);
+    assert.ok(!readFileSync(path.join(dir, ".agents/skills/team-protocol/SKILL.md"), "utf8").includes("Long Claude workflow."));
+    assert.deepEqual(readdirSync(path.join(dir, ".claude/agents")).sort(), ["alpha.md", "beta.md"]);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
+test("Codex runtime guidance keeps the gates, the one-owner rule and the verification limits in a few lines", () => {
+  const g = readFileSync(path.join(ROOT, ".codex/runtime-guidance.md"), "utf8");
+  assert.ok(Buffer.byteLength(g) <= 3072, `runtime-guidance is ${Buffer.byteLength(g)} bytes`);
+  assert.match(g, /no push, PR, merge/i);
+  assert.match(g, /one implementation owner/i);
+  assert.match(g, /timeout 300 node --test/);
+  assert.match(g, /exit codes/i);
+  const agents = readFileSync(path.join(ROOT, "AGENTS.md"), "utf8");
+  assert.doesNotMatch(agents, /\b(?:Sonnet|Haiku)\b|reserved slot beside them|Cloud sessions|Token hygiene/);
 });
