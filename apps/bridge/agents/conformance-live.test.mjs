@@ -392,7 +392,16 @@ describe("runLive", () => {
     const sessionId = start.argv[start.argv.indexOf("--session-id") + 1];
     assert.equal(typeof adapterAll.compileCeiling, "function", "agent-os/04: claude-adapter.mjs must export compileCeiling");
     // agent-os/04: scout has a ceiling now, so the production argv carries the wall; the worktree is the child's cwd.
-    assert.deepEqual(start.argv, buildClaudeArgs({ sessionId, agent: LIVE_ROLE, ...adapterAll.compileCeiling(LIVE_ROLE, { ...liveCredentials(), worktree: setup.worktree, mainGit: path.join(path.dirname(path.dirname(path.dirname(setup.worktree))), ".git") }), ticketFile: path.join(repo.dir, ".scratch", "den", "issues", "01-live-check.md") }));
+    // hardening/01: the host denies a write outside the worktree, so the held-request step writes to a granted path in a second
+    // temp dir (repo.grant), which runLive passes to host.start as a path grant. A role that cannot write takes no grants (scout),
+    // so the live role is one that can.
+    assert.equal(adapterAll.ceilingOf(LIVE_ROLE)?.takesGrants, true, "the live role takes grants");
+    assert.equal(start.argv[start.argv.indexOf("--agent") + 1], LIVE_ROLE);
+    assert.equal(start.argv[start.argv.indexOf("--session-id") + 1], sessionId);
+    const settings = JSON.parse(start.argv[start.argv.indexOf("--settings") + 1]);
+    assert.deepEqual(settings.sandbox.network.allowedDomains, [], "no host is granted");
+    for (const rule of [`Write(/${setup.worktree}/**)`, `Write(/${repo.grant}/**)`, `Edit(/${repo.grant}/**)`, `Read(/${path.join(repo.dir, ".scratch", "den", "issues", "01-live-check.md")})`]) assert.ok(settings.permissions.allow.includes(rule), rule);
+    assert.equal(existsSync(repo.grant), false, "the granted directory is removed with the repository");
     assert.ok(!start.envKeys.includes("DEN_SECRET_CANARY"));
 
     // What the three captures hold: scrubbed, and every line a JSON object with a type.
@@ -448,16 +457,75 @@ describe("runLive", () => {
     const repo = makeLiveRepo({ model: "haiku" });
     try {
       const role = readFileSync(path.join(repo.dir, ".claude", "agents", `${LIVE_ROLE}.md`), "utf8");
-      assert.match(role, /^---\nname: scout\n/);
+      assert.match(role, new RegExp(`^---\\nname: ${LIVE_ROLE}\\n`));
       assert.match(role, /\nmodel: haiku\n/);
       assert.ok(role.includes(repo.target) && role.includes(repo.body) && role.includes(LIVE_MARKER));
-      assert.equal(path.dirname(repo.target), repo.dir);
+      // hardening/01: target is in a second temp dir that the run grants (the host still asks about it); outside is in the repository
+      // root, outside every worktree and every grant, which the host denies.
+      assert.notEqual(repo.grant, repo.dir);
+      assert.equal(path.dirname(repo.target), repo.grant);
+      assert.equal(path.dirname(repo.outside), repo.dir);
+      assert.ok(role.includes(repo.outside), "the probe is asked for the outside write too");
       assert.equal(existsSync(repo.target), false);
+      assert.equal(existsSync(repo.outside), false);
+      assert.ok(existsSync(repo.grant));
       assert.ok(existsSync(path.join(repo.dir, ".git")));
       assert.throws(() => makeLiveRepo({ model: "haiku\nallowedTools: Bash" }), TypeError);
     } finally {
       repo.cleanup();
     }
+    assert.equal(existsSync(repo.grant), false, "cleanup removes the granted directory too");
+  });
+
+  // hardening/01: the live check's new step. The host answers deny to the write outside the worktree at once.
+  test("a write outside the worktree and outside the grants is denied by the host: never held, nothing written", async () => {
+    const { runLive, makeLiveRepo } = await load();
+    const repo = makeLiveRepo({ body: "written by the stub" });
+    const stub = await makeStub({ mode: "write", writePath: repo.outside });
+    const { captures } = await runLive(stubCtx(stub.bin), null, { repo, exitWaitMs: 2000, killGraceMs: 150, message: false });
+    const reply = (await stub.stdinLines()).find((l) => l.type === "control_response");
+    assert.equal(reply.response.response.behavior, "deny");
+    assert.match(reply.response.response.message ?? "", /outside/i);
+    const bridge = captures.bridge.lines.map((l) => l.obj);
+    assert.deepEqual(bridge.filter((o) => o.type === "sse" && o.data?.type === "approval").map((o) => o.data.approval.state), [], "no approval was ever held");
+    assert.equal(bridge.some((o) => o.check === "held"), false);
+    assert.equal(bridge.find((o) => o.check === "final").outsideExists, false, "the final check records that the outside file does not exist");
+  });
+});
+
+// hardening/01: evaluateLive scores the outside-write step when the setup names the outside path.
+describe("evaluateLive: the outside write", () => {
+  const OUTSIDE = "/tmp/den-live-x/outside-check.txt";
+  const OUT_INPUT = { file_path: OUTSIDE, content: "nope" };
+  const tool2 = { type: "assistant", message: { content: [{ type: "tool_use", id: "tu2", name: "Write", input: OUT_INPUT }], usage: { input_tokens: 3, output_tokens: 40 } } };
+  const mainRun = () => [init(), toolUse, request(), toolResult(), tool2, request({ input: OUT_INPUT, tool_use_id: "tu2" }), toolResult({ tool_use_id: "tu2", content: "denied: outside the worktree", is_error: true }), result()]
+    .map((o) => (o.type === "control_request" && o.request.tool_use_id === "tu2" ? { ...o, request_id: "req-2" } : o));
+  const reply2 = (behavior) => ({ type: "control_response", response: { subtype: "success", request_id: "req-2", response: behavior === "allow" ? { behavior, updatedInput: OUT_INPUT } : { behavior, message: "outside the worktree" } } });
+  const stdinWith = (behavior) => [{ type: "user", message: { role: "user", content: "prompt" } }, answer(), reply2(behavior)];
+  const bridgeWith = (outsideExists) => editBridge((o) => (o.check === "setup" ? { ...o, outside: OUTSIDE } : o.check === "final" ? { ...o, outsideExists } : undefined));
+
+  test("go, with a line of evidence, when the outside write was denied and no file exists", async () => {
+    const { evaluateLive } = await load();
+    const r = evaluateLive(run({ main: mainRun(), stdin: stdinWith("deny"), bridge: bridgeWith(false) }));
+    assert.equal(r.verdict, "go", text(r));
+    assert.match(text(r), /outside.*denied/i);
+  });
+
+  test("no-go when the outside write was allowed, or the file exists", async () => {
+    const { evaluateLive } = await load();
+    const allowed = evaluateLive(run({ main: mainRun(), stdin: stdinWith("allow"), bridge: bridgeWith(false) }));
+    assert.equal(allowed.verdict, "no-go");
+    assert.match(text(allowed), /outside/i);
+    const written = evaluateLive(run({ main: mainRun(), stdin: stdinWith("deny"), bridge: bridgeWith(true) }));
+    assert.equal(written.verdict, "no-go");
+    assert.match(text(written), /outside/i);
+  });
+
+  test("no-go when the probe never tried the outside write", async () => {
+    const { evaluateLive } = await load();
+    const r = evaluateLive(run({ bridge: bridgeWith(false) }));
+    assert.equal(r.verdict, "no-go");
+    assert.match(text(r), /outside/i);
   });
 });
 

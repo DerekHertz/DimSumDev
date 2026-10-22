@@ -105,12 +105,13 @@ describe("the runtime passes a role's connections", () => {
   });
 
   // The kernel review (2026-10-18): a remote connection is a way out, so it brings the read limit with the toolchain reopened.
-  test("a remote connection brings the read limit; a script connection alone does not", async () => {
+  test("a remote connection brings the read limit; a script connection alone leaves it as it is (on, for any agent with a worktree)", async () => {
     const remote = await launch("developer", { extra: { connections: [{ name: "docs", url: "https://docs.example.com/mcp" }] } });
     assert.deepEqual(remote.settings.sandbox.filesystem.denyRead, ["~/"]);
     for (const p of [remote.cwd, path.dirname(path.dirname(process.execPath))]) assert.ok(remote.settings.sandbox.filesystem.allowRead.includes(p), p);
     const script = await launch("developer", { extra: { connections: [{ name: "board", script: "/opt/den/board-tools.mjs" }] } });
-    assert.notDeepEqual(script.settings.sandbox.filesystem?.denyRead, ["~/"]);
+    assert.deepEqual(script.settings.sandbox.filesystem.denyRead, ["~/"], "hardening/01: the limit is on with no way out");
+    assert.ok(script.settings.sandbox.filesystem.allowRead.includes(script.cwd));
   });
 
   test("none, or an empty list: no --mcp-config at all", async () => {

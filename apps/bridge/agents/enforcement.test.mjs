@@ -140,7 +140,7 @@ describe("credential stores are closed to every role", () => {
     for (const role of ROLES) {
       const settings = settingsFor(role, { credentials });
       for (const p of credentials) for (const rule of [`Read(${p})`, `Read(${p}/**)`, `Edit(${p})`, `Edit(${p}/**)`]) assert.ok(settings.permissions.deny.includes(rule), `${role}: ${rule}`);
-      assert.deepEqual(settings.sandbox.filesystem.denyRead, credentials, role);
+      assert.deepEqual(settings.sandbox.filesystem.denyRead, ["~/"], `${role}: hardening/01: the whole home is closed to the shell, which covers every store`);
     }
   });
 
@@ -253,11 +253,12 @@ describe("any way out brings the read limit, with the project and the toolchain 
     assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), [...OPEN].sort());
   });
 
-  test("with no way out, home stays readable but the credential stores, as before", () => {
+  // hardening/01 addendum (2026-10-22): the limit no longer waits for a way out. Every agent with a worktree gets it.
+  test("with no way out, an agent with a worktree gets the same read limit and reopening", () => {
     const s = limited({});
-    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/.ssh"]);
-    assert.equal(s.sandbox.filesystem.allowRead, undefined);
-    assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, undefined);
+    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
+    assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), [...OPEN, "/home/u/.npm"].sort());
+    assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, true);
   });
 
   test("a role that cannot write gets the limit too", () => {
