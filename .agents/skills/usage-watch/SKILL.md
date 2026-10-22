@@ -1,6 +1,6 @@
 ---
 name: usage-watch
-description: Check plan usage and wind work down before the limit hits. Use at every dispatch decision, when an agent returns, and every 30 minutes or so in a long session. If the 5-hour window is at or above 90%, start wrapping up.
+description: "Check plan usage before a dispatch or merge decision and wind work down before the limit. At 90% or more of the 5-hour window, wrap up."
 ---
 
 Select the provider from the active session, never from installed CLIs, credential files, or the chosen model. Use `node scripts/usage.mjs --provider codex` in Codex and `node scripts/usage.mjs --provider claude` in Claude. A legacy invocation without `--provider` still selects Claude; it must not be used to read Codex usage.

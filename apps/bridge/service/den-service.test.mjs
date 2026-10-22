@@ -161,10 +161,10 @@ describe("den:install and den:update", () => {
     await den().install();
     assert.equal(lines[0], "This will:");
     const planned = lines.slice(1, lines.indexOf("> fetch origin main")).map((l) => l.replace(/^\s+\d+\. /, ""));
-    assert.equal(planned.length, 9);
+    assert.equal(planned.length, 10);
     const started = lines.filter((l) => l.startsWith("> ")).map((l) => l.slice(2));
     assert.deepEqual(started, planned);
-    assert.equal(lines.filter((l) => l.startsWith("  done")).length, 9);
+    assert.equal(lines.filter((l) => l.startsWith("  done")).length, 10);
     assert.match(lines.find((l) => l.startsWith("  done: ") && /answers on 4317/.test(l)), /4317/);
   });
 

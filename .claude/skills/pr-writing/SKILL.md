@@ -1,6 +1,6 @@
 ---
 name: pr-writing
-description: PR body for this repo, four sections (What changes, System map, Risk, Evidence) with a generated system map. Use when opening or editing a pull request, or drafting PR text for someone else to open.
+description: "PR body for this repo: What changes, System map, Risk, Evidence, with a generated system map. Use when opening or editing a pull request or drafting PR text."
 ---
 
 The PR body is written for the user at merge time. They should be able to decide "is this safe, and is it what I wanted?" in under a minute without opening the diff. The bridge's Delivery, Claude sessions and Codex all write the same four sections in the same order, so the author never changes how the user reviews.

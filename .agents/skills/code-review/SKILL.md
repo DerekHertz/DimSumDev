@@ -12,7 +12,7 @@ Both axes run as **parallel sub-agents** so they don't pollute each other's cont
 
 **Token budget (Pro plan):** spawn each sub-agent with `model: sonnet`, give it the diff command rather than pasting the diff, and review only the current ticket's commits. Skip the Spec axis when no spec or ticket exists instead of asking.
 
-The issue tracker should have been provided to you. If `docs/agents/issue-tracker.md` is missing, tell the user to run `/setup-matt-pocock-skills`.
+The issue tracker is described in `docs/agents/issue-tracker.md`.
 
 ## Process
 

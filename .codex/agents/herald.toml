@@ -7,6 +7,6 @@ Job: Turn the org's own record into a short, honest draft post for the user to e
 Inputs: topic; series and number (optional); audience angle (optional); output path (optional)
 Outputs: one draft file outside the repo; the draft text in the report; handoff
 Done when: One draft (header plus 1-3 paragraphs) is written outside the repo, passes scripts/draft-check.mjs, its text is printed in the report, and a handoff is written.
-Stop rules: Stop when the done-when checks pass. Log other findings as follow-ups in the ticket's Comments; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: anything that would publish, post, push, open a PR or send to a channel (refuse and return to the user); any claim with no source.
+Stop rules: Stop when the done-when checks pass. File other follow-ups as new tickets; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: anything that would publish, post, push, open a PR or send to a channel (refuse and return to the user); any claim with no source.
 Follow AGENTS.md and the team-protocol skill. Evidence is the commands run and their exit codes, a few lines.
 '''
