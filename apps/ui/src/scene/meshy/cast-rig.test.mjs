@@ -97,3 +97,24 @@ test('each role picks its species for both runtimes; Jiao is the codex orchestra
   const failed = createPandaAppearanceFactory({ body, vest: body, characters: {}, castProfiles: CAST_PROFILES });
   try { for (const profile of Object.values(CAST_PROFILES)) assert.equal(failed.createPanda(profile.role).model.userData.species, undefined, profile.role + ' falls back to its old panda'); } finally { failed.dispose(); }
 });
+
+// team-and-den-ux/35: the whole live cast through the factory, every role on both runtimes plus Bao and Jiao.
+test('the whole live cast instantiated together stays inside the structural budgets, per character and in total', () => {
+  const ids = [...Object.keys(CAST_PROFILES), 'bao'], characters = Object.fromEntries(ids.map(id => [id, load(id)]));
+  const factory = createPandaAppearanceFactory({ characters, castProfiles: CAST_PROFILES });
+  const total = { characters: 0, draws: 0, shadowTriangles: 0, bones: 0, rigBytes: 0 }, per = {};
+  try {
+    for (const role of Object.keys(CAST)) for (const runtime of ['claude', 'codex']) {
+      const { rig, model } = factory.createPanda(role, { runtime }), name = model.userData.species + '/' + runtime;
+      const draws = rig.meshes.length, bones = rig.skeleton.bones.length, shadow = rig.meshes.filter(m => m.castShadow).reduce((n, m) => n + m.geometry.index.count / 3, 0);
+      const bytes = rig.meshes.reduce((n, m) => n + m.geometry.index.array.byteLength + Object.values(m.geometry.attributes).reduce((s, a) => s + a.array.byteLength, 0), 0);
+      const maps = new Set(rig.meshes.map(m => m.material.map).filter(Boolean));
+      assert.ok(draws <= 6 && bones <= 32 && shadow <= 8000 && bytes <= 2 * 1048576, `${name}: ${draws} draws, ${bones} bones, ${shadow} shadow tris, ${bytes} bytes`);
+      assert.equal(maps.size, 1, name + ' has one colour texture'); const tex = manifest['characters.' + castCharacterId(role, runtime)].textures; assert.deepEqual(tex.map(t => [t.width, t.height]), [[512, 512]]);
+      per[name] = { draws, bones, shadow, bytes }; total.characters++; total.draws += draws; total.shadowTriangles += shadow; total.bones += bones; total.rigBytes += bytes;
+    }
+    assert.equal(total.characters, 20, '9 roles x 2 runtimes plus Bao and Jiao');
+    assert.ok(total.draws <= 20 * 6 && total.shadowTriangles <= 20 * 8000 && total.rigBytes <= 20 * 2 * 1048576, JSON.stringify(total));
+    console.log('cast aggregate', JSON.stringify(total), JSON.stringify(per));
+  } finally { factory.dispose(); }
+});
