@@ -10,7 +10,8 @@ Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with 
 |---|---|---|
 | grilling (two older stub skills were folded into it, den-mvp/90) | **adapted** | Counts open questions per round; when the frontier grows for two rounds or a second area of fog opens, stops and offers a hand-off note to wayfinder (den-mvp/60). |
 | domain-modeling, codebase-design | as-is | none |
-| tdd, diagnosing-bugs, prototype, research | as-is | none (tdd and diagnosing-bugs carry the post-pin seam note and forced-mutation check; the `GLOSSARY.md` rename is not taken) |
+| prototype, research | as-is | none |
+| tdd, diagnosing-bugs | as-is plus wording | diagnosing-bugs says "interactive debugging" and "next person" instead of "debugger" (`role-definition-trim.test.mjs` forbids the word, the debugger role is gone). Both carry the post-pin seam note and forced-mutation check; the `GLOSSARY.md` rename is not taken) |
 | wayfinder | **adapted** | Chart step 1 starts from a grilling hand-off note when given one, and records it as a closed `grilling` ticket (den-mvp/60). |
 | resolving-merge-conflicts, writing-for-agents | as-is | none |
 | handoff | **adapted** | Model-invocable. Writes to the board (`.scratch/<feature>/handoffs/`) instead of the OS temp dir. Fixed sections, 60-line cap. |
@@ -23,7 +24,7 @@ Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with 
 
 ### Merged since the pin (2026-10-22)
 
-Taken: grilling (yes-accepts wording), tdd (seam catches/misses note), diagnosing-bugs (forced-mutation `diff` check; two wording edits reverted so the copy is as-is again), wayfinder (label-only rule, real ids in cross-references, no PR for research branches, read the label), implement (fetch the ticket reference; Skill-tool wording), code-review (search for every standards file; foreground sub-agents).
+Taken: grilling (yes-accepts wording), tdd (seam catches/misses note), diagnosing-bugs (forced-mutation `diff` check; the two wording edits kept and now documented in the table), wayfinder (label-only rule, real ids in cross-references, no PR for research branches, read the label), implement (fetch the ticket reference; Skill-tool wording), code-review (search for every standards file; foreground sub-agents).
 Skipped: the `CONTEXT.md` to `GLOSSARY.md` rename (this repo uses `CONTEXT.md`), handoff and to-tickets changes (tracker-specific), `resolving-merge-conflicts` (removed upstream 2026-09-24; kept here). Not vendored: upstream `implement-spec`, `pr`, `retro`, `chief-of-staff`.
 
 ## pstack

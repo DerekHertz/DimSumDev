@@ -103,7 +103,7 @@ Each probe must map to a specific prediction from Phase 3. **Change one variable
 
 Tool preference:
 
-1. **Debugger / REPL inspection** if the env supports it. One breakpoint beats ten logs.
+1. **Interactive debugging / REPL inspection** if the env supports it. One breakpoint beats ten logs.
 2. **Targeted logs** at the boundaries that distinguish hypotheses.
 3. Never "log everything and grep".
 
@@ -135,4 +135,4 @@ Required before declaring done:
 - [ ] Regression test passes (or absence of seam is documented)
 - [ ] All `[DEBUG-...]` instrumentation removed (`grep` the prefix)
 - [ ] Throwaway prototypes deleted (or moved to a clearly-marked debug location)
-- [ ] The hypothesis that turned out correct is stated in the commit / PR message, so the next debugger learns
+- [ ] The hypothesis that turned out correct is stated in the commit / PR message, so the next person learns
