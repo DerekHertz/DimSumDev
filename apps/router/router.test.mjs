@@ -11,7 +11,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { createRouter } from "./router.mjs";
-import { BRIDGE_DOWN_MS, LOOK_INTERVAL_MS } from "./decide.mjs";
+import { BRIDGE_DOWN_MS, LOOK_INTERVAL_MS, CI_PENDING_LOOKS } from "./decide.mjs";
 
 const text = (n, paths = ["apps/a/x.mjs"]) => `# ${n}\n\n**Type:** feature\n\n**Status:** ready-for-agent\n\n**Blocked by:** None\n\n## What to build\n${paths.map((p) => `\`${p}\``).join(" ")}\n`;
 const REF = "fx/01-slug";
@@ -301,6 +301,18 @@ describe("files a delivery holds (stalled queue, 2026-10-18)", () => {
 });
 
 describe("den-mvp/106: looks and the sweep", () => {
+  test("a ci-pending pause that never clears is reported after CI_PENDING_LOOKS looks, once", async () => {
+    const r = rig();
+    r.parts.stateNow = st([paused("ci-pending")]);
+    const router = r.router();
+    for (let i = 0; i <= CI_PENDING_LOOKS + 2; i += 1) {
+      await router.tick();
+      r.clock.t += LOOK_INTERVAL_MS;
+    }
+    assert.equal(r.calls.resume.length, CI_PENDING_LOOKS + 3, "it keeps looking");
+    assert.deepEqual(r.calls.recorded.map((x) => x.kind), ["ci-pending"]);
+    assert.equal(r.calls.pushed.length, 1);
+  });
   test("a guardrail pause is looked at once per interval by the fake clock, and the sweep is asked on the same cadence", async () => {
     const r = rig();
     const sweeps = [];

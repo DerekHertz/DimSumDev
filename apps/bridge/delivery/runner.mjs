@@ -740,8 +740,15 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
     // saved, the den shows no flicker. The bridge never merges here: a resume of a userMerge change pauses as guardrail again.
     if (router && job.pause.kind === "guardrail" && job.pr?.number) {
       const seen = await git.prState({ number: job.pr.number }).catch(() => null);
-      if (!seen || seen.state !== "MERGED") return { ok: true, status: 200, looked: true, delivery: view(job) };
-      if (job.state !== "paused") return refuse(409, "the delivery has moved on");
+      if (job.state !== "paused" || job.pause?.kind !== "guardrail") return refuse(409, "the delivery has moved on");
+      if (seen?.state === "CLOSED") {
+        // Closed without a merge: said as the user's own Resume says it, so the router reports it as a stop.
+        job.pause = { kind: "pr-closed", reason: `pull request #${seen.number} was closed without a merge`, next: "Reopen it, or close the delivery." };
+        job.gen += 1;
+        await save(job);
+        return { ok: true, status: 200, looked: true, delivery: view(job) };
+      }
+      if (seen?.state !== "MERGED") return { ok: true, status: 200, looked: true, delivery: view(job) };
     }
     if (body?.verdict !== undefined) {
       if (job.pause.kind !== "visual-verdict" || !["approve", "decline"].includes(body.verdict) || !job.candidate) return refuse(409, "this delivery is not waiting for a visual verdict");
@@ -806,7 +813,7 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
       for (const branch of branches.slice(0, 5)) {
         const pr = await git.findPr({ branch }).catch(() => null);
         if (pr?.state !== "MERGED") continue;
-        const ok = await board.resolve(ref, pr.number).then(() => true, (err) => (console.error(`bridge: sweep could not resolve ${ref}: ${errorText(err)}`), false));
+        const ok = await board.resolve(ref, pr.number, "merged outside a delivery; the den's sweep found the merged pull request").then(() => true, (err) => (console.error(`bridge: sweep could not resolve ${ref}: ${errorText(err)}`), false));
         if (ok) resolved.push(ref);
         break;
       }

@@ -15,7 +15,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { decide, STOP_AT_PERCENT, BRIDGE_DOWN_MS, RESUMABLE, LOOK_INTERVAL_MS } from "./decide.mjs";
+import { decide, STOP_AT_PERCENT, BRIDGE_DOWN_MS, RESUMABLE, LOOK_INTERVAL_MS, CI_PENDING_LOOKS } from "./decide.mjs";
 
 const full = (n) => `fx/${String(n).padStart(2, "0")}-slug`;
 const tk = (n, { status = "ready-for-agent", paths = ["apps/a/default.mjs"], locked = false, blockedBy = "None", type = "feature" } = {}) => ({
@@ -233,6 +233,15 @@ describe("den-mvp/106: a look at a guardrail or ci-pending pause", () => {
     assert.equal(g.stops.length, 1);
     assert.deepEqual(run({ state: bridge({ deliveries: [{ ...dl(2, "paused", "guardrail"), updatedAt: "later" }] }), stops: [g.stops[0].key], nowMs: T0 }).stops, [], "a look that pauses again is not a new stop");
     assert.deepEqual(run({ state: bridge({ deliveries: [dl(2, "paused", "ci-pending")] }), nowMs: T0 }).stops, []);
+  });
+  test("checks that never finish are reported once after CI_PENDING_LOOKS looks, and still looked at", () => {
+    const state = bridge({ deliveries: [dl(2, "paused", "ci-pending")] });
+    const few = run({ state, looks: new Map([["d-2", CI_PENDING_LOOKS - 1]]), nowMs: T0 });
+    assert.deepEqual(few.stops, []);
+    const many = run({ state, looks: new Map([["d-2", CI_PENDING_LOOKS]]), nowMs: T0 });
+    assert.deepEqual(many.stops.map((x) => [x.kind, x.ref]), [["ci-pending", full(2)]]);
+    assert.deepEqual(resumes(many), ["d-2"]);
+    assert.deepEqual(run({ state, looks: new Map([["d-2", CI_PENDING_LOOKS]]), stops: [many.stops[0].key], nowMs: T0 }).stops, [], "reported once");
   });
   test("a ticket blocked only by a ticket that just merged starts on the next tick", () => {
     const ctx = { order: order("1", "2"), state: bridge({ room: 1 }) };
