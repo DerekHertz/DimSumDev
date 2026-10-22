@@ -60,8 +60,9 @@ test('four charter roles keep real home cards and exact runtime bindings while v
    const choice=choices.getByRole('button',{name:new RegExp(', '+role+', '+runtime+',')});await choice.click();
    const profile=page.locator('.forest-profile');assert.match(await profile.innerText(),new RegExp(role+' · '+runtime));
    await profile.locator('img').evaluate(image=>image.decode());
-   // team-and-den-ux/23: the cloud dragon writer shares one species portrait across runtimes.
-   assert.equal(await profile.locator('img').getAttribute('src'),'/den/portraits/'+(role==='technical-writer'?'technical-writer-cloud-dragon':(runtime==='Codex'?'codex-':'')+role)+'.webp');
+   // team-and-den-ux/23 and 35: each of these roles is a species that shares one portrait across runtimes.
+   const species={'code-reviewer':'code-reviewer-lion','release-manager':'release-manager-lucky-cat',sre:'sre-tortoise','technical-writer':'technical-writer-cloud-dragon'};
+   assert.equal(await profile.locator('img').getAttribute('src'),'/den/portraits/'+species[role]+'.webp');
   }
   await page.locator('[data-rail=team]').click();
   const agents=ROLES.flatMap(role=>['claude','codex'].map(runtime=>({id:runtime+'-'+role,role,runtime,ref:'charter/01',state:role==='sre'?'blocked':'working',capabilities:{send:true,approve:true}})));

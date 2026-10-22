@@ -96,4 +96,26 @@ the Bao model fails to load.
 `characters.bao` selects only the Claude orchestrator; Codex orchestrator is Jiao.
 The matching portrait and its retained fallback are indexed in `role-portraits.mjs`.
 
+## The cast (team-and-den-ux/25-35)
+
+`characters.<species>` for the nine other roles, and `characters.jiao` for the Codex
+orchestrator, are packed from the user-picked Meshy remeshes. The remeshes are kept
+outside the repo, and `cast-sources.json` pins their sha256:
+
+    node apps/ui/assets-src/den/build-cast.mjs --sources <dir> --apply
+
+It checks every source, packs it with Bao's colour-only 512 atlas, and writes the
+manifest entries and `cast-provenance.json`. It makes no network or paid calls. Like
+Bao, the cast is not in `sources.json`, so after a full base repack, run it again.
+Rig profiles live in `src/scene/meshy/cast-profiles.mjs`. Fused paws stay still, the
+hello is a nod, and the sit is a planted-feet crouch.
+
+Fitting tools, all offline:
+- `cast-fit.mjs <id>` reports stretch and envelopes per pose.
+- `cast-sit-sweep.mjs <id>` sweeps crouch depth.
+- `cast-poses.mjs <id> <prefix>` dumps posed vertices, and `cast-grid.py <id> <png> <prefix>-*.json` draws them.
+- `cast-clearance.mjs <id> <out.json>` checks homes, desk, seats and routes.
+- `render-cast-portraits.mjs` writes the portraits; it needs WebGL Chromium.
+- `portrait-sheet.mjs <png>` draws the 48 and 72 px crops.
+
 Gzip compression is deterministic (zero timestamp). The audit records exact byte-for-byte decompression, alongside source geometry and image validation. All active material maps remain intact.
