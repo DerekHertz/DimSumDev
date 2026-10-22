@@ -91,6 +91,11 @@ function checkFile(file) {
     hits.push({ file: filePath, reason: ".claude/** changed (agent permission surface)" });
   }
 
+  // hardening/12 (ADR 0031): the agent image is what every agent runs inside, so any Dockerfile change goes to security.
+  if (/(^|\/)([^/]*\.)?dockerfile(\.[^/]*)?$/i.test(filePath)) {
+    hits.push({ file: filePath, reason: "Dockerfile changed (agent image)" });
+  }
+
   if (GUARDRAIL_PATHS.has(filePath)) {
     hits.push({ file: filePath, reason: GUARDRAIL_PATHS.get(filePath) });
   }
