@@ -34,7 +34,7 @@ Costs accepted. The Codex process, like the Claude CLI, is outside its own sandb
 
 ## Tests ticket 01's developer writes (none calls a model)
 
-1. **Starts under the real wrapper.** Build the real launch plan (scope, `prlimit`, outer wrapper, profile granting only the Node binary and the pinned helper) and run `codex sandbox ... -- node probe.mjs` with stderr kept. Assert exit 0 and the probe's output. It fails today; its stderr is the missing evidence. It skips, with a named reason, when `codex`, `bwrap` or the user bus is absent.
+1. **Starts under the real wrapper.** Build the real launch plan (scope, `prlimit`, outer wrapper, profile granting the Node binary and the pinned helper on top of the platform default read set, `:minimal`) and run `codex sandbox ... -- node probe.mjs` with stderr kept. Assert exit 0 and the probe's output. It fails today; its stderr is the missing evidence. It skips, with a named reason, when `codex`, `bwrap` or the user bus is absent.
 2. **Write outside the worktree is refused.** Same launch; the probe writes one file in the worktree and one at a host path outside it (not under `/tmp`). Assert from the host that the first exists and the second does not, and that a planted fake `auth.json` is neither readable nor changed.
 3. **Outbound network is refused.** Same launch; the probe connects to an owned localhost listener. Assert the listener saw zero connections and the probe reports a refusal, not a timeout.
 
