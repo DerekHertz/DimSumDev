@@ -164,7 +164,36 @@ export const PANGOLIN = Object.freeze({
   envelope: { standing: { radius: 2.32, height: 3.24 }, moving: { radius: 2.36, height: 3.1 }, seated: { radius: 2.32, height: 2.89 }, head: { top: 3.24, radius: 1.2 } },
 });
 
+const FOX_REST = restTable({
+  torso: [['Pelvis', [0, .65, -.35]], ['Spine', [0, 1, -.3]], ['Chest', [0, 1.4, -.2]], ['Neck', [0, 1.85, 0]], ['Head', [0, 2.35, .3]]],
+  head: { jaw: [0, 2.1, .8], hat: [0, 3, .2] }, ears: [.6, 2.7, .2],
+  arm: [[.6, 1.4, -.1], [.8, 1.1, -.1], [.85, .9, 0], [.85, .8, .1]],
+  leg: [[.4, .5, -.2], [.4, .3, -.2], [.4, .1, -.25], [.4, .05, .25]],
+  tail: [[-.4, .5, -.65], [-1.1, .8, -.85], [-1.6, 1.1, -.95], [-2, 1.5, -1]],
+});
+export const FOX = Object.freeze({
+  id: 'fox', label: 'Fox product', role: 'product', height: 3, offset: [.5, .2],
+  foot: ankleOf(FOX_REST), rest: FOX_REST,
+  weightsFor: capsuleWeights(FOX_REST, {
+    Pelvis: .75, Spine: .75, Chest: .7, Neck: .4, Head: .85, ...legs([.25, .22, .2, .18]),
+    Tail1: .5, Tail2: .55, Tail3: .5, TailTip: .4,
+  }, {
+    softness: .1, sole: .05,
+    // The ears follow the head.
+    rigid: p => p.y > 2.6 ? 'Head' : null,
+  }),
+  animate: tailSway(.12, .05),
+  sit: { drop: .08, planted: true },
+  // A shorter, lower step: the feet merge into the robe hem above them.
+  gait: { stride: .4, lift: .07 },
+  weightSmoothing: FUSED_SMOOTHING,
+  heldProps: ['paw_L', 'paw_R'],
+  arms: FUSED_ARMS, greeting: 'body',
+  // Measured maxima over every pose (the tail sets the radius), plus 5%.
+  envelope: { standing: { radius: 2.57, height: 3.18 }, moving: { radius: 2.61, height: 3.12 }, seated: { radius: 2.57, height: 3.07 }, head: { top: 3.18, radius: 1.2 } },
+});
+
 // A profile joins CAST_PROFILES (the factory selects it) once cast-rig.test.mjs passes for it.
 // CAST_DRAFTS holds profiles still being fitted; run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
 export const CAST_DRAFTS = Object.freeze({});
-export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, crane: CRANE, tortoise: TORTOISE, pangolin: PANGOLIN });
+export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, crane: CRANE, tortoise: TORTOISE, pangolin: PANGOLIN, fox: FOX });

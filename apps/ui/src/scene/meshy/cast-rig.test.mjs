@@ -82,7 +82,7 @@ test('each role picks its species for both runtimes; Jiao and unprofiled species
   assert.ok(!('jiao' in CAST_DRAFTS) && !Object.keys({ ...CAST_DRAFTS, ...CAST_PROFILES }).some(id => id in CHARACTER_PROFILES), 'cast profiles stay out of CHARACTER_PROFILES');
   const body = new T.Mesh(new T.BoxGeometry(1, 3, 1).translate(0, 1.5, 0), new T.MeshStandardMaterial());
   const characters = Object.fromEntries(Object.keys(CAST_PROFILES).map(id => [id, load(id)]));
-  characters.jiao = load('jiao'); characters.fox = load('fox');
+  characters.jiao = load('jiao');
   const factory = createPandaAppearanceFactory({ body, vest: body, characters, castProfiles: CAST_PROFILES });
   try {
     for (const profile of Object.values(CAST_PROFILES)) for (const runtime of ['claude', 'codex']) {
@@ -90,7 +90,6 @@ test('each role picks its species for both runtimes; Jiao and unprofiled species
       assert.equal(a.model.userData.species, profile.id); assert.equal(a.model.userData.runtime, runtime); assert.equal(a.model.scale.x, .68);
     }
     assert.equal(factory.createPanda('orchestrator', { runtime: 'codex' }).model.userData.species, undefined, 'Jiao stays unprofiled until slice 2b');
-    assert.equal(factory.createPanda('product').model.userData.species, undefined, 'fox has no profile yet');
     assert.equal(factory.createPanda('orchestrator').model.scale.x, 1.35);
   } finally { factory.dispose(); }
   const failed = createPandaAppearanceFactory({ body, vest: body, characters: {}, castProfiles: CAST_PROFILES });
