@@ -11,7 +11,7 @@ Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with 
 | grilling (two older stub skills were folded into it, den-mvp/90) | **adapted** | Counts open questions per round; when the frontier grows for two rounds or a second area of fog opens, stops and offers a hand-off note to wayfinder (den-mvp/60). |
 | domain-modeling, codebase-design | as-is | none |
 | prototype, research | as-is | none |
-| tdd, diagnosing-bugs | as-is plus wording | diagnosing-bugs says "interactive debugging" and "next person" instead of "debugger" (`role-definition-trim.test.mjs` forbids the word, the debugger role is gone). Both carry the post-pin seam note and forced-mutation check; the `GLOSSARY.md` rename is not taken) |
+| tdd, diagnosing-bugs | as-is plus wording | diagnosing-bugs says "interactive debugging" and "next person" instead of the retired role's name (`role-definition-trim.test.mjs` forbids it). Both carry the post-pin seam note and forced-mutation check; the `GLOSSARY.md` rename is not taken) |
 | wayfinder | **adapted** | Chart step 1 starts from a grilling hand-off note when given one, and records it as a closed `grilling` ticket (den-mvp/60). |
 | resolving-merge-conflicts, writing-for-agents | as-is | none |
 | handoff | **adapted** | Model-invocable. Writes to the board (`.scratch/<feature>/handoffs/`) instead of the OS temp dir. Fixed sections, 60-line cap. |
