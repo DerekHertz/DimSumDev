@@ -84,7 +84,7 @@ describe("the child's working directory", () => {
     assert.equal(settings.sandbox?.enabled, true);
     assert.ok(!start.argv.some((a, i) => i !== at && a.includes(worktree)), "the worktree path is in the settings and nowhere else in argv");
     assert.deepEqual(start.argv.filter((a) => a.includes(root)), [start.argv.at(-1)], "the root appears only in the settings value");
-    assert.deepEqual(JSON.parse(start.argv.at(-1)).permissions.allow, ["Bash", `Read(/${ticketFile})`, `Write(/${start.cwd}/**)`, `Edit(/${start.cwd}/**)`]);
+    assert.deepEqual(JSON.parse(start.argv.at(-1)).permissions.allow, ["Bash", `Read(/${ticketFile})`, `Read(/${path.join(t.fx.root, ".scratch", "fx", "spec.md")})`, `Read(/${path.join(t.fx.root, ".scratch", "fx", "handoffs")}/**)`, `Write(/${start.cwd}/**)`, `Edit(/${start.cwd}/**)`]);
 
     const spawn = (await t.sessions()).find((l) => l.event === "spawn" && l.agentId === id);
     assert.equal(spawn.worktree, worktree);

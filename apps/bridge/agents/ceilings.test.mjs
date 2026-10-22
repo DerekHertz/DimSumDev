@@ -36,6 +36,7 @@ const need = (name) => {
 const SID = "0b8f1c1e-5c1a-4c0e-9a55-3f2d9e7a4b10";
 const WT = "/work/den/.claude/worktrees/den-fx-01-abcd1234";
 const TICKET = "/work/den/.scratch/fx/issues/01-thing.md";
+const FEATURE_READS = ["Read(//work/den/.scratch/fx/spec.md)", "Read(//work/den/.scratch/fx/handoffs/**)"]; // hardening/01 final round
 const DENY = ["Write(.claude/**)", "Edit(.claude/**)", "Bash(git push:*)", "Bash(gh pr create:*)"];
 const WALL_NO_HOSTS = {
   enabled: true,
@@ -85,14 +86,14 @@ describe("compileCeiling: the four ceilings", () => {
 
     test(`${role}: the ticket Read rule stays beside the worktree rules`, () => {
       const settings = settingsOf(argvFor(role, { ticketFile: TICKET }));
-      assert.deepEqual(sorted(settings.permissions.allow), sorted(["Bash", `Read(/${TICKET})`, `Write(/${WT}/**)`, `Edit(/${WT}/**)`]));
+      assert.deepEqual(sorted(settings.permissions.allow), sorted(["Bash", `Read(/${TICKET})`, ...FEATURE_READS, `Write(/${WT}/**)`, `Edit(/${WT}/**)`]));
       assert.deepEqual(noFs(settings.sandbox), noFs(WALL_NO_HOSTS)); // agent-os/02: sandbox.filesystem (governance denyWrite) may now ride along
     });
   }
 
   test("scout: no Write or Edit allow at all (read the project and the web, no write)", () => {
     const withTicket = settingsOf(argvFor("scout", { ticketFile: TICKET }));
-    assert.deepEqual(sorted(withTicket.permissions.allow), ["Bash", `Read(/${TICKET})`]);
+    assert.deepEqual(sorted(withTicket.permissions.allow), sorted(["Bash", `Read(/${TICKET})`, ...FEATURE_READS]));
     const bare = settingsOf(argvFor("scout"));
     assert.deepEqual(bare.permissions.allow, ["Bash"]);
   });
@@ -102,7 +103,7 @@ describe("compileCeiling: the four ceilings", () => {
       const settings = settingsOf(argvFor(role, { ticketFile: TICKET }));
       assert.deepEqual(settings.sandbox.network.allowedDomains, [], role);
       for (const rule of settings.permissions.allow ?? []) {
-        assert.ok(rule === "Bash" || rule === `Read(/${TICKET})` || rule === `Write(/${WT}/**)` || rule === `Edit(/${WT}/**)`, `${role}: unexpected allow ${rule}`);
+        assert.ok(rule === "Bash" || rule === `Read(/${TICKET})` || FEATURE_READS.includes(rule) || rule === `Write(/${WT}/**)` || rule === `Edit(/${WT}/**)`, `${role}: unexpected allow ${rule}`);
       }
     }
   });
@@ -150,7 +151,7 @@ describe("compileCeiling: no role is left without a ceiling (den-mvp outcome 1)"
       assert.equal(settings.sandbox.failIfUnavailable, true, role);
     }
     for (const role of NO_WRITE_ROLES) {
-      assert.deepEqual(settingsOf(argvFor(role, { ticketFile: TICKET })).permissions.allow, ["Bash", `Read(/${TICKET})`], role);
+      assert.deepEqual(settingsOf(argvFor(role, { ticketFile: TICKET })).permissions.allow, ["Bash", `Read(/${TICKET})`, ...FEATURE_READS], role);
       assert.throws(() => need("compileCeiling")(role, { worktree: WT, grants: [{ kind: "host", value: "example.com" }] }), TypeError, `${role} takes no grants`);
     }
   });

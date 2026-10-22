@@ -104,6 +104,9 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       // packed-refs and index writable. The host answers a spawn failure with its 502 and cleans up.
       if (mainGit !== undefined && !isWorktreePath(mainGit)) throw new TypeError("claude runtime: mainGit must be a plain absolute path; refusing to start without the main .git denies");
       // den-mvp outcome 1: the credential stores that exist now are closed to reads; a deny target must exist to be applied.
+      // hardening/01 final round: the same for the worktree. A role that writes and a cwd the adapter cannot write as a plain rule (a space,
+      // a non-ASCII letter, a parenthesis) used to start with no worktree, which dropped the shell read limit; it now refuses the spawn.
+      if (roleWrites(role) && !isWorktreePath(cwd)) throw new TypeError("claude runtime: the worktree must be a plain absolute path (letters, digits and . _ @ + - only); refusing to start without the shell read limit");
       const home = isWorktreePath(env.HOME) ? env.HOME : undefined;
       const credentials = home === undefined ? [] : CREDENTIAL_PATHS.filter((p) => existsSync(`${home}${p.slice(1)}`));
       // The kernel review (2026-10-18): a remote connection reaches the network outside the wall, so it brings the read limit like a host.

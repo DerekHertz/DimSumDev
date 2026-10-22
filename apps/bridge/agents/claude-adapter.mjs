@@ -67,6 +67,9 @@ function realish(p, depth = 0) {
   const real = realish(parent, depth + 1);
   return real === null ? null : path.join(real, path.basename(p));
 }
+// hardening/01 final round (user, 2026-10-22): a den agent keeps its spec and handoffs. The ticket's own feature, read-only:
+// `.scratch/<feature>/spec.md` and everything under `.scratch/<feature>/handoffs/`. The feature is the ticket file's own folder, two levels up.
+const featureReads = (ticketFile) => (isTicketFilePath(ticketFile) ? { spec: `${path.dirname(path.dirname(ticketFile))}/spec.md`, handoffs: `${path.dirname(path.dirname(ticketFile))}/handoffs` } : undefined);
 export function fileToolRefusal({ tool, input, worktree, ticketFile, grantPaths = [], home }) {
   const key = Object.hasOwn(FILE_TOOL_PATH, tool) ? FILE_TOOL_PATH[tool] : undefined;
   if (key === undefined) return null;
@@ -78,12 +81,14 @@ export function fileToolRefusal({ tool, input, worktree, ticketFile, grantPaths 
   const base = path.resolve(worktree);
   const file = path.resolve(base, homed);
   if (tool === "Read" && ticketFile !== undefined && file === path.resolve(ticketFile)) return null;
+  const feature = tool === "Read" ? featureReads(ticketFile) : undefined;
+  if (feature !== undefined && file === feature.spec) return null;
   const real = realish(file);
   const within = (dir) => {
     const d = realish(dir);
     return real !== null && d !== null && (real === d || real.startsWith(d + path.sep));
   };
-  if (within(base) || grantPaths.some((g) => within(path.resolve(expandHome(g, home))))) return null;
+  if (within(base) || (feature !== undefined && within(feature.handoffs)) || grantPaths.some((g) => within(path.resolve(expandHome(g, home))))) return null;
   return `Refused: ${tool} on ${file}${real !== null && real !== file ? ` (which leads to ${real})` : ""} is outside the worktree (${base}); a file tool may only reach inside it.`;
 }
 const isPlainObject = (v) => v !== null && typeof v === "object" && !Array.isArray(v);
@@ -174,9 +179,9 @@ const sandboxFor = (wall, worktree, forbid, writePaths, readLimit, readOpen, tic
   // main checkout that a path grant reaches.
   const denyWrite = [...new Set([...(forbid?.write ?? []).map((p) => (worktree === undefined ? baseOf(p) : `${worktree}/${baseOf(p)}`)), ...(denyAbs ?? []).map(baseOf)])];
   const filesystem = { ...(denyWrite.length === 0 ? {} : { denyWrite }), ...(writePaths?.length ? { allowWrite: [...writePaths] } : {}),
-    // The read limit for a shell command (live check, agent-os/02): the home directory is closed, the worktree, the ticket and granted paths re-opened,
+    // The read limit for a shell command (live check, agent-os/02): the home directory and, on WSL, the Windows drives (/mnt) are closed, the worktree, the ticket and granted paths re-opened,
     // and (the kernel review) the project and toolchain compileCeiling names.
-    ...(readLimit === true ? { denyRead: ["~/"], allowRead: [...(worktree === undefined ? [] : [worktree]), ...(ticketFile === undefined ? [] : [`/${ticketFile}`.slice(1)]), ...(writePaths ?? []), ...(readOpen ?? [])] } : credentials?.length ? { denyRead: [...credentials] } : {}) };
+    ...(readLimit === true ? { denyRead: ["~/", "/mnt/"], allowRead: [...(worktree === undefined ? [] : [worktree]), ...(ticketFile === undefined ? [] : [`/${ticketFile}`.slice(1)]), ...Object.values(featureReads(ticketFile) ?? {}), ...(writePaths ?? []), ...(readOpen ?? [])] } : credentials?.length ? { denyRead: [...credentials] } : {}) };
   return {
     enabled: true,
     failIfUnavailable: true,
@@ -197,6 +202,7 @@ const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit
     // A host the ceiling or a grant names may be fetched without a question; any other fetch is one (or is refused, see webRefusal).
     ...(wall?.hosts ?? []).map((h) => `WebFetch(domain:${h})`),
     ...(ticketFile === undefined ? [] : [`Read(/${ticketFile})`]),
+    ...(featureReads(ticketFile) === undefined ? [] : [`Read(/${featureReads(ticketFile).spec})`, `Read(/${featureReads(ticketFile).handoffs}/**)`]),
     ...(worktree === undefined ? [] : [`Write(/${worktree}/**)`, `Edit(/${worktree}/**)`]),
     ...(writePaths ?? []).flatMap((p) => [`Write(${ruleForm(p)}/**)`, `Edit(${ruleForm(p)}/**)`]),
   ];

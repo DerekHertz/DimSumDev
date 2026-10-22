@@ -78,7 +78,7 @@ describe("the file-tool limit in the settings belongs to an agent with a way out
       const s = settingsFor(role);
       assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, undefined, role);
       assert.equal(s.permissions.additionalDirectories, undefined, role);
-      assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"], `${role}: the shell stays limited`);
+      assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/", "/mnt/"], `${role}: the shell stays limited`);
       assert.ok(s.permissions.allow.includes(`Read(/${TICKET})`), `${role}: its own ticket is still one allow`);
     }
   });

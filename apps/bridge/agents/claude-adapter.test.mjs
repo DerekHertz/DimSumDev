@@ -105,7 +105,7 @@ describe("buildClaudeArgs: the fixed argv template (ADR 0016 6.6)", () => {
     const plain = build({ sessionId: SID, agent: "scout" });
     const argv = build({ sessionId: SID, agent: "scout", ticketFile: file });
     const at = argv.indexOf("--settings") + 1;
-    assert.deepEqual(JSON.parse(argv[at]), { disableAllHooks: true, permissions: { deny: DENY_RULES, allow: [`Read(/${file})`] } });
+    assert.deepEqual(JSON.parse(argv[at]), { disableAllHooks: true, permissions: { deny: DENY_RULES, allow: [`Read(/${file})`, `Read(/${file.replace("/issues/01-scout.md", "/spec.md")})`, `Read(/${file.replace("/issues/01-scout.md", "/handoffs")}/**)`] } });
     assert.deepEqual(argv.toSpliced(at, 1), plain.toSpliced(at, 1), "only the --settings value differs");
   });
 
@@ -276,7 +276,7 @@ describe("buildClaudeArgs: the wall (agent-os/01 spike)", () => {
     const file = "/home/u/den/.scratch/den/issues/01-scout.md";
     const got = settingsOf(build({ wall: { hosts: ["registry.npmjs.org", "example.com"] }, ticketFile: file }));
     // den-mvp outcome 1: a host the wall allows may also be fetched by the CLI's own web tool without a question.
-    assert.deepEqual(got, { disableAllHooks: true, permissions: { deny: DENY_RULES, allow: ["Bash", "WebFetch(domain:registry.npmjs.org)", "WebFetch(domain:example.com)", `Read(/${file})`] }, sandbox: sandbox(["registry.npmjs.org", "example.com"]) });
+    assert.deepEqual(got, { disableAllHooks: true, permissions: { deny: DENY_RULES, allow: ["Bash", "WebFetch(domain:registry.npmjs.org)", "WebFetch(domain:example.com)", `Read(/${file})`, `Read(/${file.replace("/issues/01-scout.md", "/spec.md")})`, `Read(/${file.replace("/issues/01-scout.md", "/handoffs")}/**)`] }, sandbox: sandbox(["registry.npmjs.org", "example.com"]) });
   });
 
   test("nothing but the --settings value changes", () => {

@@ -140,13 +140,13 @@ describe("credential stores are closed to every role", () => {
     for (const role of ROLES) {
       const settings = settingsFor(role, { credentials });
       for (const p of credentials) for (const rule of [`Read(${p})`, `Read(${p}/**)`, `Edit(${p})`, `Edit(${p}/**)`]) assert.ok(settings.permissions.deny.includes(rule), `${role}: ${rule}`);
-      assert.deepEqual(settings.sandbox.filesystem.denyRead, ["~/"], `${role}: hardening/01: the whole home is closed to the shell, which covers every store`);
+      assert.deepEqual(settings.sandbox.filesystem.denyRead, ["~/", "/mnt/"], `${role}: hardening/01: the whole home is closed to the shell, which covers every store`);
     }
   });
 
   test("a granted host keeps the whole-home read limit, which already covers them", () => {
     const settings = settingsFor("developer", { credentials: ["~/.ssh"], grants: [{ kind: "host", value: "registry.npmjs.org" }] });
-    assert.deepEqual(settings.sandbox.filesystem.denyRead, ["~/"]);
+    assert.deepEqual(settings.sandbox.filesystem.denyRead, ["~/", "/mnt/"]);
     assert.ok(settings.permissions.deny.includes("Read(~/.ssh/**)"));
   });
 
@@ -237,7 +237,7 @@ describe("any way out brings the read limit, with the project and the toolchain 
 
   test("a remote connection with no host closes home to the shell and reopens the worktree, the project's packages and .git, and the toolchain", () => {
     const s = limited({ remote: true });
-    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
+    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/", "/mnt/"]);
     assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), [...OPEN].sort());
     assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, true);
     assert.deepEqual(s.sandbox.network.allowedDomains, [], "a connection opens no host to the shell");
@@ -256,7 +256,7 @@ describe("any way out brings the read limit, with the project and the toolchain 
   // hardening/01 addendum (2026-10-22): the limit no longer waits for a way out. Every agent with a worktree gets it.
   test("with no way out, an agent with a worktree gets the same read limit and reopening", () => {
     const s = limited({});
-    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
+    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/", "/mnt/"]);
     assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), [...OPEN, "/home/u/.npm"].sort());
     assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, undefined, "fix round: the file-tool limit is for an agent with a way out; the host denies the rest");
   });
@@ -264,7 +264,7 @@ describe("any way out brings the read limit, with the project and the toolchain 
   test("a role that cannot write gets the limit too", () => {
     // Unit level only: compileCeiling takes the raw worktree for the limit (its allowRead then lacks the cwd); the runtime passes a role with write: none no worktree.
     const s = settingsFor("scout", { root: ROOT, mainGit: MAIN_GIT, home: HOME, toolchain: NODE, remote: true });
-    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
+    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/", "/mnt/"]);
     assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), OPEN.filter((p) => p !== WT).sort());
   });
 

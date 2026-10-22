@@ -2,7 +2,7 @@
 // Same harness as claude-process.test.mjs: a stub script behind DEN_CLAUDE_BIN records the argv it was started with.
 // Pinned: spawn({ role, cwd, ... }) treats cwd as the worktree; for developer, qa, scout and security the child's inline
 // settings carry the sandbox block with an empty host list (ADR 0021 amendment 1) and, for the roles that write, Write and
-// Edit allow rules for cwd. A cwd that cannot be written as a plain rule keeps the wall and drops the write rules (the ticket
+// Edit allow rules for cwd. A cwd that cannot be written as a plain rule refuses a role that writes (hardening/01 final round; it kept the wall before) and starts a role that does not write (the ticket
 // file precedent: the request stays). Roles with no ceiling start exactly as before.
 // The expected settings are hand-written literals; only the "no ceiling" case compares against buildClaudeArgs itself.
 import { test, describe, afterEach } from "node:test";
@@ -69,15 +69,16 @@ describe("the runtime passes the wall for a role with a ceiling", () => {
   test("the ticket file rule is kept beside the worktree rules", async () => {
     const ticketFile = "/repo/.scratch/den/issues/01-developer.md";
     const { cwd, settings } = await launch("developer", { extra: { ticketFile } });
-    assert.deepEqual([...settings.permissions.allow].sort(), ["Bash", `Edit(/${cwd}/**)`, `Read(/${ticketFile})`, `Write(/${cwd}/**)`]);
+    // hardening/01 final round: the ticket's own feature spec and handoffs ride beside it, read-only.
+    assert.deepEqual([...settings.permissions.allow].sort(), ["Bash", `Edit(/${cwd}/**)`, "Read(//repo/.scratch/den/handoffs/**)", `Read(/${ticketFile})`, "Read(//repo/.scratch/den/spec.md)", `Write(/${cwd}/**)`]);
     assert.deepEqual(noFs(settings.sandbox), noFs(WALL_NO_HOSTS)); // agent-os/02: sandbox.filesystem may now ride along
   });
 
-  test("a cwd that cannot be written as a plain rule keeps the wall and drops the write rules", async () => {
-    const { settings } = await launch("developer", { dirName: "den wall cwd " });
-    assert.deepEqual(noFs(settings.sandbox), noFs(WALL_NO_HOSTS)); // agent-os/02: sandbox.filesystem may now ride along
-    assert.deepEqual(settings.permissions.allow, ["Bash"], "the Write request stays a request");
-    for (const rule of DENY) assert.ok(settings.permissions.deny.includes(rule), `deny keeps ${rule}`); // agent-os/02: governance denies join the four
+  // hardening/01 final round (security medium): this used to start with the write rules and the shell read limit dropped (fail open).
+  test("a cwd that cannot be written as a plain rule refuses a role that writes; one that does not write is unchanged", async () => {
+    await assert.rejects(launch("developer", { dirName: "den wall cwd " }), /plain absolute path/);
+    const { settings } = await launch("scout", { dirName: "den wall cwd " });
+    assert.deepEqual(settings.permissions.allow, ["Bash"]);
   });
 });
 
@@ -107,10 +108,10 @@ describe("the runtime passes a role's connections", () => {
   // The kernel review (2026-10-18): a remote connection is a way out, so it brings the read limit with the toolchain reopened.
   test("a remote connection brings the read limit; a script connection alone leaves it as it is (on, for any agent with a worktree)", async () => {
     const remote = await launch("developer", { extra: { connections: [{ name: "docs", url: "https://docs.example.com/mcp" }] } });
-    assert.deepEqual(remote.settings.sandbox.filesystem.denyRead, ["~/"]);
+    assert.deepEqual(remote.settings.sandbox.filesystem.denyRead, ["~/", "/mnt/"]);
     for (const p of [remote.cwd, path.dirname(path.dirname(process.execPath))]) assert.ok(remote.settings.sandbox.filesystem.allowRead.includes(p), p);
     const script = await launch("developer", { extra: { connections: [{ name: "board", script: "/opt/den/board-tools.mjs" }] } });
-    assert.deepEqual(script.settings.sandbox.filesystem.denyRead, ["~/"], "hardening/01: the limit is on with no way out");
+    assert.deepEqual(script.settings.sandbox.filesystem.denyRead, ["~/", "/mnt/"], "hardening/01: the limit is on with no way out");
     assert.ok(script.settings.sandbox.filesystem.allowRead.includes(script.cwd));
   });
 
