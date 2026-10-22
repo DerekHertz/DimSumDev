@@ -153,12 +153,12 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
     assert.ok(!loaded.includes('/src/scene/procedural/RestaurantDen.jsx'), 'old procedural scene is not mounted');
     assert.equal(await page.locator('iframe').count(), 0, 'no embedded preview server');
     assert.equal(await page.locator('.forest-canvas canvas').count(), 1);
-    assert.equal(Object.keys(assets).length, 25, 'only retained character, prop, wardrobe and vegetation models are shipped (team-and-den-ux/23 adds two species, 24 adds Bao)');
+    assert.equal(Object.keys(assets).length, 35, 'only retained character, prop, wardrobe and vegetation models are shipped (team-and-den-ux/23 adds two species, 24 adds Bao, 35 adds nine species and Jiao)');
     assert.deepEqual(Object.keys(assets).filter(key => key.startsWith('scenery.')), [], 'buildings and furniture use procedural geometry');
     assert.equal(loaded.some(path => path.startsWith('/den/models/scenery/')), false, 'no removed scenery download');
     const required = ['bao','wardrobe.developer-vest','wardrobe.qa-scarf','wardrobe.developer-headphones'];
     assert.deepEqual(required.filter(id=>!loaded.includes(assets[id].url)), [], 'the approved body and shared wardrobe load locally');
-    assert.equal(modelResponses.length, 7, 'authored scenery and tools need only the four shared models, the two species (team-and-den-ux/23) and Bao (24)');
+    assert.equal(modelResponses.length, 17, 'authored scenery and tools need only the four shared models, the two species (team-and-den-ux/23), Bao (24) and the nine cast species and Jiao (35)');
     assert.ok(loaded.includes(assets['characters.bao'].url), 'Bao loads locally');
     assert.deepEqual(['characters.developer','characters.technical-writer'].filter(id=>!loaded.includes(assets[id].url)), [], 'both species load locally');
     const scene = await page.evaluate(async()=>{
@@ -188,17 +188,17 @@ test("the native plush garden loads Balanced Bao and the shared role wardrobe wi
     });
     assert.equal(new Set(scene.roles).size,18);
     assert.equal(new Set(scene.actorKeys).size,32,'each permanent runtime resident has a distinct actor key');
-    // team-and-den-ux/23: a species carries its props in its mesh (the pouch, the book and brush) instead of a paw tool. 24 adds Bao.
-    assert.deepEqual(scene.claudeTools.filter(t=>t.species).map(t=>[t.role,t.species,t.tools.length]).toSorted(),[['developer','red-panda',0],['orchestrator','giant-panda',0],['technical-writer','cloud-dragon',0]]);
+    // team-and-den-ux/23: a species carries its props in its mesh (the pouch, the book and brush) instead of a paw tool. 24 adds Bao, 35 the rest of the cast.
+    assert.deepEqual(scene.claudeTools.filter(t=>t.species).map(t=>[t.role,t.species,t.tools.length]).toSorted(),[['architect','red-crowned-crane',0],['code-reviewer','lion',0],['designer','sika-deer',0],['developer','red-panda',0],['orchestrator','giant-panda',0],['product','fox',0],['qa','river-otter',0],['release-manager','lucky-cat',0],['runner','golden-monkey',0],['security','pangolin',0],['sre','cloud-tortoise',0],['technical-writer','cloud-dragon',0]]);
     const pandas=scene.claudeTools.filter(t=>!t.species);
     // A placeholder kit nests the borrowed kit's name, so compare each role's own (root) tool.
     assert.ok(pandas.every(t=>t.tools.length>0),'every other Claude permanent role holds a paw tool');
     assert.equal(new Set(pandas.map(t=>t.tools[0])).size,pandas.length,'each other Claude permanent role has a distinct paw tool');
     // 19 before team-and-den-ux/23: the writer's own scroll left with the cloud dragon; the developer's tablet stays in the code reviewer's placeholder kit.
     // 18 before team-and-den-ux/24: Bao's Bamboo fan left with the giant panda model, which carries its props in its mesh.
-    assert.equal(new Set(scene.tools).size,17,'Jiao adds her distinct approved coordinator tool');
-    assert.ok(scene.tools.includes('Order notebook'));
-    assert.deepEqual(scene.coordinatorTools,{orchestrator:[],'codex:orchestrator':['Order notebook']},'Bao carries no paw tool; Jiao keeps hers');
+    // 17 before team-and-den-ux/35: the nine cast species and Jiao carry their props in their meshes, leaving the six panda roles' tools.
+    assert.equal(new Set(scene.tools).size,6,'only the remaining panda roles hold paw tools');
+    assert.deepEqual(scene.coordinatorTools,{orchestrator:[],'codex:orchestrator':[]},'Bao and Jiao carry their props in their meshes, not as paw tools');
     assert.equal(scene.skeletons,47,'32 residents and 15 scenery pandas have independent skeletons');
     assert.equal(scene.places.length,10);
     assert.deepEqual(scene.routes.filter(r=>!r.out||!r.home),[],'every workstation connects to the meeting and back over actual walking surfaces');
@@ -264,7 +264,7 @@ test("a failed Bao portrait falls back to the old one in the same box, and a fai
     await portrait.page.waitForFunction(() => [...document.querySelectorAll('.forest-portrait img')].some(image => new URL(image.currentSrc || image.src).pathname === '/den/portraits/orchestrator.webp' && image.complete && image.naturalWidth > 0));
     const rows = await images.evaluateAll(list => list.map(image => { const box = image.closest('.forest-portrait').getBoundingClientRect(); return { path: new URL(image.currentSrc || image.src).pathname, width: box.width, height: box.height }; }));
     assert.ok(rows.every(row => row.path !== '/den/portraits/bao-jade.webp'), 'the failed portrait is replaced');
-    const bao = rows.find(row => row.path === '/den/portraits/orchestrator.webp'), jiao = rows.find(row => row.path === '/den/portraits/codex-orchestrator.webp');
+    const bao = rows.find(row => row.path === '/den/portraits/orchestrator.webp'), jiao = rows.find(row => row.path === '/den/portraits/orchestrator-jiao.webp');
     assert.ok(bao && jiao, 'Bao shows the old portrait and Jiao keeps hers');
     assert.deepEqual([bao.width, bao.height], [jiao.width, jiao.height], 'the fallback keeps the fixed portrait box');
     assert.deepEqual(portrait.errors, []);
@@ -388,13 +388,13 @@ test("portrait profiles keep real work and visitor identities, and route explici
     const roleIds = ['orchestrator', 'product', 'architect', 'developer', 'scout', 'debugger', 'qa', 'security', 'designer', 'herald', 'release-manager', 'code-reviewer', 'sre', 'technical-writer', 'knowledge-keeper', 'docs-writer', 'stem-cub'];
     const codexPortraitPaths = ['/den/portraits/codex-orchestrator.webp', '/den/portraits/codex-product.webp', '/den/portraits/codex-architect.webp', '/den/portraits/codex-developer.webp', '/den/portraits/codex-scout.webp', '/den/portraits/codex-runner.webp', '/den/portraits/codex-qa.webp', '/den/portraits/codex-security.webp', '/den/portraits/codex-designer.webp', '/den/portraits/codex-herald.webp', '/den/portraits/codex-code-reviewer.webp', '/den/portraits/codex-release-manager.webp', '/den/portraits/codex-sre.webp', '/den/portraits/codex-technical-writer.webp'];
     const portraitPaths = await portraits.locator('img').evaluateAll(images => images.map(image => new URL(image.currentSrc).pathname));
-    // team-and-den-ux/23: a species keeps one body for both runtimes, so its two residents share one portrait.
-    const species = { developer: '/den/portraits/developer-red-panda.webp', 'technical-writer': '/den/portraits/technical-writer-cloud-dragon.webp' };
+    // team-and-den-ux/23 and 35: a species keeps one body for both runtimes, so its two residents share one portrait.
+    const species = { developer: '/den/portraits/developer-red-panda.webp', 'technical-writer': '/den/portraits/technical-writer-cloud-dragon.webp', product: '/den/portraits/product-fox.webp', architect: '/den/portraits/architect-crane.webp', runner: '/den/portraits/runner-golden-monkey.webp', qa: '/den/portraits/qa-otter.webp', security: '/den/portraits/security-pangolin.webp', designer: '/den/portraits/designer-deer.webp', 'release-manager': '/den/portraits/release-manager-lucky-cat.webp', 'code-reviewer': '/den/portraits/code-reviewer-lion.webp', sre: '/den/portraits/sre-tortoise.webp' };
     assert.equal(new Set(portraitPaths).size, 32 - Object.keys(species).length, 'each runtime resident uses its own cached portrait, except a species shared by both runtimes');
-    const claudeOnly = { orchestrator: '/den/portraits/bao-jade.webp' }; // team-and-den-ux/24: Bao's own portrait; Jiao keeps codex-orchestrator
-    const expected = [...roleIds.map(role => claudeOnly[role] || species[role] || `/den/portraits/${role}.webp`), '/den/portraits/runner.webp', ...codexPortraitPaths.map(path => Object.entries(species).find(([role]) => path === `/den/portraits/codex-${role}.webp`)?.[1] || path)];
+    const claudeOnly = { orchestrator: '/den/portraits/bao-jade.webp' }, codexOnly = { '/den/portraits/codex-orchestrator.webp': '/den/portraits/orchestrator-jiao.webp' }; // team-and-den-ux/24 and 25: Bao's and Jiao's own portraits
+    const expected = [...roleIds.map(role => claudeOnly[role] || species[role] || `/den/portraits/${role}.webp`), species.runner, ...codexPortraitPaths.map(path => codexOnly[path] || Object.entries(species).find(([role]) => path === `/den/portraits/codex-${role}.webp`)?.[1] || path)];
     assert.deepEqual(portraitPaths.toSorted(), expected.toSorted());
-    assert.ok(portraitPaths.includes('/den/portraits/release-manager.webp'), 'the corrected Release Manager wrap has its own portrait');
+    assert.ok(portraitPaths.includes('/den/portraits/release-manager-lucky-cat.webp'), 'the Release Manager wears the lucky cat portrait');
     await portraits.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
     assert.equal(await profiles.getByRole('heading', { name: 'The Maker', exact: true }).isVisible(), true);
     assert.equal(await page.getByRole('region', { name: 'Selected panda' }).count(), 0, 'portrait selection does not open the scene card');

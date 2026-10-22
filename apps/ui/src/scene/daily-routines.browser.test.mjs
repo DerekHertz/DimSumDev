@@ -33,8 +33,8 @@ test('the actual garden keeps owned homes, animates idle residents and koi, hold
    return {pandas:Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,p.position.toArray()])),spine:pandas.developer.getObjectByName('Spine').scale.toArray(),fish:window.routineProbe.fish.map(f=>f.position.toArray()),outfits};
   });
   assert.equal(initial.fish.length,3);assert.equal(Object.keys(initial.pandas).length,32);
-  // team-and-den-ux/23: the red panda and cloud dragon wear outfits fused into their own textured body; 24 adds Bao's giant panda.
-  assert.deepEqual([...new Set(initial.outfits.filter(o=>o.species).map(o=>o.species))].sort(),['cloud-dragon','giant-panda','red-panda']);
+  // team-and-den-ux/23: the red panda and cloud dragon wear outfits fused into their own textured body; 24 adds Bao's giant panda, 35 the rest of the cast.
+  assert.deepEqual([...new Set(initial.outfits.filter(o=>o.species).map(o=>o.species))].sort(),['cloud-dragon','cloud-tortoise','fox','giant-panda','golden-monkey','jiao','lion','lucky-cat','pangolin','red-crowned-crane','red-panda','river-otter','sika-deer']);
   assert.ok(initial.outfits.every(o=>(o.species||o.count>0)&&o.shared&&o.textured),'all actual residents retain textured outfits on their shared skeleton');
   await page.waitForFunction(before=>{
    const p=window.routineProbe;
