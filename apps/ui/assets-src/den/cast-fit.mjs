@@ -10,7 +10,7 @@ import * as C from '../../src/scene/meshy/cast-profiles.mjs';
 const id = process.argv[2], manifest = JSON.parse(readFileSync(new URL('../../public/den/manifest.json', import.meta.url))).assets;
 const src = readGlbGeometry(gunzipSync(readFileSync(new URL('../../public' + manifest['characters.' + id].url, import.meta.url))));
 const profile = { ...(C.CAST_DRAFTS?.[id] || C.CAST_PROFILES[id]) }; if (process.env.IT) profile.weightSmoothing = { iterations: +process.env.IT, alpha: .5, pin: p => p.y < +(process.env.PIN || 0) };
-const f = createPandaAppearanceFactory({ characters: { [id]: src }, castProfiles: { [id]: profile } }), { rig, model } = f.createPanda(profile.role); model.scale.setScalar(1);
+const f = createPandaAppearanceFactory({ characters: { [id]: src }, castProfiles: { [id]: profile } }), { rig, model } = f.createPanda(profile.role, { runtime: profile.runtime }); model.scale.setScalar(1);
 const g = createLeisureGesture(rig), m = rig.meshes[0], pos = m.geometry.attributes.position, idx = m.geometry.index;
 const rest = Array.from({ length: pos.count }, (_, i) => new T.Vector3().fromBufferAttribute(pos, i));
 const env = {}, report = [];
@@ -25,7 +25,7 @@ for (const [label, kind, fn] of poses) {
   P.forEach((p, i) => { r = Math.max(r, Math.hypot(p.x, p.z)); top = Math.max(top, p.y); if (p.y < low) { low = p.y; lowAt = rest[i].toArray().map(v => +v.toFixed(2)); } });
   for (let i = 0; i < idx.count; i += 3) for (const [a, b] of [[0, 1], [1, 2], [2, 0]]) { const ai = idx.getX(i + a), bi = idx.getX(i + b), d = rest[ai].distanceTo(rest[bi]); if (d > .03) { const s = P[ai].distanceTo(P[bi]) / d; if (s > worst) { worst = s; at = rest[ai].toArray().map(v => +v.toFixed(2)); } } }
   const e = env[kind] ||= { radius: 0, height: 0, low: 9 }; e.radius = Math.max(e.radius, r); e.height = Math.max(e.height, top); e.low = Math.min(e.low, low);
-  if (worst >= 3 || low < -.02) report.push(`${label} ${worst.toFixed(1)}x at ${at} low ${low.toFixed(3)} from ${lowAt}`);
+  if (worst >= 3 || low < -.02 || process.env.ALL) report.push(`${label} ${worst.toFixed(1)}x at ${at} low ${low.toFixed(3)} from ${lowAt}`);
 }
 console.log(id, 'bones', rig.skeleton.bones.length, 'env', JSON.stringify(Object.fromEntries(Object.entries(env).map(([k, v]) => [k, Object.fromEntries(Object.entries(v).map(([a, b]) => [a, +b.toFixed(3)]))]))));
 console.log(report.length ? report.join('\n') : 'all poses under 3x and above ground');

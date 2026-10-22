@@ -193,7 +193,111 @@ export const FOX = Object.freeze({
   envelope: { standing: { radius: 2.57, height: 3.18 }, moving: { radius: 2.61, height: 3.12 }, seated: { radius: 2.57, height: 3.07 }, head: { top: 3.18, radius: 1.2 } },
 });
 
+const LION_REST = restTable({
+  torso: [['Pelvis', [0, .55, -.2]], ['Spine', [0, .9, -.1]], ['Chest', [0, 1.25, 0]], ['Neck', [0, 1.6, .3]], ['Head', [0, 2.05, .4]]],
+  head: { jaw: [0, 1.85, 1.1], hat: [0, 3, .4] }, ears: [.75, 2.55, .5],
+  arm: [[.85, 1.3, .4], [1, .95, .6], [.7, .8, .9], [.5, .75, 1.05]],
+  leg: [[.65, .6, -.3], [.7, .35, -.25], [.7, .12, -.2], [.7, .05, .25]],
+  tail: [[-.5, .4, -.85], [-.7, .5, -1.05], [-.7, .7, -1.25], [-.7, .9, -1.4]],
+});
+export const LION = Object.freeze({
+  id: 'lion', label: 'Lion code reviewer', role: 'code-reviewer', height: 3, offset: [0, .1],
+  foot: ankleOf(LION_REST), rest: LION_REST,
+  weightsFor: capsuleWeights(LION_REST, {
+    Pelvis: .9, Spine: .9, Chest: .85, Neck: .6, Head: .95, ...legs([.55, .5, .45, .35]),
+    Tail1: .3, Tail2: .3, Tail3: .3, TailTip: .25,
+  }, {
+    softness: .1, sole: .05,
+    // The belly between the paws rests on the grass.
+    rigid: p => p.y < .25 && Math.abs(p.x) < .45 && p.z > .3 ? planted(p.y) : null,
+  }),
+  animate: tailSway(.12, .04),
+  sit: { drop: .12, planted: true },
+  gait: { stride: .4, lift: .07 },
+  weightSmoothing: FUSED_SMOOTHING,
+  heldProps: ['paw_L', 'paw_R'],
+  arms: FUSED_ARMS, greeting: 'body',
+  envelope: { standing: { radius: 2.02, height: 3.23 }, moving: { radius: 1.98, height: 3.11 }, seated: { radius: 2.02, height: 3.04 }, head: { top: 3.23, radius: 1.3 } },
+});
+
+const LUCKY_CAT_REST = restTable({
+  torso: [['Pelvis', [0, .5, 0]], ['Spine', [0, .9, 0]], ['Chest', [0, 1.3, .05]], ['Neck', [0, 1.7, .1]], ['Head', [0, 2.1, .05]]],
+  head: { jaw: [0, 1.85, .8], hat: [0, 2.95, 0] }, ears: [.6, 2.6, -.1],
+  arm: [[.8, 1.4, .1], [1.2, 1.8, .1], [1.4, 2, .1], [1.45, 2.05, .1]],
+  leg: [[.55, .5, 0], [.55, .3, .05], [.55, .12, .1], [.55, .05, .5]],
+  tail: [[-.8, .3, -.85], [-1.1, .55, -.9], [-1.4, .95, -.9], [-1.4, 1.3, -.9]],
+});
+export const LUCKY_CAT = Object.freeze({
+  id: 'lucky-cat', label: 'Lucky cat release manager', role: 'release-manager', height: 3, offset: [0, 0],
+  foot: ankleOf(LUCKY_CAT_REST), rest: LUCKY_CAT_REST,
+  weightsFor: capsuleWeights(LUCKY_CAT_REST, {
+    Pelvis: 1, Spine: 1, Chest: .95, Neck: .6, Head: .95, ...legs([.5, .45, .4, .35]),
+    Tail1: .3, Tail2: .3, Tail3: .3, TailTip: .25,
+  }, {
+    softness: .1, sole: .05,
+    // The seated cat rests on one round haunch: its whole underside stays on the grass.
+    rigid: p => p.y < .3 ? planted(p.y) : null,
+  }),
+  animate: tailSway(.14, .05),
+  sit: { drop: .2, planted: true },
+  weightSmoothing: FUSED_SMOOTHING,
+  heldProps: ['paw_L', 'paw_R'],
+  // The raised paw stays raised: it is the cat's native beckon, and follows the torso.
+  arms: FUSED_ARMS, greeting: 'body',
+  envelope: { standing: { radius: 1.96, height: 3.23 }, moving: { radius: 2.03, height: 3.12 }, seated: { radius: 1.96, height: 2.95 }, head: { top: 3.23, radius: 1 } },
+});
+
+const MONKEY_REST = restTable({
+  torso: [['Pelvis', [.05, .55, -.05]], ['Spine', [.1, .95, -.05]], ['Chest', [.15, 1.3, 0]], ['Neck', [.25, 1.75, 0]], ['Head', [.35, 2.3, 0]]],
+  head: { jaw: [.35, 1.95, .65], hat: [.35, 2.95, 0] }, ears: [.9, 2.3, 0],
+  arm: [[.6, 1.4, .1], [.8, 1.1, .3], [.85, .95, .5], [.85, .9, .55]],
+  leg: [[.4, .5, -.05], [.4, .3, 0], [.4, .1, .05], [.4, .05, .45]],
+  tail: [[-.5, .45, -.55], [-1.25, .8, -.5], [-1.65, 1.4, -.45], [-1.25, 1.75, -.45]],
+});
+export const GOLDEN_MONKEY = Object.freeze({
+  id: 'golden-monkey', label: 'Golden monkey runner', role: 'runner', height: 3, offset: [.05, 0],
+  foot: ankleOf(MONKEY_REST), rest: MONKEY_REST,
+  weightsFor: capsuleWeights(MONKEY_REST, {
+    Pelvis: .6, Spine: .6, Chest: .6, Neck: .4, Head: .85, ...legs([.4, .35, .32, .28]),
+    Tail1: .2, Tail2: .2, Tail3: .2, TailTip: .18,
+  }, { softness: .1, sole: .05 }),
+  animate: tailSway(.2, .06),
+  sit: { drop: .12, planted: true },
+  gait: { stride: .4, lift: .07 },
+  weightSmoothing: FUSED_SMOOTHING,
+  heldProps: ['paw_L', 'paw_R'],
+  // The scroll and satchel ride the torso: both paws are fused to the body and never swing.
+  arms: FUSED_ARMS, greeting: 'body',
+  envelope: { standing: { radius: 1.83, height: 3.17 }, moving: { radius: 1.88, height: 3.12 }, seated: { radius: 1.83, height: 3.03 }, head: { top: 3.17, radius: 1.1 } },
+});
+
+const JIAO_REST = restTable({
+  torso: [['Pelvis', [0, .55, 0]], ['Spine', [0, .95, -.05]], ['Chest', [0, 1.35, 0]], ['Neck', [0, 1.8, .05]], ['Head', [0, 2.3, .05]]],
+  head: { jaw: [0, 1.95, .75], hat: [0, 3, .05] }, ears: [.75, 2.8, -.1],
+  arm: [[.8, 1.4, .1], [.95, 1.1, .3], [.7, .95, .55], [.55, .9, .6]],
+  leg: [[.5, .5, 0], [.5, .3, .05], [.5, .1, .05], [.5, .05, .45]],
+  tail: [[0, .45, -.6], [0, .45, -.75], [0, .45, -.85], [0, .45, -.9]],
+});
+// The codex orchestrator: a panda like Bao, but its own identity (dusty-blue wrap, own face), worn by runtime 'codex'.
+export const JIAO = Object.freeze({
+  id: 'jiao', label: 'Jiao orchestrator', role: 'orchestrator', runtime: 'codex', height: 3, offset: [0, 0],
+  foot: ankleOf(JIAO_REST), rest: JIAO_REST,
+  weightsFor: capsuleWeights(JIAO_REST, {
+    Pelvis: .85, Spine: 1, Chest: 1, Neck: .6, Head: .95, ...legs([.45, .4, .35, .3]),
+    Tail1: .1, Tail2: .1, Tail3: .1, TailTip: .1,
+  }, { softness: .1, sole: .05 }),
+  animate: tailSway(.1, .03),
+  sit: { drop: .1, planted: true },
+  gait: { stride: .4, lift: .07 },
+  // Heavier smoothing than the others: the feet and the belly are one black-and-cream mass.
+  weightSmoothing: Object.freeze({ ...FUSED_SMOOTHING, iterations: 120, pin: p => p.y < .015 }),
+  heldProps: ['paw_L', 'paw_R'],
+  // Both paws are fused to the wrap and never swing (the user chose a head-and-body hello).
+  arms: FUSED_ARMS, greeting: 'body',
+  envelope: { standing: { radius: 1.39, height: 3.2 }, moving: { radius: 1.45, height: 3.12 }, seated: { radius: 1.37, height: 3.06 }, head: { top: 3.2, radius: 1.2 } },
+});
+
 // A profile joins CAST_PROFILES (the factory selects it) once cast-rig.test.mjs passes for it.
 // CAST_DRAFTS holds profiles still being fitted; run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
 export const CAST_DRAFTS = Object.freeze({});
-export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, crane: CRANE, tortoise: TORTOISE, pangolin: PANGOLIN, fox: FOX });
+export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, crane: CRANE, tortoise: TORTOISE, pangolin: PANGOLIN, fox: FOX, lion: LION, 'lucky-cat': LUCKY_CAT, 'golden-monkey': GOLDEN_MONKEY, jiao: JIAO });

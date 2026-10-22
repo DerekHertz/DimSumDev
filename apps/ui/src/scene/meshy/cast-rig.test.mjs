@@ -35,7 +35,7 @@ function stretch(rig, points) {
 // Drafts run only when asked (CAST_DRAFTS=1); live profiles always run.
 for (const [id, profile] of Object.entries(process.env.CAST_DRAFTS ? CAST_DRAFTS : CAST_PROFILES)) {
   test(`${id} fits its structural budgets and keeps motion inside its envelopes`, () => {
-    const factory = createPandaAppearanceFactory({ characters: { [id]: load(id) }, castProfiles: { [id]: profile } }), { rig, model } = factory.createPanda(profile.role);
+    const factory = createPandaAppearanceFactory({ characters: { [id]: load(id) }, castProfiles: { [id]: profile } }), { rig, model } = factory.createPanda(profile.role, { runtime: profile.runtime });
     model.scale.setScalar(1);
     const gesture = createLeisureGesture(rig);
     try {
@@ -74,7 +74,7 @@ for (const [id, profile] of Object.entries(process.env.CAST_DRAFTS ? CAST_DRAFTS
   });
 }
 
-test('each role picks its species for both runtimes; Jiao and unprofiled species keep the old panda', () => {
+test('each role picks its species for both runtimes; Jiao is the codex orchestrator and unprofiled species keep the old panda', () => {
   assert.equal(castCharacterId('orchestrator', 'claude'), 'bao');
   assert.equal(castCharacterId('orchestrator', 'codex'), 'jiao');
   for (const [id, role] of Object.entries(ROLE_OF)) for (const runtime of ['claude', 'codex']) assert.equal(castCharacterId(role, runtime), id);
@@ -85,11 +85,13 @@ test('each role picks its species for both runtimes; Jiao and unprofiled species
   characters.jiao = load('jiao');
   const factory = createPandaAppearanceFactory({ body, vest: body, characters, castProfiles: CAST_PROFILES });
   try {
-    for (const profile of Object.values(CAST_PROFILES)) for (const runtime of ['claude', 'codex']) {
+    for (const profile of Object.values(CAST_PROFILES).filter(p => p.id !== 'jiao')) for (const runtime of ['claude', 'codex']) {
       const a = factory.createPanda(profile.role, { runtime });
       assert.equal(a.model.userData.species, profile.id); assert.equal(a.model.userData.runtime, runtime); assert.equal(a.model.scale.x, .68);
     }
-    assert.equal(factory.createPanda('orchestrator', { runtime: 'codex' }).model.userData.species, undefined, 'Jiao stays unprofiled until slice 2b');
+    const jiao = factory.createPanda('orchestrator', { runtime: 'codex' });
+    assert.equal(jiao.model.userData.species, 'jiao'); assert.equal(jiao.model.userData.runtime, 'codex'); assert.equal(jiao.model.scale.x, 1.35, 'Jiao matches Bao so the two hosts read as a pair');
+    assert.notEqual(factory.createPanda('orchestrator').model.userData.species, 'jiao', 'the claude orchestrator is never Jiao');
     assert.equal(factory.createPanda('orchestrator').model.scale.x, 1.35);
   } finally { factory.dispose(); }
   const failed = createPandaAppearanceFactory({ body, vest: body, characters: {}, castProfiles: CAST_PROFILES });
