@@ -447,6 +447,11 @@ test("the orchestrator hands each stage to a fresh subagent thread instead of ca
   assert.match(parseToml(roleToml("orchestrator")).developer_instructions, /fresh subagent/);
 });
 
+test("the security role keeps its secret and CI rules: gitleaks, committed secrets bounce, pinned actions", () => {
+  const text = parseToml(roleToml("security")).developer_instructions;
+  for (const rule of [/gitleaks/, /committed secret always bounces/, /never print a secret's value/, /pin to a commit SHA/, /pull_request_target/]) assert.match(text, rule);
+});
+
 test("the Codex team-protocol skill is Codex-only, lean, and keeps claims, gates, handoff and end", () => {
   const p = readFileSync(path.join(ROOT, ".agents/skills/team-protocol/SKILL.md"), "utf8");
   assert.ok(Buffer.byteLength(p) <= 4096, `team-protocol is ${Buffer.byteLength(p)} bytes`);

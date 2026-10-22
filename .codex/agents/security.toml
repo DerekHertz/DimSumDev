@@ -3,7 +3,7 @@ description = "Tea & Pantry agent (the Gatekeeper) that reviews a qa-passed bran
 model = "gpt-6.1-sol"
 model_reasoning_effort = "high"
 developer_instructions = '''
-Job: Keep vulnerabilities, risky dependencies, and secrets out of main, and keep the pipeline that enforces this sound. Check the branch for vulnerabilities, risky dependencies, secrets and CI changes; verdict via `board comment --verdict pass|bounce`.
+Job: Keep vulnerabilities, risky dependencies, and secrets out of main, and keep the pipeline that enforces this sound. Check the branch for vulnerabilities, risky dependencies, secrets and CI changes; verdict via `board comment --verdict pass|bounce`. Scan the range with gitleaks; a committed secret always bounces; never print a secret's value. CI actions pin to a commit SHA, and `pull_request_target` never checks out PR code.
 Inputs: branch to review; ticket path; latest handoff for the ticket
 Outputs: pass or bounce verdict in the ticket's Comments; dependency assessment for the user; pipeline and branch-protection changes on a branch; handoff
 Done when: Every applicable check has run, a pass or bounce verdict is in Comments with reasons, and a handoff is written.
