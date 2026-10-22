@@ -44,15 +44,16 @@ test("a permission request raised after the page loaded reaches the page, and it
   const { agent } = (await t.dispatch("architect")).body;
   await until(() => t.fake.spawns.length === 1, { what: "the spawn" });
   const rec = t.fake.spawns[0];
-  rec.emit({ type: "tool-start", id: "tu-1", name: "Read", summary: "/outside/package.json" });
-  rec.emit({ type: "permission-request", requestId: "r-1", tool: "Read", input: { file_path: "/outside/package.json" } });
+  // Bash, not a file tool: the wall now denies file tools outside the worktree before they ask (hardening/01).
+  rec.emit({ type: "tool-start", id: "tu-1", name: "Bash", summary: "npm test" });
+  rec.emit({ type: "permission-request", requestId: "r-1", tool: "Bash", input: { command: "npm test" } });
 
   const held = await settled((ui) => ui?.approvals?.some((a) => a.state === "pending"), "the pending approval in the page's state");
   assert.deepEqual(shared(held), shared(await t.state()), "the page's state is the bridge's state");
   const [request] = needsYouModel(held, Date.now()).requests.filter((r) => r.kind === "permission");
   assert.ok(request, "Needs you lists the request");
-  assert.equal(request.title, "Wants to read a file");
-  assert.deepEqual(request.preview, ["/outside/package.json"]);
+  assert.equal(request.title, "Wants to run a command");
+  assert.deepEqual(request.preview, ["npm test"]);
   const row = held.agents.find((a) => a.id === agent.id);
   const card = cardFor([{ id: "architect", role: "architect", position: { x: 0, z: -1 }, agent: row }], held.approvals, { x: 0, z: 0, yaw: 0 });
   assert.equal(card.approval?.id, request.card.approval.id, "the panda's card holds the same request");
