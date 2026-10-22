@@ -3,6 +3,7 @@
 //   DEN_PROXY_LISTEN_HOST (0.0.0.0)  DEN_PROXY_API_ORIGIN (https://api.anthropic.com)
 // stdout is JSON lines: { event: "listening", ports } first, then one line per log entry (a refusal is the entry startProxies logs).
 import { startProxies } from "./proxy.mjs";
+import { fileSecretSource } from "./secrets.mjs";
 import { fileTokenSource } from "./token.mjs";
 
 const env = process.env;
@@ -19,6 +20,7 @@ const fleet = await startProxies({
   listenHost: env.DEN_PROXY_LISTEN_HOST || "0.0.0.0",
   apiOrigin: env.DEN_PROXY_API_ORIGIN || undefined,
   tokenSource: fileTokenSource({ file: env.DEN_PROXY_TOKEN_FILE }),
+  secretSource: env.DEN_PROXY_SECRETS_FILE ? fileSecretSource({ file: env.DEN_PROXY_SECRETS_FILE }) : undefined, // unset: no role secret is required
   log: out,
 });
 out({ event: "listening", ports: fleet.ports });

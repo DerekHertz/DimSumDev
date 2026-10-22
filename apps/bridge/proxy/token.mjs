@@ -12,7 +12,7 @@ export const OAUTH_TOKEN_URL = "https://platform.claude.com/v1/oauth/token";
 export const OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 
 // Write by atomic rename: the proxy container mounts the directory, so a reader sees the old or the new file, never half of one.
-async function writeAtomic(file, text) {
+export async function writeAtomic(file, text) {
   await mkdir(path.dirname(file), { recursive: true });
   const tmp = `${file}.${process.pid}.tmp`;
   try {
