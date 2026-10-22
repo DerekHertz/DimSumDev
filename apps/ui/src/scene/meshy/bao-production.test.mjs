@@ -41,7 +41,8 @@ test('Bao ships a complete matte replacement within the approved geometry and te
 
 test('Bao ships its matching cached portrait while retaining the existing rollback portrait and Jiao', () => {
   assert.equal(ROLE_PORTRAITS.orchestrator,'/den/portraits/bao-jade.webp');
-  assert.equal(ROLE_PORTRAITS['codex:orchestrator'],'/den/portraits/codex-orchestrator.webp');
+  assert.equal(ROLE_PORTRAITS['codex:orchestrator'],'/den/portraits/orchestrator-jiao.webp');
+  assert.equal(ROLE_PORTRAIT_FALLBACKS['codex:orchestrator'],'/den/portraits/codex-orchestrator.webp');
   assert.equal(ROLE_PORTRAIT_FALLBACKS.orchestrator,'/den/portraits/orchestrator.webp');
   const portraitBytes=readFileSync(new URL('../../../public'+ROLE_PORTRAITS.orchestrator,import.meta.url)).length;
   assert.ok(portraitBytes>1000 && portraitBytes<=40*1024, `${portraitBytes} portrait bytes, cap 40 KiB`);
