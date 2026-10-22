@@ -1,6 +1,6 @@
 # Container-per-agent spike (hardening/05, throwaway)
 
-Evidence for ADR 0030. Not bridge code; delete once the bridge integration lands.
+Evidence for ADR 0031. Not bridge code; delete once the bridge integration lands.
 
 - `install-rootless.sh`: the sudo half of the rootless Docker install.
 - `Dockerfile`, `proxy.mjs`: the agent image and the allowlist + credential proxy.
