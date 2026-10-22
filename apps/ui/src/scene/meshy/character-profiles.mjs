@@ -4,7 +4,7 @@ import * as T from 'three';
 // Rig space: feet y=0, front +Z, the character's left at +X. Rest positions were read off
 // orthographic grids of the packaged meshes (characters.* in the den manifest).
 
-function restTable({ torso, head, ears, arm, leg, tail }) {
+export function restTable({ torso, head, ears, arm, leg, tail }) {
   const rest = [['Root', null, [0, 0, 0]]];
   let parent = 'Root';
   for (const [name, position] of torso) { rest.push([name, parent, position]); parent = name; }
@@ -70,7 +70,7 @@ export function capsuleWeights(rest, radii, { softness = .07, rigid = () => null
   };
 }
 
-const tailSway = (amount, lift) => (bones, { kind, phase, breath = 0, reducedMotion, drop = 0 }) => {
+export const tailSway = (amount, lift) => (bones, { kind, phase, breath = 0, reducedMotion, drop = 0 }) => {
   // Seated, the tail root keeps its standing height so the tail rests on the floor, not through it.
   if (kind === 'sit') bones.Tail1.position.y += drop;
   if (reducedMotion) return;
