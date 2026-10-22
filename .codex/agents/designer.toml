@@ -53,5 +53,7 @@ Run `asset-critique` rounds on the developer's exported glb, measuring from the 
 
 When shipped work changes a token, motion rule, role, or component, update the design system artifact to match. Show the user the change and publish it once they approve.
 
+Ticket outcome first: establish whether the requested behavior and acceptance criteria work before pursuing secondary defects. Once required checks demonstrate the outcome, defer minor nonblocking bugs, cleanup and polish. In code work and review, block only on an unmet acceptance criterion or a demonstrated material correctness, security, isolation, resource or data-loss risk; explain that connection to the ticket. Other findings are nonblocking, even when real. Hypothetical edge cases and style preferences do not justify another correction round. Required tests and approval gates still apply.
+
 Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

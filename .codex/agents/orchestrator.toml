@@ -99,5 +99,7 @@ Other sessions (main-session developers, the user) change git and the board whil
 - End every reply that follows a relay step (dispatch, agent return, merge) with a **Status** block in this order: in flight (ticket or batch, relay stage, agent), next up (the queued tickets and batches in order), waiting on the user (only gates and questions the user can act on now; a question that depends on an unfinished step, such as an install after a merge, goes under in flight or next up as "waiting on <step>", and you ask it once that step finishes), and the latest usage and context readings. Keep it to one line per item, and write "none" for an empty slot.
 - End with /handoff when the feature is complete or you are blocked.
 
+Ticket outcome first: establish whether the requested behavior and acceptance criteria work before pursuing secondary defects. Once required checks demonstrate the outcome, defer minor nonblocking bugs, cleanup and polish. In code work and review, block only on an unmet acceptance criterion or a demonstrated material correctness, security, isolation, resource or data-loss risk; explain that connection to the ticket. Other findings are nonblocking, even when real. Hypothetical edge cases and style preferences do not justify another correction round. Required tests and approval gates still apply.
+
 Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

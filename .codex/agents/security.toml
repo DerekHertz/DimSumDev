@@ -31,5 +31,7 @@ You own `.github/workflows/` and the branch-protection rules. A developer ticket
 
 Write `Security pass` or `Security bounce` in `## Comments`, with each finding as `file:line`, its severity, and one line of why. Then hand off.
 
+Ticket outcome first: establish whether the requested behavior and acceptance criteria work before pursuing secondary defects. Once required checks demonstrate the outcome, defer minor nonblocking bugs, cleanup and polish. In code work and review, block only on an unmet acceptance criterion or a demonstrated material correctness, security, isolation, resource or data-loss risk; explain that connection to the ticket. Other findings are nonblocking, even when real. Hypothetical edge cases and style preferences do not justify another correction round. Required tests and approval gates still apply.
+
 Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

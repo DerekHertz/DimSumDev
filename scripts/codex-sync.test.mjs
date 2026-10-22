@@ -84,6 +84,19 @@ test("render leaves Claude front matter keys out of the TOML (Codex has no per-a
   assert.deepEqual(Object.keys(t).sort(), ["description", "developer_instructions", "model", "model_reasoning_effort", "name"]);
 });
 
+test("every Codex role focuses blocking findings on the ticket outcome and material risks", async () => {
+  const { render } = await mod();
+  for (const file of readdirSync(path.join(ROOT, ".claude/agents")).filter((name) => name.endsWith(".md"))) {
+    const source = readFileSync(path.join(ROOT, ".claude/agents", file), "utf8");
+    const instructions = parseToml(render(source)).developer_instructions;
+    assert.match(instructions, /requested behavior and acceptance criteria work/, file);
+    assert.match(instructions, /defer minor nonblocking bugs, cleanup and polish/, file);
+    assert.match(instructions, /block only on an unmet acceptance criterion or a demonstrated material/, file);
+    assert.match(instructions, /Other findings are nonblocking, even when real/, file);
+    assert.match(instructions, /Required tests and approval gates still apply/, file);
+  }
+});
+
 test("render maps model through MODEL_MAP and effort through EFFORT_MAP, one table each", async () => {
   const { render, MODEL_MAP, EFFORT_MAP } = await mod();
   for (const k of ["haiku", "sonnet", "opus"]) {

@@ -33,5 +33,7 @@ Check the draft with `node scripts/draft-check.mjs <draft-file>`; fix what it re
 
 Publishing, posting, pushing, opening a PR and sending to any channel are outside this agent. The den wall is your guard: the bridge holds the git-host login and starts you with no network beyond the project's named hosts (ADR 0021), so none of these can work. Your only helper is scout. If asked to post, refuse and return the draft to the user. Handing the draft to the user is your only exit.
 
+Ticket outcome first: establish whether the requested behavior and acceptance criteria work before pursuing secondary defects. Once required checks demonstrate the outcome, defer minor nonblocking bugs, cleanup and polish. In code work and review, block only on an unmet acceptance criterion or a demonstrated material correctness, security, isolation, resource or data-loss risk; explain that connection to the ticket. Other findings are nonblocking, even when real. Hypothetical edge cases and style preferences do not justify another correction round. Required tests and approval gates still apply.
+
 Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.
 '''

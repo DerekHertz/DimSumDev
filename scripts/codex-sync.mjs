@@ -38,6 +38,8 @@ const applyRules = (text) => RULES.reduce((t, r) => t.replace(r.pattern, r.to), 
 
 export const RUNTIME_NOTICE = "Before working, read `.codex/runtime-guidance.md` for the Codex execution contract. Shared safety and approval gates, explicit ticket limits and stricter session constraints still apply.";
 
+export const TICKET_OUTCOME_RULE = "Ticket outcome first: establish whether the requested behavior and acceptance criteria work before pursuing secondary defects. Once required checks demonstrate the outcome, defer minor nonblocking bugs, cleanup and polish. In code work and review, block only on an unmet acceptance criterion or a demonstrated material correctness, security, isolation, resource or data-loss risk; explain that connection to the ticket. Other findings are nonblocking, even when real. Hypothetical edge cases and style preferences do not justify another correction round. Required tests and approval gates still apply.";
+
 // Narrow runtime adaptations, leaving the shared source and approval sections intact.
 function runtimeWording(text) {
   return text
@@ -79,7 +81,7 @@ export function render(roleDefinition) {
   if (!model) throw new Error(`unknown model "${fm.model}" (add it to MODEL_MAP)`);
   const effort = EFFORT_MAP[fm.effort];
   if (!effort) throw new Error(`unknown effort "${fm.effort}" (add it to EFFORT_MAP)`);
-  const body = RUNTIME_NOTICE + "\n\n" + applyRules(runtimeWording(m[2].replace(/^\s*\n/, ""))).trimEnd() + "\n\n" + CODEX_CAVEAT;
+  const body = RUNTIME_NOTICE + "\n\n" + applyRules(runtimeWording(m[2].replace(/^\s*\n/, ""))).trimEnd() + "\n\n" + TICKET_OUTCOME_RULE + "\n\n" + CODEX_CAVEAT;
   if (body.includes("'''")) throw new Error("body contains ''' and cannot be a TOML literal string");
   return [
     `name = ${JSON.stringify(fm.name)}`,
