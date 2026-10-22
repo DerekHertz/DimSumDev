@@ -1,0 +1,39 @@
+{
+  "kind": "approved-single-offline-diagnostic",
+  "sourceCandidate": "5c5ea4f0bc153154248ce401e7ac106358d79642",
+  "scriptSha256": "4afe035873aef8a5e6c327b2769dbcf59c3e77827e52bace7465baed42b3c7be",
+  "command": "timeout --signal=TERM 90s node /tmp/codex-native-diagnostic.mjs --run-once",
+  "workingDirectory": "/home/dhertzell/dimsumden/.worktrees/standalone-codex",
+  "authority": "Derek explicitly approved this one diagnostic in chat; no retry, model, account or auth calls",
+  "exitCode": 1,
+  "environment": {
+    "node": "v22.23.3",
+    "platform": "linux",
+    "architecture": "x64",
+    "codexPackageVersion": "0.163.0",
+    "nativeHelperSha256": "399ff69c431c066e40de318fba45c2b07f45a76b19939d247ee4828fc70c4215",
+    "nativeHelper": "/home/dhertzell/.nvm/versions/node/v22.23.3/lib/node_modules/@openai/codex/node_modules/@openai/codex-linux-x64/vendor/x86_64-unknown-linux-musl/bin/codex",
+    "credentialsUsed": false
+  },
+  "capturedResult": {
+    "candidate": "5c5ea4f0bc153154248ce401e7ac106358d79642",
+    "head": "5c5ea4f0bc153154248ce401e7ac106358d79642",
+    "elapsedMs": 780,
+    "failed": true,
+    "abortReason": null,
+    "preflightCleanupIndependentlyObserved": false,
+    "records": [
+      {"event":"begin","candidate":"5c5ea4f0bc153154248ce401e7ac106358d79642","head":"5c5ea4f0bc153154248ce401e7ac106358d79642","elapsedMs":0},
+      {"event":"resource-launched","executable":"codex.js","pid":81807,"unit":"den-run-codex-profile-618f6902f95003c9.scope","slice":"den-agents-codex-task2"},
+      {"event":"canary-launched","unit":"den-run-codex-profile-618f6902f95003c9.scope","slice":"den-agents-codex-task2","fixtureRoot":"/tmp/den-codex-profile-task2-G2CT0K"},
+      {"event":"child-exit","executable":"codex.js","pid":81807,"code":1,"signal":null},
+      {"event":"canary-cleanup","unit":"den-run-codex-profile-618f6902f95003c9.scope","settled":true},
+      {"event":"child-close","executable":"codex.js","pid":81807,"code":1,"signal":null,"stdoutBytes":0,"stderrBytes":0},
+      {"event":"canary-result","elapsedMs":780,"ok":false,"status":{"code":1,"signal":null},"settled":true,"outputDrained":true,"stdoutBytes":0,"stderrBytes":0,"totalBytes":0,"stdoutExcerpt":"","stderrExcerpt":"","resultsPresent":false,"connections":0,"markersPreserved":true,"overflow":false},
+      {"event":"independent-group-settled","unit":"den-run-codex-profile-618f6902f95003c9.scope","slice":"den-agents-codex-task2","settled":true}
+    ],
+    "droppedRecords": 0,
+    "telemetryBytes": 1429
+  },
+  "interpretation": "Native shell probe failed before results; not app-server, live-model, credential, hierarchy or production conformance. Exact failure stage remains undetermined. No retry performed."
+}
