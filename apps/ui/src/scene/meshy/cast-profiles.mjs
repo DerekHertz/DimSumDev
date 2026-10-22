@@ -10,6 +10,14 @@ const limbs = (arm, leg) => Object.fromEntries(['L', 'R'].flatMap(s => [
   ['Shoulder_' + s, arm[0]], ['Elbow_' + s, arm[1]], ['Wrist_' + s, arm[2]], ['paw_' + s, arm[3]],
   ['Hip_' + s, leg[0]], ['Knee_' + s, leg[1]], ['Ankle_' + s, leg[2]], ['Toe_' + s, leg[3]],
 ]));
+// Fused arms never move against the body, so their vertices follow the torso capsules (no arm/belly seam to tear).
+const legs = leg => Object.fromEntries(['L', 'R'].flatMap(s => ['Hip_', 'Knee_', 'Ankle_', 'Toe_'].map((n, i) => [n + s, leg[i]])));
+// A haunch on the grass stays put while the hips bob or settle, easing into the pelvis above it.
+const planted = (y, height = .25) => y >= height ? 'Pelvis' : [['Root', 1 - y / height], ['Pelvis', y / height]].filter(([, w]) => w > 0);
+// Legs and the haunch merge at the grass: diffuse weights across the seam, but keep the soles on their own bones.
+const FUSED_SMOOTHING = Object.freeze({ iterations: 60, alpha: .5, pin: p => p.y < .03 });
+// Sitting is a crouch: the hips lower and the knees bend over planted feet (a swung leg would tear the haunch).
+const FUSED_ARMS = Object.freeze({ drop: 0, swing: Object.freeze({ L: 0, R: 0 }) });
 const inBox = (p, [x0, x1], [y0, y1], [z0, z1]) => p.x > x0 && p.x < x1 && p.y > y0 && p.y < y1 && p.z > z0 && p.z < z1;
 const ankleOf = rest => { const [, , [x, y, z]] = rest.find(([n]) => n === 'Ankle_L'); return { x, y, z }; };
 
@@ -24,20 +32,24 @@ export const OTTER = Object.freeze({
   id: 'river-otter', label: 'River otter QA', role: 'qa', height: 3, offset: [0, .4],
   foot: ankleOf(OTTER_REST), rest: OTTER_REST,
   weightsFor: capsuleWeights(OTTER_REST, {
-    Pelvis: .9, Spine: .85, Chest: .8, Neck: .5, Head: .9, ...limbs([.28, .25, .22, .2], [.5, .45, .4, .32]),
+    Pelvis: .9, Spine: .85, Chest: .8, Neck: .5, Head: .9, ...legs([.5, .45, .4, .32]),
     Tail1: .4, Tail2: .4, Tail3: .35, TailTip: .3,
   }, {
     softness: .1, sole: .05,
     // The cup rides the right paw and the checklist the left, as fused in the mesh.
     // The rump behind the thighs stays with the pelvis, so a sitting hip never drags the haunch.
-    rigid: p => p.z > 1.42 && p.y > .65 && p.y < 2.15 ? (p.x > .25 ? 'paw_L' : p.x < -.25 ? 'paw_R' : null) : p.z < .12 && p.z > -.6 && p.y < .95 ? 'Pelvis' : null,
+    rigid: p => p.z < .12 && p.z > -.6 && p.y < .95 ? planted(p.y) : null,
   }),
   animate: tailSway(.16, .05),
-  sit: { drop: .08, hip: .8, knee: -.3, splay: .5 },
+  sit: { drop: .1, planted: true },
+  // A shorter, lower step: its feet merge into the haunch behind them.
+  gait: { stride: .4, lift: .07 },
+  weightSmoothing: FUSED_SMOOTHING,
   heldProps: ['paw_L', 'paw_R'],
-  arms: { drop: .15, swing: { L: 1, R: .6 } },
-  greetingDirection: 1, greetingLift: 1.4,
-  envelope: { standing: { radius: 3.4, height: 3.2 }, moving: { radius: 3.4, height: 3.2 }, seated: { radius: 3.4, height: 3.2 }, head: { top: 3.2, radius: 1.2 } },
+  // Both paws are fused to the belly and their props: they never swing (the user chose a head-and-body hello).
+  arms: FUSED_ARMS, greeting: 'body',
+  // Measured maxima over every pose (the tail sets the radius), plus 5%.
+  envelope: { standing: { radius: 2.53, height: 3.28 }, moving: { radius: 2.55, height: 3.11 }, seated: { radius: 2.53, height: 3.05 }, head: { top: 3.28, radius: 1.2 } },
 });
 
 const DEER_REST = restTable({
@@ -51,23 +63,24 @@ export const DEER = Object.freeze({
   id: 'sika-deer', label: 'Deer designer', role: 'designer', height: 3, offset: [0, 0],
   foot: ankleOf(DEER_REST), rest: DEER_REST,
   weightsFor: capsuleWeights(DEER_REST, {
-    Pelvis: .45, Spine: .5, Chest: .6, Neck: .4, Head: .8, ...limbs([.2, .18, .16, .15], [.28, .26, .26, .22]),
+    Pelvis: .45, Spine: .5, Chest: .6, Neck: .4, Head: .8, ...legs([.28, .26, .26, .22]),
     Tail1: .15, Tail2: .12, Tail3: .1, TailTip: .08,
   }, {
     softness: .1, sole: .05,
     // Ears and antlers follow the head; the fan travels with the left paw and the brush with the right.
-    rigid: p => p.y > 1.8 ? 'Head' : p.x > .66 && p.y > 1 && p.y < 1.8 && p.z > -.1 ? 'paw_L' : p.x < -.7 && p.y > .4 && p.z > -.1 ? 'paw_R' : null,
+    rigid: p => p.y > 1.8 ? 'Head' : null,
   }),
   animate: tailSway(.1, .04),
-  sit: { drop: .08, hip: .8, knee: -.3, splay: .4 },
+  sit: { drop: .15, planted: true },
+  weightSmoothing: FUSED_SMOOTHING,
   heldProps: ['paw_L', 'paw_R'],
-  arms: { drop: .1, swing: { L: 1, R: .4 } },
-  greetingDirection: 1, greetingLift: 1.4,
-  envelope: { standing: { radius: 2.2, height: 3.2 }, moving: { radius: 2.2, height: 3.2 }, seated: { radius: 2.2, height: 3.2 }, head: { top: 3.2, radius: 1.4 } },
+  // Both paws are fused to the belly and their props: they never swing (the user chose a head-and-body hello).
+  arms: FUSED_ARMS, greeting: 'body',
+  // Measured maxima over every pose (ears and the fan set the radius, antlers the height), plus 5%.
+  envelope: { standing: { radius: 1.46, height: 3.2 }, moving: { radius: 1.53, height: 3.11 }, seated: { radius: 1.44, height: 3 }, head: { top: 3.2, radius: 1.4 } },
 });
 
-// Profiles that have passed every slice-2a test belong in CAST_PROFILES (the factory selects them). OTTER and DEER
-// are drafts: bindings and waves pass, but a wave still stretches the skin where their arms fuse to the belly or
-// a prop (worst edge 23-28x against the 3x limit). Run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
-export const CAST_DRAFTS = Object.freeze({ otter: OTTER, deer: DEER });
-export const CAST_PROFILES = Object.freeze({});
+// A profile joins CAST_PROFILES (the factory selects it) once cast-rig.test.mjs passes for it.
+// CAST_DRAFTS holds profiles still being fitted; run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
+export const CAST_DRAFTS = Object.freeze({});
+export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER });

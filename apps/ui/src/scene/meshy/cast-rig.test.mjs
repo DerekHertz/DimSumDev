@@ -32,10 +32,10 @@ function stretch(rig, points) {
   return worst;
 }
 
-// Drafts run only when asked (CAST_DRAFTS=1): they are known not to pass yet.
+// Drafts run only when asked (CAST_DRAFTS=1); live profiles always run.
 for (const [id, profile] of Object.entries(process.env.CAST_DRAFTS ? CAST_DRAFTS : CAST_PROFILES)) {
   test(`${id} fits its structural budgets and keeps motion inside its envelopes`, () => {
-    const factory = createPandaAppearanceFactory({ characters: { [id]: load(id) }, castProfiles: CAST_DRAFTS }), { rig, model } = factory.createPanda(profile.role);
+    const factory = createPandaAppearanceFactory({ characters: { [id]: load(id) }, castProfiles: { [id]: profile } }), { rig, model } = factory.createPanda(profile.role);
     model.scale.setScalar(1);
     const gesture = createLeisureGesture(rig);
     try {
@@ -58,10 +58,13 @@ for (const [id, profile] of Object.entries(process.env.CAST_DRAFTS ? CAST_DRAFTS
       for (const t of [0, 1.2, 2.4]) { rig.poseIdle(t); check('idle ' + t, 'standing'); rig.poseSit(t); check('sit ' + t, 'seated'); }
       for (const kind of ['tea', 'greeting', 'pond', 'mahjong']) { rig.poseIdle(1); gesture.pose(kind, 1); check(kind, 'standing'); }
       assert.ok(worst < 3, `an edge stretches ${worst} times`);
-      // The wave raises the left paw above its shoulder.
-      rig.poseIdle(.4); gesture.pose('greeting', .4); model.updateMatrixWorld(true);
-      const paw = rig.bones.paw_L.getWorldPosition(new T.Vector3()), shoulder = rig.bones.Shoulder_L.getWorldPosition(new T.Vector3());
-      assert.ok(paw.y > shoulder.y + .2, `wave paw ${paw.y} above shoulder ${shoulder.y}`);
+      // The hello is visible on the actual surface (not just a bone), while fused arms stay still against the chest.
+      rig.poseIdle(.3); const before = posed(rig).flat(), arm = () => rig.bones.Chest.matrixWorld.clone().invert().multiply(rig.bones.paw_L.matrixWorld).elements;
+      const still = arm(); gesture.pose('greeting', .3); model.updateMatrixWorld(true);
+      const moved = Math.max(...posed(rig).flat().map((p, i) => p.distanceTo(before[i])));
+      assert.ok(moved > .15, `greeting moves the surface ${moved}`);
+      if (profile.greeting === 'body') arm().forEach((x, i) => assert.ok(Math.abs(x - still[i]) < 1e-9, 'fused paw stays on the chest'));
+      gesture.pose(null, 0);
       // Reduced motion is static in idle and sit.
       for (const pose of ['poseIdle', 'poseSit']) {
         rig[pose](0, { reducedMotion: true }); const rest = rig.bones.Head.matrixWorld.clone();
@@ -78,11 +81,11 @@ test('each role picks its species for both runtimes; Jiao and unprofiled species
   assert.equal(castCharacterId('developer'), undefined, 'the red panda and dragon keep their own tables');
   assert.ok(!('jiao' in CAST_DRAFTS) && !Object.keys({ ...CAST_DRAFTS, ...CAST_PROFILES }).some(id => id in CHARACTER_PROFILES), 'cast profiles stay out of CHARACTER_PROFILES');
   const body = new T.Mesh(new T.BoxGeometry(1, 3, 1).translate(0, 1.5, 0), new T.MeshStandardMaterial());
-  const characters = Object.fromEntries(Object.keys(CAST_DRAFTS).map(id => [id, load(id)]));
+  const characters = Object.fromEntries(Object.keys(CAST_PROFILES).map(id => [id, load(id)]));
   characters.jiao = load('jiao'); characters.fox = load('fox');
-  const factory = createPandaAppearanceFactory({ body, vest: body, characters, castProfiles: CAST_DRAFTS });
+  const factory = createPandaAppearanceFactory({ body, vest: body, characters, castProfiles: CAST_PROFILES });
   try {
-    for (const profile of Object.values(CAST_DRAFTS)) for (const runtime of ['claude', 'codex']) {
+    for (const profile of Object.values(CAST_PROFILES)) for (const runtime of ['claude', 'codex']) {
       const a = factory.createPanda(profile.role, { runtime });
       assert.equal(a.model.userData.species, profile.id); assert.equal(a.model.userData.runtime, runtime); assert.equal(a.model.scale.x, .68);
     }
@@ -90,6 +93,6 @@ test('each role picks its species for both runtimes; Jiao and unprofiled species
     assert.equal(factory.createPanda('product').model.userData.species, undefined, 'fox has no profile yet');
     assert.equal(factory.createPanda('orchestrator').model.scale.x, 1.35);
   } finally { factory.dispose(); }
-  const failed = createPandaAppearanceFactory({ body, vest: body, characters: {}, castProfiles: CAST_DRAFTS });
-  try { for (const profile of Object.values(CAST_DRAFTS)) assert.equal(failed.createPanda(profile.role).model.userData.species, undefined, profile.role + ' falls back to its old panda'); } finally { failed.dispose(); }
+  const failed = createPandaAppearanceFactory({ body, vest: body, characters: {}, castProfiles: CAST_PROFILES });
+  try { for (const profile of Object.values(CAST_PROFILES)) assert.equal(failed.createPanda(profile.role).model.userData.species, undefined, profile.role + ' falls back to its old panda'); } finally { failed.dispose(); }
 });

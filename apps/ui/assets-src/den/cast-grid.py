@@ -59,8 +59,18 @@ def render(pos, uv, idx, img, view, S=110, W=None, H=None):
 
 if __name__ == '__main__':
     name = sys.argv[1]
-    root = '/home/dhertzell/dimsumden/.claude/worktrees/agent-af463f93c230c8e5a/apps/ui/public/den/models/characters/'
+    import os
+    root = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../../public/den/models/characters/')
     pos, uv, idx, img = load(root+name+'.glb.gz')
+    if len(sys.argv) > 3:
+        # Posed vertices from cast-poses.mjs: front and side of each, already in rig units.
+        ims = []
+        for d in sys.argv[3:]:
+            p = np.array(json.load(open(d))).reshape(-1, 3)
+            ims += [render(p, uv, idx, img, v, S=80) for v in ('front', 'side')]
+        out = Image.new('RGB', (sum(i.width for i in ims), ims[0].height)); x = 0
+        for i in ims: out.paste(i, (x, 0)); x += i.width
+        out.save(sys.argv[2]); sys.exit(0)
     pos = normalize(pos)
     front = (pos[:,2] > 0).mean()
     print(name, 'extent', pos.min(0).round(2), pos.max(0).round(2), 'front-half share', round(front,2))

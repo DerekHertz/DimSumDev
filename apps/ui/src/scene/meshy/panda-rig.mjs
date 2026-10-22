@@ -1,4 +1,5 @@
 import * as T from 'three';
+import { smoothWeights } from './weight-smoothing.mjs';
 
 // Shared rig: Balanced Bao (PR #314), feet=0, crown=3, front=+Z.
 // The original continuous mesh, indices, UVs and texture maps are retained.
@@ -129,12 +130,13 @@ export function createRig(source, profile) {
       if (node.isSkinnedMesh) throw Error('Expected an unrigged ' + profile.label + ' asset');
       const geometry = node.geometry.clone().applyMatrix4(transform.clone().multiply(node.matrixWorld));
       const positions = geometry.attributes.position, skinIndices = new Uint16Array(positions.count * 4), skinWeights = new Float32Array(positions.count * 4), colors = new Float32Array(positions.count * 3);
-      const position = new T.Vector3(), color = new T.Color();
+      const position = new T.Vector3(), color = new T.Color(), attachment = node.userData.attachBone, head = headOnly || Boolean(node.userData.headwearRole);
+      if(attachment&&!bones[attachment])throw Error('Unknown outfit attachment bone: '+attachment);
+      let all = Array.from({ length: positions.count }, (_, i) => attachment ? [[attachment, 1]] : profile.weightsFor(position.fromBufferAttribute(positions, i), head));
+      // Fused sources (team-and-den-ux/25-35) diffuse their weights along the surface; others keep position-only weights.
+      if (profile.weightSmoothing && !attachment && !head && geometry.index) all = smoothWeights(positions, geometry.index, all, profile.weightSmoothing);
       for (let i = 0; i < positions.count; i++) {
-        position.fromBufferAttribute(positions, i);
-        const attachment=node.userData.attachBone;
-        if(attachment&&!bones[attachment])throw Error('Unknown outfit attachment bone: '+attachment);
-        const weights = attachment?[[attachment,1]]:profile.weightsFor(position, headOnly || Boolean(node.userData.headwearRole));
+        const weights = all[i];
         weights.forEach(([name, weight], slot) => { skinIndices[i * 4 + slot] = indices[name]; skinWeights[i * 4 + slot] = weight; });
         color.setHSL((indices[weights[0][0]] * .173) % 1, .62, .57); color.toArray(colors, i * 3);
       }
@@ -197,7 +199,7 @@ export function createRig(source, profile) {
   }
   function poseWaddle(time, { travel = false, reducedMotion = false, ...settings } = {}) {
     resetPose(); if (reducedMotion) return reducedRest();
-    const gait = sampleWaddle(time, { foot: profile.foot, ...settings }), phase = gait.cycles * Math.PI * 2;
+    const gait = sampleWaddle(time, { foot: profile.foot, ...profile.gait, ...settings }), phase = gait.cycles * Math.PI * 2;
     travelRoot.position.z = travel ? gait.distance : 0;
     const sway = Math.cos(phase - Math.PI * .6);
     bones.Pelvis.position.x += gait.config.sway * sway;
@@ -253,7 +255,11 @@ export function createRig(source, profile) {
     resetPose();
     const { drop, hip, knee, splay = 0 } = profile.sit, breath = reducedMotion ? 0 : (1 - Math.cos(time / IDLE.duration * Math.PI * 2)) / 2;
     bones.Pelvis.position.y -= drop;
-    for (const [side, sign] of [['L', 1], ['R', -1]]) {
+    if (profile.sit.planted) {
+      // Feet fused to the rump at the grass (team-and-den-ux/25-35) stay where they stand; the knees bend.
+      model.updateMatrixWorld(true);
+      for (const side of ['L', 'R']) solveLeg(side, restAnchors['Ankle_' + side].toArray());
+    } else for (const [side, sign] of [['L', 1], ['R', -1]]) {
       // Legs come forward and splay outward, teddy-bear style, so short legs clear a round belly.
       bones['Hip_' + side].rotation.set(-hip, 0, sign * splay); bones['Knee_' + side].rotation.x = knee;
     }

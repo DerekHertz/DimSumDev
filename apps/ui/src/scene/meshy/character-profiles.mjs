@@ -48,7 +48,7 @@ export function capsuleWeights(rest, radii, { softness = .07, rigid = () => null
   return function weightsFor(position, headOnly = false) {
     if (headOnly) return [['Head', 1]];
     p.copy(position);
-    const fixed = rigid(p); if (fixed) return [[fixed, 1]];
+    const fixed = rigid(p); if (fixed) return Array.isArray(fixed) ? fixed : [[fixed, 1]];
     const d = capsules.map(c => ({ bone: c.bone, d: segmentDistance(p, c.a, c.b) - c.r }));
     const best = d.reduce((m, c) => c.d < m.d ? c : m);
     // Soles belong wholly to their foot (as Bao's do), so a bending knee never pushes a heel through
