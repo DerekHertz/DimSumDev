@@ -10,3 +10,8 @@ paths = [
   '''^scripts/risk-check\.test\.mjs$''',
   '''^\.scratch/organism-infra/issues/08-risk-sized-review\.md$''',
 ]
+# The public Claude Code OAuth client id (the same in every install, not a secret), used by the den's token refresher
+# (apps/bridge/proxy/token.mjs, hardening/11). Only this exact value is allowed.
+regexes = [
+  '''9d1c250a-e61b-44d9-88ed-5944d1962f5e''',
+]
