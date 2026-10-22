@@ -16,7 +16,7 @@ import { createResourceLauncher, findUserBus } from "../agents/resource-group.mj
 import { createBuildBox, findBwrap } from "../build/box.mjs";
 import { clearUpdateFailure, createReleases, currentRelease, isOlder, readUpdateFailure } from "../build/releases.mjs";
 import { ensureServiceToken } from "../../router/service-token.mjs";
-import { ensureAgentImage } from "./agent-image.mjs";
+import { createDocker, ensureAgentImage } from "./agent-image.mjs";
 
 export const UNIT_NAME = "den.service";
 export const SLICE_NAME = "den.slice"; // the bound around the whole den; copied as is, it holds no machine value
@@ -93,7 +93,7 @@ export function createDen({ env = process.env, say = (line) => console.log(line)
   if (bwrap === undefined) bwrap = findBwrap(); // null means there is none
   systemctl ??= (args) => run("systemctl", ["--user", ...args], { env: bus.env ?? {} });
   git ??= (args) => run("git", ["-C", repo, ...args]);
-  docker ??= (args) => run("docker", args, { env, timeout: 900_000 }); // a build runs minutes, not the 2 minutes of the other calls
+  docker ??= createDocker({ env }); // /usr/bin/docker against the rootless socket (ADR 0031)
   journal ??= (args) => run("journalctl", ["--user", ...args], { env: { ...env, ...(bus.env ?? {}) } });
   releases ??= () => createReleases({ stateDir, repo, main: `${remote}/main`, box: createBuildBox({ launcher: createResourceLauncher({ env }) }) });
   let made;

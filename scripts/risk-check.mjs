@@ -92,7 +92,7 @@ function checkFile(file) {
   }
 
   // hardening/12 (ADR 0031): the agent image is what every agent runs inside, so any Dockerfile change goes to security.
-  if (/(^|\/)Dockerfile(\.[^/]*)?$/.test(filePath)) {
+  if (/(^|\/)([^/]*\.)?dockerfile(\.[^/]*)?$/i.test(filePath)) {
     hits.push({ file: filePath, reason: "Dockerfile changed (agent image)" });
   }
 
