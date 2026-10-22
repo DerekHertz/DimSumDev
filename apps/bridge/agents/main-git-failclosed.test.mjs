@@ -12,7 +12,7 @@
 //   4. agent-os/02, 07, 09 tests unchanged and green; 5. npm test, risk-check, gitleaks, security: human-verified or the orchestrator's.
 import assert from "node:assert/strict";
 import { execFile } from "node:child_process";
-import { mkdtemp, readdir, readFile, realpath, rename, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, readFile, realpath, rename, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
@@ -84,7 +84,8 @@ describe("the runtime never spawns a walled role without the main .git denies", 
     const { stub, runtime } = await stubRuntime();
     const cwd = await mkdtemp(path.join(tmpdir(), "mgfc-cwd-"));
     cleanups.push(() => rm(cwd, { recursive: true, force: true }));
-    const mainGit = "/work/den/.git";
+    const mainGit = path.join(await realpath(cwd), ".git");
+    await mkdir(mainGit);
     const proc = await runtime.spawn({ role: "developer", cwd, prompt: "go", sessionId: SID, mainGit });
     const start = await until(() => stub.start(), { what: "the stub to start" });
     proc.signal("SIGKILL");

@@ -237,7 +237,7 @@ describe("any way out brings the read limit, with the project and the toolchain 
 
   test("a remote connection with no host closes home to the shell and reopens the worktree, the project's packages and .git, and the toolchain", () => {
     const s = limited({ remote: true });
-    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
+    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/", `${MAIN_GIT}/den-tree-artifacts`]);
     assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), [...OPEN].sort());
     assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, true);
     assert.deepEqual(s.sandbox.network.allowedDomains, [], "a connection opens no host to the shell");
@@ -255,14 +255,14 @@ describe("any way out brings the read limit, with the project and the toolchain 
 
   test("with no way out, home stays readable but the credential stores, as before", () => {
     const s = limited({});
-    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/.ssh"]);
+    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/.ssh", `${MAIN_GIT}/den-tree-artifacts`]);
     assert.equal(s.sandbox.filesystem.allowRead, undefined);
     assert.equal(s.permissions.blockReadsOutsideWorkingDirectories, undefined);
   });
 
   test("a role that cannot write gets the limit too", () => {
     const s = settingsFor("scout", { root: ROOT, mainGit: MAIN_GIT, home: HOME, toolchain: NODE, remote: true });
-    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
+    assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/", `${MAIN_GIT}/den-tree-artifacts`]);
     assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), OPEN.filter((p) => p !== WT).sort());
   });
 

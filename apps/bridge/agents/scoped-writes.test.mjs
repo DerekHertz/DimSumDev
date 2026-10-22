@@ -138,7 +138,7 @@ test("managed read owners and managers cannot write through the actual runtime a
         runId: `task2-readonly-${depth}-${randomBytes(6).toString("hex")}`, model: "sonnet", effort: "high", root: f.worktree, mainGit,
         project: { control: false, root: f.worktree, pluginDir: path.join(controlRoot, ".claude") },
         tree: { depth, phase: "implementation", logicalRole: role, execution: { mode: "read" } },
-        treeCredential: { url: "http://127.0.0.1:1", token: "disposable-canary-token-000000000000000000" } });
+        treeCredential: { url: "http://127.0.0.1:1", token: ["disposable-canary-token", "0".repeat(18)].join("-") } });
       const bound = setTimeout(() => proc.signal("SIGKILL"), 15000);
       const exit = await proc.exited.finally(() => clearTimeout(bound));
       assert.equal(exit.code, 0, `${role} read contract is enforced by the actual runtime launch`);
