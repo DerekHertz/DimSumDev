@@ -7,18 +7,18 @@ import {TRAVEL_SPEED_SCALE} from './travel-speed.mjs';
 import {WADDLE} from './panda-rig.mjs';
 import {RESIDENTS,sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 
-// Homes first, then leisure outings (den-revival/07): idle residents walk from their owned homes to tea, the pond
-// and greetings, and a live run sends them straight back. Meeting travel and extra bodies stay deferred;
-// their live work remains in Team without borrowing another run's scene anchor.
 const RETURNING='Working · returning to desk';
+// Homes first, then roaming (den-revival/07): residents with no live work walk from their owned homes to tea, the pond,
+// greetings, other teams' stations and the library, and a live run sends them straight back. Meeting travel and extra bodies stay deferred;
+// their live work remains in Team without borrowing another run's scene anchor.
 export function createMeshyActors(den){
  const actors=new Map(),definitions=new Map(CHARACTERS.map(c=>[c[0],c]));let bindings=new Map(),selected=null,time=0,held=null;
  const homes=createActorHomes(den,actors),places=homes.places;
  for(const source of den.propManifest){
   const model=den.roleWorkspaces.workspaces.get(source.id)?.person;if(!model)continue;
   const identity=RESIDENTS.find(r=>r.id===source.id),legacy=definitions.get(source.id),role=identity?.role||legacy[0],name=identity?.name||legacy[1],team=identity?.team||legacy[2],concept=identity?!identity.dispatchable:legacy[5],runtime=identity?.runtime||'claude';
-  const a={id:source.id,role,runtime,name,team,concept:!!concept,stationary:role==='orchestrator',panda:{model,rig:den.pandaRigs.get(model).rig},home:model.position.clone(),baseYaw:model.rotation.y,index:actors.size,state:'idle',activity:role==='orchestrator'?'Hosting the Den':'At the workspace',live:null};
-  homes.prepare(a);a.homeNote=a.presentation;actors.set(source.id,a);
+  const a={id:source.id,role,runtime,name,team,teamId:source.teamId??team,concept:!!concept,stationary:role==='orchestrator',panda:{model,rig:den.pandaRigs.get(model).rig},home:model.position.clone(),baseYaw:model.rotation.y,index:actors.size,state:'idle',activity:role==='orchestrator'?'Hosting the Den':'At the workspace',live:null};
+  homes.prepare(a);a.homeNote=a.presentation;model.userData.home=a.home;actors.set(source.id,a);
  }
  const routines=createDailyRoutines(den,actors,{speed:.65*TRAVEL_SPEED_SCALE});
  const note=a=>{a.presentation=a.live&&a.outing?RETURNING:a.homeNote;};
@@ -43,8 +43,8 @@ export function createMeshyActors(den){
   for(const [key,a]of actors){
    const p=a.panda.model,visit=!reduced&&a.outing?.stage==='visit'?a.outing:null;note(a);
    if(a.moved)a.gait=(a.gait||0)+a.moved/p.scale.x/WADDLE.stride*WADDLE.duration;
-   p.rotation.y=a.yaw??a.baseYaw;
    if(key===held&&!reduced)continue;
+   p.rotation.y=a.yaw??a.baseYaw;
    if(a.moved)a.panda.rig.poseWaddle(a.gait);else a.panda.rig.poseIdle(time+a.index*.63,{reducedMotion:reduced});
    if(visit)(a.gesture??=createLeisureGesture(a.panda.rig)).pose(visit.spot.kind,visit.elapsed);else a.gesture?.pose(null,0);
   }

@@ -30,7 +30,7 @@ test('the actual garden keeps owned homes, animates idle residents and koi, hold
     const garment=p.getObjectByName('Shared-rig outfit'),skins=[];p.traverse(n=>{if(n.isSkinnedMesh)skins.push(n);});
     return {id,species:p.userData.species,count:garment.children.length,shared:skins.every(n=>n.skeleton===skins[0].skeleton),textured:skins.some(n=>(Array.isArray(n.material)?n.material:[n.material]).some(m=>m.map))};
    });
-   return {pandas:Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,p.position.toArray()])),spine:pandas.developer.getObjectByName('Spine').scale.toArray(),fish:window.routineProbe.fish.map(f=>f.position.toArray()),outfits};
+   return {pandas:Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,p.position.toArray()])),homes:Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,p.userData.home.toArray()])),spine:pandas.developer.getObjectByName('Spine').scale.toArray(),fish:window.routineProbe.fish.map(f=>f.position.toArray()),outfits};
   });
   assert.equal(initial.fish.length,3);assert.equal(Object.keys(initial.pandas).length,32);
   // team-and-den-ux/23: the red panda and cloud dragon wear outfits fused into their own textured body; 24 adds Bao's giant panda, 35 the rest of the cast.
@@ -53,7 +53,8 @@ test('the actual garden keeps owned homes, animates idle residents and koi, hold
    for(let i=0;i<positions.count;i+=Math.max(1,Math.floor(positions.count/40))){point.fromBufferAttribute(positions,i);mesh.applyBoneTransform(i,point);if(!point.toArray().every(Number.isFinite))return false;}
    return true;
   })),'body and actual outfit vertices stay finite during assembled idle animation');
-  assert.deepEqual(await page.evaluate(()=>Object.fromEntries(Object.entries(window.routineProbe.pandas).map(([id,p])=>[id,p.position.toArray()]))),initial.pandas,'idle animation retains every owned home');
+  // Residents roam now, so a position proves nothing about timing; the owned home each one keeps is what must hold.
+  assert.deepEqual(await page.evaluate(()=>Object.fromEntries(Object.entries(window.routineProbe.pandas).map(([id,p])=>[id,p.userData.home.toArray()]))),initial.homes,'idle animation retains every owned home');
   const key=await page.evaluate(before=>{
    const {world,pandas}=window.routineProbe,key='developer';
    // Invoke the real scene pick handler; overview roofs can occlude a screen-coordinate click.
@@ -66,7 +67,8 @@ test('the actual garden keeps owned homes, animates idle residents and koi, hold
   await page.waitForFunction(({key,held})=>window.routineProbe.pandas[key].getObjectByName('Spine').scale.toArray().some((v,j)=>Math.abs(v-held[j])>.001),{key,held});
   await page.emulateMedia({reducedMotion:'reduce'});await page.waitForTimeout(200);
   const still=()=>page.evaluate(()=>({fish:window.routineProbe.fish.map(f=>[...f.position.toArray(),...f.children.find(n=>n.name.endsWith('tail')).quaternion.toArray()]),pandas:Object.values(window.routineProbe.pandas).map(p=>[...p.position.toArray(),...p.getObjectByName('Spine').scale.toArray()])}));
-  const paused=await still();await page.waitForTimeout(350);assert.deepEqual(await still(),paused);
+  const paused=await still();
+  assert.deepEqual(await page.evaluate(()=>Object.fromEntries(Object.entries(window.routineProbe.pandas).map(([id,p])=>[id,p.position.toArray()]))),initial.homes,'reduced motion sends every roamer to its owned home');await page.waitForTimeout(350);assert.deepEqual(await still(),paused);
   await page.emulateMedia({reducedMotion:'no-preference'});
   await page.waitForFunction(before=>window.routineProbe.fish.some((f,i)=>f.position.toArray().some((v,j)=>Math.abs(v-before.fish[i][j])>.01)),paused);
   assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
