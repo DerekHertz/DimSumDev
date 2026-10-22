@@ -1,0 +1,114 @@
+<!doctype html><html><head><meta charset="utf-8"><title>Cast review (team-and-den-ux/35)</title><style>body{margin:0;background:#888}canvas{display:block}</style></head><body><canvas id="out"></canvas><script type="module">
+// Offline evidence (team-and-den-ux/35): composes labelled sheets of the cast with the live rig. Driven by render-cast-review.mjs, which
+// calls review.sheet(kind, theme) and reads the 2D canvas back. Authoring only; the den never loads this page.
+import * as T from 'three';
+import { loadModel, loadManifest } from '../../src/scene/meshy/assets.mjs';
+import { createPandaAppearanceFactory } from '../../src/scene/meshy/panda-appearance.mjs';
+import { createLeisureGesture } from '../../src/scene/meshy/leisure-gesture.mjs';
+import { CAST, castCharacterId } from '../../src/scene/meshy/cast.mjs';
+
+const THEMES = {
+  light: { bg: '#f4efe3', ground: '#ddd5bf', ink: '#263d34', hemi: 1.8, key: 2.3 },
+  dark: { bg: '#202d30', ground: '#2f4144', ink: '#e8efe6', hemi: 1.1, key: 1.5 },
+};
+const renderer = new T.WebGLRenderer({ antialias: true, preserveDrawingBuffer: true });
+renderer.setPixelRatio(1); renderer.outputColorSpace = T.SRGBColorSpace; renderer.toneMapping = T.ACESFilmicToneMapping; renderer.toneMappingExposure = 1.15;
+const scene = new T.Scene(), hemi = new T.HemisphereLight('#fff8ec', '#b1c8b6', 1.8), key = new T.DirectionalLight('#fff5e6', 2.3), fill = new T.DirectionalLight('#e4f1ff', .8);
+key.position.set(-3, 5, 6); fill.position.set(3, 3, 3); scene.add(hemi, key, fill);
+const ground = new T.Mesh(new T.PlaneGeometry(600, 600), new T.MeshBasicMaterial()); ground.rotation.x = -Math.PI / 2; ground.position.y = -.002; scene.add(ground);
+
+const assets = await loadManifest(), body = await loadModel(assets.bao.url), characters = {};
+for (const key of Object.keys(assets)) if (key.startsWith('characters.') && key !== 'characters.developer' && key !== 'characters.technical-writer') characters[key.slice(11)] = await loadModel(assets[key].url);
+const factory = createPandaAppearanceFactory({ body, characters });
+const ROLES = Object.keys(CAST), RUNTIMES = ['claude', 'codex'];
+// One character per id: Bao is the claude orchestrator, Jiao the codex one, every other species is its role on claude.
+const CHARACTERS = ROLES.flatMap(role => role === 'orchestrator' ? [['bao', role, 'claude'], ['jiao', role, 'codex']] : [[castCharacterId(role), role, 'claude']]);
+
+const out = document.getElementById('out'), ctx = out.getContext('2d');
+const setTheme = name => { const t = THEMES[name]; scene.background = new T.Color(t.bg); ground.material.color.set(t.ground); hemi.intensity = t.hemi; key.intensity = t.key; return t; };
+const live = (role, runtime) => { const p = factory.createPanda(role, { runtime }); scene.add(p.model); p.gesture = createLeisureGesture(p.rig); return p; };
+const drop = p => { p.gesture.dispose(); scene.remove(p.model); factory.destroyPanda(p.model); };
+function grab(w, h, camera) { renderer.setSize(w, h); renderer.render(scene, camera); return renderer.domElement; }
+function text(t, x, y, ink, size = 15, align = 'left', weight = '600') { ctx.fillStyle = ink; ctx.font = `${weight} ${size}px system-ui, sans-serif`; ctx.textAlign = align; ctx.fillText(t, x, y); }
+// A camera that sees a sphere around `center` front-and-slightly-above, so floating feet and torn limbs show.
+function frame(center, radius, aspect, tilt = .22, side = .45) {
+  const cam = new T.PerspectiveCamera(30, aspect, .1, 200), dist = radius / Math.sin(T.MathUtils.degToRad(15)) * (aspect < 1 ? 1 / aspect : 1);
+  cam.position.copy(center).add(new T.Vector3(side, tilt, 1).normalize().multiplyScalar(dist)); cam.lookAt(center); return cam;
+}
+function reach(p) { p.model.updateMatrixWorld(true); const b = new T.Box3().setFromObject(p.model); return b; }
+
+const POSES = [
+  ['idle', p => p.rig.poseIdle(1.2)],
+  ['walk (stride A)', p => p.rig.poseWaddle(.3)],
+  ['walk (stride B)', p => p.rig.poseWaddle(.9)],
+  ['sit (planted-feet crouch)', p => p.rig.poseSit(1.2)],
+  ['hello (head-and-body nod)', p => { p.rig.poseIdle(.31); p.gesture.pose('greeting', .31); }],
+];
+// Species: one row of five poses per theme at scale 1, one shared framing per species so the poses compare.
+function species(id, role, runtime) {
+  const W = 300, H = 340, top = 40, gap = 28;
+  out.width = W * POSES.length; out.height = top + (H + gap) * 2;
+  const p = live(role, runtime); p.model.scale.setScalar(1);
+  const box = new T.Box3(); for (const [, pose] of POSES) { pose(p); box.union(reach(p)); }
+  const center = box.getCenter(new T.Vector3()), radius = box.getSize(new T.Vector3()).length() / 2 * 1.02, cam = frame(center, radius, W / H);
+  ['light', 'dark'].forEach((theme, row) => {
+    const t = setTheme(theme), y0 = top + row * (H + gap);
+    ctx.fillStyle = t.bg; ctx.fillRect(0, y0, out.width, H + gap);
+    POSES.forEach(([name, pose], i) => { pose(p); p.model.updateMatrixWorld(true); ctx.drawImage(grab(W, H, cam), i * W, y0 + gap); text(name, i * W + 12, y0 + 20, t.ink, 14); });
+  });
+  ctx.fillStyle = '#263d34'; ctx.fillRect(0, 0, out.width, top); text(`${id}  (${role} on ${runtime}, scale 1, fitted)  light row 1, dark row 2`, 12, 26, '#f4efe3', 17);
+  drop(p);
+}
+// Reduced motion: what the den leaves each character in, poseIdle(0, {reducedMotion:true}); the same pose at 0 s and 2.4 s is identical.
+function reduced() {
+  const W = 200, H = 260, n = CHARACTERS.length, rowH = H + 40;
+  out.width = W * n; out.height = rowH * 2;
+  ['light', 'dark'].forEach((theme, k) => {
+    const t = setTheme(theme), y0 = k * rowH; ctx.fillStyle = t.bg; ctx.fillRect(0, y0, out.width, rowH);
+    CHARACTERS.forEach(([id, role, runtime], i) => {
+      const p = live(role, runtime); p.model.scale.setScalar(1); p.rig.poseIdle(2.4, { reducedMotion: true });
+      const b = reach(p), cam = frame(b.getCenter(new T.Vector3()), b.getSize(new T.Vector3()).length() / 2 * 1.05, W / H);
+      ctx.drawImage(grab(W, H, cam), i * W, y0 + 40); text(id, i * W + 10, y0 + 26, t.ink, 15); drop(p);
+    });
+    text('reduced motion: poseIdle(t, {reducedMotion:true}), identical at every t; ' + theme, 12, y0 + rowH - 6, t.ink, 12);
+  });
+}
+// Bao and Jiao at the den's live scale (1.35), side by side, both themes.
+function baoJiao() {
+  const W = 640, H = 560; out.width = W * 2; out.height = H;
+  ['light', 'dark'].forEach((theme, k) => {
+    const t = setTheme(theme), bao = live('orchestrator', 'claude'), jiao = live('orchestrator', 'codex');
+    bao.model.position.x = -1.3; jiao.model.position.x = 1.3; bao.rig.poseIdle(1.2); jiao.rig.poseIdle(1.2);
+    const b = reach(bao).union(reach(jiao)), cam = frame(b.getCenter(new T.Vector3()), b.getSize(new T.Vector3()).length() / 2 * 1.02, W / H, .15);
+    ctx.drawImage(grab(W, H, cam), k * W, 0);
+    for (const [p, name] of [[bao, 'Bao (claude)'], [jiao, 'Jiao (codex)']]) { const v = p.model.position.clone().project(cam); const x = (v.x + 1) / 2 * W + k * W; text(name, x, H - 38, t.ink, 15, 'center'); text('scale ' + p.model.scale.x, x, H - 18, t.ink, 13, 'center', '400'); }
+    text(theme, k * W + 12, 24, t.ink, 15); drop(bao); drop(jiao);
+  });
+}
+// All 20 residents: ten roles on each runtime, live scale (orchestrator 1.35, others .68). `far` pulls the camera back so they read as the den's wide view does.
+function lineup(far) {
+  const W = 1500, H = 700; out.width = W; out.height = H * 2;
+  ['light', 'dark'].forEach((theme, k) => lineupOne(far, theme, W, H, k * H));
+}
+function lineupOne(far, theme, W, H, y0) {
+  const t = setTheme(theme), gapX = 1.7, pal = [];
+  RUNTIMES.forEach((runtime, r) => ROLES.forEach((role, i) => {
+    const p = live(role, runtime); p.model.position.set((i - (ROLES.length - 1) / 2) * gapX, 0, (r ? 2.1 : -2.1)); p.rig.poseIdle(1.2 + i * .63); pal.push([p, role, runtime]);
+  }));
+  const center = new T.Vector3(0, .8, 0), cam = frame(center, far ? 9.5 : 5.6, W / H, far ? 1.1 : .8, .06);
+  ctx.drawImage(grab(W, H, cam), 0, y0);
+  for (const [p, role, runtime] of pal) {
+    const back = runtime === 'claude', at = p.model.position.clone(); if (back) at.y = reach(p).max.y + .15;
+    const v = at.project(cam), x = (v.x + 1) / 2 * W, y = y0 + (1 - v.y) / 2 * H, sz = far ? 11 : 14;
+    const lane = ROLES.indexOf(role) % 2 * (sz + 2) * (back ? -1 : 1); // alternate two heights so neighbours' labels do not overlap
+    text(`${castCharacterId(role, runtime)} (${runtime})`, x, (back ? y - 4 : y + sz + 4) + lane, t.ink, sz, 'center');
+  }
+  text(`${far ? 'far' : 'near'} lineup, ${theme}: 20 residents (claude in the back row, codex in front), orchestrator 1.35, others .68`, 12, y0 + 24, t.ink, 15);
+  pal.forEach(([p]) => drop(p));
+}
+globalThis.review = {
+  species, reduced, baoJiao, lineup, characters: CHARACTERS,
+  png: () => out.toDataURL('image/png'),
+};
+globalThis.ready = true;
+</script></body></html>
