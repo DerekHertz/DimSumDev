@@ -1,6 +1,6 @@
 # A container per agent under rootless Docker
 
-**Status:** proposed. A spike (hardening/05) ran on 2026-10-22; the user accepts or rejects it. It builds on ADR 0021 decision 2, which named a container per agent as the wall's fallback, and on the hardening spec's Containers section (C1-C3). The harness and its evidence are in `spikes/container-agent/` (throwaway).
+**Status:** accepted (user, 2026-10-22). A spike (hardening/05) ran on 2026-10-22. Further hardening of the CLI sandbox wall (hardening/01, 09) is parked in favour of this. It builds on ADR 0021 decision 2, which named a container per agent as the wall's fallback, and on the hardening spec's Containers section (C1-C3). The harness and its evidence are in `spikes/container-agent/` (throwaway).
 
 **Context.** The CLI sandbox walls shell commands only. The agent process, with its file tools, hooks and MCP, runs outside it, and every hole so far (the file tools, the `.git` refs) was a complete-mediation failure patched one rule at a time. A container puts the whole agent inside the boundary: a path the bridge did not mount is not refused, it is absent.
 
