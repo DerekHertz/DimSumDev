@@ -61,9 +61,12 @@ export function createSurfaceNavigation(objects,{placement=.18,floorRadius=29,fl
  function footprintAt(x,z,radius){
   const cx=Math.floor(x/placement),cz=Math.floor(z/placement),id=`${cx},${cz},${radius}`;
   let footprint=footprints.get(id);if(footprint)return footprint;
-  footprint=[];
+  footprint=[];footprint.highest=-Infinity;footprint.excluded=false;
   for(let ix=Math.floor(cx-radius/placement);ix<=Math.floor(cx+1+radius/placement);ix++)for(let iz=Math.floor(cz-radius/placement);iz<=Math.floor(cz+1+radius/placement);iz++){
-   const column=columns.get(key(ix,iz));if(column)footprint.push({x0:ix*placement,x1:(ix+1)*placement,z0:iz*placement,z1:(iz+1)*placement,column});
+   const column=columns.get(key(ix,iz));if(column){
+    footprint.push({x0:ix*placement,x1:(ix+1)*placement,z0:iz*placement,z1:(iz+1)*placement,column});
+    for(const [,hi,,excluded]of column.spans){footprint.highest=Math.max(footprint.highest,hi);footprint.excluded ||= excluded;}
+   }
   }
   if(footprints.size>=512)footprints.delete(footprints.keys().next().value);
   footprints.set(id,footprint);return footprint;
@@ -73,6 +76,11 @@ export function createSurfaceNavigation(objects,{placement=.18,floorRadius=29,fl
   const footprint=footprintAt(x,z,radius);
   const candidates=surfaces.filter(y=>y<=previous+STEP_UP+.015&&y>=previous-STEP_DOWN-.015).sort((a,b)=>b-a);
   for(const ground of candidates){
+   // The cached rectangle conservatively contains the complete disc. If even
+   // its highest solid lies below body clearance and it contains no excluded
+   // terrain, none of its cells can block this ground. Otherwise keep every
+   // exact sub-cell, water-support, leading-edge and overhead check below.
+   if(!footprint.excluded&&footprint.highest<=ground+.12)return ground;
    let blocked=false;
    // Visit every raster cell intersected by the complete disc, including its
    // interior. Cell bounds conservatively cover the clipped source triangles.

@@ -25,7 +25,7 @@ export const RAIL_FOOTER = Object.freeze([
 export const SHEET_HEADS = Object.freeze({
   needs: ["Waiting on you", "Needs you"], queue: ["The board", "Queue"], work: ["In motion", "Work"],
   meetings: ["Talk it over", "Meetings"], team: ["Every role", "Team"], library: ["Shared", "Library"],
-  tally: ["The abacus", "Tally"], build: ["The den", "Den build"], meeting: ["Meeting", null], conversation: ["Conversation", null],
+  tally: ["The abacus", "Tally"], build: ["The den", "Den build"], replay: ["Hierarchy audit", "Replay"], meeting: ["Meeting", null], conversation: ["Conversation", null],
 });
 export const TOPICS = Object.freeze([...RAIL_ENTRIES, ...RAIL_FOOTER].filter((e) => e.slot === "topic").map((e) => e.id));
 export const topicEntry = (id) => [...RAIL_ENTRIES, ...RAIL_FOOTER].find((e) => e.id === id) ?? null;

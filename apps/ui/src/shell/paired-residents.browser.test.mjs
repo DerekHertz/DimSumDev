@@ -92,13 +92,14 @@ test('mounted scene and roster keep concurrent runtime tasks and visitors separa
   ]};
   await page.route('**/events',r=>r.fulfill({contentType:'text/event-stream',body:`event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n`}));await page.route('**/state',r=>r.fulfill({json:snapshot}));await page.route('**/metrics',r=>r.fulfill({json:{throughput:{windows:[]},tokensByRole:{},incidentsByTool:{}}}));await page.route('**/session',r=>r.fulfill({status:404,json:{}}));
   await page.goto(server.resolvedUrls.local[0]);await page.waitForFunction(()=>{const b=document.querySelector('.den-entry button');return b&&b.getAttribute('aria-disabled')!=='true';},null,{timeout:60000});
-  await page.waitForFunction(async()=>{const f=performance.getEntriesByType('resource').find(r=>r.name.includes('/@react-three_fiber.js'));const {_roots}=await import(f.name);const scene=_roots.get(document.querySelector('canvas')).store.getState().scene,pandas={};scene.traverse(p=>{if(p.userData.actorKey)pandas[p.userData.actorKey]=p;});window.bindingProbe=pandas;return pandas['codex:developer#paired/03']?.userData.ticketRef==='paired/03';});
+  await page.waitForFunction(async()=>{const f=performance.getEntriesByType('resource').find(r=>r.name.includes('/@react-three_fiber.js'));const {_roots}=await import(f.name);const scene=_roots.get(document.querySelector('canvas')).store.getState().scene,pandas={};scene.traverse(p=>{if(p.userData.actorKey)pandas[p.userData.actorKey]=p;});window.bindingProbe=pandas;return pandas['codex:developer']?.userData.ticketRef==='paired/01';});
   const refs=await page.evaluate(()=>Object.fromEntries(Object.entries(window.bindingProbe).map(([id,p])=>[id,p.userData.ticketRef])));
-  assert.equal(Object.keys(refs).length,33);assert.equal(refs.developer,'paired/01');assert.equal(refs['codex:developer'],'paired/01');assert.equal(refs['codex:developer#paired/03'],'paired/03');assert.ok(!Object.values(refs).includes('paired/04'));
+  assert.equal(Object.keys(refs).length,32);assert.equal(refs.developer,'paired/01');assert.equal(refs['codex:developer'],'paired/01');assert.equal(refs['codex:developer#paired/03'],undefined);assert.ok(!Object.values(refs).includes('paired/04'));
   await page.locator('[data-rail=team]').click();
   await page.getByRole('button',{name:/^The Maker, developer, Codex, current project identity unavailable, Working/}).click();assert.match(await page.locator('.forest-profile').innerText(),/paired\/01/);
   assert.equal(await page.getByRole('button',{name:'Talk to Maker'}).isDisabled(),true);
   await page.getByRole('button',{name:/^The Maker, developer, Codex, current project identity unavailable, visitor on paired\/03/}).click();assert.match(await page.locator('.forest-profile').innerText(),/paired\/03/);
+  await page.locator('.forest-profile').getByText('Scene visitor deferred — available in Team',{exact:true}).waitFor();
   await page.getByRole('button',{name:/^The Maker, developer, Claude/}).click();assert.match(await page.locator('.forest-profile').innerText(),/paired\/01/);
   assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
  }finally{await browser?.close();await server?.close();}

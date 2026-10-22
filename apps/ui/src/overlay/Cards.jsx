@@ -711,7 +711,12 @@ export function Cards({ snapshot, ownBuild = null, now, connection, placeholder,
     needs: <NeedsYouCard snapshot={snapshot} now={now} open busy={busy} placeholder={placeholder} session={steering.session} onAnswer={onAnswer} onOpenThread={onOpenThread} capacity={capacity} steer={steer} run={run} deliveries={deliveries} meetings={meetings} onOpenMeeting={(id) => onShowMeeting?.(id, null)} />,
     queue: <QueueDrawer snapshot={snapshot} now={now} open inSheet onClose={onCloseTopic} onOpenNeeds={() => onTopic?.("needs")}
       onOpenTicket={onOpenTicket} controls={queueControls} />,
-    work: <TeamsCard snapshot={snapshot} open busy={busy} placeholder={placeholder} onZoomTeam={(id) => camera.goToTeam(id)} capacity={capacity} steer={steer} run={run} deliveries={deliveries} />,
+    work: (
+      <>
+        <TeamsCard snapshot={snapshot} open busy={busy} placeholder={placeholder} onZoomTeam={(id) => camera.goToTeam(id)} capacity={capacity} steer={steer} run={run} deliveries={deliveries} />
+        <p className="small"><button type="button" className="btn btn-outline" data-open="replay" onClick={() => onTopic?.("replay")}>Replay a run's hierarchy</button></p>
+      </>
+    ),
     meetings: <MeetingsCard client={client} snapshot={snapshot} open busy={busy} steer={steer} meetings={meetings} shown={meetingId} onShow={onShowMeeting} left={left} />,
     library: <LibraryCard client={reader} rev={snapshot?.libraryRev ?? 0} now={now} open busy={busy} demo={demo} />,
     build: buildLine(snapshot?.build ?? null) ? <BuildStatus snapshot={snapshot} ownBuild={ownBuild} steer={steer} client={client} /> : <p className="small muted">The bridge has not reported a build yet.</p>,
