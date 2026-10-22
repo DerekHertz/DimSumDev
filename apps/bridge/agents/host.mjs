@@ -493,7 +493,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       if (gate === "unknown") return refuse(404, "no such ticket");
       if (gate !== "ok") return refuse(409, "the ticket is not in the frontier");
     }
-    const usage = await readUsage(selected.runtime);
+    const usage = selected.runtime === "codex" ? null : await readUsage(selected.runtime);
     const over = overUsage(usage);
     if (over) return over;
     const noLimits = await unenforced(runtime);
@@ -1280,7 +1280,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const badGrants = await grantsRefused(role, grants);
     if (badGrants) return badGrants;
     const runtime = adapters[selected.runtime];
-    const early = down(runtime) ?? overUsage(await readUsage(selected.runtime)) ?? (await unenforced(runtime));
+    const early = down(runtime) ?? overUsage(selected.runtime === "codex" ? null : await readUsage(selected.runtime)) ?? (await unenforced(runtime));
     if (early) return early;
     const lockedNow = await readLocked(selected.project);
     if (lockedNow === null) return unreadable();
@@ -2066,7 +2066,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const grants = Array.isArray(prev.grants) ? prev.grants : [];
     const badGrants = await grantsRefused(prev.role, grants.length === 0 ? undefined : grants);
     if (badGrants) return refuse(409, `the earlier run's grants are no longer allowed (${badGrants.error}); start a new task instead`);
-    const usage = await readUsage(selected.runtime);
+    const usage = selected.runtime === "codex" ? null : await readUsage(selected.runtime);
     const over = overUsage(usage);
     if (over) return over;
     const noLimits = await unenforced(runtime);

@@ -3,7 +3,94 @@ import assert from "node:assert/strict";
 import { mkdtemp, realpath, writeFile, mkdir, chmod, symlink, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { offlineCanaryPlan, resolveCanaryExecutables, CANARY_SLICE } from "./codex-permissions-canary.mjs";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
+import { existsSync } from "node:fs";
+import * as canary from "./codex-permissions-canary.mjs";
+const { offlineCanaryPlan, resolveCanaryExecutables, CANARY_SLICE } = canary;
+const runOfflineCanary = options => {
+  assert.equal(typeof canary.runControlledOfflineCanary, "function", "trusted launcher injection is missing; never fall through to native launch");
+  return canary.runControlledOfflineCanary(options);
+};
+
+function fakeLauncher(onLaunch, settle = async () => true) {
+  const calls = [];
+  const child = Object.assign(new EventEmitter(), { stdin: new PassThrough(), stdout: new PassThrough(), stderr: new PassThrough(), exitCode: null, signalCode: null });
+  const group = { unit: "owned-fake.scope", kill() { calls.push("kill"); child.stdout.end(); child.stderr.end(); child.emit("close"); }, async settled(ms) { calls.push(["settled", ms]); return settle(); } };
+  return { calls, child, enforced: true, async preflight() { return { ok: true }; }, async launch(input) { calls.push(input); setImmediate(() => onLaunch(child)); return { child, group }; } };
+}
+
+test("trusted offline injection captures bounded raw failure output and positively settles only its group", async () => {
+  await withExecutableFixture(async ({ paths }) => {
+    const observations = [];
+    const launcher = fakeLauncher(child => { child.stdout.write("fixture stdout failure"); child.stderr.write("fixture stderr failure"); child.exitCode = 1; child.emit("exit", 1, null); });
+    const result = await runOfflineCanary({ ...paths, launcher, observe: event => observations.push(event) });
+    assert.equal(result.ok, false);
+    assert.equal(result.settled, true);
+    assert.equal(result.rawOutput.stdout, "fixture stdout failure");
+    assert.equal(result.rawOutput.stderr, "fixture stderr failure");
+    assert.equal(result.rawOutput.stdoutBytes, 22);
+    assert.deepEqual(launcher.calls.slice(1), ["kill", ["settled", 3000]]);
+    assert.equal(observations[0].unit, "owned-fake.scope");
+    assert.equal(observations.at(-1).settled, true);
+    assert.equal(existsSync(launcher.calls[0].cwd), false);
+  });
+});
+
+for (const cause of ["abort", "timeout"]) test(`offline ${cause} waits for positive exact-group cleanup before returning`, async () => {
+  await withExecutableFixture(async ({ paths }) => {
+    const controller = new AbortController();
+    let acknowledge;
+    const settled = new Promise(resolve => { acknowledge = resolve; });
+    const launcher = fakeLauncher(() => { if (cause === "abort") controller.abort(); }, () => settled);
+    let returned = false;
+    const pending = runOfflineCanary({ ...paths, launcher, signal: controller.signal, timeoutMs: 20 }).then(result => { returned = true; return result; });
+    await new Promise(resolve => setTimeout(resolve, 60));
+    assert.equal(returned, false);
+    assert.ok(launcher.calls.includes("kill"));
+    acknowledge(true);
+    const result = await pending;
+    assert.equal(result.ok, false);
+    assert.equal(result.settled, true);
+    assert.equal(result.status[cause === "abort" ? "aborted" : "timeout"], true);
+    assert.equal(existsSync(launcher.calls[0].cwd), false);
+  });
+});
+
+test("offline cancellation before entry starts no launcher", async () => {
+  const controller = new AbortController(); controller.abort();
+  await assert.rejects(runOfflineCanary({ signal: controller.signal, launcher: { launch() { assert.fail("must not launch"); } } }), { name: "AbortError" });
+});
+
+test("uncertain offline group cleanup refuses success and retains its own fixture", async () => {
+  await withExecutableFixture(async ({ paths }) => {
+    const launcher = fakeLauncher(child => { child.exitCode = 1; child.emit("exit", 1, null); }, async () => false);
+    try {
+      await assert.rejects(runOfflineCanary({ ...paths, launcher }), /group cleanup uncertain: owned-fake.scope/);
+      assert.equal(existsSync(launcher.calls[0].cwd), true);
+      assert.deepEqual(launcher.calls.slice(1), ["kill", ["settled", 3000], "kill", ["settled", 3000]]);
+    } finally {
+      // This is an in-memory launcher: it never creates a real process/group.
+      const root = path.dirname(launcher.calls[0].cwd);
+      assert.ok(root.startsWith("/tmp/den-codex-profile-task2-"));
+      await rm(root, { recursive: true, force: true });
+    }
+  });
+});
+
+test("overflow stops the fake group and bounds retained diagnostic excerpts", async () => {
+  await withExecutableFixture(async ({ paths }) => {
+    const launcher = fakeLauncher(child => { child.stdout.write("x".repeat(9000)); child.stderr.write("y".repeat(65000)); });
+    const result = await runOfflineCanary({ ...paths, launcher });
+    assert.equal(result.overflow, true);
+    assert.equal(result.ok, false);
+    assert.equal(result.rawOutput.stdout.length, 8000);
+    assert.equal(result.rawOutput.stdoutBytes, 9000);
+    assert.equal(result.rawOutput.stderrBytes, 65000);
+    assert.equal(result.rawOutput.totalBytes, 74000);
+    assert.equal(result.settled, true);
+  });
+});
 
 async function withExecutableFixture(check) {
   const parent = await realpath(tmpdir());

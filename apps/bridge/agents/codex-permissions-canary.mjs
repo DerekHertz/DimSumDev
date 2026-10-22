@@ -93,7 +93,12 @@ console.log(JSON.stringify(results));
 process.exitCode=results.every(r=>r.ok)?0:1;
 `;
 
-export async function runOfflineCanary({ codexBin, nativeHelper, nodeBin = process.execPath } = {}) {
+// Trusted harness entry: a launcher is mandatory, so a missing test injection
+// cannot silently select the real resource launcher. Nothing model-facing calls it.
+export async function runControlledOfflineCanary({ codexBin, nativeHelper, nodeBin = process.execPath, launcher, signal, timeoutMs = 30000, observe = () => {} } = {}) {
+  if ((signal !== undefined && !(signal instanceof AbortSignal)) || !Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30000 || typeof observe !== "function") throw new TypeError("invalid offline canary controls");
+  signal?.throwIfAborted();
+  if (!launcher || launcher.enforced !== true || typeof launcher.launch !== "function" || typeof launcher.preflight !== "function") throw new TypeError("an enforced trusted launcher is required");
   if (process.platform !== "linux") throw new Error("offline native canary requires Linux");
   if ([codexBin, nodeBin, nativeHelper].some(value => typeof value !== "string" || !SAFE_PATH.test(value))) throw new TypeError("explicit native binary paths are required");
   const executables = await resolveCanaryExecutables({ nodeBin, codexBin, nativeHelper });
@@ -115,35 +120,44 @@ export async function runOfflineCanary({ codexBin, nativeHelper, nodeBin = proce
     await symlink(`${plan.worktree}/dummy-credential`, `${plan.worktree}/credential-alias`);
     await symlink(plan.nativeStore, `${plan.worktree}/native-alias`);
     await symlink(`${root}/outside`, `${plan.worktree}/edit/outside-alias`);
-    const launcher = createResourceLauncher({ slice: CANARY_SLICE });
     const ready = await launcher.preflight();
     if (!ready.ok) throw new Error(`offline canary preflight refused: ${ready.reason}`);
+    signal?.throwIfAborted();
     launched = await launcher.launch({ slotClass: "worker", id: `codex-profile-${randomBytes(8).toString("hex")}`,
       bin: plan.bin, args: plan.args, cwd: plan.worktree, env: plan.env });
     const { child, group } = launched;
+    observe({ type: "launched", unit: group.unit, slice: CANARY_SLICE, root });
     let closed = false;
     const closedPromise = new Promise(resolve => child.once("close", () => { closed = true; resolve(true); }));
     child.on("error", () => {}); // The bounded exit observer records the failure below.
-    let stdout = "", stderr = "", bytes = 0, overflow = false;
-    for (const [stream, append] of [[child.stdout, data => { stdout += data; }], [child.stderr, data => { stderr += data; }]]) stream.on("data", chunk => {
+    let stdout = "", stderr = "", bytes = 0, stdoutBytes = 0, stderrBytes = 0, overflow = false;
+    let interrupt = null;
+    for (const [name, stream, append] of [["stdout", child.stdout, data => { stdout += data.toString(); }], ["stderr", child.stderr, data => { stderr += data.toString(); }]]) stream.on("data", chunk => {
       bytes += chunk.length;
-      if (bytes > plan.outputBytes) { overflow = true; group.kill(); }
-      else append(chunk.toString());
+      if (name === "stdout") stdoutBytes += chunk.length;
+      else stderrBytes += chunk.length;
+      if (bytes > plan.outputBytes) { overflow = true; interrupt?.({ overflow: true }); }
+      else append(chunk);
     });
     child.stdin.end();
     const status = await new Promise(resolve => {
       let finished = false;
-      const done = value => { if (finished) return; finished = true; clearTimeout(timer); resolve(value); };
-      const timer = setTimeout(() => { group.kill(); done({ timeout: true }); }, plan.timeoutMs);
+      const aborted = () => interrupt({ aborted: true });
+      const done = value => { if (finished) return; finished = true; clearTimeout(timer); signal?.removeEventListener("abort", aborted); resolve(value); };
+      interrupt = value => { group.kill(); done(value); };
+      const timer = setTimeout(() => interrupt({ timeout: true }), timeoutMs);
       child.once("exit", (code, signal) => done({ code, signal }));
       child.once("error", () => done({ error: "child process error" }));
-      if (child.exitCode !== null || child.signalCode !== null) done({ code: child.exitCode, signal: child.signalCode });
+      signal?.addEventListener("abort", aborted, { once: true });
+      if (signal?.aborted) aborted();
+      else if (child.exitCode !== null || child.signalCode !== null) done({ code: child.exitCode, signal: child.signalCode });
     });
     // The launcher anchor can keep inherited descriptors open until killed.
     // Observe close before killing, then wait for bounded stdio drain before
     // parsing the final JSON; exit alone can precede the last data event.
     group.kill();
     settled = await group.settled(3000);
+    observe({ type: "cleanup", unit: group.unit, settled });
     if (!settled) throw new Error(`offline canary group cleanup uncertain: ${group.unit}`);
     const outputDrained = closed || await new Promise(resolve => {
       const timer = setTimeout(() => resolve(false), 3000);
@@ -155,6 +169,7 @@ export async function runOfflineCanary({ codexBin, nativeHelper, nodeBin = proce
       command: { bin: plan.bin, args: plan.args, cwd: plan.worktree },
       overflow, outputDrained, connections, markersPreserved: preserved, results: Array.isArray(results) ? results : null,
       // Diagnostics belong only to this credential-free experiment, bounded above.
+      rawOutput: { stdout: stdout.slice(0, 8000), stderr: stderr.slice(0, 8000), stdoutBytes, stderrBytes, totalBytes: bytes },
       diagnostics: stderr.slice(0, 8000), ok: status.code === 0 && !overflow && outputDrained && connections === 0 && preserved && Array.isArray(results) && results.length === 18 && results.every(result => result.ok === true) };
   } finally {
     if (launched && settled !== true) { launched.group.kill(); settled = await launched.group.settled(3000); }
@@ -167,6 +182,10 @@ export async function runOfflineCanary({ codexBin, nativeHelper, nodeBin = proce
       await rm(root, { recursive: true, force: true });
     }
   }
+}
+
+export async function runOfflineCanary(options = {}) {
+  return runControlledOfflineCanary({ ...options, launcher: createResourceLauncher({ slice: CANARY_SLICE }) });
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(path.resolve(process.argv[1])).href) {

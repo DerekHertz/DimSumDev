@@ -164,7 +164,7 @@ test("runtime registry rejects conflicting shorthand and unknown own keys", asyn
   }
 });
 
-test("each selected adapter receives its own usage/preflight/recipe and all launches get runId", async () => {
+test("each selected adapter receives its own preflight/recipe and all launches get runId, with Claude-only usage", async () => {
   const reads = [];
   const t = await setup({ usage: async () => 1, usageByRuntime: { claude: async () => { reads.push("claude"); return 10; }, codex: async () => { reads.push("codex"); return null; } } });
   const a = await t.post("/tasks", { role: "architect", text: "Inspect baskets.", runtime: "claude" });
@@ -178,7 +178,7 @@ test("each selected adapter receives its own usage/preflight/recipe and all laun
     assert.ok(args.prompt.includes(recipe), `${runtime} trusted recipe is named`);
     assert.equal(args.role, role);
     assert.ok(fake.preflights > 0);
-    assert.ok(reads.includes(runtime));
+    assert.equal(reads.includes(runtime), runtime === "claude");
   }
   assert.equal(b.body.usageUnknown, true);
 });
@@ -538,16 +538,16 @@ test("selected runtime preflight and usage failures leave the other runtime usab
   assert.equal(codex.spawns.length, 0);
 });
 
-test("Codex 90 percent usage refuses tasks without consulting the Claude reader", async () => {
-  let claudeReads = 0;
-  const t = await setup({ usage: async () => { claudeReads += 1; return 1; }, usageByRuntime: { codex: async () => 90 } });
-  const before = claudeReads; // /state or startup may read the Claude snapshot independently.
+test("Codex tasks skip five-hour readers and thresholds", async () => {
+  let claudeReads = 0, codexReads = 0;
+  const t = await setup({ usage: async () => { claudeReads += 1; return 1; }, usageByRuntime: { codex: async () => { codexReads += 1; return 90; } } });
+  const before = claudeReads;
   const result = await t.post("/tasks", { role: "scout", runtime: "codex", text: "Inspect baskets." });
-  assert.equal(result.status, 429);
+  assert.equal(result.status, 201);
   assert.equal(claudeReads, before);
-  assert.equal(t.codex.preflights, 0);
-  assert.equal(t.codex.spawns.length + t.claude.spawns.length, 0);
-  assert.deepEqual(await readdir(path.join(t.fx.root, ".scratch/den/issues")).catch(() => []), []);
+  assert.equal(codexReads, 0);
+  assert.equal(t.codex.spawns.length, 1);
+  assert.equal(t.claude.spawns.length, 0);
 });
 
 test("control-only and delivery project restrictions survive explicit selectors", async () => {

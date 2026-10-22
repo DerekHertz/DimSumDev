@@ -2,7 +2,7 @@
 
 This stage adds a pure **Codex 0.163.0** named-profile translator and an explicitly invoked offline SHELL canary. It does not register a runtime, launch app-server, read an account, call a model, or complete ticket16. Every compiled result retains `launchable: false`.
 
-The eventual input must come from one shared effective-role-policy authority. The translator currently accepts explicit versioned read roots, write roots, governed read-only paths, denied credential paths, forbidden command prefixes and an empty network-host set. It rejects unrepresented requirements. It is not a second role-policy authority and is not yet connected to Claude's compiler.
+The eventual input must come from one shared effective-role-policy authority. The translator currently accepts explicit versioned read roots, write roots, governed read-only paths, denied credential paths, forbidden command prefixes and an empty network-host set. It rejects unrepresented requirements. The shared effective-role-policy authority now supplies Claude compilation with byte-for-byte compatibility; connecting these clauses to a protected Codex runtime remains pending.
 
 ## Native representation
 
@@ -50,8 +50,10 @@ localhost connections: 0; dummy markers preserved: true
 probe results: null; native diagnostics: empty; verdict: FAIL
 ```
 
-The full bounded receipt is `native-shell-canary-741bf56.receipt.json` in this isolated worktree's private Git metadata. The owned fixture was removed after confirmed group cleanup. The native failure stage/cause remains uncertain because the CLI emitted no diagnostic; this is not an 18-check pass or a claim that the kernel lacks the required features. No retry followed. Further native execution remains on first-failure hold pending diagnosis/review and explicit authorization. Default production registration and live model/account/auth calls remain disabled.
+The bounded receipt was read and reported before a later WSL guard cleanup pruned this Windows worktree's Git metadata. Its original recorded SHA-256 was `D81B946309609CAE43A11C44B2604DACB70269A7D45B731B07AEF9EA68DA145B`; those original bytes are no longer available. The task handoff retains a clearly labelled reconstruction from the observed tool output, without claiming the original byte hash or audit integrity. The committed branch was preserved and its task-owned worktree was recovered and locked against cross-platform pruning.
+
+The owned fixture was removed after confirmed group cleanup. The native failure stage/cause remains uncertain because the CLI emitted no diagnostic; this is not an 18-check pass or a claim that the kernel lacks the required features. No retry followed. Further native execution remains on first-failure hold pending diagnosis/review and explicit authorization. Default production registration and live model/account/auth calls remain disabled.
 
 ## Remaining integration gates
 
-Ticket16 still requires shared policy extraction, protected launch/store/configuration integration, scoped approved connections, usage and lifecycle integration. Ticket72 requires actual adapter launch-path checks, including native tools, denied credential access, approved connections, cancellation and exact crash/graceful resume. Ticket02 requires independent protection review and the separate user-merge change before production registration. Unit fixtures and SHELL-only experiments do not satisfy those gates.
+Ticket16 now has shared policy extraction and the Codex five-hour usage exemption; protected launch/store/configuration integration, scoped approved connections and lifecycle integration remain pending. Ticket72 requires actual adapter launch-path checks, including native tools, denied credential access, approved connections, cancellation and exact crash/graceful resume. Ticket02 requires independent protection review and the separate user-merge change before production registration. Unit fixtures and SHELL-only experiments do not satisfy those gates.
