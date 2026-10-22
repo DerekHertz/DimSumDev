@@ -45,22 +45,34 @@ export function createTokenRefresher({ store, refresh, dir, now = Date.now, skew
   let stopped = true;
   let clear = clearTimeout;
 
+  // Rotated credentials not yet persisted: the old refresh token is spent, so these are the only working login. Saved before any new refresh.
+  let held = null;
+  // Expiry of the newest access token written: an older one is never written over it.
+  let newest = -Infinity;
+
   async function run() {
-    let creds;
-    try { creds = await store.load(); } catch (e) { return { refreshed: false, error: redact(`could not load credentials: ${e.message}`, []) }; }
+    let creds = held;
+    if (!creds) {
+      try { creds = await store.load(); } catch (e) { return { refreshed: false, error: `could not load credentials: ${e.message}` }; }
+    }
     let refreshed = false;
     let error;
-    if (creds.expiresAt - now() <= skewMs) {
+    if (!held && creds.expiresAt - now() <= skewMs) {
+      const spent = [creds.refreshToken, creds.accessToken];
       try {
         creds = await refresh(creds.refreshToken);
-        await store.save(creds);
+        held = creds;
         refreshed = true;
       } catch (e) {
-        error = redact(`refresh failed: ${e.message}`, [creds.refreshToken, creds.accessToken]);
+        error = redact(`refresh failed: ${e.message}`, spent);
       }
     }
-    // shortcut: the pre-refresh token is written when a refresh fails; it may be expired, and the API then answers 401. Upgrade if that proves noisy.
-    try { await writeAtomic(file, `${creds.accessToken}\n`); } catch (e) { return { refreshed, error: `could not write the token file: ${e.code ?? "error"}` }; }
+    if (held) {
+      try { await store.save(held); held = null; } catch (e) { error = `could not save the rotated credentials: ${e.code ?? "error"}`; }
+    }
+    if (creds.expiresAt >= newest) {
+      try { await writeAtomic(file, `${creds.accessToken}\n`); newest = creds.expiresAt; } catch (e) { return { refreshed, error: `could not write the token file: ${e.code ?? "error"}` }; }
+    }
     return error ? { refreshed, expiresAt: creds.expiresAt, error } : { refreshed, expiresAt: creds.expiresAt };
   }
 
@@ -104,6 +116,11 @@ export function credentialsFileStore({ file }) {
       const { accessToken, refreshToken, expiresAt } = (await read()).claudeAiOauth;
       return { accessToken, refreshToken, expiresAt };
     },
+    // The stored scopes, space-joined, so a refresh can't narrow the token.
+    async scope() {
+      const { scopes } = (await read()).claudeAiOauth;
+      return Array.isArray(scopes) && scopes.length ? scopes.join(" ") : undefined;
+    },
     async save({ accessToken, refreshToken, expiresAt }) {
       const doc = await read();
       Object.assign(doc.claudeAiOauth, { accessToken, refreshToken, expiresAt });
@@ -112,13 +129,13 @@ export function credentialsFileStore({ file }) {
   };
 }
 
-// scope is left to the server's default unless given: Claude Code sends its own scope list, which this module does not guess.
+// scope: a string, or a (maybe async) function read at each refresh (credentialsFileStore.scope). Claude Code sends its scopes; absent, the server's default applies.
 export function oauthRefresh({ fetch = globalThis.fetch, now = Date.now, url = OAUTH_TOKEN_URL, clientId = OAUTH_CLIENT_ID, scope } = {}) {
   return async function refresh(refreshToken) {
     const res = await fetch(url, {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ grant_type: "refresh_token", refresh_token: refreshToken, client_id: clientId, ...(scope && { scope }) }),
+      body: JSON.stringify({ grant_type: "refresh_token", refresh_token: refreshToken, client_id: clientId, scope: typeof scope === "function" ? await scope() : scope }),
     });
     if (!res.ok) throw new Error(`token endpoint answered HTTP ${res.status}`);
     let body;

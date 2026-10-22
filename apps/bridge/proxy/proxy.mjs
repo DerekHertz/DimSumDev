@@ -18,7 +18,7 @@ export function portPlan(roles, basePort = 8080) {
   return Object.fromEntries(Object.keys(roles).sort().map((role, i) => [role, basePort === 0 ? 0 : basePort + i]));
 }
 
-const refuse = (sock, status = 403) => sock.end(`HTTP/1.1 ${status} ${status === 403 ? "Forbidden" : "Bad Request"}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n`);
+const refuse = (sock, status = 403) => sock.end(`HTTP/1.1 ${status} ${http.STATUS_CODES[status]}\r\nContent-Length: 0\r\nConnection: close\r\n\r\n`);
 
 // "host:port", "[::1]:443" -> { host, port }, or null when there is no usable port.
 function parseAuthority(authority) {
@@ -26,12 +26,13 @@ function parseAuthority(authority) {
   return m ? { host: (m[1] ?? m[2]).toLowerCase(), port: Number(m[3]) } : null;
 }
 
+// The session comes from the agent's own Proxy-Authorization, so it is agent-claimed and can be forged; the role (from the port) is the trusted field.
 function sessionOf(req) {
   const m = /^Basic\s+(\S+)/i.exec(req.headers["proxy-authorization"] ?? "");
   return m ? Buffer.from(m[1], "base64").toString("utf8").split(":")[0] || null : null;
 }
 
-export async function startProxies({ roles, basePort = 8080, listenHost = "0.0.0.0", tokenSource, apiOrigin = `https://${API_HOST}`, dial = (host, port) => net.connect(port, host), log = () => {} }) {
+export async function startProxies({ roles, basePort = 8080, listenHost = "0.0.0.0", tokenSource, apiOrigin = `https://${API_HOST}`, dial = (host, port) => net.connect(port, host), log = () => {}, dialTimeoutMs = 10_000, idleTimeoutMs = 600_000 }) {
   const upstream = new URL(apiOrigin);
   const upstreamLib = upstream.protocol === "https:" ? https : http;
   const plan = portPlan(roles, basePort);
@@ -83,9 +84,22 @@ export async function startProxies({ roles, basePort = 8080, listenHost = "0.0.0
         refusal(req, host, port, "CONNECT", port !== 443 ? "only port 443 is tunnelled" : host === API_HOST ? "the API is reachable only through the front" : "host is not granted to this role");
         return refuse(sock);
       }
+      let dialed;
+      let timedOut = false;
+      let timer;
       try {
-        const up = await dial(host, port);
-        if (up.connecting) await new Promise((ok, fail) => { up.once("connect", ok); up.once("error", fail); });
+        const up = await Promise.race([
+          (async () => {
+            const u = await dial(host, port);
+            dialed = u;
+            if (timedOut) u.destroy(); // shortcut: a dial promise that never settles leaks; upgrade if a dial can hang that way
+            if (u.connecting) await new Promise((ok, fail) => { u.once("connect", ok); u.once("error", fail); });
+            return u;
+          })(),
+          new Promise((_, fail) => { timer = setTimeout(() => { timedOut = true; fail(new Error("dial timeout")); }, dialTimeoutMs); }),
+        ]);
+        clearTimeout(timer);
+        for (const s of [sock, up]) s.setTimeout?.(idleTimeoutMs, () => { sock.destroy(); up.destroy(); });
         sockets.add(up);
         up.on("close", () => sockets.delete(up));
         up.on("error", () => sock.destroy());
@@ -95,7 +109,9 @@ export async function startProxies({ roles, basePort = 8080, listenHost = "0.0.0
         up.pipe(sock);
         sock.pipe(up);
       } catch {
-        refuse(sock, 502);
+        clearTimeout(timer);
+        dialed?.destroy();
+        refuse(sock, timedOut ? 504 : 502);
       }
     });
     return server;
