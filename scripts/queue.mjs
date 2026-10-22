@@ -64,6 +64,7 @@ function loadBoard(root) {
         num: Number(m[1]),
         title: shorten(title),
         needsUser: /^user acts\b/i.test(header(text, "Type")),
+        question: header(text, "Question"),
         status: header(text, "Status").split(/\s+/)[0].toLowerCase(),
         priority: priority ? Number(priority[1]) : 2,
         blockedBy: header(text, "Blocked by"),
@@ -106,7 +107,8 @@ export async function readQueue(root) {
       inFlight.push({ ...row(t), role: parts[0] ?? null, mode: parts[2] === "specify" || parts[2] === "verify" ? parts[2] : null });
     } else if (t.status === "ready-for-human" || (t.status === "ready-for-agent" && t.needsUser)) {
       // den-mvp/105: a `user acts` ticket needs the user, not an agent, so it waits on the user.
-      waitingOnUser.push(row(t));
+      // hardening/18: show the ticket's Question; a ready-for-human ticket with none is flagged.
+      waitingOnUser.push({ ...row(t), question: t.question, noQuestion: t.status === "ready-for-human" && !t.question });
     } else {
       const open = blockerRefs(t, byKey).filter((b) => !GONE.has(tickets.get(b).status));
       if (t.status === "blocked" || (t.status === "ready-for-agent" && open.length)) blocked.push({ ...row(t), blockedBy: open });
@@ -138,7 +140,7 @@ export function renderKanban(q) {
   return [
     ...section("READY", q.ready, (r) => `${r.rank ? `${mark(r.rank)} ` : ""}${short(r.ref)}  ${r.title}  P${r.priority}`),
     ...section("IN FLIGHT", q.inFlight, (r) => `${short(r.ref)}  ${r.title}  [${r.role ?? "no lock"}${r.mode ? ` ${r.mode}` : ""}]`),
-    ...section("WAITING ON YOU", q.waitingOnUser, (r) => `${short(r.ref)}  ${r.title}`),
+    ...section("WAITING ON YOU", q.waitingOnUser, (r) => `${short(r.ref)}  ${r.title}${r.noQuestion ? "  [no Question]" : r.question ? `\n      ? ${r.question}` : ""}`),
     ...section("BLOCKED", q.blocked, (r) => `${short(r.ref)}  ${r.title}${r.blockedBy.length ? `  <- ${r.blockedBy.map(short).join(", ")}` : ""}`),
   ].join("\n");
 }

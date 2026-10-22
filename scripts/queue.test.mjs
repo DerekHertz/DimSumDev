@@ -261,3 +261,30 @@ test("den-mvp/105 a user acts ticket at ready-for-agent waits on the user, is no
   assert.deepEqual(q.ready.map((r) => r.rank), [1]);
   assert.deepEqual(refs(q.proposed), ["alpha/402-agent"]);
 });
+
+// hardening/18: a ready-for-human ticket carries a `**Question:**` line; the queue shows it and flags a ticket without one.
+function questionBoard() {
+  const root = boardRoot();
+  ticket(root, "alpha/501-asks", { status: "ready-for-human", title: "Asks", headers: ["**Question:** Ship the flag on by default?"] });
+  ticket(root, "alpha/502-silent", { status: "ready-for-human", title: "Silent" });
+  ticket(root, "alpha/503-user", { type: "user acts", title: "User does it" });
+  return root;
+}
+
+test("hardening/18 --json gives each ready-for-human row its question, or flags it with none", () => {
+  const by = Object.fromEntries(readJson(questionBoard()).waitingOnUser.map((r) => [r.ref, r]));
+  assert.equal(by["alpha/501-asks"].question, "Ship the flag on by default?");
+  assert.equal(by["alpha/501-asks"].noQuestion, false);
+  assert.equal(by["alpha/502-silent"].question, "");
+  assert.equal(by["alpha/502-silent"].noQuestion, true);
+  assert.equal(by["alpha/503-user"].noQuestion, false, "a user acts ticket is the user's own work and needs no Question");
+});
+
+test("hardening/18 plain output prints the Question under WAITING ON YOU and flags a ticket with none", () => {
+  const text = run(questionBoard()).stdout;
+  const block = text.slice(text.indexOf("WAITING ON YOU"), text.indexOf("BLOCKED"));
+  assert.match(block, /Ship the flag on by default\?/);
+  const silent = block.split("\n").find((l) => l.includes("Silent")) ?? "";
+  assert.match(silent, /no Question/i);
+  assert.doesNotMatch(block.split("\n").find((l) => l.includes("alpha/501-asks")) ?? "", /no Question/i);
+});

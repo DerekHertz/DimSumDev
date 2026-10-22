@@ -34,6 +34,7 @@ The `to-tickets` template. Each field is a `**Name:**` line near the top of the 
 - `**Cause:**` stays empty. On a `bug` the developer posts the cause note in `## Comments` (symptom, repro, hypotheses, chosen cause, where else, target layer).
 - `**Estimate:** ~Nk tokens`. Above 150k, split the ticket; below 30k, merge it into a sibling with the same touch set.
 - `Paths (advisory):` the touch set in backticks. It guides; the work may touch other files.
+- `**Question:**` (only on a `ready-for-human` ticket) what the user must decide; `npm run queue` shows it under WAITING ON YOU.
 - `**Blocked by:**`, `**Status:**` and optionally `**Priority:**`, then the done-when checks: about 5, with milestones only when the work has more than one.
 
 ## When a skill says "publish to the issue tracker"
