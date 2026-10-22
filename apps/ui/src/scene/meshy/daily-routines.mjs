@@ -9,46 +9,71 @@ export function gardenRoutineSpots(garden){
  ];
 }
 
-// One scene clock and departure cursor. Paths are searched only at departures or interruptions.
-export function createDailyRoutines(den,actors){
+// Outings start and end at the resident's owned home. One scene clock, one departure beat, one walker.
+// Paths are searched at a departure or an interruption only; residents standing elsewhere are obstacles then.
+export function createDailyRoutines(den,actors,{speed=.78,maxOut=3}={}){
  const spots=den.routineSpots||[],reserved=new Map();let time=0,nextDeparture=2,cursor=0,visit=0;
- for(const a of actors.values())a.routine=null;
- const release=a=>{if(a.routine&&reserved.get(a.routine.spot.id)===a)reserved.delete(a.routine.spot.id);};
- function cancel(a){release(a);a.routine=null;}
+ for(const a of actors.values()){a.outing=null;a.path=null;a.moved=0;a.yaw=null;}
+ // The search stops within a cell of the goal, so its last node can lie past it; a node that makes the walker turn back is dropped.
+ const search=(world,at,goal)=>{
+  const path=gardenRoute(world,at,goal),k=path.length;
+  if(k>1){const prev=k>2?path[k-3]:at,n=path[k-2],end=path[k-1];if((n.x-prev.x)*(end.x-n.x)+(n.z-prev.z)*(end.z-n.z)<0)path.splice(k-2,1);}
+  return path;
+ };
+ const route=(a,goal)=>{
+  const at=a.panda.model.position,clearOf=(b,r)=>Math.hypot(b.x-at.x,b.z-at.z)>=r+.23&&Math.hypot(b.x-goal.x,b.z-goal.z)>=r+.23;
+  const bodies=[...actors.values()].filter(b=>b!==a&&b.panda.model.visible).map(b=>({type:'circle',x:b.panda.model.position.x,z:b.panda.model.position.z,radius:b.envelope.radius+.03})).filter(o=>clearOf(o,o.radius));
+  return search({...den.walkWorld,obstacles:[...(den.walkWorld.obstacles||[]),...bodies]},at,goal);
+ };
+ const release=a=>{if(a.outing?.spot&&reserved.get(a.outing.spot.id)===a)reserved.delete(a.outing.spot.id);};
+ function arrive(a){release(a);a.outing=null;a.path=null;a.yaw=null;a.panda.model.position.copy(a.home);a.nextOuting=time+14+a.index%5*3;}
  function returnHome(a){
-  release(a);a.routine.stage='return';a.path=gardenRoute(den.walkWorld,a.panda.model.position,a.home);
-  a.leaving=true;a.routeGoal=a.home;a.routeTries=1;a.retryAt=time+8;
+  release(a);a.outing.stage='return';a.outing.spot=null;
+  // shortcut: with no clear path home (a body in the way) fall back to the static map, then to a snap; upgrade if it ever shows.
+  a.path=route(a,a.home);if(!a.path.length)a.path=search(den.walkWorld,a.panda.model.position,a.home);
+  if(!a.path.length)arrive(a);else a.path[a.path.length-1]=a.home.clone();
  }
- function interrupt(a){if(!a.routine)return;returnHome(a);a.routine=null;}
+ function step(a,dt){
+  const p=a.panda.model.position;let left=dt*speed;
+  while(left>0&&a.path.length){
+   const n=a.path[0],d=Math.hypot(n.x-p.x,n.z-p.z);a.yaw=d>1e-6?Math.atan2(n.x-p.x,n.z-p.z):a.yaw;
+   if(d<=left){p.set(n.x,n.y,n.z);a.path.shift();a.moved+=d;left-=d;}
+   else{const k=left/d;p.set(p.x+(n.x-p.x)*k,p.y+(n.y-p.y)*k,p.z+(n.z-p.z)*k);a.moved+=left;left=0;}
+  }
+ }
  function update(dt,reduced,held){
   if(!reduced)time+=dt;
   for(const [key,a]of actors){
-   if(reduced){if(a.routine){cancel(a);a.path=null;a.leaving=false;a.panda.model.position.copy(a.home);a.panda.model.rotation.y=a.baseYaw;}continue;}
-   if((a.leaving||a.seat)&&!a.path?.length&&a.routeGoal&&a.routeTries<3&&time>=a.retryAt){a.path=gardenRoute(den.walkWorld,a.panda.model.position,a.routeGoal);a.routeTries++;a.retryAt=time+8;}
-   const r=a.routine;if(!r)continue;
-   if(a.live||a.seat){interrupt(a);continue;}
-   if(key===held)continue;
-   if(r.stage==='outbound'&&!a.path?.length){r.stage='visit';r.elapsed=0;if(r.spot.kind==='pond')den.feedKoi?.();}
+   a.moved=0;const r=a.outing;if(!r)continue;
+   if(reduced){arrive(a);continue;}
+   if(a.live&&r.stage!=='return')returnHome(a);
+   if(!a.outing||key===held)continue;
    if(r.stage==='visit'){
-    r.elapsed+=dt;const p=a.panda.model.position;a.panda.model.rotation.y=Math.atan2(r.spot.face.x-p.x,r.spot.face.z-p.z);
+    r.elapsed+=dt;const p=a.panda.model.position;a.yaw=Math.atan2(r.spot.face.x-p.x,r.spot.face.z-p.z);
     if(r.elapsed>=10+(a.index%3)*2)returnHome(a);
-   }else if(r.stage==='return'&&!a.leaving){cancel(a);a.nextRoutine=time+14+a.index%5*3;}
+   }else{
+    step(a,dt);
+    if(!a.path?.length){
+     if(r.stage==='return')arrive(a);
+     else{r.stage='visit';r.elapsed=0;a.yaw=null;if(r.spot.kind==='pond')den.feedKoi?.();}
+    }
+   }
   }
   if(reduced||!spots.length||time<nextDeparture)return;
   nextDeparture=time+4;
-  if([...actors.values()].filter(a=>a.routine).length>=3)return;
-  const candidates=[...actors.values()].filter(a=>!a.stationary&&!a.visitor&&!a.guest);
-  // At most one route attempt per departure beat, even when a destination is unreachable.
+  if([...actors.values()].filter(a=>a.outing).length>=maxOut)return;
+  const candidates=[...actors.values()].filter(a=>!a.stationary&&a.panda.model.visible);
+  // At most one route search per departure beat, even when a destination is unreachable.
   for(let i=0;i<candidates.length;i++){
    const a=candidates[cursor++%candidates.length];
-   if(a.live||a.seat||a.leaving||a.arriving||a.path?.length||a.routine||a.id===held||(a.nextRoutine||0)>time)continue;
-   const spot=spots.slice(visit%spots.length).concat(spots.slice(0,visit%spots.length)).find(s=>!reserved.has(s.id)&&(!s.available||s.available()));
+   if(a.live||a.outing||a.id===held||(a.nextOuting||0)>time)continue;
+   const spot=spots.slice(visit%spots.length).concat(spots.slice(0,visit%spots.length)).find(s=>!reserved.has(s.id));
    if(!spot)return;
-   visit++;a.nextRoutine=time+18;
-   const path=gardenRoute(den.walkWorld,a.panda.model.position,spot.position);
-   if(path.length){reserved.set(spot.id,a);a.routine={spot,stage:'outbound',elapsed:0};a.path=path;}
+   visit++;a.nextOuting=time+18;
+   const path=route(a,spot.position);
+   if(path.length){reserved.set(spot.id,a);a.outing={spot,stage:'outbound',elapsed:0};a.path=path;}
    return;
   }
  }
- return {update,interrupt,cancel,dispose(){for(const a of actors.values())cancel(a);reserved.clear();}};
+ return {update,dispose(){for(const a of actors.values()){release(a);a.outing=null;a.path=null;}reserved.clear();}};
 }
