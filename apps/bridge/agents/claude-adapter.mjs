@@ -165,7 +165,10 @@ const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit
     // den-mvp/03 (live probe, 2026-10-13): the CLI runs the hooks and the status line of the worktree's own settings,
     // outside the sandbox, from scripts in that worktree, which the agent can write. A bridge agent runs none of them.
     disableAllHooks: true,
-    permissions: { deny: [...new Set(deny)], ...(allow.length === 0 ? {} : { allow }), ...(readLimit === true ? { blockReadsOutsideWorkingDirectories: true, ...(ticketFile === undefined ? {} : { additionalDirectories: [ticketFile.slice(0, ticketFile.lastIndexOf("/"))] }) } : {}) },
+    // hardening/01 (ADR 0021 l.107): a deny rule cannot carve the worktree back out (deny beats allow), so with a worktree the
+    // CLI's "dontAsk" mode refuses every call no allow rule names: Read, Write and Edit outside the worktree, the granted paths
+    // and the ticket file no longer ask. It also refuses any other tool the CLI would have asked about (see the ADR note).
+    permissions: { ...(worktree === undefined ? {} : { defaultMode: "dontAsk" }), deny: [...new Set(deny)], ...(allow.length === 0 ? {} : { allow }), ...(readLimit === true ? { blockReadsOutsideWorkingDirectories: true, ...(ticketFile === undefined ? {} : { additionalDirectories: [ticketFile.slice(0, ticketFile.lastIndexOf("/"))] }) } : {}) },
     ...(wall === undefined ? {} : { sandbox: sandboxFor(wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials) }),
   });
 };

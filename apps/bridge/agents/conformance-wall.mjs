@@ -182,12 +182,14 @@ export function evaluateWall({ init, turns, disk, p, limits = null }) {
     const r = asked(id).filter((x) => x.tool === tool).length;
     return `${id}: ${r ? "raised a request" : "NO request"}; ${res(id)}`;
   };
-  const outsideHeld = asked("read-outside").length > 0 && asked("write-outside").length > 0 && asked("edit-outside").length > 0;
+  // hardening/01: question 6 asks whether the file tools outside the worktree are refused by rule, not merely asked about.
+  // A refused call raises no request and its tool result is an error; the disk keeps nothing the harness could have allowed.
+  const outsideRefused = ["read-outside", "write-outside", "edit-outside"].every((id) => made(id) && asked(id).length === 0 && t(id).results.every((r) => r.error));
   a.q6 = {
-    answer: outsideHeld && !disk.outsideWrite && disk.outsideReadText.includes(p.mark) ? "yes" : "no",
+    answer: outsideRefused && !disk.outsideWrite && !disk.outsideAllowed && disk.outsideReadText.includes(p.mark) ? "yes" : "no",
     evidence: [
       fileTool("read-outside", "Read"), fileTool("write-outside", "Write"), fileTool("edit-outside", "Edit"), fileTool("write-inside", "Write"), fileTool("read-inside", "Read"),
-      `on disk: denied outside write ${disk.outsideWrite ? "WRITTEN" : "absent"}, allowed outside write ${disk.outsideAllowed ? "written (the file tools are not behind the sandbox)" : "absent"}, outside file ${disk.outsideReadText.includes(p.mark) ? "unchanged" : "CHANGED"}, inside tool file ${disk.insideTool === p.inBody ? "written" : "absent"}`,
+      `on disk: denied outside write ${disk.outsideWrite ? "WRITTEN" : "absent"}, allowed outside write ${disk.outsideAllowed ? "WRITTEN (the harness would have allowed it)" : "absent"}, outside file ${disk.outsideReadText.includes(p.mark) ? "unchanged" : "CHANGED"}, inside tool file ${disk.insideTool === p.inBody ? "written" : "absent"}`,
       `Bash reads outside the worktree: ${said("bash-read-outside")} ;; ${said("bash-read-home")}`,
     ],
   };
@@ -218,7 +220,7 @@ export async function runWall(ctx) {
   const p = makeWallRepo({ model: ctx.model });
   const plan = wallTurns(p);
   try {
-    const args = buildClaudeArgs({ sessionId: randomUUID(), agent: WALL_ROLE, model: ctx.model, wall: { hosts: [WALL_HOST] } });
+    const args = buildClaudeArgs({ sessionId: randomUUID(), agent: WALL_ROLE, model: ctx.model, wall: { hosts: [WALL_HOST] }, worktree: p.worktree }); // the production argv: the worktree brings dontAsk (hardening/01)
     const child = ctx.start(args, p.worktree);
     let current = null;
     let answered = 0;

@@ -49,7 +49,8 @@ test("the recorded run: the answers the spike reported", () => {
   const r = run();
   assert.equal(r.verdict, "go");
   assert.deepEqual(answers(r), recorded.answers);
-  assert.deepEqual(recorded.answers, { q1: "yes", q2: "partly", q3: "yes", q4: "partly", q5: "unknown", q6: "yes", q7: "partly" });
+  assert.deepEqual(recorded.answers, { q1: "yes", q2: "partly", q3: "yes", q4: "partly", q5: "unknown", q6: "no", q7: "partly" });
+  // q6 changed meaning (hardening/01): "refused by rule, not asked". The 2026-10-10 stream predates the rule, so its file tools asked: no.
 });
 
 test("the recorded run: what each answer rests on", () => {
