@@ -6,7 +6,7 @@
 //             numbers ("01, 02"), or "None ..." / "none". A blocker counts only when its ticket is on this list and its
 //             Status is `resolved`. Only `ready-for-agent`, unblocked, unlocked tickets are considered; every other
 //             ticket appears nowhere in the result.
-//   paths:    backticked repo-relative paths in the `## What to build` and `## Acceptance criteria` sections only.
+//   paths:    backticked repo-relative paths in the `## What to build`, `## Acceptance criteria` and `## Paths (advisory)` sections and a `Paths (advisory):` line.
 //             `.scratch/` and `.claude/` paths are ignored. A considered ticket with no paths goes to `unknown`.
 //   inFlight: [{ branch, files: [path] }] from open PR heads, or null when the seam failed (no in-flight data).
 //   max:      positive integer cap on the size of a group.
@@ -76,6 +76,15 @@ test("paths in Acceptance criteria count; paths in Comments or outside backticks
   const res = await group([a, b, c]);
   assert.deepEqual(groupSets(res), [["f/01-a", "f/02-b"]]);
   assert.deepEqual(res.unknown, ["f/03-c"]);
+});
+
+test("paths in a `## Paths (advisory)` section or a `Paths (advisory):` line count (hardening/02 template)", async () => {
+  const a = { ref: "f/01-a", locked: false, text: ticketText({ build: "No path here.", criteria: "- [ ] done" }).replace("## Comments", "## Paths (advisory)\n\nTouches `scripts/x.mjs`.\n\n## Comments") };
+  const b = { ref: "f/02-b", locked: false, text: ticketText({ build: "No path here." }).replace("## What to build", "Paths (advisory): `scripts/x.mjs`, other files allowed.\n\n## What to build") };
+  const c = T("f/03-c", ["scripts/other.mjs"]);
+  const res = await group([a, b, c]);
+  assert.deepEqual(groupSets(res), [["f/01-a", "f/02-b"]]);
+  assert.deepEqual(res.singles, ["f/03-c"]);
 });
 
 test(".scratch/ and .claude/ paths are ignored, so such a ticket is `unknown`", async () => {

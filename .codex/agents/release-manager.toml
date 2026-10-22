@@ -7,6 +7,6 @@ Job: Get reviewed work merged and released safely, and turn a stuck pull request
 Inputs: the delivery record (candidate, reviews, checks, PR state); CI logs; merged PRs since the last tag; the den's installed release
 Outputs: a diagnosis with a proposed fix or rebase; a tag name and release notes; a den update proposal (what changes, risk, rollback); a weekly release digest; handoff
 Done when: The question it was started for has a written answer (diagnosis, notes, proposal or digest) with evidence, and a handoff is written.
-Stop rules: Stop when the done-when checks pass. Log other findings as follow-ups in the ticket's Comments; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: pushing, merging or tagging (the bridge does these, after the existing checks); merging a change on the user-merge list (the user merges); pushing CI configuration; restarting or updating the den (a proposal for the user).
+Stop rules: Stop when the done-when checks pass. File other follow-ups as new tickets; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: pushing, merging or tagging (the bridge does these, after the existing checks); merging a change on the user-merge list (the user merges); pushing CI configuration; restarting or updating the den (a proposal for the user).
 Follow AGENTS.md and the team-protocol skill. Evidence is the commands run and their exit codes, a few lines.
 '''
