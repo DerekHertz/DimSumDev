@@ -8,31 +8,6 @@ Stack: Node ESM scripts (`.mjs`, tests via `node --test`); Vite is the only buil
 
 The den runs as a systemd user service (ADR 0026), from release folders under `~/.local/state/den/`, not from the checkout. The user runs `npm run den:install` once and `npm run den:update` after merging a bridge change; an edit in the checkout does not change the running den. `npm run bridge` is for development, and takes `PORT=<other>`.
 
-## Agents
-
-Roles are defined by role definitions in `.claude/agents/`, grouped into teams. Each role's contract (inputs, outputs, authority, hand-offs) and the user's approval points are in `docs/agents/team-charter.md` (ADR 0029):
-- `product`, `architect`, `orchestrator`, `release-manager` (Pass)
-- `developer`, `scout`, `runner` (Steamers); `scout` and `runner` are Codex leaves that start no agent: the agent tree is Bao and the router, then Codex agents, then leaves
-- `code-reviewer`, `qa`, `security`, `sre` (Tea & Pantry); `sre` runs on Codex, observes and proposes only
-- `designer`, `technical-writer`, `herald` (Front of House); the writer keeps docs true and drafts public posts, the user publishes
-- `orchestrator`, `herald` and `scout` are retiring (team-and-den-ux/19): into Bao and Jiao, the technical writer, and the runner
-
-Code tickets run a relay sized to risk (`team-protocol`, "Relay size"). A risk-path ticket (the wall, CI, hooks, service, auth, dependencies) runs qa `specify` (failing tests), developer, qa `verify` (light). Any other ticket (tests, docs, UI, ordinary scripts) goes straight to the developer, then qa `verify` (full: a per-criterion map, and a verdict on each test-guard hit). On every code ticket the `code-reviewer` reviews the developer's commit beside qa, and the developer does not review its own work; one fix round carries both reviews' findings. Then `npm run risk-check`: a clean exit skips `security`, a hit dispatches it. Push, PR and merge on green CI are the release manager's steps: the bridge runs them in a delivery, the orchestrator in a terminal relay. designer specs UI tickets with the user (a detailed spec plus low-cost mockups), and the user does all visual critique of UI and asset tickets until a cheaper automated critique exists. Every agent follows the `team-protocol` skill: claim before working, stop at pass gates, hand off, then end.
-
-Relay autonomy (see `team-protocol`): once the user approves a ticket, the orchestrator runs its relay end to end, PR and merge included. Other gates still apply. It stops for user verdicts, open scope questions, a twice-failed ticket, environment issues, 5-hour usage at 90%+, or a red or conflicted merge. Codex uses the worker ceiling in `.codex/runtime-guidance.md`, without reserved extra slots; stricter runtime, resource and ticket limits still apply.
-
-Direct work (`.scratch/den-mvp/spec.md`): the user may give any panda a focused job from the den without the relay, including developer, qa and security. The bridge starts every agent behind the wall and inside a resource group (`apps/bridge/agents/limits.json`), and refuses the run when it cannot enforce them. Push, PR and merge still need the delivery checks.
-
-Delivery (ADR 0024, ADR 0029): Deliver on a ticket in the den runs developer, `code-reviewer`, qa `verify`, the scripted checks and, on a hit, security; then the bridge pushes, opens the PR and merges on green checks, as the release manager's steps. The bridge makes the board calls and holds the git-host login; a change to the bridge, a guardrail or CI is left for the user to merge.
-
-Meetings (ADR 0017, Amendment 1): from the den the user asks up to six specialists for one take each, in sequence; Bao then writes a decision brief with two or three options. The bridge runs it and writes the takes and the brief under `.scratch/<feature>/meetings/`. Choosing an option writes a ticket at `ready-for-human`; a brief authorizes nothing.
-
-To act as an agent, read its role definition first and follow it: `.codex/agents/<role>.toml` (generated from `.claude/agents/<role>.md`).
-
-## Cloud sessions
-
-Environment setup for cloud containers (browser path, proxy, usage readings) lives in `docs/agents/cloud-sessions.md`; read it when `CLAUDE_CODE_REMOTE` is set. Locally (WSL or macOS) none of it applies.
-
 ## Agent skills
 
 ### Issue tracker
@@ -43,24 +18,14 @@ The board is local markdown under `.scratch/` in the main checkout, with lock-fi
 
 Single-context: `CONTEXT.md` + `docs/adr/` at the repo root. See `docs/agents/domain.md`.
 
-## Token hygiene
-
-This runs on a Pro plan. Keep this file short, read narrowly, and delegate verbose output to `scout`.
-
-# Compact instructions
-
-When compacting, keep: the current ticket path, acceptance criteria status, the branch, and unresolved errors. Drop exploration output.
-
-
 # Codex execution contract
 
-This hand-maintained supplement is included in generated `AGENTS.md` and referenced by every generated role. It resolves Codex runtime, concurrency and verification wording; shared safety, role review floors, explicit ticket limits and user approval gates still apply. It grants no push, PR, merge, deployment, dependency or spending authority. Current user instructions and stricter sandbox/session limits take precedence.
+Included in generated `AGENTS.md`. It grants no push, PR, merge, deployment, dependency or spending authority; user instructions, ticket limits and stricter session limits win.
 
-- **Models and tools:** use the model and effort in `.codex/agents/<role>.toml` and the tools actually available in the session. Do not interpret Claude model tiers or tool lists as Codex configuration. If the configured runtime/model or a required safety capability is unavailable, report it; never silently switch or claim unenforced tool restrictions are enforced.
-- **One implementation owner:** one developer owns each outcome's shared state and interface. Delegate only independent, checkable work with settled interfaces and disjoint write paths when delegation is permitted. A read-only reviewer or test runner can help; spawning is optional, not a required relay ceremony. Leaves start no agents.
-- **Concurrency:** keep the existing ceiling of two live workers besides the owner, without reserved bonus slots. The smaller configured runtime, session, resource or ticket limit wins. A charter tree size is a structural maximum, not a concurrent-agent target or permission to start more workers. Changing enforced limits or raising this budget requires explicit authorization.
-- **MVP completion:** agree one observable outcome and its acceptance criteria before expanding it. Measure the first real caller and actual-roster startup/request/update cost early. Required safety, correctness, compatibility, truthful presentation and responsiveness findings block readiness; nits and unrelated polish do not. An outcome is done only when its applicable criteria, independent reviews, checks and human verdicts pass. A low settled p95 cannot waive a long synchronous call. Do not invent acceptance thresholds or label a partial improvement complete.
-- **Verification:** run literal covering test files with bounded concurrency and timeouts, including affected existing callers. Run required syntax/build checks. In a resource-limited den agent, leave full suites and browser workloads to the designated checks/CI or separately authorized capable environment. A generic implement-skill full-suite instruction does not override that limit. Record what ran and what remains unverified; never weaken protected assertions, work budgets or safety checks to obtain green results.
-- **Convergent review:** freeze one candidate for the required independent code review and QA. Inventory related findings before the authorized correction batch; distinguish a product defect from a faulty harness assumption. Review the changed behavior and rerun affected checks. Reuse prior evidence only when source/dependencies, fixture, scenario and criterion still match; record its source SHA. Publication still requires the user's authority and all applicable checks.
-- **Stopping:** work within the correction allowance actually authorized for the task. This contract creates no new allowance. Honor every explicit one-attempt, first-failure, diagnosis-only or stop instruction. Ordinary in-scope work consumes an existing allowance; stop at its limit or for an unresolved environment/approval issue, changed safety/lifecycle contract, scope question, protected assertion weakening, required human verdict or publication gate. Do not turn an authorization request into permission by elapsed time, and do not restart failed work outside its allowance.
-- **Handoff:** report the outcome, actual candidate/source, blockers versus polish, changed files, relevant checks and smallest remaining decision. Keep intermediate updates useful; avoid a new approval/handoff cycle for each internal step already covered by the task's authorization.
+- **Outcome first:** agree the observable outcome and its criteria, then reach it. Block only on an unmet criterion or material risk (safety, correctness, truthful presentation); nits and polish become follow-ups in the ticket's Comments.
+- **Tools and sandbox:** use the model and the tools the session has. Subagents inherit the parent session's sandbox and approvals; do not claim stricter tool limits. If a required capability is missing, report it and stop.
+- **One implementation owner:** one developer owns each outcome. Delegate only independent, checkable work to a fresh subagent with disjoint write paths; at most two workers live at once, and leaves start none.
+- **Verification:** run only the covering tests, with bounds: `timeout 300 node --test --test-concurrency=2 <files>`, plus syntax checks. Never `npm test` or a folder glob in a den agent; full suites and browser files belong to the den's checks and CI. Never weaken an assertion to get green.
+- **Stopping:** stop when the done-when checks pass. Allow at most one fix round for nonblocking findings, and honor every explicit one-attempt or stop instruction. Stop for an environment or approval issue, a scope question, a required human verdict or a publication gate.
+- **Acting as a role:** when asked to act as an agent, read its definition `.codex/agents/<role>.toml` first and follow it.
+- **Handoff:** the outcome, the candidate SHA, changed files, the commands run with exit codes, and the smallest remaining decision.

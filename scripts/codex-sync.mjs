@@ -2,7 +2,9 @@
 // Shared contracts come from .claude/; .codex/runtime-guidance.md owns Codex execution details.
 //   .claude/agents/<role>.md -> .codex/agents/<role>.toml
 //   .claude/skills/**        -> .agents/skills/**   (runtime wording adapted; licences copied unchanged)
-//   CLAUDE.md + runtime guidance -> AGENTS.md
+//   .claude/agents/<role>.md org block + ROLE_FOCUS -> lean role (job, inputs, outputs, done when, stop rules); the Claude body is not copied
+//   .codex/team-protocol.md  -> .agents/skills/team-protocol/SKILL.md   (Codex-only protocol replaces the Claude skill)
+//   CLAUDE.md (minus AGENTS_DROP sections) + runtime guidance -> AGENTS.md
 // Usage: node scripts/codex-sync.mjs [--check] [--root <dir>]
 //   write mode regenerates every mirror and removes stale ones; --check writes nothing, prints each
 //   drifted path and exits 1 on drift.
@@ -15,9 +17,27 @@ import { fileURLToPath } from "node:url";
 
 // Claude model tier -> Codex model id (docs: learn.chatgpt.com/docs/models).
 export const MODEL_MAP = { opus: "gpt-6-astra", sonnet: "gpt-6.1-sol", haiku: "gpt-6-luna" };
-// Claude effort -> model_reasoning_effort. The values below are the ones the Codex subagents page documents
-// (low, medium, high, xhigh, max, ultra); Claude has no "ultra", so it is not a source value.
-export const EFFORT_MAP = { low: "low", medium: "medium", high: "high", xhigh: "xhigh", max: "max" };
+// model_reasoning_effort per role (den-revival/05): medium unless listed. The Claude effort field is not read.
+export const CODEX_EFFORT = { default: "medium", architect: "high", security: "high" };
+
+// One or two outcome sentences per role that its org block does not say; appended to the Job line.
+// A role not listed here gets only its org purpose. Keep each short: a role file is about 2 KB.
+export const ROLE_FOCUS = {
+  architect: "Answer the design question in the ticket with seams a developer can test; write an ADR only when the decision is hard to reverse.",
+  "code-reviewer": "Read the candidate commit's diff on two axes, standards and spec fit; write no code. Each finding is file:line and a reason; end with `board comment --verdict pass|bounce` naming the commit.",
+  designer: "Run only the mode the ticket names (direction, spec, review, critique). The user decides visuals.",
+  developer: "Write one failing test per criterion first, or start from qa's tests branch without editing its tests; make them pass, run only the covering tests, commit, release at in-review. Work outside the ticket goes in Comments. Never review your own work. In a fix round answer each finding in one line: fixed, wrong, intentional or didn't matter.",
+  herald: "Write one short draft outside the repo; it must pass scripts/draft-check.mjs.",
+  orchestrator: "Hand each stage (developer, then code-reviewer and qa, then risk-check) to a fresh subagent thread and carry only handoff paths, not stage output. After the user approves a ticket, dispatch and run its relay through merge on green CI without asking again, except the user-kept approvals in team-protocol Gates (approving the ticket covers its dispatches and its merge on green); at most two workers on disjoint files.",
+  product: "Settle requirements with the user in CONTEXT.md terms; publish the spec only after the user confirms.",
+  qa: "specify: failing tests for every testable criterion. verify: map each criterion to a test that fails without the change and give a verdict on each `node scripts/test-guard.mjs` hit, with `board comment --verdict pass|bounce`.",
+  "release-manager": "Propose; never push, merge or tag. Answer the question you were started for with evidence.",
+  runner: "Do exactly the task as written; start no agents.",
+  scout: "Read only; start no agents.",
+  security: "Check the branch for vulnerabilities, risky dependencies, secrets and CI changes; verdict via `board comment --verdict pass|bounce`. Scan the range with gitleaks; a committed secret always bounces; never print a secret's value. CI actions pin to a commit SHA, and `pull_request_target` never checks out PR code.",
+  sre: "Measure, do not change; every finding is a ticket or a proposal for the user.",
+  "technical-writer": "Make the docs match what the code does, with a source for every claim; never publish.",
+};
 
 const list = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs.at(-1)}` : xs[0]);
 const subagents = (_m, args) => {
@@ -57,30 +77,54 @@ export function renderSkill(relative, content) {
   const text = runtimeWording(content.toString());
   // Keep front matter first. The shared protocol/implementation skills are the
   // entry points used by standalone role sessions as well as the root owner.
-  return ["team-protocol/SKILL.md", "implement/SKILL.md"].includes(relative)
+  return relative === "implement/SKILL.md" // team-protocol is the Codex-only .codex/team-protocol.md, not a mirror
     ? text.replace(/^(---\r?\n[\s\S]*?\r?\n---\r?\n)/, `$1\n${RUNTIME_NOTICE}\n`)
     : text;
 }
 
-// Codex has no per-agent tool list, so a role definition's tool limits (scout read-only, herald's draft check only) bind only as instructions.
-export const CODEX_CAVEAT = "Codex caveat: under Codex, tool limits named in this role definition (scout read-only, herald's draft check only) are instructions, not enforced. Run scout and herald with a read-only or workspace-write sandbox and approvals on.";
+// Parse the front matter into top-level keys and the nested `org:` block (Claude-only keys are simply not read later).
+function frontMatter(text) {
+  const fm = {}, org = {};
+  let inOrg = false;
+  for (const line of text.split(/\r?\n/)) {
+    const nested = line.match(/^\s+([A-Za-z_]+):\s*(.*)$/);
+    if (nested) { if (inOrg) org[nested[1]] = nested[2].trim(); continue; }
+    const kv = line.match(/^([A-Za-z_]+):\s*(.*)$/);
+    if (!kv) continue; // list items under skills:
+    if (/^[|>]/.test(kv[2])) throw new Error(`front matter key ${kv[1]} is a multi-line scalar; codex-sync cannot read it`);
+    inOrg = kv[1] === "org";
+    fm[kv[1]] = kv[2].trim();
+  }
+  return { fm, org };
+}
+const orgText = (org, key) => {
+  if (!org[key]) throw new Error(`front matter org block has no ${key}`);
+  return org[key].startsWith('"') ? JSON.parse(org[key]) : org[key];
+};
+const orgList = (org, key) => {
+  try { return org[key] ? JSON.parse(org[key]) : []; } catch { throw new Error(`org ${key} is not a JSON list`); }
+};
 
+// One lean, outcome-first role: job, inputs, outputs, done when, stop rules. The Claude workflow body is not copied.
 export function render(roleDefinition) {
   const m = roleDefinition.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
   if (!m) throw new Error("role definition has no front matter");
-  const fm = {};
-  for (const line of m[1].split(/\r?\n/)) {
-    const kv = line.match(/^([A-Za-z_]+):\s*(.*)$/);
-    if (!kv) continue; // nested keys (org:, skills:) are Claude-only and dropped
-    if (/^[|>]/.test(kv[2])) throw new Error(`front matter key ${kv[1]} is a multi-line scalar; codex-sync cannot read it`);
-    fm[kv[1]] = kv[2].trim();
-  }
+  const { fm, org } = frontMatter(m[1]);
   for (const k of ["name", "description"]) if (!fm[k]) throw new Error(`front matter has no ${k}`);
   const model = MODEL_MAP[fm.model];
   if (!model) throw new Error(`unknown model "${fm.model}" (add it to MODEL_MAP)`);
-  const effort = EFFORT_MAP[fm.effort];
-  if (!effort) throw new Error(`unknown effort "${fm.effort}" (add it to EFFORT_MAP)`);
-  const body = RUNTIME_NOTICE + "\n\n" + applyRules(runtimeWording(m[2].replace(/^\s*\n/, ""))).trimEnd() + "\n\n" + CODEX_CAVEAT;
+  const effort = CODEX_EFFORT[fm.name] ?? CODEX_EFFORT.default;
+  const purpose = runtimeWording(orgText(org, "purpose"));
+  const done = runtimeWording(orgText(org, "done")).replace(/the full test suite passes/, "the covering tests pass").replace(/Every check below that applies/, "Every applicable check").replace(/Every check below/, "Every check").replace(/, in the fixed shape below/, " (result, evidence, failures)");
+  const [inputs, outputs, gates] = ["inputs", "outputs", "gates"].map((k) => orgList(org, k).join("; "));
+  const body = [
+    `Job: ${[purpose, ROLE_FOCUS[fm.name]].filter(Boolean).join(" ")}`,
+    `Inputs: ${inputs || "the ticket"}`,
+    `Outputs: ${outputs || "a handoff"}`,
+    `Done when: ${done}`,
+    `Stop rules: Stop when the done-when checks pass. Log other findings as follow-ups in the ticket's Comments; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk.${gates ? ` Ask the user before: ${gates}.` : ""}`,
+    "Follow AGENTS.md and the team-protocol skill. Evidence is the commands run and their exit codes, a few lines.",
+  ].join("\n");
   if (body.includes("'''")) throw new Error("body contains ''' and cannot be a TOML literal string");
   return [
     `name = ${JSON.stringify(fm.name)}`,
@@ -91,10 +135,15 @@ export function render(roleDefinition) {
   ].join("\n");
 }
 
+// CLAUDE.md sections that describe the Claude relay; the Codex versions live in .codex/team-protocol.md and runtime-guidance.md.
+export const AGENTS_DROP = ["Agents", "Cloud sessions", "Token hygiene", "Compact instructions"];
+
 export function renderAgents(claudeMd, runtimeGuidance = "") {
   const head = "<!-- Generated by scripts/codex-sync.mjs from CLAUDE.md (shared contracts) and .codex/runtime-guidance.md (Codex execution). Edit those sources, not this mirror. -->\n\n";
-  return head + applyRules(runtimeWording(claudeMd)) + (runtimeGuidance ? "\n\n" + runtimeGuidance.trim() + "\n" : "");
+  const shared = claudeMd.split(/^(?=#{1,2} )/m).filter((s) => !AGENTS_DROP.includes(s.match(/^#{1,2} (.*)/)?.[1].trim())).join("").trimEnd() + "\n";
+  return head + applyRules(runtimeWording(shared)) + (runtimeGuidance ? "\n" + runtimeGuidance.trim() + "\n" : "");
 }
+
 
 function walk(dir, base = dir) {
   if (!existsSync(dir)) return [];
@@ -115,14 +164,16 @@ function skillFiles(root) {
 
 // Every mirror the root should hold: relPath -> Buffer|string. Stale paths are listed separately.
 function plan(root) {
-  // Fail before writing any mirror if the hand-maintained runtime source is missing.
+  // Fail before writing any mirror if a hand-maintained Codex source is missing.
   const runtimeGuidance = readFileSync(path.join(root, ".codex/runtime-guidance.md"), "utf8");
+  const codexProtocol = readFileSync(path.join(root, ".codex/team-protocol.md"), "utf8");
   const want = new Map();
   const stale = [];
   const agentsDir = path.join(root, ".claude/agents");
   const roles = readdirSync(agentsDir).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3));
   for (const role of roles) want.set(`.codex/agents/${role}.toml`, render(readFileSync(path.join(agentsDir, `${role}.md`), "utf8")));
   for (const f of skillFiles(root)) want.set(`.agents/skills/${f}`, renderSkill(f,readFileSync(path.join(root, ".claude/skills", f))));
+  want.set(".agents/skills/team-protocol/SKILL.md", codexProtocol); // Codex-only, lean: not a mirror of the Claude skill
   want.set("AGENTS.md", renderAgents(readFileSync(path.join(root, "CLAUDE.md"), "utf8"),runtimeGuidance));
   for (const f of walk(path.join(root, ".codex/agents"))) if (f.endsWith(".toml") && !want.has(`.codex/agents/${f}`)) stale.push(`.codex/agents/${f}`);
   // .agents/skills/jevgrep is hand-kept: never stale.
