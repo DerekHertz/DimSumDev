@@ -1,6 +1,6 @@
 ---
 name: pipeline-retro
-description: Find repeated hiccups in the relay (handoff, board, guard, CI failures) and turn each into one fix, preferring code over wording. Orchestrator only. Use at the end of every orchestrator session, after every 3 resolved tickets, or when the user asks what keeps going wrong.
+description: "Find repeated relay hiccups (handoff, board, guard, CI) and turn each into one fix, preferring code over wording. Orchestrator only; after every 3 resolved tickets."
 ---
 
 Run this in the main orchestrator session. The goal is fewer repeat failures per ticket, not a complete record. Wording has already failed twice this project: a rule that existed in a skill was still broken by most agents. So prefer a code fix whenever one exists.
@@ -42,7 +42,7 @@ Pick the first fix that applies:
 3. **Role definition or skill wording:** only when neither 1 nor 2 fits. Put the fix in the one place the agent will read at the moment it acts, and don't duplicate it elsewhere.
 4. **Nothing:** a genuine guardrail that did its job, or a one-off. Say so.
 
-A fix that already failed as wording goes to code, or to the user as an open question. It never gets a second wording.
+A fix that already failed as wording goes to code, or to the user as an open question. It never gets a second wording. For a mistake class the user keeps correcting, the `correct` skill walks the levels (architecture, types, lint, test, docs last); to mine one long session for learnings, use `reflect`.
 
 ## 3b. Look beyond the incidents
 

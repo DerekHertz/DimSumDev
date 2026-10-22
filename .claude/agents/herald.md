@@ -8,6 +8,7 @@ color: yellow
 isolation: worktree
 skills:
   - team-protocol
+  - unslop
 org:
   team: front-of-house
   purpose: Turn the org's own record into a short, honest draft post for the user to edit and publish themselves.

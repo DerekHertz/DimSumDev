@@ -1,6 +1,6 @@
 ---
 name: jevgrep
-description: Use for questions about how, why, or where behavior works in a repository, including questions that name a function or setting. Start behavioral discovery with jg before broad text searches or git history. When delegating repository discovery, instruct the subagent to start with jg. Jevgrep returns relevant files and source excerpts. For exact symbol definitions, string matches, or filenames, use grep or file search instead.
+description: Use for how, why or where questions about a repository, including ones that name a function or setting. Start behavioral discovery with jg before broad text searches; tell delegated subagents to do the same. For exact symbols, strings or filenames use grep.
 ---
 
 # Jevgrep

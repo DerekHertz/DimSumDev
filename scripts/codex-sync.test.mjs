@@ -324,7 +324,7 @@ test(".agents/skills/ renders the shared files with Codex runtime adaptations an
   const walk = (d, base = d) => readdirSync(d, { withFileTypes: true }).flatMap((e) =>
     e.isDirectory() ? walk(path.join(d, e.name), base) : [path.relative(base, path.join(d, e.name)).split(path.sep).join("/")]);
   const src = walk(path.join(ROOT, ".claude/skills")).sort();
-  assert.ok(src.includes("ponytail/SKILL.md") && src.includes("PONYTAIL-LICENSE") && src.includes("MATTPOCOCK-LICENSE"));
+  assert.ok(src.includes("blast-radius/SKILL.md") && src.includes("PSTACK-LICENSE") && src.includes("MATTPOCOCK-LICENSE"));
   const tracked = new Set(execFileSync("git", ["ls-files", "--", ".agents/skills"], { cwd: ROOT, encoding: "utf8" }).split("\n").filter(Boolean));
   for (const f of src) {
     const dst = path.join(ROOT, ".agents/skills", f);

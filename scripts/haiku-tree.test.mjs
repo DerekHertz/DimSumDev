@@ -72,7 +72,7 @@ test("the orchestrator is on Sonnet and preloads only what every run uses", () =
 
 test("the architect reads codebase-design and domain-modeling when used, not preloaded", () => {
   const a = front("architect");
-  assert.deepEqual(a.skills, ["team-protocol", "ponytail"]);
+  assert.deepEqual(a.skills, ["team-protocol", "principle-laziness-protocol", "principle-subtract-before-you-add"]);
   assert.match(a.body, /codebase-design/);
   assert.match(a.body, /domain-modeling/);
 });
