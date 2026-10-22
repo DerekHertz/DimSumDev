@@ -80,7 +80,34 @@ export const DEER = Object.freeze({
   envelope: { standing: { radius: 1.46, height: 3.2 }, moving: { radius: 1.53, height: 3.11 }, seated: { radius: 1.44, height: 3 }, head: { top: 3.2, radius: 1.4 } },
 });
 
+const CRANE_REST = restTable({
+  torso: [['Pelvis', [0, .85, -.6]], ['Spine', [0, 1.1, -.4]], ['Chest', [0, 1.4, -.15]], ['Neck', [0, 1.9, 0]], ['Head', [0, 2.6, .15]]],
+  head: { jaw: [0, 2.5, .7], hat: [0, 3, .15] }, ears: [.2, 2.8, .1],
+  arm: [[.7, 1.4, -.2], [.8, 1.1, -.2], [.85, .8, -.2], [.85, .6, -.2]],
+  leg: [[.3, .85, -.15], [.3, .5, -.15], [.3, .15, -.2], [.3, .05, .3]],
+  tail: [[0, .9, -.9], [0, .9, -1.3], [0, .85, -1.65], [0, .8, -1.95]],
+});
+export const CRANE = Object.freeze({
+  id: 'red-crowned-crane', label: 'Crane architect', role: 'architect', height: 3, offset: [0, .3],
+  foot: ankleOf(CRANE_REST), rest: CRANE_REST,
+  weightsFor: capsuleWeights(CRANE_REST, {
+    Pelvis: .6, Spine: .7, Chest: .65, Neck: .3, Head: .45, ...legs([.12, .1, .1, .1]),
+    Tail1: .4, Tail2: .4, Tail3: .35, TailTip: .3,
+  }, {
+    softness: .1, sole: .05,
+    // The beak, crown and scarf-top follow the head; the plan rides the chest.
+    rigid: p => p.y > 2.4 ? 'Head' : null,
+  }),
+  animate: tailSway(.1, .04),
+  sit: { drop: .25, planted: true },
+  weightSmoothing: FUSED_SMOOTHING,
+  heldProps: ['paw_L', 'paw_R'],
+  arms: FUSED_ARMS, greeting: 'body',
+  // Measured maxima over every pose (the tail sets the radius), plus 5%.
+  envelope: { standing: { radius: 2.12, height: 3.17 }, moving: { radius: 2.15, height: 3.11 }, seated: { radius: 2.12, height: 2.89 }, head: { top: 3.17, radius: 1.1 } },
+});
+
 // A profile joins CAST_PROFILES (the factory selects it) once cast-rig.test.mjs passes for it.
 // CAST_DRAFTS holds profiles still being fitted; run them with `CAST_DRAFTS=1 node --test cast-rig.test.mjs`.
 export const CAST_DRAFTS = Object.freeze({});
-export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER });
+export const CAST_PROFILES = Object.freeze({ otter: OTTER, deer: DEER, crane: CRANE });
