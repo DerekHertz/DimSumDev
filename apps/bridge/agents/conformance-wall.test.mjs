@@ -114,6 +114,42 @@ test("a turn the model did not make leaves its question unknown, not answered", 
   assert.equal(r.verdict, "no-go");
 });
 
+// ---- question 6 after hardening/01: the file tools outside the worktree are denied by rule, not asked ----------------
+// The recorded stream above is of the old behaviour: each outside call raised a request (ADR 0021 l.107). The bridge now
+// refuses them by rule, so the CLI raises no request, the tool result is an error, and the harness's "allow" answer never
+// gets the chance to write. These cases replay that shape over the same fixture. The live run (the Wall spike with the
+// production argv, worktree included) is human-verified.
+const denied = { error: true, text: "Permission to use the tool has been denied." };
+const denyOutside = (i) => {
+  for (const id of ["read-outside", "write-outside", "write-outside-allowed", "read-outside-allowed", "edit-outside"]) {
+    i.turns[id].requests = [];
+    i.turns[id].results = [denied];
+  }
+  i.disk.outsideAllowed = false;
+};
+
+test("question 6: a Read, a Write and an Edit outside the worktree that are refused with no request, and leave the disk alone, answer yes", () => {
+  const r = run(denyOutside);
+  assert.equal(r.answers.q6.answer, "yes");
+  for (const id of ["read-outside", "write-outside", "edit-outside"]) assert.ok(r.answers.q6.evidence.some((e) => e.startsWith(`${id}: NO request`)), id);
+});
+
+test("question 6: an outside call the CLI only asks about is no longer a yes", () => {
+  const r = run(); // the recorded run: each outside call raised "Path is outside allowed working directories"
+  assert.equal(r.answers.q6.answer, "no");
+});
+
+test("question 6: a denied-looking run that still wrote or changed a file outside the worktree is a no", () => {
+  assert.equal(run((i) => { denyOutside(i); i.disk.outsideWrite = true; }).answers.q6.answer, "no", "the denied write appeared");
+  assert.equal(run((i) => { denyOutside(i); i.disk.outsideAllowed = true; }).answers.q6.answer, "no", "the write the harness would allow appeared");
+  assert.equal(run((i) => { denyOutside(i); i.disk.outsideReadText = `${p.outBody}\n`; }).answers.q6.answer, "no", "the outside file was edited");
+});
+
+test("question 6: a Read that was not refused, only left unasked, is a no", () => {
+  const r = run((i) => { denyOutside(i); i.turns["read-outside"].results = [{ error: false, text: p.mark }]; });
+  assert.equal(r.answers.q6.answer, "no");
+});
+
 // ---- question 5: the Limits spike, replayed over fixtures/limits.jsonl and limits-results.json ---------------
 
 const limitsRecorded = JSON.parse(fixture("limits-results.json"));
