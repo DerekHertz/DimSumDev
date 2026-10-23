@@ -69,3 +69,19 @@ test("the code reviewer claims a ticket on the board and its verdict counts", as
     await fx.cleanup();
   }
 });
+
+test("board resolve works with no orchestrator role: the chief of staff claims and resolves (team-and-den-ux/57)", async () => {
+  const fx = await makeBoardFixture();
+  try {
+    const claim = await runBoard(["claim", fx.ticketRelPath, "chief-of-staff"], { cwd: fx.worktree });
+    assert.equal(claim.code, 0, claim.stderr);
+    const released = await runBoard(["release", fx.ticketRelPath, "--status", "in-review", "--force", "--reason", "fixture has no handoff"], { cwd: fx.worktree });
+    assert.equal(released.code, 0, released.stderr);
+    const resolved = await runBoard(["resolve", fx.ticketRelPath, "--pr", "1"], { cwd: fx.worktree });
+    assert.equal(resolved.code, 0, resolved.stderr);
+    const rows = readFileSync(eventsPath(fx.root), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    assert.ok(rows.some((e) => e.op === "resolve" || e.to_status === "resolved"), JSON.stringify(rows.at(-1)));
+  } finally {
+    await fx.cleanup();
+  }
+});
