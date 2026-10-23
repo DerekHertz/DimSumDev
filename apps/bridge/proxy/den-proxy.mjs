@@ -1,5 +1,6 @@
 // hardening/11: the proxy as a process, the way the container runs it: `node /den-proxy/den-proxy.mjs`. Config is env, none of it secret.
 //   DEN_PROXY_TOKEN_FILE (required)  DEN_PROXY_ROLES (required, JSON { role: [hosts] })  DEN_PROXY_BASE_PORT (8080)
+//   DEN_PROXY_SECRETS_FILE (required: the secret-to-role map; DEN_PROXY_ALLOW_NO_SECRETS=1 is the test-only way to run without)
 //   DEN_PROXY_LISTEN_HOST (0.0.0.0)  DEN_PROXY_API_ORIGIN (https://api.anthropic.com)
 // stdout is JSON lines: { event: "listening", ports } first, then one line per log entry (a refusal is the entry startProxies logs).
 import { startProxies } from "./proxy.mjs";
@@ -10,6 +11,7 @@ const env = process.env;
 const fail = (message) => { process.stderr.write(`den-proxy: ${message}\n`); process.exit(1); };
 if (!env.DEN_PROXY_TOKEN_FILE) fail("DEN_PROXY_TOKEN_FILE is not set");
 if (!env.DEN_PROXY_ROLES) fail("DEN_PROXY_ROLES is not set");
+if (!env.DEN_PROXY_SECRETS_FILE && env.DEN_PROXY_ALLOW_NO_SECRETS !== "1") fail("DEN_PROXY_SECRETS_FILE is not set: without role secrets the proxy cannot tell roles apart");
 let roles;
 try { roles = JSON.parse(env.DEN_PROXY_ROLES); } catch { fail("DEN_PROXY_ROLES is not valid JSON"); }
 
@@ -20,7 +22,7 @@ const fleet = await startProxies({
   listenHost: env.DEN_PROXY_LISTEN_HOST || "0.0.0.0",
   apiOrigin: env.DEN_PROXY_API_ORIGIN || undefined,
   tokenSource: fileTokenSource({ file: env.DEN_PROXY_TOKEN_FILE }),
-  secretSource: env.DEN_PROXY_SECRETS_FILE ? fileSecretSource({ file: env.DEN_PROXY_SECRETS_FILE }) : undefined, // unset: no role secret is required
+  secretSource: env.DEN_PROXY_SECRETS_FILE ? fileSecretSource({ file: env.DEN_PROXY_SECRETS_FILE }) : undefined, // unset only under the test hatch: no role secret is required
   log: out,
 });
 out({ event: "listening", ports: fleet.ports });

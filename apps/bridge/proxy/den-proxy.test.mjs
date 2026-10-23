@@ -65,6 +65,7 @@ describe("den-proxy.mjs as a process", () => {
         PATH: process.env.PATH,
         DEN_PROXY_TOKEN_FILE: path.join(tokenDir, TOKEN_FILE_NAME), // the directory does not exist yet: the bridge has not written a token
         DEN_PROXY_ROLES: JSON.stringify({ developer: ["granted.test"], qa: [] }),
+        DEN_PROXY_ALLOW_NO_SECRETS: "1", // the test-only hatch: these tests are about the allowlist, not role secrets
         DEN_PROXY_BASE_PORT: "0",
         DEN_PROXY_LISTEN_HOST: "127.0.0.1",
         DEN_PROXY_API_ORIGIN: `http://127.0.0.1:${upstreamPort}`,

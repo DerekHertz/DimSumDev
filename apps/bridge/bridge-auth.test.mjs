@@ -45,6 +45,8 @@ const BODIES = {
   "POST /tickets/transfer": { real: { ref: `${FEATURE}/08-plain`, owner: "jiao" }, bogus: { ref: `${FEATURE}/08-plain`, owner: "nobody" } },
   "POST /admission/runtime": { real: { allow: "both" }, bogus: { allow: "none" } },
   "POST /admission/reconcile": { real: { id: "i-crashed00000000", outcome: "ended" }, bogus: { id: "i-none", outcome: "ended" } },
+  // hardening/16: the bridge below has a stand-in proxy that knows the accounts a and b.
+  "POST /accounts/active": { real: { name: "a" }, bogus: { name: "nobody" } },
   "POST /projects/active": { real: { slug: "den" }, bogus: { slug: "nope" } },
   "POST /requests": {
     real: { kind: "dispatch-approve", ref: DISPATCH_REF },
@@ -206,7 +208,7 @@ beforeEach(async () => {
   // codex-residents/05: an attempt a crash left unconfirmed, for the reconcile row.
   await mkdir(path.join(fx.root, ".scratch", "_run"), { recursive: true });
   await writeFile(path.join(fx.root, ".scratch", "_run", "admission.jsonl"), `${JSON.stringify({ event: "intent", id: "i-crashed00000000", ref: `${FEATURE}/99-crashed`, project: "den", runtime: "claude", entry: "start" })}\n`);
-  bridge = await startBridge({ root: fx.root, port: 0, auth: { launchCode: CODE }, gitHost, denState, checks, ...(fake ? { runtime: fake } : {}) });
+  bridge = await startBridge({ root: fx.root, port: 0, auth: { launchCode: CODE }, gitHost, denState, checks, proxy: { start: async () => {}, stop: async () => {}, status: async () => ({ active: "a", accounts: ["a", "b"] }), switchAccount: async (name) => { if (!["a", "b"].includes(name)) throw new Error("no such account"); } }, ...(fake ? { runtime: fake } : {}) });
   token = await login(bridge);
 });
 afterEach(async () => {
