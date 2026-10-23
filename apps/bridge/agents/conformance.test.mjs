@@ -374,7 +374,7 @@ test("parseCli: defaults run every spike; --spike selects; bad input is an error
 });
 
 test("SPIKES describe every spike with a turn estimate", () => {
-  assert.deepEqual(Object.keys(SPIKES), ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S4b", "S6b", "S3b", "Live", "Wall", "Limits"]);
+  assert.deepEqual(Object.keys(SPIKES), ["S1", "S2", "S3", "S4", "S5", "S6", "S7", "S8", "S4b", "S6b", "S3b", "Live", "Wall", "Limits", "Container"]);
   for (const s of Object.values(SPIKES)) {
     assert.equal(typeof s.title, "string");
     assert.ok(Number.isInteger(s.turns) && s.turns > 0);
