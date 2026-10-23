@@ -20,6 +20,23 @@ export const PUBLISH_BRANCH_RE = new RegExp(`^${WORKSPACE_BRANCH_PREFIX}/[a-z0-9
 
 const COMMIT_RE = /^[0-9a-f]{40,64}$/;
 
+// hardening/10 (hardening/13 security, M): an agent can rewrite its worktree's `.git` file, its admin dir's `commondir` and any
+// `.gitattributes`. The bridge's git in a worktree therefore never reads them: GIT_DIR, GIT_COMMON_DIR and GIT_WORK_TREE come from
+// the worktree's path alone (<root>/.claude/worktrees/<name>, admin dir <root>/.git/worktrees/<name>, as `worktree add` made it),
+// and attributes come from the empty tree, so no filter, textconv or diff driver is selected. A sha256 repository rejects the
+// sha1 empty tree, so git fails closed there.
+const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+/** -> { args, env } for host git in the agent worktree `dir`: args go before the subcommand. Throws on a dir the bridge did not make. */
+export function worktreeGit(dir) {
+  const parent = typeof dir === "string" && path.isAbsolute(dir) ? path.dirname(dir) : "";
+  if (!parent.endsWith(`${path.sep}${WORKTREES_DIR}`)) throw new TypeError("workspace: not an agent worktree path");
+  const mainGit = path.join(parent.slice(0, -WORKTREES_DIR.length - 1), ".git");
+  return {
+    args: ["-C", dir, ...SAFE_GIT, `--attr-source=${EMPTY_TREE}`, "-c", "core.attributesFile=/dev/null"],
+    env: { ...process.env, GIT_DIR: path.join(mainGit, "worktrees", path.basename(dir)), GIT_COMMON_DIR: mainGit, GIT_WORK_TREE: dir, GIT_ATTR_NOSYSTEM: "1" },
+  };
+}
+
 /** { worktree, branch } for one agent: the worktree's repo-relative path and its branch. Throws on a bad ref or id. */
 export function workspaceNames({ ref, agentId } = {}) {
   if (typeof ref !== "string" || !REF_RE.test(ref)) throw new TypeError("workspace: ref must look like <feature>/<NN>-<slug>");
@@ -34,12 +51,16 @@ export function workspaceNames({ ref, agentId } = {}) {
 // exec is a test seam with execFile's promise shape: (file, args) -> Promise<{ stdout }>.
 export function createWorkspaces(root, { exec = execFileP } = {}) {
   const git = (...args) => exec("git", ["-C", root, ...args]);
-  const out = async (dir, ...args) => String((await exec("git", ["-C", dir, ...SAFE_GIT, ...args])).stdout).trim();
+  const wt = (dir, ...args) => {
+    const { args: pinned, env } = worktreeGit(dir);
+    return exec("git", [...pinned, ...args], { env });
+  };
+  const out = async (dir, ...args) => String((await wt(dir, ...args)).stdout).trim();
   async function moveUp(dir) {
-    const [here, main] = [await out(dir, "rev-parse", "HEAD"), await out(root, "rev-parse", "HEAD")];
+    const [here, main] = [await out(dir, "rev-parse", "HEAD"), String((await git("rev-parse", "HEAD")).stdout).trim()];
     if (here === main || (await out(dir, "status", "--porcelain", "--untracked-files=no")) !== "") return;
     const behind = await exec("git", ["-C", root, "merge-base", "--is-ancestor", here, main]).then(() => true, () => false);
-    if (behind) await exec("git", ["-C", dir, ...SAFE_GIT, "checkout", "-q", "--detach", main]);
+    if (behind) await wt(dir, "checkout", "-q", "--detach", main);
   }
   return {
     // -> { dir, worktree, branch }: `dir` is the resolved absolute path the child runs in. `branch` is only the name to publish to.
@@ -52,7 +73,7 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
     },
     // The commit a worktree is at now. -> a full commit id.
     async head({ dir } = {}) {
-      const sha = String((await exec("git", ["-C", dir, ...SAFE_GIT, "rev-parse", "HEAD"])).stdout).trim();
+      const sha = await out(dir, "rev-parse", "HEAD");
       if (!COMMIT_RE.test(sha)) throw new Error("workspace: the worktree has no commit");
       return sha;
     },
@@ -61,8 +82,7 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
     // den-mvp outcome 4: a meeting run's note (the topic, the takes) is written the same way, as .den/meeting.md.
     async brief({ dir } = {}, text, name = "findings.md") {
       if (!BRIEF_NAMES.includes(name)) throw new TypeError("workspace: unknown note name");
-      const common = String((await exec("git", ["-C", dir, ...SAFE_GIT, "rev-parse", "--path-format=absolute", "--git-common-dir"])).stdout).trim();
-      const exclude = path.join(common, "info", "exclude");
+      const exclude = path.join(worktreeGit(dir).env.GIT_COMMON_DIR, "info", "exclude");
       const current = await readFile(exclude, "utf8").catch(() => "");
       if (!current.split("\n").includes(".den/")) {
         await mkdir(path.dirname(exclude), { recursive: true });
@@ -88,7 +108,7 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
       const resolved = await Promise.all(listed.map((p) => realpath(p).catch(() => p)));
       if (!resolved.includes(dir)) throw new Error("workspace: the earlier run's directory is no longer a worktree of this repository");
       if (catchUp) await moveUp(dir);
-      const base = String((await exec("git", ["-C", dir, ...SAFE_GIT, "rev-parse", "HEAD"])).stdout).trim();
+      const base = await out(dir, "rev-parse", "HEAD");
       return { dir, worktree, branch, base, reopened: true };
     },
     // Creates `branch` in the main checkout at the worktree's current HEAD (the agent's final commit). Never moves a branch that
@@ -97,7 +117,7 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
     async publish({ dir, branch, base } = {}) {
       if (typeof branch !== "string" || !PUBLISH_BRANCH_RE.test(branch)) throw new TypeError("workspace: not a den agent branch name");
       if (typeof dir !== "string" || dir === "") throw new TypeError("workspace: publish needs the worktree directory");
-      const sha = String((await exec("git", ["-C", dir, ...SAFE_GIT, "rev-parse", "HEAD"])).stdout).trim();
+      const sha = await out(dir, "rev-parse", "HEAD");
       if (!COMMIT_RE.test(sha)) throw new Error("workspace: the worktree has no commit to publish");
       if (base !== undefined && sha === base) return null;
       await git("branch", branch, sha);
@@ -118,9 +138,9 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
         const status = await out(dir, "status", "--porcelain", "--untracked-files=all", "--", ".", ":(exclude).agents/skills", ":(exclude).den");
         const author = ["-c", "user.name=den", "-c", "user.email=den@localhost"];
         if (status !== "") {
-          await exec("git", ["-C", dir, ...SAFE_GIT, "checkout", "-q", "-b", wip]);
-          await exec("git", ["-C", dir, ...SAFE_GIT, "add", "-A", "--", ".", ":(exclude).agents/skills", ":(exclude).den"]);
-          await exec("git", ["-C", dir, ...SAFE_GIT, ...author, "commit", "-q", "--no-verify", "-m", `den: unsaved work of ${ref} (${short})`]);
+          await wt(dir, "checkout", "-q", "-b", wip);
+          await wt(dir, "add", "-A", "--", ".", ":(exclude).agents/skills", ":(exclude).den");
+          await wt(dir, ...author, "commit", "-q", "--no-verify", "-m", `den: unsaved work of ${ref} (${short})`);
           saved = wip;
         } else {
           const here = await out(dir, "rev-parse", "HEAD");
@@ -132,6 +152,10 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
             saved = wip;
           }
         }
+        // `worktree remove` checks that the worktree's `.git` points back to its admin dir; the agent may have rewritten it.
+        const dotGit = path.join(dir, ".git");
+        await rm(dotGit, { recursive: true, force: true });
+        await writeFile(dotGit, `gitdir: ${worktreeGit(dir).env.GIT_DIR}\n`, { flag: "wx" });
         await git("worktree", "remove", "--force", dir);
         removed = true;
       }
