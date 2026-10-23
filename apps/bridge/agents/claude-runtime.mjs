@@ -153,7 +153,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       // The child is inside its resource group, limits read back, before this resolves; a host that cannot do that starts nothing.
       let launched;
       try {
-        launched = await launcher.launch({ slotClass: slotClassOf(role), id: runId ?? sessionId, bin, args, cwd, env: buildClaudeEnv(env), container: { role, sessionId, mainGit, ticketFile: isTicketFilePath(ticketFile) ? ticketFile : undefined, grants: (ceiling.writePaths ?? []).map((p) => (p.startsWith("~/") && home !== undefined ? `${home}${p.slice(1)}` : p)) } });
+        launched = await launcher.launch({ slotClass: slotClassOf(role), id: runId ?? sessionId, bin, args, cwd, env: buildClaudeEnv(env), ...(launcher.container ? { container: { role, sessionId, mainGit, ticketFile: isTicketFilePath(ticketFile) ? ticketFile : undefined, grants: (ceiling.writePaths ?? []).map((p) => (p.startsWith("~/") && home !== undefined ? `${home}${p.slice(1)}` : p)) } } : {}) });
       } catch (err) {
         removeConfig();
         throw err;
