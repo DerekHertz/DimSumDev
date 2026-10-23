@@ -1,6 +1,9 @@
 // hardening/10: the container launcher takes the place of the resource-group launcher when the flag is on; docker and spawn are injected.
 import assert from "node:assert/strict";
 import { EventEmitter } from "node:events";
+import { mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import test from "node:test";
 import { createContainerLauncher } from "./container.mjs";
 import { EnforcementError, LIMITS } from "./resource-group.mjs";
@@ -9,7 +12,10 @@ const run = { slotClass: "worker", id: "run-1", bin: "claude", cwd: "/h/repo/.cl
   args: ["-p", "--settings", JSON.stringify({ permissions: {}, sandbox: { enabled: true } })],
   container: { role: "developer", sessionId: "7f1f6f0e-0000-4000-8000-000000000001", mainGit: "/h/repo/.git" } };
 
-function setup({ proxyUp = true, running = true, oom = { killed: false }, internal = "true" } = {}) {
+const SESSIONS = mkdtempSync(join(tmpdir(), "den-sessions-"));
+test.after(() => rmSync(SESSIONS, { recursive: true, force: true }));
+
+function setup({ proxyUp = true, running = true, oom = { killed: false }, internal = "true", sessionsDir = SESSIONS } = {}) {
   const calls = [];
   const spawned = [];
   const docker = async (args) => {
@@ -29,7 +35,7 @@ function setup({ proxyUp = true, running = true, oom = { killed: false }, intern
   const minted = [];
   const retired = [];
   const proxy = { ports: { developer: 8080 }, mintRunSecret: async ({ role }) => (minted.push(role), { secret: "s".repeat(32) }), retireRunSecret: async (s) => { retired.push(s); } };
-  return { calls, spawned, minted, retired, launcher: createContainerLauncher({ env: { PATH: "/usr/bin" }, image: "den-agent:0123456789ab", docker, spawn, proxy, limits: LIMITS, startWaitMs: 50 }) };
+  return { calls, spawned, minted, retired, launcher: createContainerLauncher({ env: { PATH: "/usr/bin" }, image: "den-agent:0123456789ab", docker, spawn, proxy, limits: LIMITS, startWaitMs: 50, sessionsDir }) };
 }
 
 test("launch starts docker with the class limits, the proxy env and the run secret, and returns a child and a group", async () => {
@@ -119,4 +125,37 @@ test("the run secret is retired when the container exits, and when the start is 
   const failed = setup({ running: false });
   await assert.rejects(failed.launcher.launch(run), /did not start/);
   assert.deepEqual(failed.retired, ["s".repeat(32)]);
+});
+
+test("a follow-up mounts the same persistent session-store folder as the first run, at the CLI's store under HOME", async () => {
+  const { mkdtemp, rm, stat, realpath } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const pathMod = await import("node:path");
+  const sessionsDir = pathMod.join(await realpath(await mkdtemp(pathMod.join(tmpdir(), "den-sess-"))), "agent-sessions");
+  try {
+    const sid = run.container.sessionId;
+    const store = `${sessionsDir}/${sid}:/root/.claude/projects:rw`;
+    const first = setup({ sessionsDir });
+    await first.launcher.launch({ ...run, args: [...run.args, "--session-id", sid] });
+    const follow = setup({ sessionsDir });
+    await follow.launcher.launch({ ...run, id: "run-2", args: [...run.args, "--resume", sid] });
+    for (const { spawned } of [first, follow]) {
+      const argv = spawned[0].argv;
+      assert.ok(argv.some((a, i) => a === store && argv[i - 1] === "-v"), "the session store is mounted");
+      assert.equal(argv.filter((a) => a.includes(sessionsDir)).length, 1, "only that session's folder is mounted");
+    }
+    assert.equal((await stat(`${sessionsDir}/${sid}`)).mode & 0o777, 0o700);
+    const other = setup({ sessionsDir });
+    await other.launcher.launch({ ...run, container: { ...run.container, sessionId: "7f1f6f0e-0000-4000-8000-000000000002" } });
+    assert.ok(!other.spawned[0].argv.some((a) => a.startsWith(`${sessionsDir}/${sid}`)), "another session gets its own folder");
+  } finally {
+    await rm(pathMod.dirname(sessionsDir), { recursive: true, force: true });
+  }
+});
+
+test("a session id that is not a plain UUID is refused before anything is minted", async () => {
+  const { launcher, minted, spawned } = setup();
+  await assert.rejects(launcher.launch({ ...run, container: { ...run.container, sessionId: "../x" } }), TypeError);
+  assert.deepEqual(minted, []);
+  assert.deepEqual(spawned, []);
 });

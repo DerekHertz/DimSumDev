@@ -1202,7 +1202,7 @@ if (startedDirectly()) {
   if (process.env.DEN_AGENT_CONTAINERS === "1") {
     if (!image || !proxyService) throw new Error("DEN_AGENT_CONTAINERS=1 needs the agent image and the credential proxy: run npm run den:update");
     const { createContainerLauncher } = await import("./agents/container.mjs");
-    agentLauncher = createContainerLauncher({ env: process.env, image, docker: createDocker({ env: process.env }), proxy: proxyService });
+    agentLauncher = createContainerLauncher({ env: process.env, image, docker: createDocker({ env: process.env }), proxy: proxyService, sessionsDir: path.join(denState, "agent-sessions") });
   }
   const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, proxy, runtime: createClaudeRuntime({ env: process.env, launcher: agentLauncher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
   console.log(`bridge listening on ${bridge.url} (root ${root})`);
