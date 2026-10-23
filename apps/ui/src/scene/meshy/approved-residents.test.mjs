@@ -5,7 +5,9 @@ import {routeLength} from './daily-routines.mjs';
 
 test('55-C/E/F/G: assembled residents reach a supported activity, return to their owned desk and stop under live work',()=>{
  const f=approvedFixture();try{
-  f.tick(24);const visitors=[...f.actors.actors.values()].filter(a=>a.outing?.stage==='visit');assert.ok(visitors.length);
+  f.tick(2.1);const departing=[...f.actors.actors.values()].find(a=>a.outing);assert.ok(departing);
+  assert.equal(f.actors.places.get('approach:'+departing.outing.spot.id)?.owner,departing.identity,'the short supported approach is reserved before travel');
+  f.tick(21.9);const visitors=[...f.actors.actors.values()].filter(a=>a.outing?.stage==='visit');assert.ok(visitors.length);
   for(const a of visitors)assert.ok(f.den.walkWorld.supported(a,a.panda.model.position,a.yaw),a.id+' planted at activity');
   const a=visitors[0],home=a.home.clone();
   f.actors.applyLive([{role:a.role,runtime:a.runtime,ref:'test/55',agentId:'working-55',state:'working'}]);

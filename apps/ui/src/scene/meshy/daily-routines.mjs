@@ -33,12 +33,21 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
  const clear=(a,from,to)=>den.routineClear?den.routineClear(a,from,to):den.walkWorld.navigation.groundAt(to.x,to.z,to.y,a.envelope.radius,a.envelope.height)!==null;
  const lease=(a,spot)=>{
   if(reservations.has(spot.id))return false;
-  if(registry){registry.define({id:spot.id,kind:spot.kind==='friend'?'visitor':'leisure',position:spot.position});const yaw=Math.atan2(spot.face.x-spot.position.x,spot.face.z-spot.position.z);if(!registry.reserve(spot.id,a.identity,{...a.envelope,yaw}))return false;}
+  if(registry){
+   const destination=registry.define({id:spot.id,kind:spot.kind==='friend'?'visitor':'leisure',position:spot.position});if(!destination.owner)destination.position={...spot.position};
+   const yaw=Math.atan2(spot.face.x-spot.position.x,spot.face.z-spot.position.z);if(!registry.reserve(spot.id,a.identity,{...a.envelope,yaw}))return false;
+   const approach=spot.approachPath?.[0];
+   if(approach){
+    const id='approach:'+spot.id,place=registry.define({id,kind:'leisure',position:approach});if(!place.owner)place.position={...approach};
+    if(!registry.reserve(id,a.identity,{...a.envelope,yaw:approach.yaw})){registry.release(spot.id,a.identity);return false;}
+    a.approachPlace=id;
+   }
+  }
   reservations.set(spot.id,a.id);return true;
  };
  const release=a=>{const spot=a.outing?.spot;if(spot&&reservations.get(spot.id)===a.id){reservations.delete(spot.id);registry?.release(spot.id,a.identity);}if(a.outing?.host){a.outing.host.hosting=null;a.outing.host.yaw=null;}};
  const cooldown=a=>{a.nextOuting=time+jitter(120,240);};
- function arrive(a){release(a);a.panda.model.position.copy(a.home);a.outing=null;a.path=null;a.yaw=null;cooldown(a);registry?.occupy(a.homePlace,a.identity);}
+ function arrive(a){release(a);if(a.approachPlace)registry?.release(a.approachPlace,a.identity);a.approachPlace=null;a.panda.model.position.copy(a.home);a.outing=null;a.path=null;a.yaw=null;cooldown(a);registry?.occupy(a.homePlace,a.identity);}
  function returnHome(a){
   if(!a.outing)return;const group=a.outing.group;release(a);a.outing={stage:'return',spot:null,elapsed:0,wait:0,replans:0,group:null};a.path=plan(a,a.home);
   if(group)for(const b of actors.values())if(b!==a&&b.outing?.group===group&&b.outing.stage!=='return')returnHome(b);
@@ -67,7 +76,7 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
      const partner=all.find(b=>b!==a&&idle(b));if(!partner||count>1)continue;
      const second=(den.routineSpots||[]).find(s=>s.group===spot.group&&s.id!==spot.id&&!reservations.has(s.id));if(!second)continue;
      const other=plan(partner,second.position);if(!other.length||routeLength(partner.panda.model.position,other)>60)continue;
-     if(!lease(a,spot))continue;if(!lease(partner,second)){reservations.delete(spot.id);registry?.release(spot.id,a.identity);continue;}
+     if(!lease(a,spot))continue;if(!lease(partner,second)){reservations.delete(spot.id);registry?.release(spot.id,a.identity);if(a.approachPlace)registry?.release(a.approachPlace,a.identity);a.approachPlace=null;continue;}
      const group='outing:'+a.id+':'+time;begin(a,spot,path,group);begin(partner,second,other,group);return;
     }
     if(lease(a,spot)){begin(a,spot,path);return;}
@@ -116,5 +125,5 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
   }
   if(time>=nextDeparture){nextDeparture=time+4;depart();}
  }
- return {update,reservations,get time(){return time;},cancel(a){if(a.outing)returnHome(a);},transfer(a){const group=a.outing?.group;release(a);a.outing=null;a.path=null;if(group)for(const b of actors.values())if(b.outing?.group===group)returnHome(b);},setHidden(value){if(hidden&&!value)for(const a of actors.values())if(a.outing)returnHome(a);hidden=!!value;},dispose(){if(disposed)return;disposed=true;for(const a of actors.values()){release(a);a.outing=null;a.path=null;a.hosting=null;}reservations.clear();}};
+ return {update,reservations,get time(){return time;},cancel(a){if(a.outing)returnHome(a);},transfer(a){const group=a.outing?.group;release(a);if(a.approachPlace)registry?.release(a.approachPlace,a.identity);a.approachPlace=null;a.outing=null;a.path=null;if(group)for(const b of actors.values())if(b.outing?.group===group)returnHome(b);},setHidden(value){if(hidden&&!value)for(const a of actors.values())if(a.outing)returnHome(a);hidden=!!value;},dispose(){if(disposed)return;disposed=true;for(const a of actors.values()){release(a);if(a.approachPlace)registry?.release(a.approachPlace,a.identity);a.approachPlace=null;a.outing=null;a.path=null;a.hosting=null;}reservations.clear();}};
 }
