@@ -120,8 +120,8 @@ test('a board-bound panda keeps its working details even before it has a bridge 
 // card.last = { state, ref, label, reply, cost, costExact } for a panda whose newest agent has ended, else null.
 // cost is the badge text made from the agent's costUsd (the CLI's own figure); costExact is that figure in full.
 const viewer = { x: 0, z: 0, yaw: 0 };
-const ended = (over = {}) => ({ id: 'c-old', ref: 'den/07-scout', role: 'scout', state: 'done', reply: 'Counted 12 baskets.', costUsd: 0.34, ...over });
-const scout = (agent) => ({ id: 'scout', name: 'Bo', role: 'scout', team: 'Steamers', position: { x: 0, z: -2 }, ...(agent ? { agent } : {}) });
+const ended = (over = {}) => ({ id: 'c-old', ref: 'den/07-scout', role: 'sre', state: 'done', reply: 'Counted 12 baskets.', costUsd: 0.34, ...over });
+const scout = (agent) => ({ id: 'scout', name: 'Bo', role: 'sre', team: 'Steamers', position: { x: 0, z: -2 }, ...(agent ? { agent } : {}) });
 
 test('costLabel reads the reported cost to two figures and says it is an API-equivalent', () => {
   assert.equal(costLabel(0.34), '≈34¢ API-equiv');

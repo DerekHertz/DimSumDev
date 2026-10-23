@@ -34,8 +34,8 @@ const TICKET = { ref: "f/05-target" };
 const run = (over) => need("runState")({ capacity: cap([]), ticket: TICKET, inflight: false, steer: READY, ...over });
 
 describe("ROLE_OPTIONS", () => {
-  test("lists all nine roles, the six earlier ones first and in their old order", () => {
-    assert.deepEqual(need("ROLE_OPTIONS"), ["orchestrator", "architect", "product", "designer", "scout", "herald", "developer", "qa", "security"]);
+  test("lists the seven den roles, scout and herald retired (team-and-den-ux/57)", () => {
+    assert.deepEqual(need("ROLE_OPTIONS"), ["orchestrator", "architect", "product", "designer", "developer", "qa", "security"]);
   });
 
   test("offers developer, qa and security: a direct start no longer needs the orchestrator (den-mvp outcome 1)", () => {
@@ -266,37 +266,36 @@ describe("the ready list shows every frontier ticket", () => {
   });
 });
 
-// den-mvp outcome 1 (spec section 2): two worker slots, plus one reserved for Bao (the orchestrator) and one for a scout.
+// team-and-den-ux/57: two worker slots, plus one reserved for Bao; the scout slot is retired.
 describe("reserved slots", () => {
   const snap = (agents, holders = []) => ({
-    capacity: { max: 2, cap: 4 },
+    capacity: { max: 2, cap: 3 },
     agents,
     tickets: holders.map((ref) => ({ ref, holder: "someone" })),
   });
   const live = (ref, role) => ({ id: `c-${ref}`, ref, role, state: "working" });
 
-  test("Bao's and a scout's agents are not worker load, even when they hold their ticket's lock", () => {
-    const c = need("capacityFromSnapshot")(snap([live("f/01-a", "orchestrator"), live("f/02-b", "scout")], ["f/01-a", "f/02-b"]));
+  test("Bao's agents are not worker load, even when they hold their ticket's lock", () => {
+    const c = need("capacityFromSnapshot")(snap([live("f/01-a", "orchestrator")], ["f/01-a"]));
     assert.deepEqual({ load: c.load, live: c.live, room: c.room }, { load: 0, live: 0, room: 2 });
-    assert.deepEqual(c.reserved, { bao: { max: 1, refs: ["f/01-a"] }, scout: { max: 1, refs: ["f/02-b"] } });
+    assert.deepEqual(c.reserved, { bao: { max: 1, refs: ["f/01-a"] } });
   });
 
-  test("a second scout is refused with the slot's reason while a worker role may still run", () => {
-    const capacity = need("capacityFromSnapshot")(snap([live("f/02-b", "scout")]));
+  test("a second Bao run is refused with the slot's reason while a worker role may still run", () => {
+    const capacity = need("capacityFromSnapshot")(snap([live("f/01-a", "orchestrator")]));
     const ticket = { ref: "f/03-c" };
     const steer = { state: "ok" };
-    assert.deepEqual(need("runState")({ capacity, ticket, steer, role: "scout" }), { enabled: false, reason: "The scout slot is in use: f/02-b" });
+    assert.deepEqual(need("runState")({ capacity, ticket, steer, role: "chief-of-staff" }), { enabled: false, reason: "The Bao slot is in use: f/01-a" });
     assert.equal(need("runState")({ capacity, ticket, steer, role: "developer" }).enabled, true);
-    assert.equal(need("runState")({ capacity, ticket, steer, role: "orchestrator" }).enabled, true);
   });
 
-  test("full worker slots do not block Bao or a scout, and a reserved slot is never a third worker", () => {
+  test("full worker slots do not block Bao, and the retired scout role takes a worker slot", () => {
     const capacity = need("capacityFromSnapshot")(snap([live("f/01-a", "developer"), live("f/02-b", "qa")]));
     const ticket = { ref: "f/03-c" };
     const steer = { state: "ok" };
     assert.equal(capacity.room, 0);
     assert.equal(need("runState")({ capacity, ticket, steer, role: "architect" }).enabled, false);
     assert.equal(need("runState")({ capacity, ticket, steer, role: "orchestrator" }).enabled, true);
-    assert.equal(need("runState")({ capacity, ticket, steer, role: "scout" }).enabled, true);
+    assert.equal(need("runState")({ capacity, ticket, steer, role: "scout" }).enabled, false);
   });
 });
