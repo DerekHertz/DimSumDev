@@ -1,5 +1,6 @@
 {
   "orchestrator": { "write": "none", "hosts": [] },
+  "chief-of-staff": { "write": "none", "hosts": [] },
   "scout": { "write": "none", "hosts": [] },
   "product": { "write": "worktree", "hosts": [] },
   "architect": { "write": "worktree", "hosts": [] },

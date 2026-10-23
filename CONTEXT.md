@@ -37,7 +37,7 @@ The file that defines a role: `.claude/agents/<role>.md`.
 _Avoid_: Genome (the old name, ADR 0028), agent config
 
 **Owner**:
-The executive, Bao (Claude) or Jiao (Codex), that owns a ticket, project or task, recorded as `owner: bao|jiao`. It is the root of the task's tree and does the last review (ADR 0029).
+The chief of staff, Bao (Claude) or Jiao (Codex), that owns a ticket, project or task, recorded as `owner: bao|jiao`. It is the root of the task's tree and does the last review (ADR 0029).
 _Avoid_: Lead, assignee
 
 **Code reviewer**:
@@ -60,8 +60,12 @@ _Avoid_: Docs-writer (the scenery panda's old name), herald (retiring)
 One running instance of a role, working one ticket, usually in its own git worktree.
 _Avoid_: Cell (the old name, ADR 0028), worker, bot
 
+**Chief of staff**:
+The one executive role (`.claude/agents/chief-of-staff.md`). It plans and keeps the work order, writes rundowns and decision briefs, reads and writes the board, starts the worker roles as children of its tree, and does the last review on what it owns. It is second in command to the user: the user sets direction, it runs the work (it may reorder tickets within goals, file tickets, reassign or stop agents, bounce work and merge green pull requests off the risk path) and keeps watch by events and by rhythm (a morning rundown, a weekly review). It acts nowhere past the wall or the user's approval points. Bao is its Claude instance and Jiao its Codex instance: peers, not two roles (ADR 0029).
+_Avoid_: Orchestrator (the retired role)
+
 **Bao**:
-The orchestrator's on-screen body: a large seated plush panda at the heart of the den. Walking up to Bao is talking to the orchestrator (ADR 0019).
+The chief of staff's Claude instance, and its on-screen body: a large seated plush panda at the heart of the den. Walking up to Bao is talking to the chief of staff (ADR 0019).
 _Avoid_: Mascot, avatar
 
 **Resident panda**:

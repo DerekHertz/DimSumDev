@@ -5,7 +5,7 @@
 // A reserved slot is never a third worker. Each class has its own hardware limits (limits.json, read by resource-group.mjs).
 export const SLOT_CLASSES = ["worker", "bao", "scout"];
 export const SLOTS = Object.freeze({ worker: 2, bao: 1, scout: 1 });
-export const slotClassOf = (role) => (role === "orchestrator" ? "bao" : role === "scout" ? "scout" : "worker");
+export const slotClassOf = (role) => (role === "orchestrator" || role === "chief-of-staff" ? "bao" : role === "scout" ? "scout" : "worker");
 export const MAX_CONCURRENT_AGENTS = SLOTS.worker; // max_concurrent_agents (ADR 0002): worker agents plus foreign claim locks
 export const SESSION_CAP = SLOTS.worker + SLOTS.bao + SLOTS.scout; // hard ceiling on live daemon-spawned sessions; a policy override can only lower it
 export const KILL_GRACE_MS = 5000; // between stdin close, SIGTERM and SIGKILL
@@ -13,7 +13,7 @@ export const SHUTDOWN_SPAWN_WAIT_MS = 3000; // organism-infra/143: how long shut
 export const USAGE_REFUSE_AT = 90; // five-hour usage percent at which dispatch is refused (ADR 0002 auto-pause)
 
 // The known roles (CLAUDE.md); the last four are ADR 0029's, on the worker slot until per-layer caps (codex-residents/11).
-export const ROLES = ["product", "architect", "orchestrator", "developer", "scout", "qa", "security", "designer", "herald", "code-reviewer", "release-manager", "sre", "technical-writer"];
+export const ROLES = ["product", "architect", "orchestrator", "chief-of-staff", "developer", "scout", "qa", "security", "designer", "herald", "code-reviewer", "release-manager", "sre", "technical-writer"];
 // mode reaches the prompt template, so it is an allowlist, never free text.
 export const MODES = ["specify", "verify", "review", "spec", "critique", "direction"];
 

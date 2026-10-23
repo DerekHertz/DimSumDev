@@ -196,10 +196,10 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     assert.equal(t.fake.spawns.length, 0);
   });
 
-  test("the policy table names the feature, the cap and the thirteen roles (ADR 0029)", () => {
+  test("the policy table names the feature, the cap and the fourteen roles (ADR 0029)", () => {
     assert.equal(DEN_FEATURE, "den");
     assert.equal(TASK_MAX_BYTES, 2048);
-    assert.equal(ROLES.length, 13);
+    assert.equal(ROLES.length, 14);
   });
 });
 
