@@ -181,3 +181,28 @@ test("the run is refused, and no secret minted, when a container of the same nam
   assert.deepEqual(minted, []);
   assert.deepEqual(spawned, []);
 });
+
+test("a governed path with a symlink anywhere under the worktree is refused before the mint, and nothing lands outside (security N1)", async () => {
+  const { mkdtemp, mkdir, readdir, rm, realpath, symlink } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const pathMod = await import("node:path");
+  const root = await realpath(await mkdtemp(pathMod.join(tmpdir(), "den-gov-link-")));
+  const outside = pathMod.join(root, "outside");
+  try {
+    for (const [link, governed] of [[".github", ".github/workflows"], [".claude", ".claude"]]) {
+      const wt = pathMod.join(root, `w-${link.slice(1)}`);
+      await mkdir(wt, { recursive: true });
+      await mkdir(outside, { recursive: true });
+      await symlink(outside, pathMod.join(wt, link));
+      const denyWrite = [`${wt}/${governed}`];
+      const { launcher, minted, spawned } = setup();
+      await assert.rejects(launcher.launch({ ...run, cwd: wt, args: ["-p", "--settings", JSON.stringify({ permissions: {}, sandbox: { filesystem: { denyWrite } } })] }),
+        (err) => err instanceof EnforcementError && /symlink/.test(err.message), `${governed} through a symlinked ${link} is refused`);
+      assert.deepEqual(minted, [], "no secret is minted");
+      assert.deepEqual(spawned, []);
+      assert.deepEqual(await readdir(outside), [], "nothing is created at the symlink's target");
+    }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});

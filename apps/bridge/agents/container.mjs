@@ -2,7 +2,8 @@
 // Pure: no docker call, no disk. The mounts are the boundary; a path not mounted is absent. Every mount is at its host path,
 // so paths in the stream and the handoff stay true on the host.
 import { spawn as spawnChild } from "node:child_process";
-import { chmod, lstat, mkdir, rmdir, unlink, writeFile } from "node:fs/promises";
+import { constants } from "node:fs";
+import { chmod, lstat, mkdir, open, rmdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import { isWorktreePath } from "./claude-adapter.mjs";
 import { agentProxyEnv } from "../proxy/container.mjs";
@@ -92,21 +93,44 @@ export function governedWrites(args, rw) {
   return [...new Set((Array.isArray(listed) ? listed : []).filter((p) => typeof p === "string" && isWorktreePath(p) && rw.some((d) => under(p, d))))];
 }
 
+const NOFOLLOW_CREATE = constants.O_WRONLY | constants.O_CREAT | constants.O_EXCL | constants.O_NOFOLLOW;
+const kind = (p) => lstat(p).then((s) => (s.isSymbolicLink() ? "link" : "there"), (e) => { if (e.code === "ENOENT") return "missing"; throw e; });
+
+/**
+ * Security N1: walk a governed path from its rw root (the worktree or a grant) down with lstat, and refuse it when the root or any
+ * component is a symlink: the bridge's writes and docker's bind source would follow it out of the worktree. With create, a missing
+ * component is made one level at a time (mkdir never follows a link it would create) and a missing leaf gets an empty read-only
+ * placeholder opened O_EXCL|O_NOFOLLOW. -> { dirs, file }: what it made.
+ */
+async function walkGoverned(p, roots, create) {
+  const root = roots.filter((r) => under(p, r)).sort((a, b) => b.length - a.length)[0];
+  const parts = path.relative(root, p).split("/").filter(Boolean);
+  const made = { dirs: [], file: null };
+  for (let i = 0, c = root; ; c = path.join(c, parts[i++])) {
+    const state = await kind(c);
+    if (state === "link") throw new EnforcementError(`the governed path ${p} goes through a symlink at ${c}`);
+    if (state === "missing") {
+      if (!create) return made;
+      if (i < parts.length) {
+        await mkdir(c);
+        made.dirs.push(c);
+      } else {
+        await (await open(c, NOFOLLOW_CREATE, 0o444)).close();
+        made.file = c;
+      }
+    }
+    if (i === parts.length) return made;
+  }
+}
+
 /**
  * Each governed path ready to be mounted read-only: an existing one as is; a missing one gets an empty read-only placeholder file
  * (the CLI sandbox does the same), with any parent dirs it needs. -> { paths, sweep }: sweep removes the placeholders still empty
- * and read-only, and the dirs made for them. Never throws from sweep.
+ * and read-only, and the dirs made for them. Never throws from sweep. Throws (EnforcementError) on a symlink, after undoing its work.
  */
-async function placeGoverned(paths) {
+async function placeGoverned(paths, roots) {
   const made = [];
   const dirs = [];
-  for (const p of paths) {
-    if (await lstat(p).then(() => true, () => false)) continue;
-    for (let d = path.dirname(p); !(await lstat(d).then(() => true, () => false)); d = path.dirname(d)) dirs.unshift(d);
-    await mkdir(path.dirname(p), { recursive: true });
-    await writeFile(p, "", { mode: 0o444, flag: "wx" });
-    made.push(p);
-  }
   const sweep = async () => {
     for (const p of made) {
       try {
@@ -114,8 +138,18 @@ async function placeGoverned(paths) {
         if (info.isFile() && info.size === 0 && (info.mode & 0o222) === 0) await unlink(p);
       } catch { /* gone */ }
     }
-    for (const d of [...new Set(dirs)].reverse()) await rmdir(d).catch(() => {});
+    for (const d of [...dirs].reverse()) await rmdir(d).catch(() => {});
   };
+  try {
+    for (const p of paths) {
+      const { dirs: newDirs, file } = await walkGoverned(p, roots, true);
+      dirs.push(...newDirs);
+      if (file) made.push(file);
+    }
+  } catch (err) {
+    await sweep();
+    throw err;
+  }
   return { paths, sweep };
 }
 
@@ -154,6 +188,9 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
       if (!ready.ok) throw new EnforcementError(ready.reason);
       // Security L5: a leftover container of this name would answer the start check while this run's `docker run` fails on the name.
       if (await up(containerName(id))) throw new EnforcementError(`a container named ${containerName(id)} is already running`);
+      const roots = [cwd, ...(container.grants ?? [])];
+      const wanted = governedWrites(args, roots);
+      for (const p of wanted) await walkGoverned(p, roots, false); // security N1: refuse a symlinked governed path before the mint
       const { secret } = await proxy.mintRunSecret({ role: container.role });
       // hardening/16 F4: a run's secret is good for that run only.
       const retire = () => Promise.resolve().then(() => proxy.retireRunSecret(secret)).catch(() => {});
@@ -167,7 +204,7 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
         const sessionStore = `${sessionsDir}/${container.sessionId}`;
         await mkdir(sessionStore, { recursive: true, mode: 0o700 });
         await chmod(sessionStore, 0o700);
-        governed = await placeGoverned(governedWrites(args, [cwd, ...(container.grants ?? [])]));
+        governed = await placeGoverned(wanted, roots);
         argv = containerRunArgs({
           image, name, worktree: cwd, mainGit: container.mainGit, ticketFile: container.ticketFile, mcpConfigFile: container.mcpConfigFile, grants: container.grants, readOnly: governed.paths, sessionStore, limits: limit, cliArgs: containerCliArgs(args),
           env: { HOME: "/root", CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" }, passEnv: Object.keys(secretEnv),
