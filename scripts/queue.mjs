@@ -132,16 +132,23 @@ export async function readQueue(root) {
 
 const MARKS = "①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳";
 const mark = (rank) => (rank >= 1 && rank <= MARKS.length ? MARKS[rank - 1] : `${rank}.`);
-const short = (ref) => ref;
+// Ticket text can come from an agent that read untrusted input, and plain output goes to a terminal: drop control bytes (ESC, BEL, C1) and cap the Question.
+const MAX_QUESTION = 200;
+const clean = (s) => String(s ?? "").replace(/[\u0000-\u001f\u007f-\u009f]/g, " ");
+const cleanQuestion = (s) => {
+  const chars = [...clean(s)];
+  return chars.length <= MAX_QUESTION ? chars.join("") : `${chars.slice(0, MAX_QUESTION - 1).join("").trimEnd()}…`;
+};
+const short = clean;
 
 // The kanban as four stacked sections (a column per bucket would not fit a narrow terminal).
 export function renderKanban(q) {
   const section = (heading, rows, line) => [`${heading} (${rows.length})`, ...(rows.length ? rows.map((r) => `  ${line(r)}`) : ["  -"]), ""];
   return [
-    ...section("READY", q.ready, (r) => `${r.rank ? `${mark(r.rank)} ` : ""}${short(r.ref)}  ${r.title}  P${r.priority}`),
-    ...section("IN FLIGHT", q.inFlight, (r) => `${short(r.ref)}  ${r.title}  [${r.role ?? "no lock"}${r.mode ? ` ${r.mode}` : ""}]`),
-    ...section("WAITING ON YOU", q.waitingOnUser, (r) => `${short(r.ref)}  ${r.title}${r.noQuestion ? "  [no Question]" : r.question ? `\n      ? ${r.question}` : ""}`),
-    ...section("BLOCKED", q.blocked, (r) => `${short(r.ref)}  ${r.title}${r.blockedBy.length ? `  <- ${r.blockedBy.map(short).join(", ")}` : ""}`),
+    ...section("READY", q.ready, (r) => `${r.rank ? `${mark(r.rank)} ` : ""}${short(r.ref)}  ${clean(r.title)}  P${r.priority}`),
+    ...section("IN FLIGHT", q.inFlight, (r) => `${short(r.ref)}  ${clean(r.title)}  [${clean(r.role ?? "no lock")}${r.mode ? ` ${r.mode}` : ""}]`),
+    ...section("WAITING ON YOU", q.waitingOnUser, (r) => `${short(r.ref)}  ${clean(r.title)}${r.noQuestion ? "  [no Question]" : r.question ? `\n      ? ${cleanQuestion(r.question)}` : ""}`),
+    ...section("BLOCKED", q.blocked, (r) => `${short(r.ref)}  ${clean(r.title)}${r.blockedBy.length ? `  <- ${r.blockedBy.map(short).join(", ")}` : ""}`),
   ].join("\n");
 }
 

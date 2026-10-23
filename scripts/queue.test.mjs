@@ -288,3 +288,16 @@ test("hardening/18 plain output prints the Question under WAITING ON YOU and fla
   assert.match(silent, /no Question/i);
   assert.doesNotMatch(block.split("\n").find((l) => l.includes("alpha/501-asks")) ?? "", /no Question/i);
 });
+
+// hardening/18 (security M1): ticket text reaches a terminal, so plain output drops control bytes and caps the Question.
+test("hardening/18 plain output strips control bytes from ticket text and caps the Question; --json is untouched", () => {
+  const root = boardRoot();
+  const evil = "hi \u001b[2J\u001b]52;c;QUJD\u0007\u009b31m red " + "A".repeat(300);
+  ticket(root, "alpha/601-evil", { status: "ready-for-human", title: "Evil \u001b[31mtitle", headers: [`**Question:** ${evil}`] });
+  const text = run(root).stdout;
+  assert.doesNotMatch(text, /[\u0000-\u0009\u000b-\u001f\u007f-\u009f]/, "no control byte reaches the terminal");
+  const line = text.split("\n").find((l) => l.includes("? hi")) ?? "";
+  assert.ok([...line].length <= 215, `Question line is ${[...line].length} chars`);
+  assert.match(line, /…$/);
+  assert.match(readJson(root).waitingOnUser[0].question, /\u001b/, "--json keeps the raw text");
+});
