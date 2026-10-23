@@ -12,7 +12,8 @@
 // den-mvp outcome 3: start() also takes `delivery: { at, since, findings? }` from the delivery runner: the commit the
 // worktree starts at, the commit the delivery began from, and a review's findings for a fix round. `onEnd(run)` is
 // called once per agent after its end is recorded, with the run and what the bridge itself saw of it: the commit it
-// started at, the commit it ended at, and its last message.
+// started at, the commit it ended at, and its last message. den-mvp/89: `settleRun(run)` is the same record, awaited before the
+// agent shows as ended (the bridge gives the ticket's claim back there); `onEnd` is not awaited.
 // den-mvp outcome 4: start() also takes `meeting: { part, file }` from the meeting runner: which part of a meeting the
 // run is (a take, the chair's brief, the chair's answer to a follow-up) and the note the bridge leaves in its worktree.
 // den-mvp outcome 2: every transcript entry is also kept in the role's durable conversation (conversations.mjs), and
@@ -108,7 +109,7 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -817,6 +818,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         agent.reason = `returned-out-of-scope: ${bad.slice(0, 5).map((b) => `${b.path} (${b.why})`).join(", ")}`;
       }
     }
+    // den-mvp/89: what the run leaves on the board is settled before the agent shows as ended, so a ticket is never claimed by a run that is over.
+    await Promise.resolve()
+      .then(() => settleRun({ agentId: agent.id, ref: agent.ref, role: agent.role, state: outcomeOf(agent), reason: agent.reason ?? null, startSha: agent.startSha ?? null, sha: agent.sha ?? null, branch: agent.branch ?? null, report: agent.report ?? null }))
+      .catch((err) => console.error(`bridge: could not settle the run ${agent.id}: ${err?.stack ?? err}`));
     finalize(agent);
     // den-mvp/43: a meeting take has no follow-up, so its worktree goes with it; unsaved work is kept on a wip/ branch.
     if (agent.meeting && agent.workspace && !agent.workspace.reopened && agent.ref !== DESK_REF) {
@@ -1001,10 +1006,14 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   }
 
   // The process has exited: only now is the agent over, the slot free and the resume string set.
-  function finalize(agent) {
-    // A done event is the agent's own verdict; with none, a clean exit is done and anything else failed.
+  // A done event is the agent's own verdict; with none, a clean exit is done and anything else failed.
+  function outcomeOf(agent) {
+    if (agent.stopRequested) return "terminated";
     const ok = agent.resourceLimit ? false : agent.doneOk ?? agent.exitCode === 0;
-    agent.state = agent.stopRequested ? "terminated" : ok ? "done" : "failed";
+    return ok ? "done" : "failed";
+  }
+  function finalize(agent) {
+    agent.state = outcomeOf(agent);
     agent.tool = null;
     approvals.settleAgent(agent.id, "agent-exited");
     approvals.release(agent.id);

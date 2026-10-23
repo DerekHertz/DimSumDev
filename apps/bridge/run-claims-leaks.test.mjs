@@ -5,6 +5,7 @@ import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { spawnSync } from "node:child_process";
 import { makeBridge, until, DISPATCH_REF } from "./agents/host-test-helpers.mjs";
 import { claim } from "../board/board-service.mjs";
 import { createLibrary } from "./library/library.mjs";
@@ -16,6 +17,9 @@ afterEach(async () => { for (const fn of cleanups.splice(0).reverse()) await fn(
 const ticketFile = (root) => path.join(root, ".scratch", "fx", "issues", "02-ready-p0.md");
 const lockFile = (root) => ticketFile(root).replace(/\.md$/, ".lock");
 const status = (root) => /^\*\*Status:\*\* (.+)$/m.exec(readFileSync(ticketFile(root), "utf8"))[1];
+const journalFile = (root) => path.join(root, ".scratch", "_run", "run-claims.json");
+const journalWith = (root, entries) => { mkdirSync(path.dirname(journalFile(root)), { recursive: true }); writeFileSync(journalFile(root), JSON.stringify(entries)); };
+const deadPid = () => spawnSync(process.execPath, ["-e", "0"]).pid;
 const released = (root) => until(() => !existsSync(lockFile(root)) && status(root) === "ready-for-agent", { what: "the claim released" });
 
 async function setup(opts) {
@@ -57,13 +61,46 @@ test("after a hard crash, the next boot gives back the claim of a Run that was l
   const t = await setup({
     preWrite: async (root) => {
       await claim(root, DISPATCH_REF, "architect");
-      mkdirSync(path.join(root, ".scratch", "_run"), { recursive: true });
-      writeFileSync(path.join(root, ".scratch", "_run", "run-claims.json"), JSON.stringify([{ id: "c-0123456789abcdef", ref: DISPATCH_REF, project: "den", role: "architect" }]));
+      journalWith(root, [{ id: "c-0123456789abcdef", ref: DISPATCH_REF, project: "den", role: "architect", pid: deadPid() }]);
     },
   });
   assert.equal(existsSync(lockFile(t.fx.root)), false, "the stale claim is gone");
   assert.equal(status(t.fx.root), "ready-for-agent");
   assert.match(readFileSync(ticketFile(t.fx.root), "utf8"), /^- \*\*architect, [^*]+:\*\* .*bridge stopped/im);
+  assert.deepEqual(JSON.parse(readFileSync(journalFile(t.fx.root), "utf8")), [], "and the journal forgets it");
   const res = await t.post("/agents", { ref: DISPATCH_REF, role: "architect" });
   assert.equal(res.status, 201, "and the ticket can be Run again");
+});
+
+test("a second bridge on the same root does not give back the claim of a Run the first bridge has live", async () => {
+  const a = await setup();
+  const res = await a.post("/agents", { ref: DISPATCH_REF, role: "architect" });
+  assert.equal(res.status, 201, res.text);
+  assert.equal(existsSync(lockFile(a.fx.root)), true, "bridge A holds the claim");
+  const b = await makeBridge({ root: a.fx.root });
+  cleanups.push(() => b.bridge.close());
+  assert.equal(existsSync(lockFile(a.fx.root)), true, "bridge B's boot left it held");
+});
+
+test("a stale journal entry does not drop a claim that a different role holds now", async () => {
+  const t = await setup({
+    preWrite: async (root) => {
+      await claim(root, DISPATCH_REF, "developer");
+      journalWith(root, [{ id: "c-0123456789abcdef", ref: DISPATCH_REF, project: "den", role: "architect", pid: deadPid() }]);
+    },
+  });
+  assert.equal(existsSync(lockFile(t.fx.root)), true, "the developer's claim stays");
+  assert.deepEqual(JSON.parse(readFileSync(journalFile(t.fx.root), "utf8")), [], "the stale entry is forgotten");
+});
+
+test("a Run is over for the board before it shows as ended: the ticket is free the moment the agent is done or failed", async () => {
+  const t = await setup();
+  for (const how of ["done", "failed", "done", "failed", "done", "failed"]) {
+    const res = await t.post("/agents", { ref: DISPATCH_REF, role: "architect" });
+    assert.equal(res.status, 201, `${how}: ${res.text}`);
+    const rec = t.fake.spawns.at(-1);
+    if (how === "done") { rec.emit({ type: "reply", text: "Done." }); rec.emit({ type: "done", ok: true }); } else rec.exit({ code: 1 });
+    await until(async () => (await t.agent(res.body.agent.id))?.state !== "working", { what: "the agent to show as ended" });
+    assert.equal(existsSync(lockFile(t.fx.root)), false, `${how}: the claim is back as soon as the agent shows as ended`);
+  }
 });

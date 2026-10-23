@@ -18,7 +18,7 @@ import { branchesOf } from "./delivery/branches.mjs";
 import { createLedger } from "./agents/ledger.mjs";
 import { createDelivery } from "./delivery/runner.mjs";
 import { createDeliveryBoard } from "./delivery/board.mjs";
-import { createRunClaims } from "./run-claims.mjs";
+import { createRunClaims, ownerGone } from "./run-claims.mjs";
 import { createReleaseDrafts } from "./delivery/release-draft.mjs";
 import { createAutoRelease } from "./delivery/release-auto.mjs";
 import { createReadyRelease } from "./build/ready-release.mjs";
@@ -206,7 +206,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     library,
     onChange: (change) => hub.publish(change),
     recordRun: createLedger(root).record,
-    onEnd: (run) => Promise.all([delivery.onEnd(run), meetings.onEnd(run), settle(run)]),
+    onEnd: (run) => Promise.all([delivery.onEnd(run), meetings.onEnd(run)]),
+    settleRun: settle,
     readUsage: async (runtime) => typeof usageByRuntime[runtime] === "function" ? usageByRuntime[runtime]() : runtime === "claude" ? (await hub.snapshot()).usage?.fiveHour ?? null : null,
     // organism-infra/226: a dispatch needs the ticket to be in the frontier (ready, unblocked, unlocked), not to hold the gate.
     checkGate: async (ref, { project }) => {
@@ -617,8 +618,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       if (!target) throw new Error("the run's project is no longer onboarded");
       runBoard = createDeliveryBoard(target.root);
       if (run.state !== "done") {
-        if (!task) await runBoard.drop(ref, { status: "ready-for-agent", reason: `${role} run ${run.state === "terminated" ? "stopped" : "failed"}${run.reason ? ` (${run.reason})` : ""}` });
-        if (!task) await runClaims.remove(run.agentId);
+        if (!task) await giveBack(runBoard, run.agentId, ref, `${role} run ${run.state === "terminated" ? "stopped" : "failed"}${run.reason ? ` (${run.reason})` : ""}`);
         return;
       }
       const committed = !!run.sha && run.sha !== run.startSha;
@@ -629,18 +629,25 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     } catch (err) {
       console.error(`bridge: could not hand off ${ref} after its run: ${err?.message ?? err}`);
       // A claim must not outlive its run: when the handoff or release failed, give it back without one. With no board to reach, the journal keeps it for the next boot.
-      if (!task && runBoard) await runBoard.drop(ref, { status: "ready-for-agent", reason: `${role} run ended, but the bridge could not hand it off: ${err?.message ?? err}` }).then(() => runClaims.remove(run.agentId)).catch((e) => console.error(`bridge: could not release ${ref} either: ${e?.message ?? e}`));
+      if (!task && runBoard) await giveBack(runBoard, run.agentId, ref, `${role} run ended, but the bridge could not hand it off: ${err?.message ?? err}`).catch((e) => console.error(`bridge: could not release ${ref} either: ${e?.message ?? e}`));
     }
   }
-  // After a hard crash a Run's claim is still on the board and no run is live: give each journalled claim back, with a comment.
+  // A claim comes off the ticket with a comment, and off the journal.
+  async function giveBack(board, agentId, ref, reason) {
+    await board.drop(ref, { status: "ready-for-agent", reason });
+    await runClaims.remove(agentId);
+  }
+  // After a hard crash a Run's claim is still on the board and no run is live: give back each journalled claim whose bridge is
+  // dead, with a comment. A claim a different role holds now is not the entry's any more; a live bridge's entry is left alone.
   async function recoverRunClaims() {
-    for (const { id, ref, project, role } of await runClaims.list()) {
+    for (const entry of (await runClaims.list()).filter(ownerGone)) {
+      const { id, ref, project, role } = entry;
       try {
         const target = await projects.get(project);
         if (!target) continue;
-        const held = (await buildSnapshot(target.root, 0)).tickets.find((t) => t.ref === ref)?.holder;
-        if (held) await createDeliveryBoard(target.root).drop(ref, { status: "ready-for-agent", reason: `${role} run: the bridge stopped while it ran; the claim was given back at boot` });
-        await runClaims.remove(id);
+        const holder = (await buildSnapshot(target.root, 0)).tickets.find((t) => t.ref === ref)?.holder;
+        if (holder?.role === role) await giveBack(createDeliveryBoard(target.root), id, ref, `${role} run: the bridge stopped while it ran; the claim was given back at boot`);
+        else await runClaims.remove(id);
       } catch (err) {
         console.error(`bridge: could not give back the claim on ${ref}: ${err?.message ?? err}`);
       }
