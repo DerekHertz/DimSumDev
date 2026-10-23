@@ -11,6 +11,8 @@
 //   build item 3 POST /requests rule unchanged ......................... "POST /requests ..."
 import { test, describe, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
+import path from "node:path";
 import { makeBridge, openSse, until } from "./agents/host-test-helpers.mjs";
 import { withLocks, lockTicket, refOf, kinds } from "./agents/capacity-test-helpers.mjs";
 
@@ -108,7 +110,8 @@ describe("capacity in GET /state (max 2 injected)", () => {
   test("a host agent that has claimed its own ticket is one live ref, not a lock too", async () => {
     t = await makeBridge({ policy: { maxConcurrent: 2 } });
     assert.equal((await t.dispatch("architect", R02)).status, 201);
-    await lockTicket(t.fx.root, "02-ready-p0", "scout");
+    // den-mvp/89: the bridge itself holds the Run's claim now, so the ticket is locked and live at once.
+    assert.ok(existsSync(path.join(t.fx.root, ".scratch", "fx", "issues", "02-ready-p0.lock")), "the bridge's claim lock is on the ticket");
     const { capacity } = await t.state();
     assert.deepEqual(numbers(capacity), { max: 2, cap: 4, load: 1, live: 1, room: 1 });
     assert.deepEqual(kinds(capacity.refs), { [R02]: "live" });

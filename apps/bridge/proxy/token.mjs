@@ -1,5 +1,6 @@
 // hardening/11 (ADR 0031 decision 5): the login lives in the proxy; the bridge keeps the refresh token and refreshes before expiry.
 // Imports only node: built-ins and siblings: the proxy side (fileTokenSource) runs inside the container.
+import { randomBytes } from "node:crypto";
 import { mkdir, readFile, rename, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 
@@ -12,9 +13,10 @@ export const OAUTH_TOKEN_URL = "https://platform.claude.com/v1/oauth/token";
 export const OAUTH_CLIENT_ID = "9d1c250a-e61b-44d9-88ed-5944d1962f5e";
 
 // Write by atomic rename: the proxy container mounts the directory, so a reader sees the old or the new file, never half of one.
+// The temp name is unique per call: concurrent writers to one file each rename their own, and the last rename wins whole.
 export async function writeAtomic(file, text) {
   await mkdir(path.dirname(file), { recursive: true });
-  const tmp = `${file}.${process.pid}.tmp`;
+  const tmp = `${file}.${randomBytes(6).toString("hex")}.tmp`;
   try {
     await writeFile(tmp, text, { mode: 0o600 });
     await rename(tmp, file);

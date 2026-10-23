@@ -1,7 +1,7 @@
-// den-mvp/23 (with den-v1/15): what a Run from the den leaves on the board. The agent runs no board command (its board is
-// read-only behind the wall) and the bridge keeps one live agent per ticket, so a run takes no board lock: the ticket
-// stays in the frontier, to be Run again or Delivered the moment the run ends. When a run finishes, the bridge publishes
-// its last message as the ticket's handoff. A den task's ticket, written for that task alone, then goes to in-review
+// den-mvp/23, 89 (with den-v1/15): what a Run from the den leaves on the board. The agent runs no board command (its board is
+// read-only behind the wall); the bridge holds the ticket's claim for the run (run-claims-ticket.test.mjs) and, when the run
+// finishes, publishes its last message as the ticket's handoff and releases the claim: the ticket is back in the frontier, to
+// be Run again or Delivered. A den task's ticket, written for that task alone, then goes to in-review
 // (den-v1/15). A run that fails publishes nothing.
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
@@ -28,12 +28,12 @@ async function setup() {
   return { ...t, handoffsOf, status, locked };
 }
 
-test("a Run takes no board lock, and a finished run publishes its report as the ticket's handoff; the ticket stays as it was", async () => {
+test("a Run holds the board lock while it runs; a finished run publishes its report as the ticket's handoff and the lock is gone, the ticket as it was", async () => {
   const t = await setup();
   const before = t.status(DISPATCH_REF);
   const res = await t.post("/agents", { ref: DISPATCH_REF, role: "architect" });
   assert.equal(res.status, 201, res.text);
-  assert.equal(t.locked(DISPATCH_REF), false, "the bridge's one-agent-per-ticket rule holds it; the board is not locked");
+  assert.equal(t.locked(DISPATCH_REF), true, "the bridge holds the claim for the run");
   const rec = await until(() => t.fake.spawns[0], { what: "the spawn" });
   assert.match(rec.args.prompt, /run no board command/);
   writeFileSync(path.join(rec.args.cwd, "adr.md"), "# ADR\n");
@@ -46,8 +46,8 @@ test("a Run takes no board lock, and a finished run publishes its report as the 
   assert.match(handoff, /architect committed [0-9a-f]{12}/);
   assert.match(handoff, /branch den\/fx\/02-ready-p0-/);
   assert.match(handoff, /Drafted the routing ADR/);
+  await until(() => !t.locked(DISPATCH_REF), { what: "the claim released" });
   assert.equal(t.status(DISPATCH_REF), before, "it can be Run again or Delivered");
-  assert.equal(t.locked(DISPATCH_REF), false);
   const again = await until(async () => { const r = await t.post("/agents", { ref: DISPATCH_REF, role: "architect" }); return r.status === 201 ? r : null; }, { what: "a second Run once the first has ended" });
   assert.ok(again);
 });

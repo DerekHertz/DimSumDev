@@ -51,6 +51,10 @@ export function applyEvent(state, event) {
     case "build":
       next.build = event.build ?? null;
       break;
+    // hardening/16: the den's Claude accounts after the user's switch: { active, accounts }.
+    case "accounts":
+      next.accounts = event.accounts ?? null;
+      break;
     // den-mvp/45: Bao's release draft (or null once approved or declined).
     case "release":
       next.release = event.release ?? null;

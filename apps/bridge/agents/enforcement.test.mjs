@@ -135,6 +135,19 @@ describe("credential stores are closed to every role", () => {
     for (const p of ["~/.local/state/den/projects.json", "~/.local/state/den/service-token", "~/.local/state/den/ntfy-url"]) assert.ok(CREDENTIAL_PATHS.includes(p), p);
   });
 
+  // hardening/16 security F1: the den's own logins and the proxy's secrets sit in the state folder, where roles with no hosts can read anything else in home.
+  test("the den's account logins and the proxy's token and secrets are closed to all nine roles, in the compiled settings", () => {
+    const stores = ["~/.local/state/den/accounts", "~/.local/state/den/proxy"];
+    for (const p of stores) assert.ok(CREDENTIAL_PATHS.includes(p), p);
+    for (const role of ROLES) {
+      const settings = settingsFor(role, { home: "/home/u", credentials: [...CREDENTIAL_PATHS] });
+      for (const p of stores) {
+        for (const rule of [`Read(${p})`, `Read(${p}/**)`, `Edit(${p})`, `Edit(${p}/**)`]) assert.ok(settings.permissions.deny.includes(rule), `${role}: ${rule}`);
+        assert.ok(settings.sandbox.filesystem.denyRead.includes(p), `${role}: denyRead ${p}`);
+      }
+    }
+  });
+
   test("each store given is a Read and Edit deny for the file tools and a denyRead for the shell, for all nine roles", () => {
     const credentials = ["~/.ssh", "~/.claude/.credentials.json"];
     for (const role of ROLES) {

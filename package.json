@@ -33,6 +33,7 @@
     "den:project": "node scripts/den-project.mjs",
     "den:install": "node apps/bridge/service/den-service.mjs install",
     "den:update": "node apps/bridge/service/den-service.mjs update",
+    "den:account": "node scripts/den-account.mjs",
     "den:link": "node apps/bridge/service/den-service.mjs link",
     "ui": "npm run ui:build && npm run bridge",
     "ui:build": "vite build --config apps/ui/vite.config.mjs --configLoader native",

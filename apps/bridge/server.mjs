@@ -18,6 +18,7 @@ import { branchesOf } from "./delivery/branches.mjs";
 import { createLedger } from "./agents/ledger.mjs";
 import { createDelivery } from "./delivery/runner.mjs";
 import { createDeliveryBoard } from "./delivery/board.mjs";
+import { createRunClaims, ownerGone } from "./run-claims.mjs";
 import { createReleaseDrafts } from "./delivery/release-draft.mjs";
 import { createAutoRelease } from "./delivery/release-auto.mjs";
 import { createReadyRelease } from "./build/ready-release.mjs";
@@ -134,7 +135,7 @@ function installProcessHandlers(host) {
 // The routes that start a run, a delivery or a meeting, or resume one.
 const STARTS = /^\/(?:agents|tasks|deliveries|meetings)(?:\/[^/]+\/resume)?$/;
 
-export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs } = {}) {
+export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, proxy, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs } = {}) {
   let actualPort = port;
   const git = gitHost ?? createGitHost(root);
   // den-mvp/10 and 11: the den's own build, when it is served from release folders: previews, go-live and roll back. The
@@ -188,11 +189,13 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     release: () => releases.current(),
     readyRelease: () => readyRelease?.snapshot() ?? null,
     update: () => updater?.snapshot() ?? null,
+    accounts: async () => (proxy ? proxy.status() : null),
     wall: () => wallTables(),
     readUsage: usageReading,
     boardRoot: () => projects.activeRoot(),
   });
   // den-mvp outcome 4: the production entry point passes the den's catalog; with none, no agent is given a connection.
+  const runClaims = createRunClaims(path.join(stateDir ?? path.join(root, ".scratch", "_run"), "run-claims.json"));
   const library = libraryOption ?? createLibrary({ catalog: parseCatalog({ connections: [] }) });
   host = createHost({
     root,
@@ -204,7 +207,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     library,
     onChange: (change) => hub.publish(change),
     recordRun: createLedger(root).record,
-    onEnd: (run) => Promise.all([delivery.onEnd(run), meetings.onEnd(run), runEnded(run)]),
+    onEnd: (run) => Promise.all([delivery.onEnd(run), meetings.onEnd(run)]),
+    settleRun: settle,
     readUsage: async (runtime) => typeof usageByRuntime[runtime] === "function" ? usageByRuntime[runtime]() : runtime === "claude" ? (await hub.snapshot()).usage?.fiveHour ?? null : null,
     // organism-infra/226: a dispatch needs the ticket to be in the frontier (ready, unblocked, unlocked), not to hold the gate.
     checkGate: async (ref, { project }) => {
@@ -212,12 +216,33 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       const snap = await buildSnapshot(target.root, 0);
       return !snap.tickets.some((t) => t.ref === ref) ? "unknown" : snap.frontier.includes(ref) ? "ok" : "nofrontier";
     },
+    // den-mvp/89: a Run's claim, made by the bridge after the gate and before the agent starts. The board's refusal is the Run's.
+    // A board refusal is the Run's reason; any other failure (a file path, say) is not passed on.
+    claimRun: async (agent) => {
+      if (!isBoardRole(agent.role)) return;
+      try {
+        await createDeliveryBoard((await projects.get(agent.project)).root).claim(agent.ref, { role: agent.role, mode: boardMode(agent) });
+      } catch (err) {
+        if (err instanceof BoardError) throw err;
+        console.error(`bridge: could not claim ${agent.ref} for a run: ${err?.message ?? err}`);
+        throw new Error("the board could not claim the ticket");
+      }
+      await runClaims.add({ id: agent.id, ref: agent.ref, project: agent.project, role: agent.role }).catch((err) => console.error(`bridge: could not record the claim on ${agent.ref}: ${err?.message ?? err}`));
+    },
+    // A forced release logs an override row, so a run that never started gives the claim back with a handoff saying so, the board's plain path.
+    releaseRun: async (agent, reason) => {
+      if (!isBoardRole(agent.role)) return;
+      const board = createDeliveryBoard((await projects.get(agent.project)).root);
+      await board.handoff(agent.ref, { role: agent.role, mode: boardMode(agent), runId: agent.id, sha: "", report: `The run did not start: ${reason}.`, committed: false, source: "den run", status: "ready-for-agent" }).catch(() => board.drop(agent.ref, { status: "ready-for-agent", reason: `${agent.role} run did not start: ${reason}` }));
+      await runClaims.remove(agent.id);
+    },
     lockedRefs: async ({ project }) => (await buildSnapshot((await projects.get(project)).root, 0)).tickets.filter((t) => t.holder).map((t) => t.ref),
     openDesk: () => ensureDesk(root),
     // F34: a batch the bridge would refuse is denied when it asks, with the reason, so the user is not asked for it.
     checkCall: (tool, input) => (tool === "mcp__den__board_file" ? checkFileBatch(input).error ?? null : null),
   });
   await host.ready;
+  await recoverRunClaims();
   delivery = createDelivery({
     host: { start: host.start, stop: host.stop, retire: host.retire },
     board: createDeliveryBoard(root),
@@ -450,6 +475,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     "POST /tickets/approve": (req, res) => steerTicket(req, res, "approve"),
     "POST /tickets/transfer": steerTransfer,
     "POST /admission/runtime": steerAllowlist,
+    "POST /accounts/active": steerAccount,
     "POST /admission/reconcile": steerReconcile,
     "POST /tickets/decline": (req, res) => steerTicket(req, res, "decline"),
     "POST /checks": (req, res) => postChecks(req, res),
@@ -567,31 +593,66 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   }
   // POST /agents (ADR 0016 decision 3): with POST /tasks, the only HTTP ways an agent starts. Only ref, role and mode are read from
   // the body; the host validates them, applies the policy and answers with a status from its table.
-  // den-mvp/23 (with den-v1/15): what a Run or a den task leaves on the board. The agent's board is read-only behind the
-  // wall, and the bridge already keeps one live agent per ticket, so a run takes no board lock (a lock would keep the
-  // ticket out of the frontier, so it could not be Run again or Delivered the moment the run ended). When a run finishes,
-  // the bridge publishes its last message as the ticket's handoff. A den task's ticket, written for that task alone, then
-  // goes to in-review. A role the board keeps no handoffs for (herald) leaves nothing.
+  // den-mvp/23, 89 (with den-v1/15): what a Run or a den task leaves on the board. The agent's board is read-only behind the
+  // wall, so the bridge makes the calls. A Run's claim is made when it starts (the host's claimRun) and released when it ends:
+  // the last message is published as the ticket's handoff and the ticket returns to ready-for-agent, so it can be Run again or
+  // Delivered; a failed or stopped run releases it with a comment. A den task's ticket, written for that task alone, is claimed
+  // at its end instead and goes to in-review. A role the board keeps no handoffs for (herald) leaves nothing.
   const held = new Map(); // agent id -> { ref, role, mode, task, project }
+  const boardMode = (agent) => (agent.mode && modeAllowed(agent.role, agent.mode) ? agent.mode : null);
   function hold(agent, { task }) {
-    if (isBoardRole(agent.role)) held.set(agent.id, { ref: agent.ref, role: agent.role, mode: agent.mode && modeAllowed(agent.role, agent.mode) ? agent.mode : null, task, project: agent.project ?? "den" });
+    if (isBoardRole(agent.role)) held.set(agent.id, { ref: agent.ref, role: agent.role, mode: boardMode(agent), task, project: agent.project ?? "den" });
+  }
+  const settling = new Set();
+  function settle(run) {
+    const done = runEnded(run);
+    settling.add(done);
+    return done.finally(() => settling.delete(done));
   }
   async function runEnded(run) {
     const entry = held.get(run?.agentId);
     if (!entry) return;
     held.delete(run.agentId);
-    if (run.state !== "done") return;
     const { ref, role, mode, task, project } = entry;
+    let runBoard = null;
     try {
       const target = await projects.get(project);
       if (!target) throw new Error("the run's project is no longer onboarded");
-      const runBoard = createDeliveryBoard(target.root);
+      runBoard = createDeliveryBoard(target.root);
+      if (run.state !== "done") {
+        if (!task) await giveBack(runBoard, run.agentId, ref, `${role} run ${run.state === "terminated" ? "stopped" : "failed"}${run.reason ? ` (${run.reason})` : ""}`);
+        return;
+      }
       const committed = !!run.sha && run.sha !== run.startSha;
       // A den task's ticket goes to in-review: the board wants the claim before the handoff that releases it.
       if (task) await runBoard.claimForHandoff(ref, { role });
-      await runBoard.handoff(ref, { role, mode: task ? (role === "qa" ? "verify" : null) : mode, runId: run.agentId, sha: run.sha ?? run.startSha ?? "", branch: committed ? run.branch : null, report: run.report, committed, source: task ? "den task" : "den run", status: task ? "in-review" : null });
+      await runBoard.handoff(ref, { role, mode: task ? (role === "qa" ? "verify" : null) : mode, runId: run.agentId, sha: run.sha ?? run.startSha ?? "", branch: committed ? run.branch : null, report: run.report, committed, source: task ? "den task" : "den run", status: task ? "in-review" : "ready-for-agent" });
+      if (!task) await runClaims.remove(run.agentId);
     } catch (err) {
       console.error(`bridge: could not hand off ${ref} after its run: ${err?.message ?? err}`);
+      // A claim must not outlive its run: when the handoff or release failed, give it back without one. With no board to reach, the journal keeps it for the next boot.
+      if (!task && runBoard) await giveBack(runBoard, run.agentId, ref, `${role} run ended, but the bridge could not hand it off: ${err?.message ?? err}`).catch((e) => console.error(`bridge: could not release ${ref} either: ${e?.message ?? e}`));
+    }
+  }
+  // A claim comes off the ticket with a comment, and off the journal.
+  async function giveBack(board, agentId, ref, reason) {
+    await board.drop(ref, { status: "ready-for-agent", reason });
+    await runClaims.remove(agentId);
+  }
+  // After a hard crash a Run's claim is still on the board and no run is live: give back each journalled claim whose bridge is
+  // dead, with a comment. A claim a different role holds now is not the entry's any more; a live bridge's entry is left alone.
+  async function recoverRunClaims() {
+    for (const entry of (await runClaims.list()).filter(ownerGone)) {
+      const { id, ref, project, role } = entry;
+      try {
+        const target = await projects.get(project);
+        if (!target) continue;
+        const holder = (await buildSnapshot(target.root, 0)).tickets.find((t) => t.ref === ref)?.holder;
+        if (holder?.role === role) await giveBack(createDeliveryBoard(target.root), id, ref, `${role} run: the bridge stopped while it ran; the claim was given back at boot`);
+        else await runClaims.remove(id);
+      } catch (err) {
+        console.error(`bridge: could not give back the claim on ${ref}: ${err?.message ?? err}`);
+      }
     }
   }
   async function postAgent(req, res) {
@@ -950,6 +1011,21 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     const result = await host.admission.setAllowlist(body.allow);
     reply(res, result.ok ? 200 : result.status, result.ok ? { allow: result.allow } : { error: result.error });
   }
+  // POST /accounts/active: { name }. The user's manual switch of the den's Claude account; nothing else calls it (hardening/16).
+  async function steerAccount(req, res) {
+    const body = await readJsonObject(req, res);
+    if (!body) return;
+    if (typeof body.name !== "string" || !body.name) return reply(res, 400, { error: "name must be an account name" });
+    if (!proxy) return reply(res, 409, { error: "the den has no proxy: there are no accounts" });
+    try {
+      await proxy.switchAccount(body.name);
+    } catch (err) {
+      return reply(res, 409, { error: err.message });
+    }
+    const accounts = await proxy.status();
+    hub.publish({ type: "accounts", accounts });
+    reply(res, 200, { accounts });
+  }
   // POST /admission/reconcile: { id, outcome: "ended" | "never-started" }. Clears an attempt a crash left unconfirmed.
   async function steerReconcile(req, res) {
     const body = await readJsonObject(req, res);
@@ -1034,6 +1110,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     res.writeHead(200, { "Content-Type": contentTypeFor(file), "Cache-Control": "no-store", "Content-Security-Policy": CSP });
     res.end(req.method === "HEAD" ? undefined : body);
   }
+  // hardening/16: the proxy and its refreshers come up with the den, before it answers.
+  await proxy?.start();
   // A half-made release folder is never served, and is removed at start; a delivery's waiting preview is served again.
   await delivery.ready;
   if (denBuild) await denBuild.releases.sweep();
@@ -1045,6 +1123,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   async function stopWork() {
     await host.shutdown();
     await new Promise((resolve) => setImmediate(resolve)); // the runs' end hooks are queued behind the shutdown
+    await Promise.allSettled([...settling]); // den-mvp/89: a Run's claim is given back before the board goes away
     await delivery.shutdown();
     await meetings.shutdown();
   }
@@ -1064,6 +1143,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       ciWatch.stop();
       autoRelease.stop();
       readyRelease?.stop();
+      await proxy?.stop();
       uninstallProcessHandlers();
       await new Promise((resolve) => {
         hub.close();
@@ -1108,7 +1188,15 @@ if (startedDirectly()) {
   // den-mvp/88: the router's service token, written by den:install; none (or a bad file) means no service access.
   const { readServiceToken } = await import("../router/service-token.mjs");
   const serviceToken = await readServiceToken(denState);
-  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, runtime: createClaudeRuntime({ env: process.env, launcher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
+  // hardening/16: the credential proxy and one refresher per den account. It needs the agent image den:update recorded in this release;
+  // run from the checkout, or on a host with no image, there is none. A proxy that fails to start is reported and the den still comes up.
+  const { createProxyService } = await import("./proxy/proxy-service.mjs");
+  const { createDocker } = await import("./service/agent-image.mjs");
+  const releaseDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const image = await readFile(path.join(releaseDir, "agent-image.json"), "utf8").then((t) => JSON.parse(t).imageId, () => null);
+  const proxyService = image && createProxyService({ stateDir: denState, releaseDir, ceilings: JSON.parse(await readFile(path.join(releaseDir, "apps", "bridge", "agents", "ceilings.json"), "utf8")), docker: createDocker({ env: process.env }), image });
+  const proxy = proxyService ? { ...proxyService, start: () => proxyService.start().catch((e) => console.error(`proxy not started: ${e.message}`)) } : undefined;
+  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, proxy, runtime: createClaudeRuntime({ env: process.env, launcher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
   console.log(`bridge listening on ${bridge.url} (root ${root})`);
   // The only place the launch code is shown (ADR 0016 decision 6.2): once, in a URL fragment the browser never sends.
   console.log(`to steer, open (one use, 5 minutes): ${bridge.url}/#code=${bridge.newLaunchCode()}`);
