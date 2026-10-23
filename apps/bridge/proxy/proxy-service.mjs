@@ -88,5 +88,13 @@ export function createProxyService({ stateDir, releaseDir, ceilings, docker, ima
       await write;
       return { secret };
     },
+    // hardening/16 F4: the launcher retires a run's secret when its container exits, so a leaked one stops working.
+    async retireRunSecret(secret) {
+      if (!Object.hasOwn(secrets, secret)) return;
+      delete secrets[secret];
+      const write = writes.then(() => writeSecrets({ dir: secretsDir, secrets: { ...secrets } }));
+      writes = write.catch(() => {});
+      await write;
+    },
   };
 }

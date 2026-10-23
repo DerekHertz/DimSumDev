@@ -26,8 +26,9 @@ const plainPath = (p, what) => need(isWorktreePath(p), `${what} must be a plain 
 /**
  * The argv (no binary name) of `docker run` for one agent. limits: a limits.json class. refsNamespace: the one branch namespace
  * under refs/heads that a branch-holding agent may write (the bridge's agents are detached and need none). grants: absolute write paths.
+ * env: plain values put on the argv; passEnv: names docker copies from its own env, for values that must not be on the argv (security M3).
  */
-export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace, ticketFile, grants = [], readOnly = [], limits, env = {}, cliArgs, network = AGENT_NETWORK }) {
+export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace, ticketFile, grants = [], readOnly = [], limits, env = {}, passEnv = [], cliArgs, network = AGENT_NETWORK }) {
   need(typeof image === "string" && IMAGE_RE.test(image), "image must be a plain image reference");
   need(typeof name === "string" && NAME_RE.test(name), "name must be a plain lower-case name");
   need(typeof network === "string" && NAME_RE.test(network), "network must be a plain lower-case name");
@@ -42,13 +43,14 @@ export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace
   need(limits && int(limits.memoryMiB, 16, 1024 * 1024) && int(limits.cpuPercent, 5, 6400) && int(limits.tasks, 8, 65536), "limits must be a limits.json class");
   need(Array.isArray(cliArgs) && cliArgs.every((a) => typeof a === "string"), "cliArgs must be strings");
   need(Object.entries(env).every(([k, v]) => ENV_NAME_RE.test(k) && typeof v === "string" && !v.includes("\n")), "env must be plain strings");
+  need(Array.isArray(passEnv) && passEnv.every((k) => typeof k === "string" && ENV_NAME_RE.test(k)), "passEnv must be env names");
   const mount = (src, mode) => ["-v", `${src}:${src}:${mode}`];
   const wt = worktree.slice(worktree.lastIndexOf("/") + 1);
   return [
     "run", "--rm", "-i", "--name", name, "--network", network, "--read-only", "--tmpfs", "/tmp:rw,exec,size=512m", "--tmpfs", "/root:rw,size=256m",
     "--user", "0:0", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
     "--memory", `${limits.memoryMiB}m`, "--memory-swap", `${limits.memoryMiB}m`, "--cpus", String(limits.cpuPercent / 100), "--pids-limit", String(limits.tasks),
-    ...Object.entries(env).flatMap(([k, v]) => ["-e", `${k}=${v}`]),
+    ...Object.entries(env).flatMap(([k, v]) => ["-e", `${k}=${v}`]), ...passEnv.flatMap((k) => ["-e", k]),
     ...mount(worktree, "rw"), ...mount(mainGit, "ro"),
     ...mount(`${mainGit}/worktrees/${wt}`, "rw"), ...mount(`${mainGit}/objects`, "rw"), ...mount(`${mainGit}/logs`, "rw"),
     ...(refsNamespace === undefined ? [] : mount(`${mainGit}/refs/heads/${refsNamespace}`, "rw")),
@@ -116,7 +118,7 @@ const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
  * The launcher the bridge uses with the container flag on (DEN_AGENT_CONTAINERS=1): same shape as createResourceLauncher, so the
- * runtime is unchanged. docker(args) -> { ok, out, err } and spawn are injected. proxy: { ports, mintRunSecret({ role }) }.
+ * runtime is unchanged. docker(args) -> { ok, out, err } and spawn are injected. proxy: { ports, mintRunSecret({ role }), retireRunSecret(secret) }.
  * launch() refuses (EnforcementError) when the daemon, the den-agents network or the proxy is not up, or the container does not start.
  */
 export function createContainerLauncher({ env = process.env, limits = LIMITS, image, docker, proxy, spawn = spawnChild, proxyName = "den-proxy", startWaitMs = 8000 }) {
@@ -142,18 +144,30 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
       const ready = await preflight();
       if (!ready.ok) throw new EnforcementError(ready.reason);
       const { secret } = await proxy.mintRunSecret({ role: container.role });
+      // hardening/16 F4: a run's secret is good for that run only.
+      const retire = () => Promise.resolve().then(() => proxy.retireRunSecret(secret)).catch(() => {});
       const name = containerName(id);
-      const governed = await placeGoverned(governedWrites(args, [cwd, ...(container.grants ?? [])]));
-      const argv = containerRunArgs({
-        image, name, worktree: cwd, mainGit: container.mainGit, ticketFile: container.ticketFile, grants: container.grants, readOnly: governed.paths, limits: limit, cliArgs: containerCliArgs(args),
-        env: { HOME: "/root", ...agentProxyEnv({ role: container.role, session: container.sessionId, ports: proxy.ports, secret }), CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" },
-      });
+      let governed;
+      let argv;
+      // The proxy env carries the secret, so docker copies it from its own env (-e NAME) and it never shows in `ps` or `docker inspect` argv.
+      const secretEnv = agentProxyEnv({ role: container.role, session: container.sessionId, ports: proxy.ports, secret });
+      try {
+        governed = await placeGoverned(governedWrites(args, [cwd, ...(container.grants ?? [])]));
+        argv = containerRunArgs({
+          image, name, worktree: cwd, mainGit: container.mainGit, ticketFile: container.ticketFile, grants: container.grants, readOnly: governed.paths, limits: limit, cliArgs: containerCliArgs(args),
+          env: { HOME: "/root", CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" }, passEnv: Object.keys(secretEnv),
+        });
+      } catch (err) {
+        await governed?.sweep();
+        await retire();
+        throw err;
+      }
       const host = env.DOCKER_HOST || `unix://${env.XDG_RUNTIME_DIR || `/run/user/${process.getuid()}`}/docker.sock`;
-      const child = spawn(DOCKER, argv, { shell: false, detached: true, cwd: "/", env: { PATH: env.PATH, DOCKER_HOST: host }, stdio: ["pipe", "pipe", "pipe"] });
+      const child = spawn(DOCKER, argv, { shell: false, detached: true, cwd: "/", env: { PATH: env.PATH, DOCKER_HOST: host, ...secretEnv }, stdio: ["pipe", "pipe", "pipe"] });
       let stderr = "";
       child.stderr?.on?.("data", (c) => { if (stderr.length < 2048) stderr += String(c); });
       let gone = false;
-      child.once("exit", () => { gone = true; governed.sweep(); });
+      child.once("exit", () => { gone = true; governed.sweep(); retire(); });
       child.on("error", () => {});
       let hit = null;
       let reading = null;
@@ -174,6 +188,7 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
       for (const until = Date.now() + startWaitMs; Date.now() < until && !gone; await sleep(50)) if (await up(name)) return { child, group };
       group.kill();
       await governed.sweep();
+      await retire();
       try { if (child.pid > 1) process.kill(-child.pid, "SIGKILL"); } catch { /* already gone */ }
       throw new EnforcementError(`the container ${name} did not start: ${stderr.trim().slice(-300) || "no output"}`);
     },

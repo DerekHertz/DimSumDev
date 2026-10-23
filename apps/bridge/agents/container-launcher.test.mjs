@@ -27,8 +27,9 @@ function setup({ proxyUp = true, running = true, oom = { killed: false }, intern
     return child;
   };
   const minted = [];
-  const proxy = { ports: { developer: 8080 }, mintRunSecret: async ({ role }) => (minted.push(role), { secret: "s".repeat(32) }) };
-  return { calls, spawned, minted, launcher: createContainerLauncher({ env: { PATH: "/usr/bin" }, image: "den-agent:0123456789ab", docker, spawn, proxy, limits: LIMITS, startWaitMs: 50 }) };
+  const retired = [];
+  const proxy = { ports: { developer: 8080 }, mintRunSecret: async ({ role }) => (minted.push(role), { secret: "s".repeat(32) }), retireRunSecret: async (s) => { retired.push(s); } };
+  return { calls, spawned, minted, retired, launcher: createContainerLauncher({ env: { PATH: "/usr/bin" }, image: "den-agent:0123456789ab", docker, spawn, proxy, limits: LIMITS, startWaitMs: 50 }) };
 }
 
 test("launch starts docker with the class limits, the proxy env and the run secret, and returns a child and a group", async () => {
@@ -38,7 +39,12 @@ test("launch starts docker with the class limits, the proxy env and the run secr
   const argv = spawned[0].argv;
   assert.deepEqual(minted, ["developer"]);
   assert.ok(argv.includes(`--memory`) && argv.includes(`${LIMITS.classes.worker.memoryMiB}m`));
-  assert.ok(argv.some((a) => a.startsWith("HTTPS_PROXY=http://") && a.includes("ssssssss@den-proxy:8080")));
+  assert.ok(!argv.some((a) => a.includes("s".repeat(32))), "the run secret is not on the docker argv");
+  for (const name of ["ANTHROPIC_API_KEY", "HTTPS_PROXY", "https_proxy"]) {
+    assert.ok(argv.some((a, i) => a === name && argv[i - 1] === "-e"), `${name} is passed by name`);
+  }
+  assert.equal(spawned[0].opts.env.ANTHROPIC_API_KEY, "s".repeat(32));
+  assert.ok(spawned[0].opts.env.HTTPS_PROXY.includes("ssssssss@den-proxy:8080"));
   assert.ok(argv.includes("-w") && argv.includes("/h/repo/.claude/worktrees/w1"));
   assert.ok(!argv.some((a) => a.includes("sandbox")), "the CLI sandbox block is dropped inside the container");
   assert.ok(child && typeof group.kill === "function" && typeof group.exhausted === "function");
@@ -101,4 +107,16 @@ test("the run is refused, and no secret minted, when den-agents is not an --inte
     assert.deepEqual(minted, []);
     assert.deepEqual(spawned, []);
   }
+});
+
+test("the run secret is retired when the container exits, and when the start is refused after the mint (hardening/16 F4)", async () => {
+  const { launcher, retired } = setup();
+  const { child } = await launcher.launch(run);
+  assert.deepEqual(retired, []);
+  child.emit("exit", 0);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(retired, ["s".repeat(32)]);
+  const failed = setup({ running: false });
+  await assert.rejects(failed.launcher.launch(run), /did not start/);
+  assert.deepEqual(failed.retired, ["s".repeat(32)]);
 });
