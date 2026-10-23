@@ -15,7 +15,7 @@ scene code. The rejected whole-panda Security generation and old hats are not
 included. The detailed generated structures are retained in the original
 artifact and the provenance catalog with `runtime: false`; the packager skips
 them. Library, gate, kiosks, raised entrances, bamboo bridge and furniture are
-now authored in `stylized-structures.mjs` and `crafted-architecture.mjs` with the
+now authored in `approved/approved-structures.mjs` and the approved landscape kit with the
 approved handcrafted-miniature detail: curved tiles, rounded timber, lattice
 openings, lanterns and furnished interiors at consistent walking scale.
 

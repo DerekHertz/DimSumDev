@@ -11,8 +11,8 @@ import { lightenScene } from '../../../ci-cd/light-scene.mjs';
 const AGENT = 'c-af592f417c598394', APPROVAL = 'a-8313dee2f728c5f1', TARGET = '/home/u/den/package.json';
 const snapshot = () => ({
   schema: 1, seq: 1, frontier: [], usage: null, requests: [], sessions: [],
-  tickets: [{ ref: 'den/02-scout', feature: 'den', title: '02: Den task for scout', type: 'task', status: 'ready-for-agent', ready: true, priority: 'P2', effectivePriority: 'P2', blockedBy: [], holder: null, gate: null }],
-  agents: [{ id: AGENT, ref: 'den/02-scout', role: 'scout', mode: 'direct', runtime: 'claude', state: 'waiting_on_user', startedAt: new Date(Date.now() - 60000).toISOString(), lastEventAt: new Date().toISOString(),
+  tickets: [{ ref: 'den/02-maker', feature: 'den', title: '02: Den task for the Maker', type: 'task', status: 'ready-for-agent', ready: true, priority: 'P2', effectivePriority: 'P2', blockedBy: [], holder: null, gate: null }],
+  agents: [{ id: AGENT, ref: 'den/02-maker', role: 'developer', mode: 'direct', runtime: 'claude', state: 'waiting_on_user', startedAt: new Date(Date.now() - 60000).toISOString(), lastEventAt: new Date().toISOString(),
     tool: { name: 'Read', summary: TARGET }, tokens: null, capabilities: { stop: true, approve: true, send: true, handover: false } }],
   approvals: [{ id: APPROVAL, agentId: AGENT, tool: 'Read', summary: TARGET, says: 'I need the scripts list before I pick a test command.', intent: null, inputLength: 37, truncated: false, ts: new Date().toISOString(), expiresAt: new Date(Date.now() + 8 * 60000 + 30000).toISOString(), state: 'pending' }],
   transcripts: { [AGENT]: { dropped: 0, entries: [
@@ -23,19 +23,19 @@ const snapshot = () => ({
 });
 
 // Pick through the mounted scene handler; the new framing can put a roof over its projected center.
-const pickScout = async () => {
+const pickMaker = async () => {
   const url = performance.getEntriesByType('resource').find(e => e.name.includes('@react-three_fiber'))?.name;
   if (!url) return false;
   const { _roots } = await import(url);
   const scene = _roots.get(document.querySelector('canvas'))?.store.getState().scene;
   const world = scene?.getObjectByName('Dim Sum Dev · plush bamboo garden');
-  let scout;
-  world?.traverse(o => { if (o.userData?.actorKey === 'scout') scout = o; });
-  if (!scout || !world.__r3f?.handlers.onClick) return false;
-  world.__r3f.handlers.onClick({ object: scout, stopPropagation() {} }); return true;
+  let maker;
+  world?.traverse(o => { if (o.userData?.actorKey === 'developer') maker = o; });
+  if (!maker || !world.__r3f?.handlers.onClick) return false;
+  world.__r3f.handlers.onClick({ object: maker, stopPropagation() {} }); return true;
 };
 
-test('overview: a held permission request is shown and opens from Needs you, a clicked panda, the transcript and E', { timeout: 90000 }, async () => {
+test('overview: a held permission request opens from Needs you, an active resident, the transcript and E', { timeout: 90000 }, async () => {
   let server, browser;
   try {
     server = await createServer({ configFile: 'apps/ui/vite.config.mjs', configLoader: 'native', server: { port: 0, host: '127.0.0.1' }, logLevel: 'silent' });
@@ -63,12 +63,12 @@ test('overview: a held permission request is shown and opens from Needs you, a c
     const needs = page.locator('[data-overlay=needs-you]');
     await needs.locator('[data-answer=allow]').waitFor();
     const needsText = await needs.innerText();
-    for (const part of ['Scout · den/02-scout', 'Wants to read a file', TARGET, 'expires in 8 min', 'Deny', 'Allow']) assert.ok(needsText.includes(part), `Needs you shows "${part}": ${needsText}`);
+    for (const part of ['The Maker · den/02-maker', 'Wants to read a file', TARGET, 'expires in 8 min', 'Deny', 'Allow']) assert.ok(needsText.includes(part), `Needs you shows "${part}": ${needsText}`);
     const review = page.locator('.approval-panel');
     await needs.locator('[data-answer=allow]').click();
     await review.waitFor();
     assert.equal(await review.locator('h2').innerText(), 'Run Read');
-    assert.match(await review.locator('.approval-meta').innerText(), /Scout · scout · den\/02-scout/);
+    assert.match(await review.locator('.approval-meta').innerText(), /The Maker · developer · den\/02-maker/);
     await page.keyboard.press('Escape');
     await review.waitFor({ state: 'hidden' });
 
@@ -79,12 +79,12 @@ test('overview: a held permission request is shown and opens from Needs you, a c
     await page.keyboard.press('Escape');
     await review.waitFor({ state: 'hidden' });
 
-    // 3. A click on the scout panda shows the card walk mode shows, with every action on.
+    // 3. Pick an active resident through the mounted scene handler; every permitted action remains available.
     await page.locator('[data-rail=needs]').click();
-    await page.waitForFunction(pickScout);
+    await page.waitForFunction(pickMaker);
     const card = page.getByRole('region', { name: 'Selected panda' });
     await card.waitFor();
-    assert.match(await card.innerText(), /The Scout[\s\S]*Needs your answer[\s\S]*den\/02-scout[\s\S]*Waiting on you · Read/);
+    assert.match(await card.innerText(), /The Maker[\s\S]*Needs your answer[\s\S]*den\/02-maker[\s\S]*Waiting on you · Read/);
     assert.deepEqual(await card.locator('button[data-key]:not(:disabled)').evaluateAll(b => b.map(x => x.dataset.key)), ['Q', 'E', 'R', 'T']);
 
     // 4. R opens the thread; the ask leads with the reason, keeps the target under "Show the file", and has Deny and Allow,

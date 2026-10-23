@@ -48,13 +48,36 @@ test('walking up to a resident shows its nearby card; moving away and leaving hi
     await leave.waitFor();
     const card = page.getByRole('region', { name: 'Nearby panda' });
     assert.equal(await card.count(), 0, 'the current gate spawn starts away from every resident');
-    // The entry path faces the Cub at (0,25.6). Approach with normal walking.
+    // The approved Codex Designer route is validated by the production navigation probe:
+    // gate → (0,35) → (22,35) → (22,30.5) → resident at (22,28.5).
+    const target = await page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(e => e.name.includes('react-three_fiber.js')).name;
+      const { _roots } = await import(url);
+      const state = _roots.get(document.querySelector('canvas')).store.getState();
+      const world = state.scene.getObjectByName('Dim Sum Dev · plush bamboo garden');
+      let resident; world.traverse(node => { if (node.userData.actorKey === 'codex:designer') resident = node; });
+      return { x: resident.position.x, z: resident.position.z, role: resident.userData.roleId, runtime: resident.userData.runtime };
+    });
+    assert.deepEqual(target, { x: 22, z: 28.5, role: 'designer', runtime: 'codex' }, 'the active Codex Designer matches the native approved route');
+    const position = () => page.evaluate(async () => {
+      const url = performance.getEntriesByType('resource').find(e => e.name.includes('react-three_fiber.js')).name;
+      const { _roots } = await import(url); return _roots.get(document.querySelector('canvas')).store.getState().camera.position.toArray();
+    });
     const canvas = await page.locator('.forest-canvas canvas').boundingBox();
     const x = canvas.x + canvas.width / 2, y = canvas.y + canvas.height / 2;
-    await page.keyboard.down('KeyW');
-    try { await card.waitFor({ timeout: 15000 }); }
-    finally { await page.keyboard.up('KeyW'); }
-    assert.match(await card.textContent(), /The Cub/);
+    const moveUntil = async (predicate, key) => {
+      const deadline = Date.now() + 15000;
+      await page.keyboard.down(key);
+      try { while (Date.now() < deadline) { if (predicate(await position())) return; await page.waitForTimeout(100); } throw new Error('walk did not reach the active resident approach'); }
+      finally { await page.keyboard.up(key); }
+    };
+    // The walker starts at (0,42): follow the unit-probed route and stop two metres from the resident.
+    await page.locator('main[aria-label="Den scene"]').focus();
+    await moveUntil(p => Math.abs(p[2] - 35) < 0.3, 'KeyW');
+    await moveUntil(p => Math.abs(p[0] - target.x) < 0.3, 'KeyD');
+    await moveUntil(p => Math.abs(p[2] - 30.5) < 0.3, 'KeyW');
+    await card.waitFor({ timeout: 15000 });
+    assert.match(await card.textContent(), /The Stylist/);
     assert.match(await card.textContent(), /Resident · no agent running/);
     assert.equal(await card.locator('button:disabled').count(), 4);
     await page.keyboard.press('Tab');
@@ -77,7 +100,7 @@ test('walking up to a resident shows its nearby card; moving away and leaving hi
     await page.keyboard.down('KeyW');
     try { await card.waitFor({ state: 'visible', timeout: 10000 }); }
     finally { await page.keyboard.up('KeyW'); }
-    assert.match(await card.textContent(), /The Cub/, 'the same resident reappears when approached again');
+    assert.match(await card.textContent(), /The Stylist/, 'the same active resident reappears when approached again');
     await page.keyboard.press('Escape');
     await enter.waitFor();
     assert.equal(await card.count(), 0);

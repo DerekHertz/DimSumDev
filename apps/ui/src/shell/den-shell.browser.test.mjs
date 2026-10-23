@@ -46,7 +46,7 @@ async function open({ width = 1440, inventory = false } = {}) {
   page.setDefaultTimeout(10000);
   page.on('pageerror', e => errors.push(e.message));
   const meeting = { id: MEETING, ref: 'den/09-meeting', title: 'Meeting: shell review', state: 'running', chair: 'orchestrator', seats: [{ role: 'product', status: 'waiting', takes: 0 }], round: 'takes', brief: null, decisions: [], live: null, thread: 0, runs: 0 };
-  const snapshot = { schema: 1, seq: 1, frontier: [], tickets: [], usage: null, requests: [], meetings: [meeting], deliveries: [], approvals: [], agents: [{ id: RUN, role: 'scout', runtime: 'claude', state: 'working', capabilities: { send: true, stop: true } }] };
+  const snapshot = { schema: 1, seq: 1, frontier: [], tickets: [], usage: null, requests: [], meetings: [meeting], deliveries: [], approvals: [], agents: [{ id: RUN, role: 'developer', runtime: 'claude', state: 'working', capabilities: { send: true, stop: true } }] };
   if (inventory) {
     const ticket = (ref, title, extra = {}) => ({ ref, feature: 'den', title, type: 'feature', status: 'ready-for-agent', ready: true, priority: 'P2', effectivePriority: 'P2', blockedBy: [], holder: null, gate: null, ...extra });
     snapshot.tickets = [ticket('den/01-ready', '01: Ready work'), ticket('den/02-active', '02: Active work', { status: 'claimed', ready: false }), ticket('den/04-gate', '04: Merge gate', { status: 'in-review', gate: 'merge', ready: false })];
@@ -91,16 +91,16 @@ async function open({ width = 1440, inventory = false } = {}) {
     if (!url) return false;
     const { _roots } = await import(url), state = _roots.get(document.querySelector('canvas'))?.store.getState();
     const world = state?.scene.getObjectByName('Dim Sum Dev · plush bamboo garden');
-    let scout;
-    world?.traverse(p => { if (p.userData.actorKey === 'scout') scout = p; });
-    if (!scout || !world.__r3f?.handlers.onClick) return false;
-    window.shellScene = { state, world, scout }; return true;
+    let resident;
+    world?.traverse(p => { if (p.userData.actorKey === 'developer') resident = p; });
+    if (!resident || !world.__r3f?.handlers.onClick) return false;
+    window.shellScene = { state, world, resident }; return true;
   }, null, { timeout: 60000 });
   return { page, posts, errors, close: () => context.close() };
 }
 const camera = page => page.evaluate(() => { const c = window.shellScene.state.get().camera; return [...c.position.toArray(), ...c.quaternion.toArray(), ...c.projectionMatrix.elements].map(n => +n.toFixed(5)); });
 const pick = async page => {
-  await page.evaluate(() => { const { world, scout } = window.shellScene; world.__r3f.handlers.onClick({ object: scout, stopPropagation() {} }); });
+  await page.evaluate(() => { const { world, resident } = window.shellScene; world.__r3f.handlers.onClick({ object: resident, stopPropagation() {} }); });
   await page.getByRole('region', { name: 'Selected panda' }).waitFor();
 };
 const rail = (page, id) => page.locator(`[data-rail="${id}"]`);

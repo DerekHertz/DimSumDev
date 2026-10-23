@@ -1,7 +1,7 @@
 import * as T from 'three';
-import {dragon} from './garden.mjs';
+import {dragon} from '../../../src/scene/meshy/garden.mjs';
 import {craftedPalette, box, cyl, orb, line, ring, roundedDisc, lantern, lattice,
-  timberFrame, craftedRoof as roof, bakeCrafted as bake} from './crafted-architecture.mjs';
+  timberFrame, craftedRoof as roof, bakeCrafted as bake} from '../../../src/scene/meshy/crafted-architecture.mjs';
 
 // Author directly in walking-world units. +Z is the public/front approach;
 // kiosks also have an unobstructed entrance on their right (+X) side.

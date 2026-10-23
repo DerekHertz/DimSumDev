@@ -43,7 +43,7 @@ async function open(state) {
   return { page, errors, close: async () => { await browser.close(); await server.close(); } };
 }
 
-test('a running meeting keeps progress and its take in the panel without claiming physical seats', { timeout: 90000 }, async () => {
+test('a running meeting shows its actual seated participants while keeping progress and takes in the panel', { timeout: 90000 }, async () => {
   const t = await open('running');
   try {
     const { page } = t;
@@ -51,7 +51,8 @@ test('a running meeting keeps progress and its take in the panel without claimin
     await pill.waitFor({ timeout: 60000 });
     assert.match(await pill.innerText(), /Meeting on 57 · 1 of 3 have spoken/);
     await page.waitForFunction(()=>{const b=document.querySelector('.den-entry button');return b&&b.getAttribute('aria-disabled')!=='true';},null,{timeout:60000});
-    assert.equal(await page.locator('[data-seat]:visible').count(),0,'deferred seating has no invented visible seat labels');
+    await page.waitForFunction(()=>document.querySelectorAll('[data-seat]:visible').length===2,null,{timeout:15000});
+    assert.equal(await page.locator('[data-seat]:visible').count(),2,'the chair and active participant have physical meeting seats');
     assert.equal(await page.locator(`.chip[data-ref="${REF}"]`).count(), 0, 'the meeting run remains in its panel without a generic chip');
     await pill.click();
     const meeting = page.locator('[data-sheet=side]');

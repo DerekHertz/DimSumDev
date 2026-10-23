@@ -138,7 +138,7 @@ test("the live frontend reaches the native Meshy world and its local model manif
     "apps/ui/src/scene/meshy/MeshyDen.jsx",
     "apps/ui/src/scene/meshy/world.mjs",
     "apps/ui/src/scene/meshy/actors.mjs",
-    "apps/ui/src/scene/meshy/navigation.mjs",
+    "apps/ui/src/scene/meshy/approved-navigation.mjs",
     "apps/ui/public/den/manifest.json",
   ];
   const unreached = ported.filter((p) => !names.includes(p));
@@ -163,8 +163,15 @@ test("no file under apps/ui/src or apps/ui/public is unreachable from main.jsx, 
   // module fails on its own when it runs.)
   const keptTests = new Set(
     tests.filter((t) => {
-      const refs = referencedFiles(t);
-      return mountsLiveApp(t) || refs.some((r) => reach.has(r));
+      const seen = new Set(), queue = referencedFiles(t);
+      while(queue.length){
+        const file=queue.pop();
+        if(reach.has(file))return true;
+        if(seen.has(file))continue;
+        seen.add(file);
+        if(/(?:test-fixture|test-support)/.test(file))queue.push(...referencedFiles(file));
+      }
+      return mountsLiveApp(t);
     }),
   );
 

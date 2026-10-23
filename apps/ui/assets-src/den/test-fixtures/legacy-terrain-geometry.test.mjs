@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import {createDenScene} from './plush/assembly.mjs';
-import {createGardenNavigation} from './garden-navigation.mjs';
-import {gardenWaterOracle} from './test-fixtures/terrain-water.mjs';
+import {createDenScene} from '../../../src/scene/meshy/plush/assembly.mjs';
+import {createGardenNavigation} from '../../../src/scene/meshy/garden-navigation.mjs';
+import {gardenWaterOracle} from './terrain-water.mjs';
 globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};
 test('actual curved stream, pond and flooded field geometry is excluded from standing surfaces',()=>{
  const garden=createDenScene();try{

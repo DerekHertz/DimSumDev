@@ -16,7 +16,7 @@ const overlap=(a,b)=>{
  }return true;
 };
 export function createApprovedNavigation(garden){
- let bodies=()=>[];
+ let bodies=()=>[],reservations=()=>[];
  const obstacles=garden.obstacles.map(o=>({...o,vertices:o.vertices?.map(v=>Array.isArray(v)?{x:v[0],z:v[1]}:v)||[{x:o.min[0],z:o.min[2]},{x:o.min[0],z:o.max[2]},{x:o.max[0],z:o.min[2]},{x:o.max[0],z:o.max[2]}]}));
  obstacles.push({min:[-2,0,-5.18],max:[2,1.5,-2.82],vertices:[{x:-2,z:-5.18},{x:-2,z:-2.82},{x:2,z:-5.18},{x:2,z:-2.82}],name:'Meeting table'});
  const cells=new Map();for(const o of obstacles)for(let x=Math.floor(o.min[0]/4);x<=Math.floor(o.max[0]/4);x++)for(let z=Math.floor(o.min[2]/4);z<=Math.floor(o.max[2]/4);z++){const key=x+':'+z;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(o);}
@@ -125,7 +125,19 @@ export function createApprovedNavigation(garden){
  const edgeCache=new Map();
  function route(actor,from,to){
   const envelope=actor.envelope,signature=JSON.stringify([envelope.radius,envelope.height,envelope.bounds]);
-  const bodySnapshot=bodies().filter(other=>other!==actor&&other.panda.model.visible).map(other=>({position:other.panda.model.position.clone(),radius:other.envelope.radius,vertices:rectangle(other.panda.model.position,other.envelope,other.yaw??other.baseYaw)}));
+  const bodySnapshot=[
+   ...bodies().filter(other=>other!==actor&&other.panda.model.visible).map(other=>({position:other.panda.model.position.clone(),envelope:other.envelope,yaw:other.yaw??other.baseYaw})),
+   ...reservations().filter(place=>place.owner&&place.owner!==actor.identity).map(place=>({position:place.position,envelope:place.envelope,yaw:place.envelope.yaw??0}))
+  ].map(other=>({...other,radius:other.envelope.radius,vertices:rectangle(other.position,other.envelope,other.yaw)}));
+  const routeTurn=(p,fromYaw,toYaw)=>{
+   if(!turn(p,fromYaw,toYaw,envelope))return false;
+   if(!Number.isFinite(to.yaw))return true;
+   const nearby=bodySnapshot.filter(other=>distance(p,other.position)<envelope.radius+other.radius+.1);
+   if(!nearby.length)return true;
+   const delta=Math.atan2(Math.sin(toYaw-fromYaw),Math.cos(toYaw-fromYaw)),steps=Math.max(1,Math.ceil(Math.abs(delta)/.06));
+   for(let i=0;i<=steps;i++)if(nearby.some(other=>overlap(rectangle(p,envelope,fromYaw+delta*i/steps),other.vertices)))return false;
+   return true;
+  };
   const visible=(a,b,yaw=null)=>{
    const facing=yaw??Math.atan2(b.x-a.x,b.z-a.z);if(!segment(a,b,envelope,facing))return false;
    const dx=b.x-a.x,dz=b.z-a.z,squared=dx*dx+dz*dz;
@@ -146,21 +158,22 @@ export function createApprovedNavigation(garden){
   if(origin){const path=approach(actor,origin,{reverse:true});if(!path)return [];start=path.at(-1);prefix=path;}
   if(goal){const path=approach(actor,goal);if(!path)return [];end=path[0];suffix=path;}
   const endPoint={x:end.x,y:end.y,z:end.z};
-  const validTurns=path=>{let p=from,yaw=actor.yaw??actor.baseYaw;for(const q of path){const facing=q.yaw??(distance(p,q)<1e-6?yaw:Math.atan2(q.x-p.x,q.z-p.z));if(!turn(p,yaw,facing,envelope)||!visible(p,q,facing))return false;p=q;yaw=facing;}return true;};
-  const direct=[...prefix,endPoint,...suffix];if(visible(start,end)&&validTurns(direct))return direct;
+  const finalTurn=Number.isFinite(to.yaw)?[{x:end.x,y:end.y,z:end.z,yaw:to.yaw}]:[];
+  const validTurns=path=>{let p=from,yaw=actor.yaw??actor.baseYaw;for(const q of path){const facing=q.yaw??(distance(p,q)<1e-6?yaw:Math.atan2(q.x-p.x,q.z-p.z));if(!routeTurn(p,yaw,facing)||!visible(p,q,facing))return false;p=q;yaw=facing;}return true;};
+  const direct=[...prefix,endPoint,...finalTurn,...suffix];if(visible(start,end)&&validTurns(direct))return direct;
   const costs=new Map(),parents=new Map(),queue=[];
   nodes.forEach((p,i)=>{if(distance(start,p)<16&&visible(start,p)&&validTurns([...prefix,p])){costs.set(i,distance(start,p));queue.push(i);}});
   let winner=null,total=Infinity;
   while(queue.length){queue.sort((a,b)=>costs.get(a)-costs.get(b));const id=queue.shift(),p=nodes[id],cost=costs.get(id);if(cost>total)break;
    const prior=parents.has(id)?nodes[parents.get(id)]:start,incoming=Math.atan2(p.x-prior.x,p.z-prior.z);
-   if(distance(p,end)<16&&visible(p,end)&&cost+distance(p,end)<total&&turn(p,incoming,Math.atan2(end.x-p.x,end.z-p.z),envelope)&&turn(end,Math.atan2(end.x-p.x,end.z-p.z),suffix[0]?.yaw??Math.atan2(end.x-p.x,end.z-p.z),envelope)){winner=id;total=cost+distance(p,end);}
+   if(distance(p,end)<16&&visible(p,end)&&cost+distance(p,end)<total&&routeTurn(p,incoming,Math.atan2(end.x-p.x,end.z-p.z))&&routeTurn(end,Math.atan2(end.x-p.x,end.z-p.z),to.yaw??suffix[0]?.yaw??Math.atan2(end.x-p.x,end.z-p.z))){winner=id;total=cost+distance(p,end);}
    for(const next of edges[id]){
     const ekey=signature+':'+id+':'+next;let valid=edgeCache.get(ekey);if(valid===undefined){valid=segment(p,nodes[next],envelope);edgeCache.set(ekey,valid);}if(!valid||!visible(p,nodes[next]))continue;
-    if(!turn(p,incoming,Math.atan2(nodes[next].x-p.x,nodes[next].z-p.z),envelope))continue;
+    if(!routeTurn(p,incoming,Math.atan2(nodes[next].x-p.x,nodes[next].z-p.z)))continue;
     const ncost=cost+distance(p,nodes[next]);if(ncost>=(costs.get(next)??Infinity))continue;costs.set(next,ncost);parents.set(next,id);queue.push(next);
    }
   }
-  if(winner===null)return [];const path=[];for(let id=winner;id!==undefined;id=parents.get(id))path.push({...nodes[id]});path.reverse();const result=[...prefix,...path,endPoint,...suffix];return validTurns(result)?result:[];
+  if(winner===null)return [];const path=[];for(let id=winner;id!==undefined;id=parents.get(id))path.push({...nodes[id]});path.reverse();const result=[...prefix,...path,endPoint,...finalTurn,...suffix];return validTurns(result)?result:[];
  }
  function fitsPlace(position,envelope,owner,ignore,places,bodies){
   const spot=[...placements.values()].find(s=>s&&distance(s.position,position)<.01)||leisurePlaces().find(s=>distance(s.position,position)<.01),dock=garden.docks.find(d=>distance(point(d.position[0],d.position[2]),position)<.01);
@@ -169,11 +182,12 @@ export function createApprovedNavigation(garden){
   if(bodies.some(b=>b.owner!==owner&&overlap(own,rectangle(b.position,b.envelope,b.envelope.yaw||0))))return false;
   return ![...places.values()].some(p=>p.id!==ignore&&p.owner&&p.owner!==owner&&overlap(own,rectangle(p.position,p.envelope,p.envelope.yaw||0)));
  }
- return {setBodies(provider){bodies=provider;},floorRadius:85,floorCenter:{x:0,z:-4},eyeHeight:1.82,obstacles:[],fitsPlace,fits,segment,route,place,approach,supported,supportAt,nodes,edges,physicalObstacles:obstacles,navigation:{groundAt(x,z,previous=.36,radius=.26,height=2.04){const y=supportAt(x,z);if(y===null)return null;const position={x,y:y+.045,z};return fits(position,{radius,height})?position.y:null;}}};
+ return {setBodies(provider){bodies=provider;},setReservations(provider){reservations=provider;},floorRadius:85,floorCenter:{x:0,z:-4},eyeHeight:1.82,obstacles:[],fitsPlace,fits,segment,route,place,approach,supported,supportAt,nodes,edges,physicalObstacles:obstacles,navigation:{groundAt(x,z,previous=.36,radius=.26,height=2.04){const y=supportAt(x,z);if(y===null)return null;const position={x,y:y+.045,z};return fits(position,{radius,height})?position.y:null;}}};
 }
 
 export function bindResidentNavigation(den,actors){
  den.walkWorld.setBodies(()=>[...actors.values(),...(den.guestActors?.values()||[])]);
+ den.walkWorld.setReservations(()=>[...den.placeRegistry.values()].filter(place=>place.kind==='meeting'));
  den.routinePlace=(actor,spot)=>den.walkWorld.place(actor,spot);
  den.routineRoute=(actor,from,to)=>den.walkWorld.route(actor,from,to);
  den.routineClear=(actor,from,to)=>{

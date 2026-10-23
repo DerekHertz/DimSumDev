@@ -144,70 +144,57 @@ async function openGarden({ viewport = { width: 1440, height: 900 }, failModels 
 
 const ready = page => page.waitForFunction(() => document.querySelector('.den-entry button') && document.querySelector('.den-entry button').getAttribute('aria-disabled') !== 'true', null, { timeout: 60000 });
 
-test("the native plush garden loads Balanced Bao and the shared role wardrobe without an iframe or page error", { timeout: 90000 }, async () => {
+test("the native approved garden loads Bao, Jiao and the active cast assets without an iframe or page error", { timeout: 90000 }, async () => {
   const { context, page, errors, loaded, modelResponses } = await openGarden();
   try {
     await ready(page);
-    const native = ['/src/scene/meshy/MeshyDen.jsx', '/src/scene/meshy/world.mjs', '/src/scene/meshy/actors.mjs', '/src/scene/meshy/plush/assembly.mjs', '/src/scene/meshy/role-outfits.mjs', '/src/scene/meshy/role-headwear.mjs'];
+    const native = ['/src/scene/meshy/MeshyDen.jsx', '/src/scene/meshy/world.mjs', '/src/scene/meshy/actors.mjs', '/src/scene/meshy/approved-garden.mjs', '/src/scene/meshy/approved-navigation.mjs', '/src/scene/meshy/role-outfits.mjs', '/src/scene/meshy/role-headwear.mjs'];
     assert.deepEqual(native.filter(path => !loaded.includes(path)), [], 'the native Meshy world is loaded');
+    assert.equal(loaded.includes('/src/scene/meshy/plush/assembly.mjs'), false, 'the retired legacy cast assembly is not mounted');
     assert.ok(!loaded.includes('/src/scene/procedural/RestaurantDen.jsx'), 'old procedural scene is not mounted');
     assert.equal(await page.locator('iframe').count(), 0, 'no embedded preview server');
     assert.equal(await page.locator('.forest-canvas canvas').count(), 1);
     assert.equal(Object.keys(assets).length, 35, 'only retained character, prop, wardrobe and vegetation models are shipped (team-and-den-ux/23 adds two species, 24 adds Bao, 35 adds nine species and Jiao)');
     assert.deepEqual(Object.keys(assets).filter(key => key.startsWith('scenery.')), [], 'buildings and furniture use procedural geometry');
     assert.equal(loaded.some(path => path.startsWith('/den/models/scenery/')), false, 'no removed scenery download');
-    const required = ['bao','wardrobe.developer-vest','wardrobe.qa-scarf','wardrobe.developer-headphones'];
-    assert.deepEqual(required.filter(id=>!loaded.includes(assets[id].url)), [], 'the approved body and shared wardrobe load locally');
-    assert.equal(modelResponses.length, 17, 'authored scenery and tools need only the four shared models, the two species (team-and-den-ux/23), Bao (24) and the nine cast species and Jiao (35)');
-    assert.ok(loaded.includes(assets['characters.bao'].url), 'Bao loads locally');
-    assert.deepEqual(['characters.developer','characters.technical-writer'].filter(id=>!loaded.includes(assets[id].url)), [], 'both species load locally');
+    const castAssets=['characters.bao','characters.jiao','characters.developer','characters.technical-writer'];
+    assert.deepEqual(castAssets.filter(id=>!loaded.includes(assets[id].url)), [], 'the updated executives and approved cast load locally');
+    assert.equal(modelResponses.length, 13, 'the active scene loads only the 13 signed character models');
     const scene = await page.evaluate(async()=>{
       const url=performance.getEntriesByType('resource').find(e=>e.name.includes('react-three_fiber.js')).name;
       const {_roots}=await import(url);
-      const {createGardenNavigation}=await import('/src/scene/meshy/garden-navigation.mjs');
-      const {gardenRoute}=await import('/src/scene/meshy/garden-route.mjs');
       const world=_roots.get(document.querySelector('canvas')).store.getState().scene.getObjectByName('Dim Sum Dev · plush bamboo garden');
-      const roles=[],actorKeys=[],skeletons=new Set(),tools=[],claudeTools=[],assets={};let landscape;
+      const roles=[],actorKeys=[],skeletons=new Set(),tools=[],claudeTools=[],coordinatorTools={};
       world.traverse(n=>{
         if(n.userData.actorKey){roles.push(n);actorKeys.push(n.userData.actorKey);if(n.userData.runtime==='claude'){const tools=[];n.traverse(child=>{if(child.userData.tool)tools.push(child.userData.tool);});claudeTools.push({role:n.userData.roleId,species:n.userData.species||null,tools});}}
         if(n.isSkinnedMesh)skeletons.add(n.skeleton);
         if(n.userData.tool)tools.push(n.userData.tool);
-        if(n.userData.placeId==='grove')landscape={root:n};else if(n.userData.placeId)assets[n.userData.placeId]={root:n};
+        if(n.userData.actorKey==='orchestrator'||n.userData.actorKey==='codex:orchestrator'){const carried=[];n.traverse(child=>{if(child.userData.tool)carried.push(child.userData.tool);});coordinatorTools[n.userData.actorKey]=carried;}
       });
-      landscape.fields=landscape.root.getObjectByName('Five flooded rice terraces with rounded green banks');
-      landscape.waterGroup=landscape.root.getObjectByName('Pale jade-blue water and hand-drawn ripples');
-      const pond=assets.tea.root.getObjectByName('Koi pond, lotus leaves, and curved timber bridge');
-      const water=pond?.children.filter(n=>n.isMesh&&n.material?.transparent===true&&n.material.depthWrite===false);
-      if(!landscape.fields||!landscape.waterGroup||water?.length!==1)throw new Error('Mounted garden must expose terrace banks, grove water and exactly one tea pond water mesh');
-      assets.tea.waterSurface=water[0];
-      const nav=createGardenNavigation({root:world,assets,landscape});
-      const coordinatorTools=Object.fromEntries(roles.filter(n=>n.userData.roleId==='orchestrator').map(n=>{const tools=new Set();n.traverse(child=>{if(child.userData.tool)tools.add(child.userData.tool);});return [n.userData.actorKey,[...tools]];}));
-      const routes=roles.map(n=>({role:n.userData.roleId,out:gardenRoute(nav,n.position,{x:-3.5,z:3.15}).length,home:gardenRoute(nav,{x:-3.5,y:.26,z:3.15},n.position).length}));
-      const table=world.getObjectByName('Round table and legs');let bounds;table.traverse(n=>{if(!n.isMesh)return;n.geometry.computeBoundingBox();const b=n.geometry.boundingBox.clone().applyMatrix4(n.matrixWorld);if(bounds)bounds.union(b);else bounds=b;});const tableSize=bounds.getSize(table.position.clone()).toArray();
-      return {roles:roles.map(n=>n.userData.roleId),actorKeys,tools,claudeTools,coordinatorTools,skeletons:skeletons.size,routes,tableSize,susan:!!world.getObjectByName('Lazy susan'),places:world.userData.presentationLayout.structurePositions};
+      const layout=world.userData.presentationLayout;
+      const plaza=world.getObjectByName('Central meeting plaza');let bounds;
+      plaza?.traverse(n=>{if(!n.isMesh)return;n.geometry.computeBoundingBox();const b=n.geometry.boundingBox.clone().applyMatrix4(n.matrixWorld);if(bounds)bounds.union(b);else bounds=b;});
+      const plazaSize=bounds?.max.clone().sub(bounds.min).toArray();
+      return {roles:roles.map(n=>n.userData.roleId),actorKeys,tools,claudeTools,coordinatorTools,skeletons:skeletons.size,places:layout?.structurePositions,workspaceRecords:layout?.roleWorkspaces,plazaSize,susan:!!world.getObjectByName('Lazy susan')};
     });
-    assert.equal(new Set(scene.roles).size,18);
-    assert.equal(new Set(scene.actorKeys).size,32,'each permanent runtime resident has a distinct actor key');
+    assert.equal(new Set(scene.roles).size,12,'the garden presents the 12 active roles');
+    assert.equal(new Set(scene.actorKeys).size,24,'the garden contains the 24 active residents, with one key per resident');
     // team-and-den-ux/23: a species carries its props in its mesh (the pouch, the book and brush) instead of a paw tool. 24 adds Bao, 35 the rest of the cast.
     assert.deepEqual(scene.claudeTools.filter(t=>t.species).map(t=>[t.role,t.species,t.tools.length]).toSorted(),[['architect','red-crowned-crane',0],['code-reviewer','lion',0],['designer','sika-deer',0],['developer','red-panda',0],['orchestrator','giant-panda',0],['product','fox',0],['qa','river-otter',0],['release-manager','lucky-cat',0],['runner','golden-monkey',0],['security','pangolin',0],['sre','cloud-tortoise',0],['technical-writer','cloud-dragon',0]]);
-    const pandas=scene.claudeTools.filter(t=>!t.species);
-    // A placeholder kit nests the borrowed kit's name, so compare each role's own (root) tool.
-    assert.ok(pandas.every(t=>t.tools.length>0),'every other Claude permanent role holds a paw tool');
-    assert.equal(new Set(pandas.map(t=>t.tools[0])).size,pandas.length,'each other Claude permanent role has a distinct paw tool');
-    // 19 before team-and-den-ux/23: the writer's own scroll left with the cloud dragon; the developer's tablet stays in the code reviewer's placeholder kit.
-    // 18 before team-and-den-ux/24: Bao's Bamboo fan left with the giant panda model, which carries its props in its mesh.
-    // 17 before team-and-den-ux/35: the nine cast species and Jiao carry their props in their meshes, leaving the six panda roles' tools.
-    assert.equal(new Set(scene.tools).size,6,'only the remaining panda roles hold paw tools');
+    assert.equal(scene.claudeTools.length,12,'each active Claude resident has an approved model profile');
+    assert.ok(scene.claudeTools.every(t=>t.species&&t.tools.length===0),'approved character props stay in their authored model rather than legacy role tools');
+    assert.equal(new Set(scene.tools).size,0,'retired role tools are not mounted in the active garden');
     assert.deepEqual(scene.coordinatorTools,{orchestrator:[],'codex:orchestrator':[]},'Bao and Jiao carry their props in their meshes, not as paw tools');
-    assert.equal(scene.skeletons,47,'32 residents and 15 scenery pandas have independent skeletons');
-    assert.equal(scene.places.length,10);
-    assert.deepEqual(scene.routes.filter(r=>!r.out||!r.home),[],'every workstation connects to the meeting and back over actual walking surfaces');
-    assert.ok(scene.tableSize[0]>=4&&scene.tableSize[1]>=1&&scene.tableSize[2]>=2.3,'the batched meeting table and legs remain visible');
+    assert.equal(scene.skeletons,24,'the 24 active residents have independent skeletons and there are no decorative pandas');
+    assert.equal(scene.places.length,11,'the approved four teams, four leisure structures, office, library and festival remain');
+    assert.equal(scene.workspaceRecords.length,24,'the mounted approved world publishes all 24 real workstation records');
+    assert.ok(scene.places.some(place=>place.id==='office')&&scene.places.some(place=>place.id==='pond'),'the mounted structure positions come from the approved garden');
+    assert.ok(scene.plazaSize[0]>=4&&scene.plazaSize[1]>=1&&scene.plazaSize[2]>=2.3,'the approved central meeting plaza geometry remains visible');
     assert.equal(scene.susan,true,'the tea tray still turns toward the meeting speaker');
     for (const response of modelResponses) assert.equal(response.status(), 200, response.url());
-    const bytes = await modelResponses.find(response => new URL(response.url()).pathname === assets.bao.url).body();
+    const bytes = await modelResponses.find(response => new URL(response.url()).pathname === assets['characters.bao'].url).body();
     assert.equal(bytes.subarray(0, 4).toString('ascii'), 'glTF', 'Chromium exposes the real decoded GLB model bytes');
-    const packaged = readFileSync(join(UI, 'public', assets.bao.url));
+    const packaged = readFileSync(join(UI, 'public', assets['characters.bao'].url));
     assert.equal(packaged[0], 0x1f, 'the checked-in model is gzip compressed');
     assert.equal(packaged[1], 0x8b);
     assert.equal(await page.evaluate(() => window.__eventStreams), 1, 'one shared live stream');
@@ -222,7 +209,7 @@ test("phone shell keeps the scene and Team sheet within the viewport and lists a
     await page.locator('[data-rail="team"]').click();
     const residents = page.getByRole('list', { name: 'Residents and visitors' });
     await residents.waitFor({ state: 'visible' });
-    assert.equal(await residents.getByRole('button').count(), 32, 'all seated charter roles');
+    assert.equal(await residents.getByRole('button').count(), 32, 'all callable role and runtime profiles remain available');
     for (const role of ['The Code Reviewer', 'The Release Manager', 'The SRE', 'The Technical Writer']) {
       assert.equal(await residents.getByRole('button', { name: new RegExp(`^${role}`) }).count(), 2, `${role} is listed for both runtimes`);
     }
@@ -241,8 +228,8 @@ test("phone shell keeps the scene and Team sheet within the viewport and lists a
   } finally { await context.close(); }
 });
 
-test("a failed model load explains the garden failure and leaves the Team rail entry available", { timeout: 60000 }, async () => {
-  const { context, page, errors } = await openGarden({ failModels: true });
+test("a failed required model manifest explains the garden failure and leaves the Team rail entry available", { timeout: 60000 }, async () => {
+  const { context, page, errors } = await openGarden({ failModels: '/den/manifest.json' });
   try {
     const alert = page.getByRole('alert').filter({ hasText: 'garden models could not load' });
     await alert.waitFor({ state: 'visible' });
@@ -277,10 +264,11 @@ test("a failed Bao portrait falls back to the old one in the same box, and a fai
       const url = performance.getEntriesByType('resource').find(e => e.name.includes('react-three_fiber.js')).name;
       const { _roots } = await import(url);
       const world = _roots.get(document.querySelector('canvas')).store.getState().scene.getObjectByName('Dim Sum Dev · plush bamboo garden');
-      const found = []; world.traverse(n => { if (n.userData.actorKey === 'orchestrator') found.push({ species: n.userData.species ?? null, scale: n.scale.x }); });
+      const found = []; world.traverse(n => { if (n.userData.actorKey === 'orchestrator') found.push({ species: n.userData.species ?? null, unavailable: n.userData.modelUnavailable === true, scale: n.scale.x, name: n.name }); });
       return found;
     });
-    assert.deepEqual(bao, [{ species: null, scale: 1.35 }], 'Bao falls back to the old body at the same scale');
+    assert.equal(bao.length, 1, 'the unavailable approved Bao remains one resident in his owned home');
+    assert.deepEqual({species:bao[0].species,unavailable:bao[0].unavailable,scale:bao[0].scale}, {species:null,unavailable:true,scale:1}, 'the missing approved Bao model remains visibly unavailable instead of substituting the legacy panda');
     assert.deepEqual(model.errors, []);
   } finally { await model.context.close(); }
 });
@@ -323,7 +311,7 @@ test("the physical Library opens its sheet and preserves Bao's side conversation
     await page.locator('[data-rail="team"]').click(); // uncover the Library roof before clicking it
     // Click the actual roof at the authored Library position, using the same camera projection as the garden.
     const box = await page.locator('.forest-canvas').boundingBox();
-    const roof = screenPoint(box, -21, 5.5, 6);
+    const roof = screenPoint(box, 0, 6.8, 24);
     await page.mouse.click(roof.x, roof.y);
     const library = page.locator('[data-sheet="topic"]');
     await library.getByText('garden-qa-marker', { exact: true }).waitFor({ state: 'visible' });
@@ -337,15 +325,24 @@ test("the physical Library opens its sheet and preserves Bao's side conversation
   } finally { await context.close(); }
 });
 
-test("a failed required wardrobe cannot report the garden ready with incomplete role attire", { timeout: 90000 }, async () => {
-  const { context, page, errors } = await openGarden({ failModels: assets['wardrobe.developer-vest'].url });
+test("a missing approved cast model stays labeled at its own home and leaves the garden usable", { timeout: 90000 }, async () => {
+  const { context, page, errors } = await openGarden({ failModels: assets['characters.developer'].url });
   try {
-    const alert = page.getByRole('alert').filter({ hasText: 'garden models could not load' });
-    await alert.waitFor({ state: 'visible', timeout: 60000 });
-    assert.equal(await page.locator('.den-entry button').getAttribute('aria-disabled'), 'true', 'an incomplete required model set cannot enable walking');
-    assert.match(await alert.innerText(), /board controls are still available/);
+    await ready(page);
+    assert.equal(await page.getByRole('alert').filter({ hasText: 'garden models could not load' }).count(), 0, 'one unavailable cast model does not fail the whole garden');
+    const residents=await page.evaluate(async()=>{
+      const url=performance.getEntriesByType('resource').find(e=>e.name.includes('react-three_fiber.js')).name;
+      const {_roots}=await import(url),world=_roots.get(document.querySelector('canvas')).store.getState().scene.getObjectByName('Dim Sum Dev · plush bamboo garden'),rows=[];
+      world.traverse(node=>{if(node.userData.actorKey==='developer'||node.userData.actorKey==='codex:developer')rows.push({id:node.userData.actorKey,role:node.userData.roleId,runtime:node.userData.runtime,unavailable:node.userData.modelUnavailable===true,species:node.userData.species??null,position:node.position.toArray(),home:node.userData.home?.toArray()});});
+      return rows;
+    });
+    assert.equal(residents.length,2,'both runtime residents remain represented in their own workspaces');
+    assert.deepEqual(residents.toSorted((a,b)=>a.id.localeCompare(b.id)).map(({id,role,runtime,unavailable,species,position,home})=>({id,role,runtime,unavailable,species,atHome:JSON.stringify(position)===JSON.stringify(home)})),[
+      {id:'codex:developer',role:'developer',runtime:'codex',unavailable:true,species:null,atHome:true},
+      {id:'developer',role:'developer',runtime:'claude',unavailable:true,species:null,atHome:true},
+    ],'both residents are labeled unavailable at their actual homes without substituting the legacy panda');
     await page.locator('[data-rail="team"]').click();
-    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 32);
+    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 32, 'the callable role and runtime roster remains available');
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }

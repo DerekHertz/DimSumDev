@@ -7,9 +7,31 @@ import {WADDLE} from './panda-rig.mjs';
 // of discussion, execution, pauses and decisions.
 export function createMeetingResidents(den,actors,places,routines){
  const participants=new Map(),returning=new Set(),guests=den.guestActors=new Map();let current=null;
+ const snapshot=()=>JSON.stringify([...actors.values(),...guests.values()].map(a=>[a.panda.model.position.x.toFixed(2),a.panda.model.position.z.toFixed(2),a.yaw]));
+ function travelPath(a,trip){
+  const from=a.panda.model.position,spot=trip.spot;
+  if(trip.stage==='return'){
+   const home={...a.home,yaw:a.baseYaw},direct=den.routineRoute(a,from,home);
+   if(direct.length||!den.walkWorld.segment)return direct;
+   for(const distance of [3,2,1]){
+    const exit={x:spot.x-Math.sin(spot.yaw)*distance,y:from.y,z:spot.z-Math.cos(spot.yaw)*distance,yaw:spot.yaw};
+    if(!den.walkWorld.segment(from,exit,a.envelope,spot.yaw))continue;
+    const onward=den.routineRoute(a,exit,home);
+    if(onward.length)return [exit,...onward];
+   }
+   return [];
+  }
+  for(const distance of [3,2,1,0]){
+   const approach={x:spot.x-Math.sin(spot.yaw)*distance,y:.46,z:spot.z-Math.cos(spot.yaw)*distance,yaw:spot.yaw};
+   const arrival=den.routineRoute(a,approach,spot),outbound=den.routineRoute(a,from,approach);
+   if(arrival.length&&outbound.length)return [...outbound,...arrival.map(p=>({...p,yaw:spot.yaw}))];
+  }
+  return [];
+ }
  const release=a=>{if(a.meetingPlace)places.release(a.meetingPlace,a.identity);a.meetingPlace=null;};
  function goHome(a){
-  release(a);a.meetingOwned=false;a.meetingTrip={stage:'return',path:den.routineRoute(a,a.panda.model.position,a.home),wait:0,replans:0};returning.add(a);
+  const spot=a.meetingTrip.spot;
+  release(a);a.meetingOwned=false;a.meetingTrip={stage:'return',spot,path:[],wait:0,replans:0};a.meetingTrip.path=travelPath(a,a.meetingTrip);returning.add(a);
  }
  function destroy(a){places.disposeActor(a.identity);a.panda.model.removeFromParent();den.destroyPanda?.(a.panda.model);guests.delete(a.id);returning.delete(a);}
  function guestFor(resident,meeting,spot){
@@ -32,7 +54,8 @@ export function createMeetingResidents(den,actors,places,routines){
    const position={x:spot.x+spot.x/radius*extra,y:.46,z:spot.z+(spot.z+4)/radius*extra};
    const place=places.define({id,kind:'meeting',position});if(!place.owner)place.position={...position};
    lease=places.reserve(id,a.identity,{...a.envelope,yaw:spot.yaw});if(!lease)continue;
-   path=den.routineRoute(a,a.panda.model.position,position);if(path.length){chosen={...spot,...position};path.push({...position,yaw:spot.yaw});break;}places.release(id,a.identity);lease=null;
+   chosen={...spot,...position};path=travelPath(a,{stage:'outbound',spot:chosen});
+   if(path.length)break;places.release(id,a.identity);lease=null;
   }
   if(!lease||!path.length){if(lease)places.release(id,a.identity);if(a.guest)destroy(a);return null;}
   a.meetingOwned=true;a.meetingPlace=id;a.meetingTrip={stage:'outbound',path,spot:chosen,wait:0,replans:0};a.path=path;return a;
@@ -60,14 +83,23 @@ export function createMeetingResidents(den,actors,places,routines){
     const target={x:p.x+(next.x-p.x)*k,y:p.y+(next.y-p.y)*k,z:p.z+(next.z-p.z)*k};
     if(den.walkWorld.supportAt){const y=den.walkWorld.supportAt(target.x,target.z);if(y===null)break;target.y=y+.045;}
     if(!den.routineClear(a,p,target)){
-     trip.wait+=dt;if(trip.wait>=2&&trip.replans<1){trip.replans++;trip.path=den.routineRoute(a,p,trip.stage==='return'?a.home:{x:trip.spot.x,y:.46,z:trip.spot.z});}break;
+     trip.blocked=true;break;
     }
-    trip.wait=0;if(distance>1e-6)a.yaw=next.yaw??Math.atan2(next.x-p.x,next.z-p.z);p.set(target.x,target.y,target.z);left-=travel;if(!reduced)a.moved+=travel;places.clearDeparted(a.identity,p,a.envelope);if(travel>=distance-1e-6)trip.path.shift();
+    trip.wait=0;trip.blocked=false;if(distance>1e-6)a.yaw=next.yaw??Math.atan2(next.x-p.x,next.z-p.z);p.set(target.x,target.y,target.z);left-=travel;if(!reduced)a.moved+=travel;places.clearDeparted(a.identity,p,a.envelope);if(travel>=distance-1e-6)trip.path.shift();
    }
    if(!trip.path.length){
-    const end=trip.stage==='return'?a.home:{x:trip.spot.x,y:.46,z:trip.spot.z};if(Math.hypot(p.x-end.x,p.z-end.z)>.02)continue;
+    const end=trip.stage==='return'?a.home:{x:trip.spot.x,y:.46,z:trip.spot.z};if(Math.hypot(p.x-end.x,p.z-end.z)>.02){trip.blocked=true;}else{
     if(trip.stage==='return'){if(a.guest){destroy(a);continue;}if(!den.routineClear(a,p,a.home))continue;p.copy(a.home);a.meetingTrip=null;a.path=null;a.yaw=null;returning.delete(a);places.occupy(a.homePlace,a.identity);}
-    else{trip.stage='seated';a.yaw=trip.spot.yaw;places.occupy(a.meetingPlace,a.identity);}
+    else{trip.stage='seated';a.yaw=trip.spot.yaw;places.occupy(a.meetingPlace,a.identity);}trip.blocked=false;
+    }
+   }
+   if(trip.blocked){
+    trip.wait+=dt;
+    if(trip.wait>=2){
+     const state=snapshot();
+     if(trip.replans===0||trip.blockedSnapshot!==state){trip.replans++;trip.blockedSnapshot=state;trip.path=travelPath(a,trip);trip.blocked=!trip.path.length;}
+     trip.wait=0;
+    }
    }
    if(a.guest){a.panda.model.rotation.y=a.yaw??a.baseYaw;if(a.moved){a.gait=(a.gait||0)+a.moved/a.panda.model.scale.x/(a.panda.rig.profile?.gait?.stride??WADDLE.stride)*(a.panda.rig.profile?.gait?.duration??WADDLE.duration);a.panda.rig.poseWaddle(a.gait,{groundAt:den.walkWorld.supportAt});}else a.panda.rig.poseIdle(0,{reducedMotion:true});if(trip.stage==='seated')a.panda.rig.poseSit?.(1);}
   }

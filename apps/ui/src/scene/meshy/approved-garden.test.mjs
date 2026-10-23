@@ -15,6 +15,9 @@ import {routeLength} from './daily-routines.mjs';
 globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};
 
 test('55-I/J/N: production assembly preserves approved plots, 27 bamboo sites, coherent restorable roofs and budgets',()=>{
+ const provenance=JSON.parse(readFileSync(new URL('./approved/provenance.json',import.meta.url)));
+ const manifest=JSON.parse(readFileSync(new URL('../../../public/den/manifest.json',import.meta.url)));
+ for(const [id,hash]of Object.entries(provenance.packedModelHashes))assert.equal(manifest.assets['characters.'+id].sha256,hash,'signed '+id+' model');
  const g=createApprovedGarden();try{
   assert.equal(g.assets.pass.root.position.x,-30.5);assert.equal(g.assets.front.root.position.z,24);assert.deepEqual(g.officePlot,{x:0,z:-32,width:26,depth:17});
   let total=0,shadow=0;g.root.traverse(n=>{if(n.isMesh){const triangles=(n.geometry.index?.count??n.geometry.attributes.position.count)/3;total+=triangles;if(n.castShadow)shadow+=triangles;}});

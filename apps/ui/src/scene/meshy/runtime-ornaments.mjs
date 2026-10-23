@@ -2,8 +2,8 @@ import * as Three from 'three';
 import {SVGLoader} from 'three/addons/loaders/SVGLoader.js';
 export async function loadOrnaments(){
  const result={};
- for(const runtime of ['claude','codex']){
-  const artwork=await new SVGLoader().loadAsync('/den/runtime/'+runtime+'-mark.svg');
+ for(const [runtime,url] of Object.entries({claude:'/den/runtime/claude-mark.svg',codex:'/den/runtime/codex-mark.svg'})){
+  const artwork=await new SVGLoader().loadAsync(url);
   const geometry=new Three.ExtrudeGeometry(artwork.paths.flatMap(path=>SVGLoader.createShapes(path)),{
    depth:runtime==='codex'?2:13.5,steps:1,curveSegments:2,
    bevelEnabled:true,bevelSegments:1,bevelSize:runtime==='codex'?.11:.26,bevelThickness:runtime==='codex'?.11:.50

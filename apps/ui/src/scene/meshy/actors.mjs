@@ -10,9 +10,6 @@ import {createMeetingResidents} from './meeting-residents.mjs';
 import {RESIDENTS,sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 
 const RETURNING='Working · returning to desk';
-// Homes first, then roaming (den-revival/07): residents with no live work walk from their owned homes to tea, the pond,
-// greetings, other teams' stations and the library, and a live run sends them straight back. Meeting travel and extra bodies stay deferred;
-// their live work remains in Team without borrowing another run's scene anchor.
 export function createMeshyActors(den){
  const actors=new Map(),definitions=new Map(CHARACTERS.map(c=>[c[0],c]));let bindings=new Map(),selected=null,time=0,held=null,hidden=false;
  const homes=createActorHomes(den,actors),places=homes.places;
@@ -25,7 +22,7 @@ export function createMeshyActors(den){
  den.placeRegistry=places;if(den.garden?.approved)bindResidentNavigation(den,actors);
  const routines=createDailyRoutines(den,actors);
  const meetings=den.garden?.approved?createMeetingResidents(den,actors,places,routines):null;
- const note=a=>{a.presentation=a.live&&(a.outing||a.meetingTrip?.stage==='return')?RETURNING:a.outing?(a.outing.stage==='return'?'Returning home':a.outing.stage==='outbound'?'Going to '+a.outing.spot.kind:({tea:'Taking tea',pond:'Watching the pond',rest:'Resting',games:'Playing mahjong',friend:'Visiting '+a.outing.host?.name}[a.outing.spot.kind])):a.homeNote;};
+ const note=a=>{a.presentation=a.meetingTrip?.blocked?'Waiting for a clear route '+(a.meetingTrip.stage==='return'?'home':'to the meeting'):a.live&&(a.outing||a.meetingTrip?.stage==='return')?RETURNING:a.outing?(a.outing.stage==='return'?'Returning home':a.outing.stage==='outbound'?'Going to '+a.outing.spot.kind:({tea:'Taking tea',pond:'Watching the pond',rest:'Resting',games:'Playing mahjong',friend:'Visiting '+a.outing.host?.name}[a.outing.spot.kind])):a.homeNote;};
  function applyLive(rows=[],sharedBindings=null){
   // Shared bindings retain every run even though only residents have bodies.
   bindings=sharedBindings?new Map(sharedBindings):actorBindings(rows,bindings);
@@ -52,6 +49,7 @@ export function createMeshyActors(den){
    if(key===held&&!reduced)continue;
    p.rotation.y=a.yaw??a.baseYaw;
    if(a.mount!=null&&!reduced)a.panda.rig.poseMount(a.mount);else if(a.moved)a.panda.rig.poseWaddle(a.gait,{groundAt:den.walkWorld.supportAt});else a.panda.rig.poseIdle(time+a.index*.63,{reducedMotion:reduced||!!a.live});
+   if(a.meetingTrip?.stage==='seated')a.panda.rig.poseSit?.(1);
    if(visit&&!a.panda.model.userData.modelUnavailable){if(a.panda.rig.profile?.sit&&['rest','tea','pond','games'].includes(visit.spot.kind))a.panda.rig.poseSit(1);(a.gesture??=createLeisureGesture(a.panda.rig)).pose(visit.spot.kind==='games'?'mahjong':visit.spot.kind==='friend'?'greeting':visit.spot.kind,visit.elapsed);}else a.gesture?.pose(null,0);
   }
  }

@@ -10,7 +10,7 @@ function fixture(busy=false){
  const places=createPlaceRegistry(den.walkWorld,{getBodies:()=>[...actors.values(),...(den.guestActors?.values()||[])].map(a=>({owner:a.identity,position:a.panda.model.position,envelope:a.envelope}))});
  places.define({id:'work:qa',kind:'work',position:a.home});places.reserve('work:qa',a.identity,a.envelope);places.occupy('work:qa',a.identity);a.homePlace='work:qa';
  const meeting=createMeetingResidents(den,actors,places,{transfer(){}}),m={id:'m1',ref:'meeting-run',state:'running',seats:[{role:'qa'}]};
- return {a,den,places,meeting,m};
+ return {a,actors,den,places,meeting,m};
 }
 const tick=(f,s)=>{for(let i=0;i<s*10;i++)f.meeting.update(.1,false);};
 test('55-H: idle resident travels to its meeting seat while home remains reserved; paused and briefed preserve it',()=>{
@@ -29,5 +29,27 @@ test('55 pace: physical meeting travel covers 3.6 units per second and live retu
  assert.ok(Math.abs(start.distanceTo(f.a.panda.model.position)-3.6)<.001);
  tick(f,10);f.meeting.apply({...f.m,state:'closed'});f.a.live={ref:'new-work'};
  const seated=f.a.panda.model.position.clone();tick(f,1);assert.ok(Math.abs(seated.distanceTo(f.a.panda.model.position)-4.8)<.001);
+ f.meeting.dispose();f.places.dispose();
+});
+
+test('meeting waits truthfully on an empty blocked replan and retries after a neighbor moves, retaining final yaw and owned places',()=>{
+ const f=fixture(),neighbor={panda:{model:new T.Group()},envelope:{radius:.6,height:2}};
+ f.actors.set('neighbor',neighbor);
+ let blocked=false,calls=0;
+ const route=f.den.routineRoute;
+ f.den.routineRoute=(...args)=>{calls++;return blocked?[]:route(...args);};
+ f.den.routineClear=()=>!blocked;
+ f.meeting.apply(f.m);blocked=true;tick(f,5);
+ assert.equal(f.a.meetingTrip.blocked,true);assert.equal(f.a.meetingTrip.stage,'outbound');
+ assert.equal(f.meeting.seatModels().size,0);
+ assert.equal(f.places.get(f.a.meetingPlace).owner,f.a.identity);
+ const attempts=calls,waiting=f.a.panda.model.position.clone();tick(f,5);
+ assert.equal(calls,attempts,'an unchanged blocked scene does not repeatedly search routes');
+ assert.deepEqual(f.a.panda.model.position,waiting,'waiting never moves through the neighbor');
+ blocked=false;neighbor.panda.model.position.x+=2;tick(f,2.1);
+ assert.equal(f.a.meetingTrip.path.at(-1).yaw,f.a.meetingTrip.spot.yaw,'replanned destination retains its required final yaw');
+ tick(f,15);
+ assert.equal(f.a.meetingTrip.stage,'seated');assert.equal(f.a.yaw,f.a.meetingTrip.spot.yaw);
+ f.meeting.apply({...f.m,state:'closed'});tick(f,20);assert.equal(f.a.meetingTrip,null);
  f.meeting.dispose();f.places.dispose();
 });

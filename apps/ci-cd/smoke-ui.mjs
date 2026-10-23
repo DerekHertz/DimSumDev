@@ -241,8 +241,10 @@ async function main() {
       return `spacing x${(gap(zoomed) / gap(base)).toFixed(3)}, x${(gap(nearest) / gap(base)).toFixed(3)} (nearest), x${(gap(farthest) / gap(base)).toFixed(3)} (farthest)`;
     });
 
-    await check("camera pan: dragging 100 px right moves every sign 100 px right", async () => {
+    await check("camera controls: Shift-drag pans, primary drag orbits both axes, and Den resets the framing", async () => {
       await page.setViewportSize({ width: 1440, height: 900 });
+      await page.locator('[data-rail="reset"]').click();
+      const defaults = await settle((p) => fits(p), "default framing before camera gestures");
       const wheelBox=await page.locator('.forest-canvas canvas').boundingBox();
       await page.mouse.move(wheelBox.x+wheelBox.width*.85,wheelBox.y+wheelBox.height*.15);
       await page.mouse.wheel(0, -780.1586); // factor 1.2 -> .55: keep both flanking signs visible while panning
@@ -255,15 +257,31 @@ async function main() {
       const cx = box.x + box.width / 2;
       const cy = box.y + box.height / 2;
       await page.mouse.move(cx, cy);
+      await page.keyboard.down('Shift');
       await page.mouse.down();
       await page.mouse.move(cx + 50, cy, { steps: 5 });
       await page.mouse.move(cx + 100, cy, { steps: 5 });
       await page.mouse.up();
+      await page.keyboard.up('Shift');
       const after = await settle((p) => names.every((n) => p.signs[n] && Math.abs(p.signs[n].x - start.signs[n].x - 100) < 4), "drag by 100 px");
       for (const n of names) {
         if (Math.abs(after.signs[n].y - start.signs[n].y) > 4) throw new Error(`${n} sign moved vertically by ${after.signs[n].y - start.signs[n].y}`);
       }
-      return `${names.length} signs shifted ${Math.round(after.signs[names[0]].x - start.signs[names[0]].x)} px`;
+      const orbitStart = await sceneProbe();
+      await page.mouse.move(cx, cy);
+      await page.mouse.down();
+      await page.mouse.move(cx + 50, cy + 40, { steps: 5 });
+      await page.mouse.up();
+      const orbitEnd = await settle((p) => {
+        const a=orbitStart.projected['The Pass'],b=p.projected['The Pass'];
+        return a&&b&&Math.abs(a.x-b.x)>5&&Math.abs(a.y-b.y)>5;
+      }, 'primary drag changes both orbit axes');
+      await page.locator('[data-rail="reset"]').click();
+      const reset = await settle((p) => {
+        const a=defaults.projected['The Pass'],b=p.projected['The Pass'];
+        return a&&b&&Math.abs(a.x-b.x)<3&&Math.abs(a.y-b.y)<3;
+      }, 'Den returns the camera to its initial framing');
+      return `${names.length} signs shifted ${Math.round(after.signs[names[0]].x - start.signs[names[0]].x)} px; orbit changed x/y by ${Math.round(orbitEnd.projected['The Pass'].x-orbitStart.projected['The Pass'].x)}/${Math.round(orbitEnd.projected['The Pass'].y-orbitStart.projected['The Pass'].y)} px; Den reset to ${Math.round(reset.projected['The Pass'].x)},${Math.round(reset.projected['The Pass'].y)}`;
     });
 
     // den-v1/03, back for den-layout/04: Enter the den switches to a first-person camera in the restaurant scene, WASD
