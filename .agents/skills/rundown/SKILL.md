@@ -1,6 +1,6 @@
 ---
 name: rundown
-description: "A rundown of where the den stands: open action items, what merged, what went wrong, what went well, what needs merging, and what to work on next. Use when the user asks for a rundown, a daily plan, 'what's going on', or 'what should we tackle'. Any time of day."
+description: "Den rundown, and what to work on next."
 ---
 
 Gather, then report. Read only; do not claim, merge or file anything.
