@@ -56,7 +56,7 @@ test("developer and qa can start runner and say when to", () => {
   for (const a of ["developer", "qa"]) {
     const g = front(a);
     assert.ok(agentTargets(g.tools).includes("runner"), `${a} cannot start runner`);
-    assert.ok(agentTargets(g.tools).includes("scout"), `${a} lost scout`);
+    if (a === "developer") assert.ok(agentTargets(g.tools).includes("scout"), `${a} lost scout`);
     assert.match(g.body, /`runner`[^\n]*\b(verify|check)/i, `${a} does not say when to use runner`);
   }
 });

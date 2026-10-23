@@ -15,7 +15,7 @@ export const USAGE_REFUSE_AT = 90; // five-hour usage percent at which dispatch 
 // The known roles (CLAUDE.md); the last four are ADR 0029's, on the worker slot until per-layer caps (codex-residents/11).
 export const ROLES = ["product", "architect", "orchestrator", "chief-of-staff", "developer", "scout", "qa", "security", "designer", "herald", "code-reviewer", "release-manager", "sre", "technical-writer"];
 // mode reaches the prompt template, so it is an allowlist, never free text.
-export const MODES = ["specify", "verify", "review", "spec", "critique", "direction"];
+export const MODES = ["verify", "review", "spec", "critique", "direction"];
 
 // den-v1 loop S1 (ADR 0016 decision 3, amendment 9): tasks started from the den with POST /tasks.
 export const DEN_FEATURE = "den"; // the board feature the route writes its tickets under

@@ -9,7 +9,7 @@
 //   - one line holding `node scripts/agent-start.mjs ...` (flags tokenised on whitespace), plus a note naming the worktree;
 //   - the ticket path `.scratch/<feature>/issues/<NN-slug>.md`;
 //   - the handoff name `<NN>-<role>[-<mode>].md`, or `...-<k>.md` (k = 2, 3, ...) when an earlier name is already published;
-//   - `Start-here context: <path>` only for architect, qa specify and developer, and only when dispatch-context gives a path;
+//   - `Start-here context: <path>` only for architect and developer, and only when dispatch-context gives a path;
 //   - exactly one release flag form: `--status in-review`, `--keep-status`, or `--status ready-for-agent`; never `--status resolved`.
 //
 // Assumptions flagged in the handoff (the ticket leaves them open): designer `review` is not pinned to one release form;
@@ -76,7 +76,6 @@ const flagValue = (toks, flag) => {
 
 const TABLE = [
   // agent, mode, branch-or-detach, release form
-  { role: "qa", mode: "specify", style: "branch", release: "keep" },
   { role: "developer", mode: undefined, style: "branch", release: "in-review" },
   { role: "qa", mode: "verify", style: "detach", release: "keep" },
   { role: "security", mode: undefined, style: "detach", release: "keep" },
@@ -150,7 +149,7 @@ test("agent-start line: a note says it runs inside the agent's worktree", () => 
 });
 
 test("agent-start line: --continue is added on later hops, for branch and detach agents alike", () => {
-  for (const [role, mode] of [["developer"], ["qa", "verify"], ["qa", "specify"], ["security"]]) {
+  for (const [role, mode] of [["developer"], ["qa", "verify"], ["security"]]) {
     const r = run(base(role, mode, ["--continue"]), { root: world() });
     assert.equal(r.status, 0, r.stderr);
     const lines = startLines(r.stdout);
@@ -175,7 +174,6 @@ test("batch: --batch <name> shows the batch name in the prompt", () => {
 // --- Handoff path, including the re-dispatch scope item -------------------------------------------------------------
 
 const NAME_CASES = [
-  { role: "qa", mode: "specify", name: `07-qa-specify` },
   { role: "qa", mode: "verify", name: `07-qa-verify` },
   { role: "developer", mode: undefined, name: `07-developer` },
   { role: "security", mode: undefined, name: `07-security` },
@@ -193,11 +191,11 @@ for (const c of NAME_CASES) {
 }
 
 test("handoff path: a re-dispatch after a partial gets a new name (-2) when the plain name is already published", () => {
-  const root = world({ handoffs: ["07-qa-specify.md"] });
-  const r = run(base("qa", "specify", ["--continue"]), { root });
+  const root = world({ handoffs: ["07-qa-verify.md"] });
+  const r = run(base("qa", "verify", ["--continue"]), { root });
   assert.equal(r.status, 0, r.stderr);
-  assert.match(r.stdout, /07-qa-specify-2\.md/);
-  assert.ok(!/(?<![\w-])07-qa-specify\.md/.test(r.stdout), "the old name would be refused by board handoff");
+  assert.match(r.stdout, /07-qa-verify-2\.md/);
+  assert.ok(!/(?<![\w-])07-qa-verify\.md/.test(r.stdout), "the old name would be refused by board handoff");
 });
 
 test("handoff path: the suffix keeps counting (-3 once -2 exists)", () => {
@@ -210,7 +208,7 @@ test("handoff path: the suffix keeps counting (-3 once -2 exists)", () => {
 });
 
 test("handoff path: another agent's or mode's handoff does not bump the suffix", () => {
-  const root = world({ handoffs: ["07-qa-specify.md", "07-orchestrator.md", "07-developer.md"] });
+  const root = world({ handoffs: ["07-qa-specify.md", "07-chief-of-staff.md", "07-developer.md"] });
   const r = run(base("qa", "verify"), { root });
   assert.equal(r.status, 0, r.stderr);
   assert.match(r.stdout, /(?<![\w-])07-qa-verify\.md/);
@@ -221,7 +219,7 @@ test("handoff path: another agent's or mode's handoff does not bump the suffix",
 
 const START_HERE = /Start-here context: \S*\.scratch\/_context\/feat-x\/07-sample-thing\.md/;
 
-for (const [role, mode] of [["architect"], ["qa", "specify"], ["developer"]]) {
+for (const [role, mode] of [["architect"], ["developer"]]) {
   test(`start-here: ${role}${mode ? ` ${mode}` : ""} gets the line when dispatch-context gives a path`, () => {
     const r = run(base(role, mode), { root: world({ withContext: true }) });
     assert.equal(r.status, 0, r.stderr);
