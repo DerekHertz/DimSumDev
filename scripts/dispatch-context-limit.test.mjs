@@ -477,6 +477,7 @@ test("[97] fix: a secret in the search output is still refused as secret-in-outp
 const jgRoot = (files = []) => {
   const root = tmp("jg97-root-");
   mkdirSync(path.join(root, ".git"));
+  writeFileSync(path.join(root, ".git", "HEAD"), "ref: refs/heads/main\n");
   for (const rel of files) {
     mkdirSync(path.dirname(path.join(root, rel)), { recursive: true });
     writeFileSync(path.join(root, rel), "x");

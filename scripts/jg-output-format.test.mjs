@@ -3,7 +3,7 @@
 // count files from the real header as well as from "## " headers.
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, realpathSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { runJg } from "./jg.mjs";
@@ -11,6 +11,7 @@ import { runJg } from "./jg.mjs";
 const root = () => {
   const r = mkdtempSync(path.join(realpathSync(tmpdir()), "jgfmt-"));
   mkdirSync(path.join(r, ".git"));
+  writeFileSync(path.join(r, ".git", "HEAD"), "ref: refs/heads/main\n");
   return r;
 };
 const answer = (stdout) => ({ run: async () => ({ stdout, exitCode: 0 }) });

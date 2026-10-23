@@ -62,10 +62,12 @@ function checkQuery(query) {
   if (hasSecret(query)) throw new Refused("secret", "refused: the query looks like it contains a secret");
 }
 
-// Nearest ancestor holding .git (a directory in the main checkout, a file in a worktree).
+// Nearest ancestor holding .git: a directory with a HEAD in the main checkout, a file in a worktree. A bare empty .git
+// directory is no repository: a sandbox (bwrap) leaves one at /tmp/.git, and it must not make all of /tmp a checkout.
 function checkoutOf(dir) {
   for (let d = dir; ; d = path.dirname(d)) {
-    if (existsSync(path.join(d, ".git"))) return d;
+    const dotGit = path.join(d, ".git");
+    if (existsSync(dotGit) && (!statSync(dotGit).isDirectory() || existsSync(path.join(dotGit, "HEAD")))) return d;
     if (path.dirname(d) === d) return null;
   }
 }

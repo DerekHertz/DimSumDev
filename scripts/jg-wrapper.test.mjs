@@ -13,6 +13,7 @@ const tmp = (p) => mkdtempSync(path.join(realpathSync(tmpdir()), p));
 const repo = () => {
   const r = tmp("jg80-r-");
   mkdirSync(path.join(r, ".git"));
+  writeFileSync(path.join(r, ".git", "HEAD"), "ref: refs/heads/main\n");
   return r;
 };
 const ok = (files = 2) => {
@@ -26,6 +27,7 @@ const rows = (root) => readFileSync(path.join(root, ".scratch", "usage.jsonl"), 
 function checkout() {
   const top = tmp("jg80-co-");
   mkdirSync(path.join(top, ".git"));
+  writeFileSync(path.join(top, ".git", "HEAD"), "ref: refs/heads/main\n");
   const wt = path.join(top, ".claude", "worktrees", "agent");
   mkdirSync(wt, { recursive: true });
   writeFileSync(path.join(wt, ".git"), "gitdir: elsewhere\n");
