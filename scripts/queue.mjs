@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // organism-infra/212: the board's queue as buckets and as a text kanban. Board files and
-// .scratch/usage.jsonl only (no network); the root comes from DEN_ROOT, else the cwd.
+// .scratch/usage.jsonl only (no network); the root comes from DEN_ROOT, else the main checkout (so it works from a worktree).
 //   readQueue(root) -> Promise<{ inFlight, ready, waitingOnUser, blocked, proposed }>
 // Row: { ref, title, priority }. inFlight adds { agent, mode } from the lock; blocked adds
 // { blockedBy }. The ready list is in the Queue's order (queue/06: buildQueue from
@@ -12,6 +12,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildQueue, loadSnapshot } from "../apps/board/frontier-queue.mjs";
+import { resolveRoot } from "../apps/board/board-service.mjs";
 
 const GONE = new Set(["resolved", "closed", "parked"]);
 const MAX_TITLE = 60;
@@ -153,6 +154,6 @@ export function renderKanban(q) {
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
-  const q = await readQueue(process.env.DEN_ROOT || process.env.ORGANISM_ROOT || process.cwd());
+  const q = await readQueue(resolveRoot(process.cwd(), process.env));
   process.stdout.write(process.argv.includes("--json") ? `${JSON.stringify(q)}\n` : `${renderKanban(q)}\n`);
 }
