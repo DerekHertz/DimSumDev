@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import {createTeaGarden} from './plush/tea-garden.mjs';
+import {createTeaGarden} from '../../../src/scene/meshy/plush/tea-garden.mjs';
 
 // Geometry tests use a drawing stub; browser coverage checks the rendered scene.
 globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};

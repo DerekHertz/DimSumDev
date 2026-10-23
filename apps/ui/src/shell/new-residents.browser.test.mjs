@@ -35,7 +35,7 @@ test('four charter roles keep real home cards and exact runtime bindings while v
    if(!resource)return false;
    const {_roots}=await import(resource.name),state=_roots.get(document.querySelector('canvas')).store.getState();
    const world=state.scene.getObjectByName('Dim Sum Dev · plush bamboo garden');if(!world?.__r3f?.handlers.onClick)return false;
-   const pandas={};world.traverse(node=>{if(node.userData.actorKey)pandas[node.userData.actorKey]=node;});window.charterProbe={state,world,pandas,mountedFrame:state.gl.info.render.frame};return Object.keys(pandas).length===32;
+   const pandas={};world.traverse(node=>{if(node.userData.actorKey)pandas[node.userData.actorKey]=node;});window.charterProbe={state,world,pandas,mountedFrame:state.gl.info.render.frame};return Object.keys(pandas).length===24;
   });
   // World readiness precedes walk-controller and proximity initialization.
   // Demand rendering needs an explicit frame request before this readiness gate.
@@ -74,9 +74,9 @@ test('four charter roles keep real home cards and exact runtime bindings while v
    return pandas['codex:technical-writer']?.userData.ticketRef==='charter/01';
   });
   const refs=await page.evaluate(()=>Object.fromEntries(Object.entries(window.charterProbe.pandas).map(([id,node])=>[id,node.userData.ticketRef??null])));
-  assert.equal(Object.keys(refs).length,32);
+  assert.equal(Object.keys(refs).length,24);
   for(const role of ROLES){assert.equal(refs[role],'charter/01');assert.equal(refs['codex:'+role],'charter/01');}
-  assert.equal(refs.developer,null);assert.equal(refs['codex:developer'],null);assert.equal(refs['docs-writer'],null);
+  assert.equal(refs.developer,null);assert.equal(refs['codex:developer'],null);assert.equal(Object.hasOwn(refs,'docs-writer'),false,'retired docs-writer has no physical body');
   assert.equal(refs['release-manager#charter/02'],undefined,'deferred visitor has no borrowed scene body');
   for(const role of ROLES){
    const card=await pick(role);await page.waitForFunction(role=>document.querySelector('.proximity-team')?.textContent.includes(role+' · Claude'),role);

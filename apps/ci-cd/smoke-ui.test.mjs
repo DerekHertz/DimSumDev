@@ -98,7 +98,7 @@ test("smoke --url exits non-zero when the URL is unreachable", async () => {
 test("npm run smoke:ui passes on main: scene count, queue order, chart and one Approve round trip", async () => {
   const { code, stdout, stderr } = await run(["smoke:ui"], { timeoutMs: 170000 });
   assert.equal(code, 0, `smoke:ui must exit 0.\nstdout: ${stdout}\nstderr: ${stderr}`);
-  for (const check of ["scene", "queue", "chart", "approve", "camera fit.*1440x900", "camera fit.*375x667", "camera zoom", "camera pan"]) {
+  for (const check of ["scene", "queue", "chart", "approve", "camera fit.*1440x900", "camera fit.*375x667", "camera zoom", "camera controls: Shift-drag pans, primary drag orbits both axes, and Den resets the framing"]) {
     assert.match(
       stdout,
       new RegExp(`^PASS.*${check}`, "im"),

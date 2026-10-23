@@ -210,7 +210,7 @@ export function createRig(source, profile) {
     ankle.parent.getWorldQuaternion(inverse).invert();
     ankle.quaternion.copy(inverse).multiply(travelRoot.getWorldQuaternion(new T.Quaternion())); ankle.updateWorldMatrix(false, true);
   }
-  function poseWaddle(time, { travel = false, reducedMotion = false, ...settings } = {}) {
+  function poseWaddle(time, { travel = false, reducedMotion = false, groundAt = null, ...settings } = {}) {
     resetPose(); if (reducedMotion) return reducedRest();
     const gait = sampleWaddle(time, { foot: profile.foot, ...profile.gait, ...settings }), phase = gait.cycles * Math.PI * 2;
     travelRoot.position.z = travel ? gait.distance : 0;
@@ -232,6 +232,10 @@ export function createRig(source, profile) {
       bones['Wrist_' + side].rotation.x = .045 * Math.sin(phase + offset - .35) * arms.swing[side];
     }
     model.updateMatrixWorld(true);
+    if(groundAt)for(const side of ['L','R']){
+      const target=travelRoot.localToWorld(point(gait.feet[side].position)),support=groundAt(target.x,target.z);
+      if(support!==null){target.y+=support-(model.position.y-.045);gait.feet[side].position=travelRoot.worldToLocal(target).toArray();}
+    }
     // Keep short legs within reach at longer strides, instead of clamping an
     // unreachable foot and allowing its planted position to slide.
     let lowerBy = 0;
@@ -261,6 +265,16 @@ export function createRig(source, profile) {
     profile.animate?.(bones, { kind: 'idle', phase: cycles * Math.PI * 2, breath });
     model.updateMatrixWorld(true); skeleton.update();
     return { cycles, breath };
+  }
+  function poseMount(progress) {
+    if(!Number.isFinite(progress)||progress<0||progress>1)throw Error('Invalid supported mount progress');
+    resetPose();restArms();
+    const lift=.12*Math.sin(Math.PI*progress),feet={};
+    for(const side of ['L','R']){
+      const target=restAnchors['Ankle_'+side].clone();target.y+=lift;
+      solveLeg(side,target.toArray());feet[side]={planted:progress===0||progress===1,position:target.toArray()};
+    }
+    model.updateMatrixWorld(true);skeleton.update();return {feet};
   }
   /** Seated at a table: hips lowered by the profile's drop, thighs forward, shins hanging. */
   function poseSit(time, { reducedMotion = false } = {}) {
@@ -298,5 +312,5 @@ export function createRig(source, profile) {
     for (const mesh of meshes) { mesh.geometry.dispose(); for (const material of Array.isArray(originalMaterials.get(mesh)) ? originalMaterials.get(mesh) : [originalMaterials.get(mesh)]) materials.add(material); }
     for (const material of materials) material.dispose(); skeleton.dispose(); model.removeFromParent();
   }
-  return { model, travelRoot, bones, skeleton, meshes, outfits, profile, resetPose, poseWaddle, poseIdle, poseSit, addOutfit, setWeightColors, dispose };
+  return { model, travelRoot, bones, skeleton, meshes, outfits, profile, resetPose, poseWaddle, poseIdle, poseMount, poseSit, addOutfit, setWeightColors, dispose };
 }

@@ -1,0 +1,20 @@
+{
+  "approved": "2026-10-22",
+  "revision": "5659b686a57589153fe0bce1c72671b19f3ba601",
+  "packedModelHashes": {
+    "fox": "dd797843671f997b0e28cd8914a40b8822f704c1d15358bc36ab9f826b71aaa0",
+    "crane": "82480354c31e80fd7d5cf8dfbeb25cc948c544c1d1e6adb210ecf5b2fb5de3ca",
+    "lucky-cat": "afa425776618ab653837ee686ad7650f8fc097c1a4839a0240d7cb93deb7ec43",
+    "lion": "7d8d582db29a9ffbbb7876552337409dfa3557b29bbbb406572b5cc5fc45ec10",
+    "otter": "56da3fa2d124739aaa0b0db64d97f59df5725ff0f9f9ff50b9da8efa5bdc6eab",
+    "pangolin": "c40faa116c5574da159ac198391f7f6512006a9665d5a6a552d1ee243233bd71",
+    "tortoise": "b061e20dce8df40b484274d78d430c23c82203d84ff78f836bbecc05528c7319",
+    "developer": "c08988b2e0c30af8b1d0f1a8c2f9f843be43ef8d98a3fe17b2a2d615aae73449",
+    "golden-monkey": "15de186642eb2c9e6468a0af4f36e0bb4c8568e91ed7472de5e7e23e4a927c65",
+    "deer": "cc9baa11853a241d32c8bdf7b39c4e8eae3f18d466f0307dfeb8c1a49f72206a",
+    "technical-writer": "55330864e7989fbac2036a10f2f8729019fe73a19d78c7deff2639b3a9ab5b29",
+    "bao": "296860c4a4c62899c95ba376574d7c3f23eb09be17f71d7f9eb8ca112be03de8",
+    "jiao": "0c2d60bcab5405256f6ec8ddd6de7795d87d8ac274b891f449a60a1b59cc056a"
+  },
+  "sourcePackage": "55-56-final-package-r1"
+}

@@ -10,15 +10,15 @@ import { chromium } from 'playwright';
 import { buildLaunchOptions } from '../../../ci-cd/launch-options.mjs';
 import { lightenScene } from '../../../ci-cd/light-scene.mjs';
 
-const RUN = 'c-af592f417c598394', OLD = 'c-0011223344556677', NEXT = 'c-8899aabbccddeeff', APPROVAL = 'a-8313dee2f728c5f1', REF = 'den/02-scout';
+const RUN = 'c-af592f417c598394', OLD = 'c-0011223344556677', NEXT = 'c-8899aabbccddeeff', APPROVAL = 'a-8313dee2f728c5f1', REF = 'den/02-maker';
 const iso = (secondsAgo) => new Date(Date.now() - secondsAgo * 1000).toISOString();
 const agentRow = (extra = {}) => ({
-  id: RUN, ref: REF, role: 'scout', mode: 'direct', runtime: 'claude', state: 'waiting_on_user', startedAt: iso(300), lastEventAt: iso(1),
+  id: RUN, ref: REF, role: 'developer', mode: 'direct', runtime: 'claude', state: 'waiting_on_user', startedAt: iso(300), lastEventAt: iso(1),
   tool: null, tokens: null, capabilities: { stop: true, approve: true, send: true, handover: false }, followUp: false, resumeOf: null, ...extra,
 });
 const snapshot = ({ ended = false } = {}) => ({
   schema: 1, seq: 1, frontier: [], usage: null, requests: [], sessions: [],
-  tickets: [{ ref: REF, feature: 'den', title: '02: Den task for scout', type: 'task', status: 'ready-for-agent', ready: true, priority: 'P2', effectivePriority: 'P2', blockedBy: [], holder: null, gate: null }],
+  tickets: [{ ref: REF, feature: 'den', title: '02: Den task for the Maker', type: 'task', status: 'ready-for-agent', ready: true, priority: 'P2', effectivePriority: 'P2', blockedBy: [], holder: null, gate: null }],
   agents: [agentRow(ended ? { state: 'done', followUp: true } : {})],
   approvals: ended ? [] : [{ id: APPROVAL, agentId: RUN, tool: 'Bash', summary: 'npm test -- --watch=false', says: 'I need to run the tests to see which one fails.', intent: 'Run the test suite once', inputLength: 40, truncated: false, ts: iso(5), expiresAt: new Date(Date.now() + 8 * 60000 + 30000).toISOString(), state: 'pending' }],
   transcripts: { [RUN]: { dropped: 0, entries: [
@@ -64,7 +64,7 @@ async function open({ ended = false, width = 1280 } = {}) {
   await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(state)}\n\n` }));
   await page.route('**/state', (r) => r.fulfill({ json: state }));
   await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
-  await page.route('**/conversations/scout**', (r) => {
+  await page.route('**/conversations/developer**', (r) => {
     const req = r.request();
     if (req.method() === 'GET') { reads.push(new URL(req.url()).search); return r.fulfill({ json: reads.length > 1 ? { entries: [], more: false, before: 0 } : history }); }
     posts.push({ path: new URL(req.url()).pathname, body: req.postDataJSON() });
@@ -81,19 +81,19 @@ async function open({ ended = false, width = 1280 } = {}) {
 const shot = async (page, name) => { if (process.env.DEN_SHOTS) await page.locator('.thread-panel').screenshot({ path: path.join(process.env.DEN_SHOTS, name) }); };
 
 // Use the mounted picking handler: projected labels can cover the panda in the full-window scene.
-async function pickScout(page) {
+async function pickMaker(page) {
   await page.waitForFunction(async () => {
     const url = performance.getEntriesByType('resource').find(e => e.name.includes('@react-three_fiber'))?.name;
     if (!url) return false;
     const { _roots } = await import(url);
     const scene = _roots.get(document.querySelector('canvas'))?.store.getState().scene;
     const world = scene?.getObjectByName('Dim Sum Dev · plush bamboo garden');
-    let scout;
-    world?.traverse(o => { if (o.userData?.actorKey === 'scout') scout = o; });
-    if (!scout || !world.__r3f?.handlers.onClick) return false;
-    window.threadPick = { world, scout }; return true;
+    let maker;
+    world?.traverse(o => { if (o.userData?.actorKey === 'developer') maker = o; });
+    if (!maker || !world.__r3f?.handlers.onClick) return false;
+    window.threadPick = { world, maker }; return true;
   });
-  await page.evaluate(() => { const { world, scout } = window.threadPick; world.__r3f.handlers.onClick({ object: scout, stopPropagation() {} }); });
+  await page.evaluate(() => { const { world, maker } = window.threadPick; world.__r3f.handlers.onClick({ object: maker, stopPropagation() {} }); });
 }
 
 test('the thread: opened from Needs you, it reads as a conversation, takes a message and stops the agent behind a confirm', { timeout: 90000 }, async () => {
@@ -102,14 +102,14 @@ test('the thread: opened from Needs you, it reads as a conversation, takes a mes
     const { page } = t;
     await page.locator('[data-rail=needs]').click();
     await page.locator('[data-overlay=needs-you] .needs-thread').click();
-    const thread = page.getByRole('dialog', { name: 'Conversation with Scout' });
+    const thread = page.getByRole('dialog', { name: 'Conversation with Developer' });
     await thread.waitFor();
-    assert.match(await thread.locator('.transcript-head').innerText(), /conversation\s+Scout · 02-scout[\s\S]*Needs your answer/i);
+    assert.match(await thread.locator('.transcript-head').innerText(), /conversation\s+Developer · 02-maker[\s\S]*Needs your answer/i);
 
     // The earlier run is above the live one, and more can be asked for.
     await thread.getByText('Yesterday I mapped the test folders.').waitFor();
     const log = await thread.locator('.transcript-log').innerText();
-    assert.match(log, /Show earlier[\s\S]*Run started · 02-scout[\s\S]*Yesterday I mapped[\s\S]*I will start by reading/);
+    assert.match(log, /Show earlier[\s\S]*Run started · 02-maker[\s\S]*Yesterday I mapped[\s\S]*I will start by reading/);
     // The user's answer with its note and a receipt; the typed message with its receipt; the ask with its reason first.
     assert.match(log, /Asked to run a command · answered[\s\S]*Denied\.\s*Do not delete dist\.[\s\S]*Sent with your denial and note[\s\S]*Agent next: ran Read/);
     assert.match(log, /Use port 5173\.[\s\S]*Received/);
@@ -121,10 +121,10 @@ test('the thread: opened from Needs you, it reads as a conversation, takes a mes
     assert.deepEqual(t.reads, ['?limit=100&runtime=claude', '?before=40&limit=100&runtime=claude']);
 
     // A message goes to this run, by name.
-    await thread.getByRole('textbox', { name: 'Message Scout' }).fill('Skip the slow suite.');
+    await thread.getByRole('textbox', { name: 'Message Developer' }).fill('Skip the slow suite.');
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('.thread-box')?.value === '');
-    assert.deepEqual(t.posts, [{ path: '/conversations/scout/message', body: { text: 'Skip the slow suite.', runId: RUN } }]);
+    assert.deepEqual(t.posts, [{ path: '/conversations/developer/message', body: { text: 'Skip the slow suite.', runId: RUN } }]);
 
     // Stop asks once; focus is on the safe choice; Esc keeps the agent going and the thread open.
     await thread.getByRole('button', { name: 'Stop agent' }).click();
@@ -151,7 +151,7 @@ test('the thread of a run that ended: opened from its panda, a follow-up continu
   try {
     const { page } = t;
     // No request is waiting, so the thread opens from the role's panda: pick it in the overview and press R.
-    await pickScout(page);
+    await pickMaker(page);
     await page.getByRole('region', { name: 'Selected panda' }).waitFor();
     await page.keyboard.press('KeyR');
     const thread = page.getByRole('dialog', { name: /Conversation with/ });
@@ -174,7 +174,7 @@ test('the thread of a run that ended: opened from its panda, a follow-up continu
     await thread.getByRole('textbox', { name: /Follow up with/ }).fill('Which test was wrong?');
     await thread.getByRole('button', { name: 'Follow up' }).click();
     await page.waitForFunction((id) => document.querySelector('.transcript-meta code')?.textContent === id, NEXT);
-    assert.deepEqual(t.posts, [{ path: '/conversations/scout/message', body: { text: 'Which test was wrong?', runId: RUN } }]);
+    assert.deepEqual(t.posts, [{ path: '/conversations/developer/message', body: { text: 'Which test was wrong?', runId: RUN } }]);
     assert.deepEqual(t.errors, []);
   } finally {
     await t.close();
@@ -187,7 +187,7 @@ test('Esc closes the conversation, then deselects the panda on the next press', 
   const t = await open({ ended: true });
   try {
     const { page } = t;
-    await pickScout(page);
+    await pickMaker(page);
     const card = page.getByRole('region', { name: 'Selected panda' });
     await card.waitFor();
     await page.keyboard.press('KeyR');

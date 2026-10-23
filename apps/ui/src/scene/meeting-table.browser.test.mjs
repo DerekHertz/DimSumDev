@@ -43,7 +43,7 @@ async function open(state) {
   return { page, errors, close: async () => { await browser.close(); await server.close(); } };
 }
 
-test('a running meeting keeps progress and its take in the panel without claiming physical seats', { timeout: 90000 }, async () => {
+test('a running meeting shows its actual seated participants while keeping progress and takes in the panel', { timeout: 90000 }, async () => {
   const t = await open('running');
   try {
     const { page } = t;
@@ -51,18 +51,23 @@ test('a running meeting keeps progress and its take in the panel without claimin
     await pill.waitFor({ timeout: 60000 });
     assert.match(await pill.innerText(), /Meeting on 57 · 1 of 3 have spoken/);
     await page.waitForFunction(()=>{const b=document.querySelector('.den-entry button');return b&&b.getAttribute('aria-disabled')!=='true';},null,{timeout:60000});
-    assert.equal(await page.locator('[data-seat]:visible').count(),0,'deferred seating has no invented visible seat labels');
+    const expectedSeats=[...meeting('running').seats.map(seat=>seat.role),'orchestrator'].sort();
+    await page.waitForFunction(expected=>{
+      const visible=[...document.querySelectorAll('[data-seat]')].filter(node=>getComputedStyle(node).visibility==='visible').map(node=>node.dataset.seat).sort();
+      return JSON.stringify(visible)===JSON.stringify(expected);
+    },expectedSeats,{timeout:15000});
+    assert.deepEqual(await page.locator('[data-seat]:visible').evaluateAll(nodes=>nodes.map(node=>node.dataset.seat).sort()),expectedSeats,'each configured participant and the actual Bao chair has one arrived-body label');
     assert.equal(await page.locator(`.chip[data-ref="${REF}"]`).count(), 0, 'the meeting run remains in its panel without a generic chip');
     await pill.click();
-    const meeting = page.locator('[data-sheet=side]');
-    await meeting.waitFor();
-    const take=meeting.locator('details[data-take="product"]');await take.locator('summary').click();
+    const meetingPanel = page.locator('[data-sheet=side]');
+    await meetingPanel.waitFor();
+    const take=meetingPanel.locator('details[data-take="product"]');await take.locator('summary').click();
     assert.match(await take.innerText(),/Claim: Keep the two-week cut line\./,'the actual landed take remains readable');
     await page.locator('[data-rail=meetings]').click();
     const card = page.locator('[data-overlay=meetings]');
     await card.waitFor();
     await card.locator('[data-meeting=running]').waitFor();
-    assert.equal(await meeting.count(), 1, 'opening the Meetings topic leaves the meeting side sheet open');
+    assert.equal(await meetingPanel.count(), 1, 'opening the Meetings topic leaves the meeting side sheet open');
     assert.deepEqual(t.errors, []);
   } finally {
     await t.close();

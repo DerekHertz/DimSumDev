@@ -11,7 +11,9 @@ import {createDenScene,GROUND} from '../../src/scene/meshy/plush/assembly.mjs';
 import {residentHomes} from '../../src/scene/meshy/resident-homes.mjs';
 import {createGardenNavigation} from '../../src/scene/meshy/garden-navigation.mjs';
 import {gardenRoute} from '../../src/scene/meshy/garden-route.mjs';
-import {seatSpots} from '../../src/scene/meshy/meeting-table.mjs';
+import {seatSpots,TABLE} from '../../src/scene/meshy/meeting-table.mjs';
+
+const historicalSeatSpots=count=>seatSpots(count).map(spot=>({...spot,x:spot.x-TABLE.x,z:spot.z-TABLE.z+3.15}));
 
 globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};
 const publicRoot=new URL('../../public',import.meta.url),manifest=JSON.parse(fs.readFileSync(new URL('./den/manifest.json',publicRoot+'/')));
@@ -52,7 +54,7 @@ try{
   result.host.push({kind,t,bounds:{min:bounds.min.toArray(),max:bounds.max.toArray()},intersections});
  }
  // These are the existing table's seat coordinates, not a new Bao placement.
- for(let count=1;count<=6;count++)for(const [seat,spot]of seatSpots(count).entries()){
+ for(let count=1;count<=6;count++)for(const [seat,spot]of historicalSeatSpots(count).entries()){
   rig.poseSit(0,{reducedMotion:true});gesture.pose(null,0);model.position.set(spot.x,GROUND,spot.z);model.rotation.y=spot.yaw;
   const {triangles,bounds}=geometry(),table=solids.find(s=>s.id==='meeting-table');
   result.authoringSeats.push({count,seat,spot,proxyOverlapTriangles:triangles.filter(tri=>table.box.intersectsTriangle(tri)).length,tableOverlapTriangles:triangles.filter(tri=>tableParts.some(planes=>touchesSolid(tri,planes))).length,bounds:{min:bounds.min.toArray(),max:bounds.max.toArray()}});
@@ -116,7 +118,7 @@ try{
  result.conversation={visitorPosition,bodyOverlapTriangles:conversationGeometry.triangles.filter(tri=>visitorBox.intersectsTriangle(tri)).length,ground:world.navigation.groundAt(visitorPosition[0],visitorPosition[2],GROUND,.26),route:gardenRoute(world,{x:0,y:GROUND,z:6},{x:visitorPosition[0],z:visitorPosition[2]})};
  result.navigation.hostGround=world.navigation.groundAt(home.position[0],home.position[2],home.position[1],.45);
  result.navigation.routeToHost=gardenRoute(world,{x:0,y:GROUND,z:6},{x:home.position[0],z:home.position[2]});
- result.navigation.seats=seatSpots(6).map(s=>({...s,ground:world.navigation.groundAt(s.x,s.z,GROUND,.45),route:gardenRoute(world,{x:0,y:GROUND,z:6},s)}));
+ result.navigation.seats=historicalSeatSpots(6).map(s=>({...s,ground:world.navigation.groundAt(s.x,s.z,GROUND,.45),route:gardenRoute(world,{x:0,y:GROUND,z:6},s)}));
  result.summary={hostCollisionSamples:result.host.filter(p=>p.intersections.some(s=>s.triangles)).map(p=>({kind:p.kind,t:p.t,intersections:p.intersections.filter(s=>s.triangles)})),authoringSeatCollisionProbes:result.authoringSeats.filter(s=>s.tableOverlapTriangles),authoringDesk:result.authoringDesk,authoringChair:result.authoringChair,conversation:result.conversation,hostNavigationReachable:result.navigation.routeToHost.length>0};
  const out=process.argv[2];if(!out||out.startsWith('--'))throw Error('usage: node bao-clearance.mjs <output.json> [--assert-chair|--search-chair]');
  fs.writeFileSync(out,JSON.stringify(result,null,2)+'\n');

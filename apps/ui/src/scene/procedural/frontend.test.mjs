@@ -179,14 +179,14 @@ test('mouse look through the adapter is clamped in pitch and applied on the next
   }finally{explorer?.dispose();globalThis.document=previousDoc;globalThis.window=previousWin;}
 });
 
-test('wheel zoom is exponential: equal wheel travel gives equal zoom ratios, and it stays inside 0.25 to 1.2',()=>{
+test('wheel zoom is exponential: equal wheel travel gives equal zoom ratios, and it stays inside 0.55 to 1.2',()=>{
   // Literals: exp(-0.3) = 0.7408, exp(-0.1) = 0.9048.
   assert.ok(Math.abs(wheelZoom(1,-300)-0.7408)<1e-4);
   assert.ok(Math.abs(wheelZoom(1,-100)-0.9048)<1e-4);
   assert.ok(Math.abs(wheelZoom(wheelZoom(1,-100),100)-1)<1e-12,'a wheel step and its reverse cancel');
   assert.ok(Math.abs(wheelZoom(0.8,-100)/0.8-wheelZoom(1,-100))<1e-12,'the same travel scales by the same ratio at any zoom');
-  assert.equal(wheelZoom(1,-5000),0.25);assert.equal(wheelZoom(1,20000),1.2);
-  assert.equal(clampZoom(0.1),0.25);assert.equal(clampZoom(9),1.2);
+  assert.equal(wheelZoom(1,-5000),0.55);assert.equal(wheelZoom(1,20000),1.2);
+  assert.equal(clampZoom(0.1),0.55);assert.equal(clampZoom(9),1.2);
 });
 
 test('pointer-lock picking uses the crosshair and normal picking delegates to the existing event manager',()=>{

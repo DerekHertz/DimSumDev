@@ -17,7 +17,7 @@ export const PADS = {
 };
 // The kit's abacus at [18,0,10]: the Tally's pill hangs above its sign.
 export const TALLY_ANCHOR = { x: 18, y: 3.1, z: 10 };
-export const DEN_TARGET = [0, 2.0, 0];
+export const DEN_TARGET = [-6, 2.0, -9];
 export const TEAM_LABELS = [
   {id:'pass',text:'The Pass',x:0,y:3.6,z:-10},
   ...Object.entries(TEAMS).map(([id,s])=>({id,text:s.label,x:s.x,y:4.6,z:s.z})),

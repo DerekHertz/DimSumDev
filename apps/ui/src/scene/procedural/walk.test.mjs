@@ -5,7 +5,7 @@ import { REVIEW_OBSTACLES } from '../../review/site-plan.mjs';
 import { withDen } from './den-test-helpers.mjs';
 
 // Expected values are literals from the ticket (den-v1/03) and the frozen layout: the floor spans
-// inside the disc of radius 28 at the origin (den-layout/04; a rectangle before the site plan), walking speed is 2.1 m/s (3.5 sprinting), pitch is -1.20..1.30.
+// inside the disc of radius 28 at the origin (den-layout/04; a rectangle before the site plan), walking speed is 5 m/s (9 sprinting), pitch is -1.20..1.30.
 const open = {obstacles: [], avoid: []};
 const run = (state, input, seconds, fps, world = open) => {
   const dt = 1 / fps;
@@ -21,17 +21,17 @@ test('startWalk puts the camera at eye height at the den entrance, level-ish, fa
   assert.ok(s.pitch > 0 && s.pitch < 0.3);
 });
 
-test('walking forward at yaw 0 moves toward -z at 2.1 m/s, and sprinting at 3.5', () => {
+test('walking forward at yaw 0 moves toward -z at 5 m/s, and sprinting at 9', () => {
   const walked = run(startWalk(), north, 1, 60);
-  assert.ok(Math.abs(23.4 - walked.z - 2.1) < 0.05, 'z after 1 s: ' + walked.z);
+  assert.ok(Math.abs(23.4 - walked.z - 5) < 0.05, 'z after 1 s: ' + walked.z);
   assert.ok(Math.abs(walked.x - 4.2) < 1e-9);
   const sprinted = run(startWalk(), {...north, sprint: true}, 1, 60);
-  assert.ok(Math.abs(23.4 - sprinted.z - 3.5) < 0.05, 'z after 1 s sprinting: ' + sprinted.z);
+  assert.ok(Math.abs(23.4 - sprinted.z - 9) < 0.05, 'z after 1 s sprinting: ' + sprinted.z);
 });
 
 test('diagonal movement is not faster than straight movement', () => {
   const s = run(at(0, 0), {forward: 1, strafe: 1}, 1, 60);
-  assert.ok(Math.abs(Math.hypot(s.x, s.z) - 2.1) < 0.05);
+  assert.ok(Math.abs(Math.hypot(s.x, s.z) - 5) < 0.05);
 });
 
 test('movement per second is the same at 30 and 120 fps, within 5%', () => {
@@ -66,11 +66,19 @@ test('walking into a stall box stops at its edge instead of passing through it',
   assert.equal(isDenPositionBlocked(end.x, end.z, [stall]), false);
 });
 
+test('faster sprinting retains swept collision and supported-floor checks even during a long frame',()=>{
+  const wall={type:'box',x:0,z:0,halfX:3,halfZ:.1};
+  const stopped=walk(at(0,3),{...north,sprint:true},.5,{obstacles:[wall]});
+  assert.ok(stopped.z>=.36&&stopped.z<.44,'cannot tunnel through a thin wall');
+  const supported=walk(at(0,3),{...north,sprint:true},.5,{navigation:{groundAt:(_x,z)=>z>=1?0:null}});
+  assert.ok(supported.z>=1&&supported.z<1.08,'cannot sprint off supported ground');
+});
+
 test('a rotated box and a round prop stop the walker too, and a walker slides along the face', () => {
   const stall = {type: 'box', x: 0, z: 0, halfX: 1, halfZ: 0.5, rotation: 0};
   // Walking at a slant into the face keeps the sideways part of the motion: heading -0.3 rad off north from
   // (0.5, 3) reaches the face at z = 0.76 after 2.35 m (x = -0.2), then 0.17 m more slides along it.
-  const slid = run(at(0.5, 3, {yaw: 0.3}), north, 1.2, 60, {obstacles: [stall], avoid: []});
+  const slid = run(at(0.5, 3, {yaw: 0.3}), north, 2.52 / 5, 60, {obstacles: [stall], avoid: []});
   assert.ok(Math.abs(slid.z - 0.76) < 0.05, 'held at the face: ' + slid.z);
   assert.ok(slid.x < -0.2 - 0.02, 'kept sliding sideways: ' + slid.x);
   const turned = {...stall, rotation: Math.PI / 4};

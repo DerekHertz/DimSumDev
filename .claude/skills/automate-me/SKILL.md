@@ -1,6 +1,6 @@
 ---
 name: automate-me
-description: "Draft or refresh the user's personal <handle>-mode skill from their working conventions: mines transcripts, interviews, drafts. Use for 'create/update my -mode skill'."
+description: "Draft or refresh the user's <handle>-mode skill. Use for 'create/update my -mode skill'."
 disable-model-invocation: true
 ---
 

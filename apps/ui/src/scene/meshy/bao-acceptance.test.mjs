@@ -60,6 +60,8 @@ test('Bao authoring sit clears the actual Product stool at its center and floor 
  try{
   execFileSync(process.execPath,[new URL('../../../assets-src/den/bao-clearance.mjs',import.meta.url).pathname,output,'--assert-chair'],{timeout:90000,stdio:'pipe'});
   const proof=JSON.parse(readFileSync(output));
+  for(const {spot}of proof.authoringSeats)assert.ok(Math.abs((spot.x/3.5)**2+((spot.z-3.15)/2.5)**2-1)<1e-9,'authoring bodies stay on the retained historical table seat ring');
+  for(const spot of proof.navigation.seats)assert.ok(Math.abs((spot.x/3.5)**2+((spot.z-3.15)/2.5)**2-1)<1e-9,'route probes use the same historical seats as the body clearance proof');
   assert.equal(proof.authoringChair[0].actualSolidCrossingTriangles,0);
   assert.equal(proof.authoringChair[0].anchor[1],proof.authoringDesk[0].at[1],'root stays on the existing pavilion floor');
   for(const frame of proof.seatedContactCycle){assert.equal(frame.crossings,0);assert.ok(frame.nudgedCrossings>0,'pelvis is supported within 0.000135 scene units, not hovering');assert.ok(frame.floor>=proof.authoringChair[0].anchor[1]);}

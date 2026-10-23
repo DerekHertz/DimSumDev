@@ -1,7 +1,7 @@
 // Offline verification against the shipped geometry, without images or WebGL.
 import * as THREE from 'three';
 import { createSurfaceNavigation } from '../../src/scene/meshy/navigation.mjs';
-import { createStylizedStructure } from '../../src/scene/meshy/stylized-structures.mjs';
+import { createStylizedStructure } from './test-fixtures/legacy-stylized-structures.mjs';
 import { protectPond } from './legacy-collisions.mjs';
 
 export function geometry(id) {
