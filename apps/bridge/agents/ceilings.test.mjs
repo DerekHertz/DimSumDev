@@ -44,11 +44,11 @@ const WALL_NO_HOSTS = {
   autoAllowBashIfSandboxed: true,
   network: { allowedDomains: [], strictAllowlist: true },
 };
-// den-mvp outcome 1: every role has a ceiling. Bao and a scout write nothing; the rest write in their worktree.
+// den-mvp outcome 1: every role has a ceiling. Bao (the chief of staff and its desk key) writes nothing; the rest write in their worktree.
 // team-and-den-ux/02 (ADR 0029) adds code-reviewer, release-manager, sre and technical-writer, each writing only in its worktree.
-const WRITERS = ["architect", "code-reviewer", "designer", "developer", "herald", "product", "qa", "release-manager", "security", "sre", "technical-writer"];
-const CEILING_ROLES = ["architect", "chief-of-staff", "code-reviewer", "designer", "developer", "herald", "orchestrator", "product", "qa", "release-manager", "scout", "security", "sre", "technical-writer"];
-const NO_WRITE_ROLES = ["chief-of-staff", "orchestrator", "scout"];
+const WRITERS = ["architect", "code-reviewer", "designer", "developer", "product", "qa", "release-manager", "security", "sre", "technical-writer"];
+const CEILING_ROLES = ["architect", "chief-of-staff", "code-reviewer", "designer", "developer", "orchestrator", "product", "qa", "release-manager", "security", "sre", "technical-writer"];
+const NO_WRITE_ROLES = ["chief-of-staff", "orchestrator"];
 
 const argvFor = (agent, extra = {}, worktree = WT) =>
   need("buildClaudeArgs")({ sessionId: SID, agent, ...(need("compileCeiling")(agent, { worktree }) ?? {}), ...extra });
@@ -90,10 +90,10 @@ describe("compileCeiling: the four ceilings", () => {
     });
   }
 
-  test("scout: no Write or Edit allow at all (read the project and the web, no write)", () => {
-    const withTicket = settingsOf(argvFor("scout", { ticketFile: TICKET }));
+  test("chief-of-staff: no Write or Edit allow at all (read the project and the web, no write)", () => {
+    const withTicket = settingsOf(argvFor("chief-of-staff", { ticketFile: TICKET }));
     assert.deepEqual(sorted(withTicket.permissions.allow), ["Bash", `Read(/${TICKET})`]);
-    const bare = settingsOf(argvFor("scout"));
+    const bare = settingsOf(argvFor("chief-of-staff"));
     assert.deepEqual(bare.permissions.allow, ["Bash"]);
   });
 
