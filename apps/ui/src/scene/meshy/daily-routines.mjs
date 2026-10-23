@@ -27,7 +27,8 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
  const reservations=new Map(),registry=den.placeRegistry;let time=0,nextDeparture=2,cursor=0,hidden=false,disposed=false;
  for(const a of actors.values()){a.outing=null;a.path=null;a.moved=0;a.yaw=null;}
  const jitter=(low,high)=>low+Math.max(0,Math.min(1,random()))*(high-low);
- const available=a=>!a.live&&!a.meetingOwned&&!a.meetingTrip&&!a.hosting&&!a.outing&&!a.stationary&&a.panda.model.visible&&!['failed','waiting_on_user','blocked','needs-you'].includes(a.state);
+ const hostAvailable=a=>!a.live&&!a.meetingOwned&&!a.meetingTrip&&!a.hosting&&!a.outing&&!a.panda.model.userData.modelUnavailable&&a.panda.model.visible&&!['failed','waiting_on_user','blocked','needs-you'].includes(a.state);
+ const available=a=>hostAvailable(a)&&!a.stationary;
  const idle=a=>available(a)&&(!a.nextOuting||a.nextOuting<=time);
  const plan=(a,to)=>den.routineRoute?den.routineRoute(a,a.panda.model.position,to):gardenRoute(den.walkWorld,a.panda.model.position,to);
  const validPath=(a,spot,path)=>path.length&&routeLength(a.panda.model.position,path)<=(spot.kind==='friend'?100:60)&&(!den.garden?.approved||spot.kind==='friend'||routeSeconds(a,path)<=20);
@@ -37,7 +38,7 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
   if(registry){
    const destination=registry.define({id:spot.id,kind:spot.kind==='friend'?'visitor':'leisure',position:spot.position});if(!destination.owner)destination.position={...spot.position};
    const yaw=Math.atan2(spot.face.x-spot.position.x,spot.face.z-spot.position.z);if(!registry.reserve(spot.id,a.identity,{...a.envelope,yaw}))return false;
-   const approach=spot.approachPath?.[0];
+   const approach=spot.approachReservation||spot.approachPath?.[0];
    if(approach){
     const id='approach:'+spot.id,place=registry.define({id,kind:'leisure',position:approach});if(!place.owner)place.position={...approach};
     if(!registry.reserve(id,a.identity,{...a.envelope,yaw:approach.yaw})){registry.release(spot.id,a.identity);return false;}
@@ -61,7 +62,7 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
   const local=['pass','steamers'].includes(a.teamId)?['tea','rest']:['pond','games'];
   const spots=(den.routineSpots||[]).filter(s=>local.includes(s.kind)).map(s=>den.routinePlace?den.routinePlace(a,s):s).filter(Boolean);
   // A friend place comes only from the assembled geometry validator.
-  for(const host of actors.values())if(host!==a&&host.teamId!==a.teamId&&available(host)){
+  for(const host of actors.values())if(host!==a&&host.teamId!==a.teamId&&hostAvailable(host)){
    const spot=den.friendPlace?.(a,host);if(spot)spots.push({...spot,kind:'friend',host});
   }
   return spots.filter(s=>!reservations.has(s.id)).sort((x,y)=>distance(a.home,x.position)-distance(a.home,y.position));
@@ -71,7 +72,7 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
   for(let i=0;i<all.length;i++){
    const a=all[cursor++%all.length];if(!idle(a))continue;
    for(const spot of choices(a).slice(0,8)){
-    if(spot.host&&!available(spot.host))continue;
+    if(spot.host&&!hostAvailable(spot.host))continue;
     const path=plan(a,spot.position);if(!validPath(a,spot,path))continue;
     if(spot.kind==='games'){
      const partner=all.find(b=>b!==a&&idle(b));if(!partner||count>1)continue;

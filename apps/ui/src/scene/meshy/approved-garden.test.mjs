@@ -36,7 +36,7 @@ test('55-B/E/F/K: actual approved cast occupies all 24 reserved homes and every 
  const actors=createMeshyActors(den);try{
   assert.equal(actors.actors.size,24);assert.equal([...actors.actors.values()].filter(a=>a.panda.model.visible).length,24);
   for(const a of actors.actors.values()){
-   assert.ok(actors.places.get('work:'+a.id)?.owner,a.id+' stable work lease');
+   assert.equal(actors.places.get(a.dock.slotId)?.owner,a.identity,a.id+' stable work lease');
    if(a.stationary)continue;
    const kinds=['pass','steamers'].includes(a.teamId)?['tea','rest']:['pond','games'];
    const paths=den.routineSpots.filter(s=>kinds.includes(s.kind)).map(s=>den.routineRoute(a,a.home,s.position)).filter(p=>p.length);
@@ -53,7 +53,7 @@ test('55-N: maximum permanent and guest population stays below production triang
   const assets={product:'fox',architect:'crane','release-manager':'lucky-cat',developer:'developer',runner:'golden-monkey','code-reviewer':'lion',qa:'otter',security:'pangolin',sre:'tortoise',designer:'deer','technical-writer':'technical-writer'};
   const bodyCounts=garden.docks.map(d=>{const id=d.role==='orchestrator'?(d.runtime==='claude'?'bao':'jiao'):assets[d.role],bytes=gunzipSync(readFileSync(new URL('../../../public/den/models/characters/'+id+'.glb.gz',import.meta.url))),gltf=JSON.parse(bytes.subarray(20,20+bytes.readUInt32LE(12)));return gltf.meshes.flatMap(m=>m.primitives).reduce((n,p)=>n+gltf.accessors[p.indices].count/3,0);});
   const maximumBodies=bodyCounts.reduce((n,c)=>n+c,0)+6*Math.max(...bodyCounts);total+=maximumBodies+30*1260;shadow+=maximumBodies;
-  t.diagnostic(JSON.stringify({total,shadow,permanent:24,maximumGuests:6,ornaments:30,office:'reserved plot; executive homes staged until 56'}));
+  t.diagnostic(JSON.stringify({total,shadow,permanent:24,maximumGuests:6,ornaments:30,office:'installed native office'}));
   assert.ok(total<1.8e6,'maximum complete population triangles '+total);assert.ok(shadow<700000,'maximum complete population shadow triangles '+shadow);
  }finally{garden.dispose();}
 });

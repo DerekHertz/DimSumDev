@@ -14,7 +14,7 @@ export function createActorHomes(den,actors){
  function prepare(a){
   a.envelope={...actorEnvelope(a.panda,null,{oriented:!!den.garden?.approved}),yaw:a.baseYaw};bind(a,a.live);
   if(den.garden?.approved){
-   const id='work:'+a.id;places.define({id,kind:'work',position:a.home});
+   const id=a.dock?.slotId||'work:'+a.id;places.define({id,kind:'work',position:a.home});
    const home=places.reserve(id,a.identity,a.envelope);if(!home){a.homePlace=null;a.presentation='Workspace unavailable — available in Team';a.panda.model.visible=false;return false;}
    a.homePlace=id;places.occupy(id,a.identity);a.presentation=a.dock?.staged?'Executive office pending — at a reserved home':null;return true;
   }

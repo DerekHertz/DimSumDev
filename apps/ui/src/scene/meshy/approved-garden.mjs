@@ -124,6 +124,9 @@ for(const [id,horizontal,longitudinal,yaw,width,depth,title] of facilityDefiniti
  building.root.userData.cutawayDepth=id==='office'?-8:id==='games'?-6.3:id==='rest'?-6.3:-4.3;
  addStructure(building,id,horizontal,longitudinal,yaw,width,depth);facilities.set(id,building);landmark(title,horizontal,longitudinal,id==='office'?10:id==='pond'?1.8:7.1);
 }
+const office=buildStructure('office',[],{occupants:false});
+office.root.userData.cutawayDepth=-8;
+addStructure(office,'office',OFFICE_PLOT.x,OFFICE_PLOT.z,0,OFFICE_PLOT.width,OFFICE_PLOT.depth);
 const commons=group('Central meeting plaza');
 cyl(commons,10,.07,[0,.34,-4],'cream');cyl(commons,8.5,.045,[0,.39,-4],'jadeLight');
 const meetingTable=cyl(commons,1,.18,[0,1.32,-4],'paleWood');meetingTable.scale.set(2,1,1.18);
@@ -158,10 +161,6 @@ sign(land.root,'WELCOME TO THE DEN',[0,3.2,44],7);for(const horizontal of [-5.1,
 // Bake only the land-owned assemblies; building kits retain independent roof materials.
 capture(pathGroup,null);capture(commons,null);land.finish([pathGroup,commons]);
 
- // Until 56 installs the office, preserve two usable executive places outside
- // its reserved plot. These do not count as completed executive desks.
- const welcome=land.group('Temporary executive homes');
- for(const x of [-5,5])land.cyl(welcome,2.9,.05,[x,.31,-15],'jadeLight');
  const roofMaterials=[];
  for(const asset of [library,festival])asset.roof?.traverse(node=>{if(node.isMesh){node.material=node.material.clone();roofMaterials.push({material:node.material,root:asset.root});}});
  let roofMode='full';
@@ -171,8 +170,8 @@ capture(pathGroup,null);capture(commons,null);land.finish([pathGroup,commons]);
   for(const {material,root:buildingRoot} of roofMaterials){buildingRoot.updateMatrixWorld(true);material.clippingPlanes=mode==='full'?[]:[new Three.Plane(new Three.Vector3(0,0,-1),-1).applyMatrix4(buildingRoot.matrixWorld)];material.needsUpdate=true;}
  }
  root.updateMatrixWorld(true);
- return {approved:true,root,assets,places:footprints.map(p=>({...p,w:p.width,d:p.depth,name:p.id,rotation:p.yaw})),paths,footprints,obstacles,surfaces,inside,officePlot:OFFICE_PLOT,welcome,landscape,
-  docks:workDocks(activeResidents(RESIDENTS)),get roofMode(){return roofMode;},setRoofMode,setRoofs:visible=>setRoofMode(visible?'full':'cutaway'),
+ return {approved:true,root,assets,places:footprints.map(p=>({...p,w:p.width,d:p.depth,name:p.id,rotation:p.yaw})),paths,footprints,obstacles,surfaces,inside,officePlot:OFFICE_PLOT,landscape,
+  docks:workDocks(activeResidents(RESIDENTS),{office:true}),get roofMode(){return roofMode;},setRoofMode,setRoofs:visible=>setRoofMode(visible?'full':'cutaway'),
   worldPoint(id,point){return assets[id].root.localToWorld(new Three.Vector3(...point));},
   dispose(){for(const asset of Object.values(assets))asset.kit?.dispose?.();library.dispose();festival.dispose();landscape.dispose();land.dispose();root.removeFromParent();}};
 }

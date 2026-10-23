@@ -65,7 +65,7 @@ export function createMeetingResidents(den,actors,places,routines){
    }
    if(!trip.path.length){
     const end=trip.stage==='return'?a.home:{x:trip.spot.x,y:.46,z:trip.spot.z};if(Math.hypot(p.x-end.x,p.z-end.z)>.02)continue;
-    if(trip.stage==='return'){if(a.guest){destroy(a);continue;}a.meetingTrip=null;a.path=null;a.yaw=null;returning.delete(a);places.occupy(a.homePlace,a.identity);}
+    if(trip.stage==='return'){if(a.guest){destroy(a);continue;}if(!den.routineClear(a,p,a.home))continue;p.copy(a.home);a.meetingTrip=null;a.path=null;a.yaw=null;returning.delete(a);places.occupy(a.homePlace,a.identity);}
     else{trip.stage='seated';a.yaw=trip.spot.yaw;places.occupy(a.meetingPlace,a.identity);}
    }
    if(a.guest){a.panda.model.rotation.y=a.yaw??a.baseYaw;if(a.moved){a.gait=(a.gait||0)+a.moved/a.panda.model.scale.x/(a.panda.rig.profile?.gait?.stride??WADDLE.stride)*(a.panda.rig.profile?.gait?.duration??WADDLE.duration);a.panda.rig.poseWaddle(a.gait,{groundAt:den.walkWorld.supportAt});}else a.panda.rig.poseIdle(0,{reducedMotion:true});if(trip.stage==='seated')a.panda.rig.poseSit?.(1);}

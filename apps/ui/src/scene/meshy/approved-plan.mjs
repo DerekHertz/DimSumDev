@@ -9,6 +9,9 @@ export const TEAMS=Object.freeze([
  {id:'front',name:'Front of House',x:30.5,z:24,yaw:Math.PI,roles:['designer','technical-writer']},
 ]);
 export const OFFICE_PLOT=Object.freeze({x:0,z:-32,width:26,depth:17});
+export function officeVisitors(){
+ return [-6.4,6.4].map((x,i)=>({id:i?'visitor:jiao:0':'visitor:bao:0',kind:'friend',group:i?'friend:jiao':'friend:bao',position:new T.Vector3(x,.89,-27.5),approach:new T.Vector3(x,.36,-24.5),face:new T.Vector3(x,.36,i?-36.75:-36.9)}));
+}
 export const ACTIVE_ROLES=Object.freeze(['orchestrator',...TEAMS.flatMap(t=>t.roles)]);
 export const activeResidents=rows=>rows.filter(r=>ACTIVE_ROLES.includes(r.role));
 export const transform=(point,plot)=>new T.Vector3(...point).applyAxisAngle(new T.Vector3(0,1,0),plot.yaw||0).add(new T.Vector3(plot.x,0,plot.z));
@@ -17,8 +20,12 @@ export function stationPlacement(team,role,runtime){
  return team.id==='pantry'?{position:[[-12.3,-5.3,5.3,12.3][index],0,second?-6.8:6.8],yaw:second?0:Math.PI}:
   {position:[second?9.6:-9.6,0,team.roles.length===3?(index-1)*7:(index-.5)*9],yaw:second?-Math.PI/2:Math.PI/2};
 }
-export function workDocks(roster){
+export function workDocks(roster,{office=false}={}){
  return roster.map(resident=>{
+  if(office&&resident.role==='orchestrator'){
+   const bao=resident.runtime==='claude',z=bao?-36.9:-36.75;
+   return {...resident,slotId:bao?'work:bao':'work:jiao',teamId:'office',position:[bao?-6.4:6.4,.36,z],yaw:0,approach:[[0,.36,-28],[0,.36,z]]};
+  }
   if(resident.role==='orchestrator')return {...resident,slotId:'work:'+resident.id,staged:true,teamId:'office',position:[resident.runtime==='claude'?-5:5,.36,-15],yaw:0,approach:[[resident.runtime==='claude'?-10:10,.36,-15]]};
   const team=TEAMS.find(t=>t.roles.includes(resident.role)),station=stationPlacement(team,resident.role,resident.runtime);
   const dock=new T.Vector3(0,.36,resident.role==='sre'?1.25:1.1).applyAxisAngle(new T.Vector3(0,1,0),station.yaw).add(new T.Vector3(...station.position));
