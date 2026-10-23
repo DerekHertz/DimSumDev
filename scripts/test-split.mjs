@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // ci-cd/07: split the suite into the browser files (each starts Chromium) and the rest, so CI
-// runs them as two parallel jobs. `npm test` still runs everything.
-//   node scripts/test-split.mjs browser|rest
+// runs them as two parallel jobs. `all` (what `npm test` runs) does rest, then browser with the
+// browser cap: an unbounded glob started about 85 Chromium processes (7 GB) on 2026-10-23.
+//   node scripts/test-split.mjs browser|rest|all
 import { spawnSync } from "node:child_process";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
@@ -54,8 +55,16 @@ export function nodeTestArgs(mode, env = process.env) {
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const mode = process.argv[2];
   const groups = split();
+  if (mode === "all") {
+    let status = 0;
+    for (const m of ["rest", "browser"]) {
+      const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), m], { cwd: ROOT, stdio: "inherit" });
+      if (r.status !== 0) status = r.status ?? 1;
+    }
+    process.exit(status);
+  }
   if (!groups[mode]) {
-    process.stderr.write("usage: test-split.mjs browser|rest\n");
+    process.stderr.write("usage: test-split.mjs browser|rest|all\n");
     process.exit(2);
   }
   // npm test runs the BOM check first (pretest); the rest job keeps it.

@@ -324,10 +324,9 @@ test("package.json test script goes through the lock wrapper; test:path does not
   const pkg = JSON.parse(readFileSync(path.join(REPO_ROOT, "package.json"), "utf8"));
   const testScript = pkg.scripts.test;
   assert.match(testScript, /scripts\/test-lock\.mjs/, "`test` must run through scripts/test-lock.mjs");
-  for (const glob of ["apps/**/*.test.mjs", "packages/**/*.test.mjs", "scripts/**/*.test.mjs"]) {
-    assert.ok(testScript.includes(glob), `\`test\` must still run ${glob}`);
-  }
-  assert.ok(testScript.includes("--test"), "`test` must still use node --test");
+  // fix/orphan-browsers: the full run goes through test-split `all`, which covers apps, packages
+  // and scripts and caps the browser files' concurrency.
+  assert.match(testScript, /scripts\/test-split\.mjs all/, "`test` must run test-split all");
   assert.equal(pkg.scripts.pretest, "npm run check:bom", "pretest BOM check must stay");
   assert.doesNotMatch(pkg.scripts["test:path"], /test-lock/, "test:path must not take the lock");
 });

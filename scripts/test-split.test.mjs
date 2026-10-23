@@ -40,3 +40,9 @@ test("browser files run 3 at a time by default, BROWSER_FILE_CONCURRENCY overrid
   assert.deepEqual(nodeTestArgs("browser", { BROWSER_FILE_CONCURRENCY: "abc" }), ["--test-concurrency=3"], "a bad value falls back");
   assert.deepEqual(nodeTestArgs("rest", { BROWSER_FILE_CONCURRENCY: "1" }), []);
 });
+
+test("allTestFiles covers apps, packages and scripts, as the old npm test glob did", () => {
+  const tops = new Set(allTestFiles().map((f) => f.split("/")[0]));
+  for (const top of tops) assert.ok(["apps", "packages", "scripts"].includes(top), top);
+  assert.ok(tops.has("apps") && tops.has("scripts"));
+});
