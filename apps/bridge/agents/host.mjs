@@ -506,7 +506,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     liveByRef.set(refKey(agent), agent);
     const run = spawnAgent(agent, routeName, usageUnknown);
     pending.add(run);
-    run.finally(() => pending.delete(run));
+    run.finally(() => pending.delete(run)).catch(() => {}); // a throw reaches the caller through `run`, not as an unhandled rejection here
     return run;
   }
 
@@ -586,7 +586,15 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         return refuse(409, err?.message ?? "the board would not claim the ticket");
       }
     }
-    const result = await startRun(agent, routeName, usageUnknown);
+    let result;
+    try {
+      result = await startRun(agent, routeName, usageUnknown);
+    } catch (err) {
+      // A throw must not leave the ref live or the claim held: the run is over before it began.
+      if (liveByRef.get(refKey(agent)) === agent) drop(agent);
+      if (agent.claimed) await Promise.resolve(releaseRun(agent, "the agent did not start")).catch((e) => console.error(`bridge: could not release ${agent.ref} after a failed start: ${e?.message ?? e}`));
+      throw err;
+    }
     if (agent.claimed && !result.ok) await Promise.resolve(releaseRun(agent, "the agent did not start")).catch((err) => console.error(`bridge: could not release ${agent.ref} after a refused run: ${err?.message ?? err}`));
     return result;
   }

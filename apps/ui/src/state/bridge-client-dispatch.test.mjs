@@ -33,6 +33,14 @@ const REF = "organism-infra/230-some-frontier-ticket";
 const STARTED = { agent: { id: "c-1", ref: REF, role: "architect", state: "working" } };
 
 describe("dispatch", () => {
+  test("a qa Run is sent as a verify (den-mvp/89: the bridge claims for the role and the board wants qa's mode); other roles send no mode", async () => {
+    const { calls, client } = clientOver(() => created(STARTED));
+    await client.dispatch(REF, { role: "qa" });
+    await client.dispatch(REF, { role: "security" });
+    assert.deepEqual(JSON.parse(calls[0].init.body), { ref: REF, role: "qa", mode: "verify" });
+    assert.deepEqual(JSON.parse(calls[1].init.body), { ref: REF, role: "security" });
+  });
+
   test("POSTs /agents once with the session token and exactly { ref, role }", async () => {
     const { calls, client } = clientOver(() => created(STARTED));
     assert.equal(typeof client.dispatch, "function", "createBridgeClient must return dispatch");

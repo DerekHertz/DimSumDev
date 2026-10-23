@@ -18,6 +18,7 @@ import { branchesOf } from "./delivery/branches.mjs";
 import { createLedger } from "./agents/ledger.mjs";
 import { createDelivery } from "./delivery/runner.mjs";
 import { createDeliveryBoard } from "./delivery/board.mjs";
+import { createRunClaims } from "./run-claims.mjs";
 import { createReleaseDrafts } from "./delivery/release-draft.mjs";
 import { createAutoRelease } from "./delivery/release-auto.mjs";
 import { createReadyRelease } from "./build/ready-release.mjs";
@@ -193,6 +194,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     boardRoot: () => projects.activeRoot(),
   });
   // den-mvp outcome 4: the production entry point passes the den's catalog; with none, no agent is given a connection.
+  const runClaims = createRunClaims(path.join(stateDir ?? path.join(root, ".scratch", "_run"), "run-claims.json"));
   const library = libraryOption ?? createLibrary({ catalog: parseCatalog({ connections: [] }) });
   host = createHost({
     root,
@@ -213,15 +215,32 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       return !snap.tickets.some((t) => t.ref === ref) ? "unknown" : snap.frontier.includes(ref) ? "ok" : "nofrontier";
     },
     // den-mvp/89: a Run's claim, made by the bridge after the gate and before the agent starts. The board's refusal is the Run's.
-    claimRun: async (agent) => isBoardRole(agent.role) && createDeliveryBoard((await projects.get(agent.project)).root).claim(agent.ref, { role: agent.role, mode: boardMode(agent) }),
+    // A board refusal is the Run's reason; any other failure (a file path, say) is not passed on.
+    claimRun: async (agent) => {
+      if (!isBoardRole(agent.role)) return;
+      try {
+        await createDeliveryBoard((await projects.get(agent.project)).root).claim(agent.ref, { role: agent.role, mode: boardMode(agent) });
+      } catch (err) {
+        if (err instanceof BoardError) throw err;
+        console.error(`bridge: could not claim ${agent.ref} for a run: ${err?.message ?? err}`);
+        throw new Error("the board could not claim the ticket");
+      }
+      await runClaims.add({ id: agent.id, ref: agent.ref, project: agent.project, role: agent.role }).catch((err) => console.error(`bridge: could not record the claim on ${agent.ref}: ${err?.message ?? err}`));
+    },
     // A forced release logs an override row, so a run that never started gives the claim back with a handoff saying so, the board's plain path.
-    releaseRun: async (agent, reason) => isBoardRole(agent.role) && createDeliveryBoard((await projects.get(agent.project)).root).handoff(agent.ref, { role: agent.role, mode: boardMode(agent), runId: agent.id, sha: "", report: `The run did not start: ${reason}.`, committed: false, source: "den run", status: "ready-for-agent" }),
+    releaseRun: async (agent, reason) => {
+      if (!isBoardRole(agent.role)) return;
+      const board = createDeliveryBoard((await projects.get(agent.project)).root);
+      await board.handoff(agent.ref, { role: agent.role, mode: boardMode(agent), runId: agent.id, sha: "", report: `The run did not start: ${reason}.`, committed: false, source: "den run", status: "ready-for-agent" }).catch(() => board.drop(agent.ref, { status: "ready-for-agent", reason: `${agent.role} run did not start: ${reason}` }));
+      await runClaims.remove(agent.id);
+    },
     lockedRefs: async ({ project }) => (await buildSnapshot((await projects.get(project)).root, 0)).tickets.filter((t) => t.holder).map((t) => t.ref),
     openDesk: () => ensureDesk(root),
     // F34: a batch the bridge would refuse is denied when it asks, with the reason, so the user is not asked for it.
     checkCall: (tool, input) => (tool === "mcp__den__board_file" ? checkFileBatch(input).error ?? null : null),
   });
   await host.ready;
+  await recoverRunClaims();
   delivery = createDelivery({
     host: { start: host.start, stop: host.stop, retire: host.retire },
     board: createDeliveryBoard(root),
@@ -592,20 +611,39 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     if (!entry) return;
     held.delete(run.agentId);
     const { ref, role, mode, task, project } = entry;
+    let runBoard = null;
     try {
       const target = await projects.get(project);
       if (!target) throw new Error("the run's project is no longer onboarded");
-      const runBoard = createDeliveryBoard(target.root);
+      runBoard = createDeliveryBoard(target.root);
       if (run.state !== "done") {
         if (!task) await runBoard.drop(ref, { status: "ready-for-agent", reason: `${role} run ${run.state === "terminated" ? "stopped" : "failed"}${run.reason ? ` (${run.reason})` : ""}` });
+        if (!task) await runClaims.remove(run.agentId);
         return;
       }
       const committed = !!run.sha && run.sha !== run.startSha;
       // A den task's ticket goes to in-review: the board wants the claim before the handoff that releases it.
       if (task) await runBoard.claimForHandoff(ref, { role });
       await runBoard.handoff(ref, { role, mode: task ? (role === "qa" ? "verify" : null) : mode, runId: run.agentId, sha: run.sha ?? run.startSha ?? "", branch: committed ? run.branch : null, report: run.report, committed, source: task ? "den task" : "den run", status: task ? "in-review" : "ready-for-agent" });
+      if (!task) await runClaims.remove(run.agentId);
     } catch (err) {
       console.error(`bridge: could not hand off ${ref} after its run: ${err?.message ?? err}`);
+      // A claim must not outlive its run: when the handoff or release failed, give it back without one. With no board to reach, the journal keeps it for the next boot.
+      if (!task && runBoard) await runBoard.drop(ref, { status: "ready-for-agent", reason: `${role} run ended, but the bridge could not hand it off: ${err?.message ?? err}` }).then(() => runClaims.remove(run.agentId)).catch((e) => console.error(`bridge: could not release ${ref} either: ${e?.message ?? e}`));
+    }
+  }
+  // After a hard crash a Run's claim is still on the board and no run is live: give each journalled claim back, with a comment.
+  async function recoverRunClaims() {
+    for (const { id, ref, project, role } of await runClaims.list()) {
+      try {
+        const target = await projects.get(project);
+        if (!target) continue;
+        const held = (await buildSnapshot(target.root, 0)).tickets.find((t) => t.ref === ref)?.holder;
+        if (held) await createDeliveryBoard(target.root).drop(ref, { status: "ready-for-agent", reason: `${role} run: the bridge stopped while it ran; the claim was given back at boot` });
+        await runClaims.remove(id);
+      } catch (err) {
+        console.error(`bridge: could not give back the claim on ${ref}: ${err?.message ?? err}`);
+      }
     }
   }
   async function postAgent(req, res) {
