@@ -10,7 +10,7 @@
 **A local control room where a small team of AI agents builds software, and you sit at the Pass.**
 
 Agents work tickets through a strict relay on a plain-file board, stop at gates only you can open,
-and show up as plush pandas in a 3D bamboo garden, around Bao, so you can see who is doing what at a glance.
+and show up as animal residents in a 3D bamboo garden, so you can see who is doing what at a glance.
 
 [![CI](https://img.shields.io/github/actions/workflow/status/DerekHertz/DimSumDev/ci.yml?branch=main&style=flat-square&label=CI)](https://github.com/DerekHertz/DimSumDev/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/license-MIT-blue?style=flat-square)](LICENSE)
@@ -46,12 +46,18 @@ npm ci && npm run ui    # then open http://127.0.0.1:4317/?demo=den
 - **Independent review on every code ticket.** The developer writes failing tests and then the change, and never reviews its own work. A code reviewer reads the diff while qa checks the behaviour at the same commit, a risk check decides whether security joins, and the release manager's steps open the PR and merge on green CI ([ADR 0029](docs/adr/0029-team-charter-and-the-task-tree.md)).
 - **Gates you can't miss.** Agents stop before adding a dependency, or editing an ADR, `CLAUDE.md` or their own role files, and a change to the bridge, a guardrail or CI is yours to merge. You approve a ticket once; the relay runs end to end and only comes back for a visual verdict, an open scope question, a ticket that failed twice, an environment problem, usage at 90%, or a red merge.
 - **A board you can diff.** Tickets are markdown under `.scratch/`, claimed with lock files and handed off through a `board` CLI ([ADR 0003](docs/adr/0003-local-file-board.md), [ADR 0008](docs/adr/0008-board-service.md)). No database, no hosted service.
-- **The den.** `apps/ui` is a React Three Fiber garden: Bao at the center, a pavilion per team, and plush pandas dressed for their role. Beside it, your desk holds the queue, what needs you, meetings and the library, with tabs for Work, Pandas and Library and a Talk to Bao button. Zoom from the whole den to a team, a panda or its workspace, or press Enter the den to walk around; walk up to an agent to read its transcript, message it, or approve or deny what it's waiting on.
+- **The den.** `apps/ui` is a React Three Fiber garden with four team pavilions around a central meeting plaza, animal residents, and Bao and Jiao as its panda executives ([layout and roster](apps/ui/src/scene/meshy/approved-plan.mjs)). Beside it, your desk holds the queue, what needs you, meetings and the library, with tabs for Work, Pandas and Library and a Talk to Bao button. Zoom from the whole den to a team, a panda or its workspace, or press Enter the den to walk around; walk up to an agent to read its transcript, message it, or approve or deny what it's waiting on.
 - **Demo mode.** Open `?demo=den` or press **Watch the demo** to replay a recorded session into the den. It makes no bridge calls and reads no tokens, and every action that would steer a real agent is greyed out.
 - **More than one project.** The den works for other repos too, like an agency: `npm run den:project -- add <slug> <path>` onboards one with its own board and queue, and you pick the active project in the den ([ADR 0021](docs/adr/0021-agent-wall-grants-and-the-bridge-as-kernel.md)).
 - **Cheap decisions, proved before used.** Small routine choices can go to Jev, a typed-decision model, from the bridge. A use case goes live only after a labelled eval of its real job passes, and every live call logs the rule-based decision beside it for comparison ([ADR 0010](docs/adr/0010-jev-precheck-tier-and-verify-depth.md), Amendment 3).
 
-Residents have stable, individually owned homes with full-body clearance. Tea trips and extra visitor or meeting bodies are deferred; their real runs, tool inspection and desk controls remain available in Team. A resident with no fitting home stays hidden with `Scene place unavailable`; deferred runs show `Scene visitor deferred — available in Team`. Reduced motion changes animation without moving a resident or bypassing placement checks.
+The garden shows **24 resident identities**: 22 specialists at new team desks, plus Bao and Jiao at staged executive homes until ticket 56 supplies their office. Each keeps an owned home while away. Team still lists **32 role and runtime profiles**; this scene change does not retire callable roles or enable Codex dispatch ([placement](apps/ui/src/scene/meshy/approved-plan.mjs), [inventory and runtime availability](apps/ui/src/shell/resident-inventory.mjs), [roster tests](apps/ui/src/scene/meshy/residents-55.test.mjs)).
+
+Idle specialists may reserve a destination for tea, pond watching, rest, mahjong or a cross-team friend visit. At most three outings run at once, including travel and return. Local leisure routes are capped at 60 scene units and a planned 20 seconds one way on a clear route; obstructions can delay travel. Settled activities last 45–90 seconds, followed by a 2–4 minute cooldown after returning home. If no safe place is available, the resident stays home. Friends face each other; mahjong uses real paired residents and ends when a partner leaves ([behavior and timing](apps/ui/src/scene/meshy/daily-routines.mjs), [behavior tests](apps/ui/src/scene/meshy/residents-55.test.mjs)).
+
+Work starts immediately during a break. The resident shows **Working · returning to desk**, returns safely and settles at its own desk; a blocked return holds the last safe position. Meetings can use separate guest bodies while busy originals keep working. Closing a meeting sheet does not end its participants' ownership. Reduced motion skips travel animation only over revalidated routes, and hiding the tab pauses ambient scheduling ([work and meeting integration tests](apps/ui/src/scene/meshy/approved-residents.test.mjs), [blocked-return and motion tests](apps/ui/src/scene/meshy/residents-55.test.mjs)).
+
+Floating blue Codex cloud and orange Claude star ornaments follow the resident's runtime. Decorative marks hide behind structures or when crowded; Team also names the runtime in text ([ornaments](apps/ui/src/scene/meshy/runtime-ornaments.mjs), [Team profiles](apps/ui/src/shell/Residents.jsx)).
 
 ## Requirements
 
@@ -121,6 +127,10 @@ npm run next-session            # prints the command to resume from the latest h
 | 1 Den · 2 Team · 3 Panda · 4 Workspace | Jump the overview camera to a zoom level |
 | + / − / wheel / pinch | Zoom the overview camera |
 | ← / → / drag | Pan the overview camera |
+
+Beside the camera controls, **Roof visibility** offers **Full roofs** and **Cutaway**. Full roofs is the first-use default; the choice is saved in this browser, with Full roofs as the fallback when storage is invalid or unavailable. Cutaway retains the rear roof section and frame to reveal interiors ([controls](apps/ui/src/App.jsx), [preference and tests](apps/ui/src/scene/meshy/residents-55.test.mjs), [roof construction](apps/ui/src/scene/meshy/approved/approved-structures.mjs)).
+
+In **Team**, selecting a resident opens its profile with role, runtime, real work state and any scene note. Use the keyboard-operable **Talk**, **View work** and active-tool inspection buttons; unavailable actions show a reason. Codex Talk/tasks remain disabled until runtime support is enabled ([Team actions](apps/ui/src/shell/Residents.jsx), [runtime availability](apps/ui/src/shell/resident-inventory.mjs)).
 
 ## How it works
 
