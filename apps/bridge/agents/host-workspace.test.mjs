@@ -136,7 +136,7 @@ describe("one worktree per agent", () => {
     const a = await t.dispatch("architect");
     t.fake.spawns[0].exit();
     await until(async () => (await t.agent(a.body.agent.id))?.state === "done", { what: "the first agent to end" });
-    const b = await t.dispatch("architect");
+    const b = await until(async () => { const r = await t.dispatch("architect"); return r.status === 201 ? r : null; }, { what: "the first run's claim given back (den-mvp/89)" });
     assert.equal(b.status, 201, b.text);
     const [first, second] = t.fake.spawns.map((s) => s.args.cwd);
     assert.notEqual(first, second);

@@ -12,7 +12,8 @@
 // den-mvp outcome 3: start() also takes `delivery: { at, since, findings? }` from the delivery runner: the commit the
 // worktree starts at, the commit the delivery began from, and a review's findings for a fix round. `onEnd(run)` is
 // called once per agent after its end is recorded, with the run and what the bridge itself saw of it: the commit it
-// started at, the commit it ended at, and its last message.
+// started at, the commit it ended at, and its last message. den-mvp/89: `settleRun(run)` is the same record, awaited before the
+// agent shows as ended (the bridge gives the ticket's claim back there); `onEnd` is not awaited.
 // den-mvp outcome 4: start() also takes `meeting: { part, file }` from the meeting runner: which part of a meeting the
 // run is (a take, the chair's brief, the chair's answer to a follow-up) and the note the bridge leaves in its worktree.
 // den-mvp outcome 2: every transcript entry is also kept in the role's durable conversation (conversations.mjs), and
@@ -108,7 +109,7 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -453,7 +454,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (entry === "dispatch") {
       const gate = await checkGate(ref, selected);
       if (gate === "unknown") return refuse(404, "no such ticket");
-      if (gate !== "ok") return refuse(409, "the ticket is not in the frontier");
+      // den-mvp/89: a Run's claim keeps its ticket out of the frontier, so a live agent is named before the frontier.
+      if (gate !== "ok") return refuse(409, liveByRef.has(refKey({ ...selected, ref })) ? "this ticket already has a live agent" : "the ticket is not in the frontier");
     }
     const usage = await readUsage(selected.runtime);
     const over = overUsage(usage);
@@ -474,6 +476,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (noRoom) return unhold(noRoom);
     const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}) });
     agent.intentId = ticket.intent.id;
+    if (entry === "dispatch") agent.claimed = true; // den-mvp/89: a Run holds the board claim for its whole run; spawnAgent makes it
     return launch(agent, ENTRY_ROUTES[entry], usage === null);
   }
   // A new run's record. Called inside the synchronous step; launch() registers it and starts the spawn.
@@ -504,7 +507,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     liveByRef.set(refKey(agent), agent);
     const run = spawnAgent(agent, routeName, usageUnknown);
     pending.add(run);
-    run.finally(() => pending.delete(run));
+    run.finally(() => pending.delete(run)).catch(() => {}); // a throw reaches the caller through `run`, not as an unhandled rejection here
     return run;
   }
 
@@ -573,7 +576,30 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     return { ...(await admit({ ref, role, grants: grants === undefined ? undefined : grants.map((g) => ({ kind: g.kind, value: g.value })) }, { entry: "direct", selected })), ticket: { ref } };
   }
 
+  // den-mvp/89: a Run's claim is made here, after the gate and before anything starts, and given back on every refusal after it.
+  // A run that did start is settled by the end hook (runEnded in server.mjs).
   async function spawnAgent(agent, routeName, usageUnknown) {
+    if (agent.claimed) {
+      try {
+        await claimRun(agent);
+      } catch (err) {
+        drop(agent);
+        return refuse(409, err?.message ?? "the board would not claim the ticket");
+      }
+    }
+    let result;
+    try {
+      result = await startRun(agent, routeName, usageUnknown);
+    } catch (err) {
+      // A throw must not leave the ref live or the claim held: the run is over before it began.
+      if (liveByRef.get(refKey(agent)) === agent) drop(agent);
+      if (agent.claimed) await Promise.resolve(releaseRun(agent, "the agent did not start")).catch((e) => console.error(`bridge: could not release ${agent.ref} after a failed start: ${e?.message ?? e}`));
+      throw err;
+    }
+    if (agent.claimed && !result.ok) await Promise.resolve(releaseRun(agent, "the agent did not start")).catch((err) => console.error(`bridge: could not release ${agent.ref} after a refused run: ${err?.message ?? err}`));
+    return result;
+  }
+  async function startRun(agent, routeName, usageUnknown) {
     const runtime = adapterOf(agent);
     // The agent's own worktree and branch (ADR 0016 decision 3, amendment 7): no agent runs in the repo root, and
     // without a worktree nothing is spawned.
@@ -752,8 +778,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         WORK_TIPS
       : `You are the ${a.role} agent${a.mode ? ` in ${a.mode} mode` : ""} for ticket ${a.ref}. The user started this run from the den. ` +
         `Read ${recipeOf(a)} and follow it. The ticket is the file ${ticketFile(a.ref, a.projectRoot)}. ` +
-        // den-mvp/23: the board is read-only behind the wall, and the bridge already keeps one live agent per ticket, so a
-        // Run does not claim or hand off through the board (as F3 settled for direct runs); its last message is its report.
+        // den-mvp/23, 89: the board is read-only behind the wall, so the bridge claims the ticket for a Run before it starts and
+        // publishes its last message as the handoff when it ends (F3); the agent runs no board command.
         `The board is read-only to you: run no board command, and do not stop because you cannot claim; the den already ` +
         `holds this ticket for you. Do the work in your worktree and commit it there (stage files by name), so the den can ` +
         `publish your branch; end with a short report of what you did and what you ` +
@@ -792,6 +818,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         agent.reason = `returned-out-of-scope: ${bad.slice(0, 5).map((b) => `${b.path} (${b.why})`).join(", ")}`;
       }
     }
+    // den-mvp/89: what the run leaves on the board is settled before the agent shows as ended, so a ticket is never claimed by a run that is over.
+    await Promise.resolve()
+      .then(() => settleRun({ agentId: agent.id, ref: agent.ref, role: agent.role, state: outcomeOf(agent), reason: agent.reason ?? null, startSha: agent.startSha ?? null, sha: agent.sha ?? null, branch: agent.branch ?? null, report: agent.report ?? null }))
+      .catch((err) => console.error(`bridge: could not settle the run ${agent.id}: ${err?.stack ?? err}`));
     finalize(agent);
     // den-mvp/43: a meeting take has no follow-up, so its worktree goes with it; unsaved work is kept on a wip/ branch.
     if (agent.meeting && agent.workspace && !agent.workspace.reopened && agent.ref !== DESK_REF) {
@@ -976,10 +1006,14 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   }
 
   // The process has exited: only now is the agent over, the slot free and the resume string set.
-  function finalize(agent) {
-    // A done event is the agent's own verdict; with none, a clean exit is done and anything else failed.
+  // A done event is the agent's own verdict; with none, a clean exit is done and anything else failed.
+  function outcomeOf(agent) {
+    if (agent.stopRequested) return "terminated";
     const ok = agent.resourceLimit ? false : agent.doneOk ?? agent.exitCode === 0;
-    agent.state = agent.stopRequested ? "terminated" : ok ? "done" : "failed";
+    return ok ? "done" : "failed";
+  }
+  function finalize(agent) {
+    agent.state = outcomeOf(agent);
     agent.tool = null;
     approvals.settleAgent(agent.id, "agent-exited");
     approvals.release(agent.id);

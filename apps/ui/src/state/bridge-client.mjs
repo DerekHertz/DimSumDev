@@ -144,11 +144,12 @@ export function createBridgeClient({ fetch }) {
     },
     // organism-infra/228: run one frontier ticket as one role. One request per call: a refusal (409, 429, 503) rejects
     // { status, reason } with the bridge's text and is never retried here; pressing Run again is the retry.
+    // den-mvp/89: the bridge claims the ticket for the role, and the board refuses a qa claim with no mode, so a qa Run is a verify.
     async dispatch(ref, { role, runtime, project } = {}) {
       const body = await call("/agents", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ref, role, ...(runtime === undefined ? {} : { runtime }), ...(project === undefined ? {} : { project }) }),
+        body: JSON.stringify({ ref, role, ...(role === "qa" ? { mode: "verify" } : {}), ...(runtime === undefined ? {} : { runtime }), ...(project === undefined ? {} : { project }) }),
       });
       if (body == null) throw failure(200, "The bridge sent an unreadable answer.");
       return body;

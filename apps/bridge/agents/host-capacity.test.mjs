@@ -13,13 +13,14 @@
 //   AC8 capacity table tests ....................... capacity.test.mjs
 import { test, describe, afterEach } from "node:test";
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import { readdir } from "node:fs/promises";
 import path from "node:path";
 import { createHost } from "./host.mjs";
 import { createFakeRuntime } from "./runtime.mjs";
 import { makeStateFixture, FEATURE } from "../bridge-fixture.mjs";
 import { makeBridge, NO_GATE_REF, until } from "./host-test-helpers.mjs";
-import { lockTicket, withLocks, refOf } from "./capacity-test-helpers.mjs";
+import { withLocks, refOf } from "./capacity-test-helpers.mjs";
 
 const R02 = refOf("02-ready-p0"); // frontier[0] in the fixture
 const R07 = refOf("07-bumpable"); // frontier[1]
@@ -83,8 +84,9 @@ describe("eligibility is membership of the frontier, not the gate", () => {
 
   test("eligibility: developer, qa and security start on a frontier ticket like any role (den-mvp outcome 1)", async () => {
     t = await makeBridge({ policy: { maxConcurrent: 3 } });
-    for (const [role, ref] of [["developer", R02], ["qa", R07], ["security", R08]]) {
-      const res = await t.dispatch(role, ref);
+    // den-mvp/89: the bridge claims for the role, and the board wants qa's mode.
+    for (const [role, ref, extra] of [["developer", R02, {}], ["qa", R07, { mode: "verify" }], ["security", R08, {}]]) {
+      const res = await t.dispatch(role, ref, extra);
       assert.equal(res.status, 201, `${role}: ${res.text}`);
     }
     assert.equal(t.fake.spawns.length, 3);
@@ -124,7 +126,8 @@ describe("one capacity rule: live host agents plus foreign claim locks (max 2 in
   test("a host agent that has claimed its own ticket counts once, not twice", async () => {
     t = await makeBridge({ policy: { maxConcurrent: 2 } });
     assert.equal((await t.dispatch("architect", R02)).status, 201);
-    await lockTicket(t.fx.root, "02-ready-p0", "scout"); // the agent claims the ticket it was started on
+    // den-mvp/89: the bridge itself holds the Run's claim on the ticket it started the agent on.
+    assert.ok(existsSync(path.join(t.fx.root, ".scratch", "fx", "issues", "02-ready-p0.lock")), "the bridge's claim lock is on the ticket");
     const second = await t.dispatch("architect", R08);
     assert.equal(second.status, 201, `live+lock on one ref is one slot, so a slot is still free: ${second.text}`);
     const third = await t.dispatch("architect", R07);

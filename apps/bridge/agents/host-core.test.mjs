@@ -381,7 +381,7 @@ describe("dispatch policy: refusals write nothing and start nothing", () => {
   test("developer, qa and security start on the route like any role (den-mvp outcome 1: no relay refusal)", async () => {
     for (const role of ["developer", "qa", "security"]) {
       t = await makeBridge();
-      const res = await t.dispatch(role);
+      const res = await t.dispatch(role, undefined, role === "qa" ? { mode: "verify" } : {}); // den-mvp/89: the board's claim wants qa's mode
       assert.equal(res.status, 201, `${role}: ${res.text}`);
       assert.equal(res.body.agent.role, role);
       await t.close();
@@ -484,7 +484,7 @@ describe("dispatch policy: refusals write nothing and start nothing", () => {
     await refused2(await t.dispatch("architect"), 409);
     t.fake.spawns[0].exit();
     await until(async () => (await t.state()).agents.every((a) => a.state !== "working"), { what: "first agent ended" });
-    assert.equal((await t.dispatch("architect")).status, 201);
+    await until(async () => (await t.dispatch("architect")).status === 201, { what: "the claim released" }); // den-mvp/89: the end hook gives it back
     function refused2(res, status) {
       assert.equal(res.status, status, res.text);
       assert.equal(t.fake.spawns.length, 1, "the refused dispatch spawned nothing");

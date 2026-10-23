@@ -37,7 +37,9 @@ describe("one attempt", () => {
     await until(() => t.fake.spawns[0]);
     t.fake.spawns[0].exit();
     await until(async () => (await lines()).some((l) => l.event === "settled"));
-    assert.equal((await t.dispatch("developer", DISPATCH_REF)).status, 201);
+    // den-mvp/89: the run's claim is given back by the end hook, a moment after the attempt settles.
+    const again = await until(async () => { const r = await t.dispatch("developer", DISPATCH_REF); return r.status === 201 ? r : null; }, { what: "the claim released" });
+    assert.equal(again.status, 201);
   });
   test("an unsettled intent from a crash blocks a blind respawn", async () => {
     t = await makeBridge({
