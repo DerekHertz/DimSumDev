@@ -51,7 +51,7 @@ test('a running meeting shows its actual seated participants while keeping progr
     await pill.waitFor({ timeout: 60000 });
     assert.match(await pill.innerText(), /Meeting on 57 · 1 of 3 have spoken/);
     await page.waitForFunction(()=>{const b=document.querySelector('.den-entry button');return b&&b.getAttribute('aria-disabled')!=='true';},null,{timeout:60000});
-    await page.waitForFunction(()=>document.querySelectorAll('[data-seat]:visible').length===2,null,{timeout:15000});
+    await page.locator('[data-seat]:visible').nth(1).waitFor({state:'visible',timeout:15000});
     assert.equal(await page.locator('[data-seat]:visible').count(),2,'the chair and active participant have physical meeting seats');
     assert.equal(await page.locator(`.chip[data-ref="${REF}"]`).count(), 0, 'the meeting run remains in its panel without a generic chip');
     await pill.click();
