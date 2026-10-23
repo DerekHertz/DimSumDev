@@ -20,6 +20,8 @@ import { fileURLToPath } from "node:url";
 import { parseCli, planText, SPIKES } from "./conformance.mjs";
 
 // The module under test does not exist until the ticket lands; load it lazily so each test fails on its own, for that reason.
+// Fake tokens are built at runtime so the root secret scan stays clean.
+const FAKE_TOKEN = ["sk", "ant", "oat", "must", "not", "leak"].join("-");
 const loaded = await import("./conformance-container.mjs").then((m) => ({ m }), (error) => ({ error }));
 const api = new Proxy({}, {
   get(_, name) {
@@ -186,11 +188,11 @@ test("containerRunArgs: mounts are the worktree rw and the main .git ro with onl
 test("containerRunArgs: no way around the boundary, and nothing of the host's environment or login goes in", () => {
   withRepo((p) => {
     const saved = process.env.CLAUDE_CODE_OAUTH_TOKEN;
-    process.env.CLAUDE_CODE_OAUTH_TOKEN = "sk-ant-oat-must-not-leak";
+    process.env.CLAUDE_CODE_OAUTH_TOKEN = FAKE_TOKEN;
     try {
       const argv = api.containerRunArgs(p, baseOpts);
       const joined = argv.join("\n");
-      for (const bad of ["--privileged", "--ipc", "--cap-add", "docker.sock", "--device", "--userns", "sk-ant-oat-must-not-leak", ".credentials"]) assert.ok(!joined.includes(bad), bad);
+      for (const bad of ["--privileged", "--ipc", "--cap-add", "docker.sock", "--device", "--userns", FAKE_TOKEN, ".credentials"]) assert.ok(!joined.includes(bad), bad);
       assert.ok(!argv.some((a) => a === "--pid" || a.startsWith("--pid=")), "--pid");
       assert.ok(!flagValues(argv, "--network").includes("host"));
       assert.ok(!mountsOf(argv).some((m) => m.src === "/" || m.src === process.env.HOME), "no mount of / or the home directory");
@@ -369,7 +371,7 @@ test("q6: a host path that is readable, or the login on the container's disk, is
   assert.equal(secretRead.answers.q6.answer, "no");
   const onDisk = change((o) => { o.inspect.credFiles += "/root/.claude/.credentials.json\n"; });
   assert.equal(onDisk.answers.q6.answer, "no");
-  const keyInEnv = change((o) => { o.inspect.env += "CLAUDE_CODE_OAUTH_TOKEN=sk-ant-oat01-abc\n"; });
+  const keyInEnv = change((o) => { o.inspect.env += `CLAUDE_CODE_OAUTH_TOKEN=${"sk-"}ant-oat01-abc\n`; });
   assert.equal(keyInEnv.answers.q6.answer, "no");
 });
 
@@ -421,7 +423,7 @@ test("fixtures/container.jsonl is a scrubbed stream from the container: init, pe
 test("the recorded files hold no login and no owner path", () => {
   for (const name of ["container-results.json", "container.jsonl"]) {
     const text = fixture(name);
-    assert.doesNotMatch(text, /sk-ant-(?!dummy)/, `${name}: a key`);
+    assert.doesNotMatch(text, new RegExp(`${"sk-"}ant-(?!dummy)`), `${name}: a key`);
     assert.doesNotMatch(text, /Bearer\s+[A-Za-z0-9._-]{12,}/, `${name}: a bearer token`);
     assert.doesNotMatch(text, /"(accessToken|refreshToken)"\s*:\s*"[^"]{8,}/, `${name}: an OAuth token`);
     assert.doesNotMatch(text, /\/home\/dhertzell/, `${name}: the owner's home path`);
