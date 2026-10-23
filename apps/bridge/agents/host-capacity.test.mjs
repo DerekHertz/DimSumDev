@@ -83,8 +83,9 @@ describe("eligibility is membership of the frontier, not the gate", () => {
 
   test("eligibility: developer, qa and security start on a frontier ticket like any role (den-mvp outcome 1)", async () => {
     t = await makeBridge({ policy: { maxConcurrent: 3 } });
-    for (const [role, ref] of [["developer", R02], ["qa", R07], ["security", R08]]) {
-      const res = await t.dispatch(role, ref);
+    // den-mvp/89: the bridge claims for the role, and the board wants qa's mode.
+    for (const [role, ref, extra] of [["developer", R02, {}], ["qa", R07, { mode: "verify" }], ["security", R08, {}]]) {
+      const res = await t.dispatch(role, ref, extra);
       assert.equal(res.status, 201, `${role}: ${res.text}`);
     }
     assert.equal(t.fake.spawns.length, 3);

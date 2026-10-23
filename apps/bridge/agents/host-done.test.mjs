@@ -30,7 +30,7 @@ describe("a done event ends the process", () => {
     const lines = (await sessionLines()).filter((l) => l.agentId === agent.id);
     assert.deepEqual(lines.map((l) => l.event), ["spawn", "end"]);
     assert.equal(lines[1].state, "done");
-    assert.equal((await t.dispatch("scout")).status, 201, "the slot is free again");
+    await until(async () => (await t.dispatch("scout")).status === 201, { what: "the slot free again (the run's claim given back)" }); // den-mvp/89
   });
 
   test("a done with ok:false closes stdin too, and the agent ends failed", async () => {
