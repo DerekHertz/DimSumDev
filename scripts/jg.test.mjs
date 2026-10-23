@@ -42,6 +42,7 @@ function failRun() {
 function makeRoot() {
   const root = mkdtempSync(path.join(tmpdir(), "jg80-root-"));
   mkdirSync(path.join(root, ".git"));
+  writeFileSync(path.join(root, ".git", "HEAD"), "ref: refs/heads/main\n");
   return root;
 }
 
