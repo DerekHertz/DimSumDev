@@ -6,13 +6,18 @@ import {WALK} from '../procedural/walk.mjs';
 
 // Homes-first: one measured, owned footprint. No departure or trip is promised.
 export function createActorHomes(den,actors){
- const places=createPlaceRegistry(den.walkWorld,{getBodies:()=>[...actors.values()].filter(a=>a.panda.model.visible).map(a=>({owner:a.identity,position:a.panda.model.position,envelope:a.envelope}))});
+ const places=createPlaceRegistry(den.walkWorld,{getBodies:()=>[...actors.values(),...(den.guestActors?.values()||[])].filter(a=>a.panda.model.visible).map(a=>({owner:a.identity,position:a.panda.model.position,envelope:{...a.envelope,yaw:a.yaw??a.baseYaw}}))});
  function bind(a,row){
   const next=actorIdentity({...a,...row,agentId:row?.agentId??a.id,ref:row?.ref??null});
   if(a.identity)places.rebind(a.identity,next);a.identity=next;
  }
  function prepare(a){
-  a.envelope=actorEnvelope(a.panda);bind(a,a.live);
+  a.envelope={...actorEnvelope(a.panda,null,{oriented:!!den.garden?.approved}),yaw:a.baseYaw};bind(a,a.live);
+  if(den.garden?.approved){
+   const id='work:'+a.id;places.define({id,kind:'work',position:a.home});
+   const home=places.reserve(id,a.identity,a.envelope);if(!home){a.homePlace=null;a.presentation='Workspace unavailable — available in Team';a.panda.model.visible=false;return false;}
+   a.homePlace=id;places.occupy(id,a.identity);a.presentation=a.dock?.staged?'Executive office pending — at a reserved home':null;return true;
+  }
   const allocation=createAllocationWork(),entry=den.walkStart;let work=allocation.phase(.75);
   const clear=position=>!entry||Math.hypot(position.x-entry.x,position.z-entry.z)>=Math.max(.65,a.envelope.radius+WALK.radius+.05);
   const find=(kind,near)=>places.find({id:'home:'+a.id,kind,near,owner:a.identity,envelope:a.envelope,work,validate:clear,preserveHeight:!!a.stationary});

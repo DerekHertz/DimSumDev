@@ -49,6 +49,7 @@ import { actorBindings, NAVIGATION_TARGETS, MESHY_TEAM_LABELS } from "./scene/me
 import { MeetingLayer } from "./scene/MeetingLayer.jsx";
 import { claimOf, tableMeeting } from "./scene/meshy/meeting-table.mjs";
 import { RESIDENTS, RUNTIME_UNAVAILABLE, boundAgentKey } from './shell/resident-inventory.mjs';
+import {createRoofPreference} from './scene/meshy/roof-preference.mjs';
 
 class SceneBoundary extends Component {
   state={error:null};
@@ -96,8 +97,11 @@ export function App() {
   const placeholder = inDemo || approvalDemo ? null : panelPlaceholder(connection);
   const [selected, setSelected] = useState(null);
   const stage = useMemo(() => ({ anchors: new Map(), camera: null, size: null, explorer: null, tallyAnchor: TALLY_ANCHOR }), []);
-  const camera = useMemo(() => createDenCameraStore(createCameraStore({minZoom:.25,levels:{1:1,2:.4,3:.25}}),()=>stage.explorer?.exit(), NAVIGATION_TARGETS), [stage]);
+  const camera = useMemo(() => createDenCameraStore(createCameraStore({minZoom:.55,levels:{1:1,2:.75,3:.55}}),()=>stage.explorer?.exit(), NAVIGATION_TARGETS), [stage]);
   const [den,setDen]=useState(null);
+  const [roofs]=useState(()=>{let storage;try{storage=window.localStorage;}catch{}return createRoofPreference(storage);});
+  const [roofMode,setRoofMode]=useState(roofs.mode);
+  useEffect(()=>{den?.garden?.setRoofMode(roofMode);},[den,roofMode]);
   const [gardenLoad, setGardenLoad] = useState({ status: 'loading', message: 'Opening the garden…' });
   const [exploring,setExploring]=useState(false);
   const [cursorFree, setCursorFree] = useState(false);
@@ -383,11 +387,16 @@ export function App() {
     <div className={`shell procedural-den forest-shell den-shell${exploring ? " den-visiting" : ""}${cursorFree ? " den-cursor-free" : ""}${!exploring && picked != null ? " den-picked" : ""}`}>
       <header className="den-bar">
         <LogoPill connection={connection} demo={denDemo.active} />
-        <ZoomSwitcher camera={camera} />
         <button type="button" className="btn btn-solid den-bar-talk" aria-pressed={baoOpen} onClick={(e) => talkToBao(e.currentTarget)}>Talk to Bao</button>
       </header>
       <Rail topic={topic} baoOpen={baoOpen} badges={badges} onEntry={onRail} buildLabel={buildLabel(snapshot?.build)} demoActive={denDemo.active} offline={!inDemo && connection.phase !== 'live'} />
       <div className="den-stage">
+        <div className="den-camera-controls">
+          <ZoomSwitcher camera={camera} />
+          <div role="group" aria-label="Roof visibility" className="den-roof-controls">
+            {['full','cutaway'].map(mode=><button key={mode} type="button" className="btn" aria-pressed={roofMode===mode} onClick={()=>{roofs.set(mode);setRoofMode(mode);}}>{mode==='full'?'Full roofs':'Cutaway'}</button>)}
+          </div>
+        </div>
         <main aria-label="Den scene" aria-keyshortcuts="ArrowLeft ArrowRight + -" tabIndex={0} className="scene forest-garden">
           <div className="forest-canvas">
             <SceneBoundary>

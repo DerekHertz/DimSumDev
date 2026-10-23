@@ -194,3 +194,9 @@
 @media (prefers-color-scheme: dark) {
   .forest-shell { --surface-000: #28362b; --surface-100: #18231d; --surface-200: #202d24; --surface-300: #304034; --surface-glass: #202d24f5; --line: #3f5042; --line-strong: #7b947d; --ink: #e0e9d9; --ink-muted: #b1bfaa; --ink-faint: #9cad94; --qi: #b4d69d; --qi-fill: #b4d69d; --on-qi: #18231d; --focus-ring: #b4d69d; }
 }
+.den-camera-controls { position: absolute; z-index: 4; left: var(--space-3); bottom: var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: calc(100% - 32px); padding: var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-m); background: var(--surface-100); }
+.den-camera-controls .zoom-switcher { position: static; display: flex; flex-direction: row; padding: 0; border: 0; box-shadow: none; }
+.den-roof-controls { display: flex; gap: var(--space-1); }
+.den-roof-controls button { min-width: 44px; min-height: 44px; }
+.den-roof-controls button[aria-pressed="true"] { background: var(--qi-fill); color: var(--ink); border-color: var(--qi); }
+.den-roof-controls button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }

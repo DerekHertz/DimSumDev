@@ -1,10 +1,10 @@
 // Garden framing uses the same dolly-factor convention as the app's zoom switcher.
 import { DEN_TARGET, TEAMS } from './bindings.mjs';
-export const clampZoom=z=>Math.max(0.25,Math.min(1.2,z));
+export const clampZoom=z=>Math.max(0.55,Math.min(1.2,z));
 const sin=Math.sin(Math.atan(1/Math.SQRT2)),cos=Math.cos(Math.atan(1/Math.SQRT2));
 export function cameraConfig({width,height,zoom=1,target=DEN_TARGET}) {
   // Hold the approved 94-unit garden width on desktop and phone, with room for the mountain skyline.
-  const half=Math.max(63,104/(width/height))*clampZoom(zoom)/2;
+  const half=Math.max(92,146/(width/height))*clampZoom(zoom)/2;
   return {position:[target[0],target[1]+110*sin,target[2]+110*cos],target,up:[0,1,0],near:0.1,far:300,left:-half*width/height,right:half*width/height,top:half,bottom:-half};
 }
 export function clampTarget(target){

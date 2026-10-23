@@ -12,7 +12,7 @@ import {sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,stage,onReady,onNearby,onScenePresentations,picked=null,onPick,zoneView=null,onZoneClick=null,onLoadState,bindings=null,onOpenMeeting=null}){
  const [den,setDen]=useState(null);
  const live=useRef(null),inputs=useRef({});inputs.current={snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,onNearby,onScenePresentations,picked,onPick,zoneView,onZoneClick,onLoadState,bindings,onOpenMeeting};
- const {scene,gl}=useThree();
+ const {scene,gl,camera,size}=useThree();
  useEffect(()=>{
   const abort=new AbortController();let mounted=true,world=null;
   inputs.current.onLoadState?.({status:'loading',message:'Opening the forest garden…'});
@@ -27,7 +27,7 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
   }).catch(error=>{if(mounted&&error.name!=='AbortError'){console.error('Den scene',error);inputs.current.onLoadState?.({status:'error',message:'The garden models could not load. Reload to retry.'});}});
   return()=>{mounted=false;abort.abort();onReady(null);inputs.current.onScenePresentations?.([]);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current=null;world?.dispose();stage.anchors.clear();};
  },[gl,stage,onReady]);
- useEffect(()=>{const previous={background:scene.background,fog:scene.fog};const color='#e9f0d9';scene.background=new THREE.Color(color);scene.fog=new THREE.Fog(color,150,260);return()=>{scene.background=previous.background;scene.fog=previous.fog;};},[scene]);
+ useEffect(()=>{const previous={background:scene.background,fog:scene.fog},media=matchMedia('(prefers-color-scheme: dark)');const apply=()=>{const color=media.matches?'#171b20':'#f8f3e8';scene.background=new THREE.Color(color);scene.fog=new THREE.Fog(color,180,300);};apply();media.addEventListener('change',apply);return()=>{media.removeEventListener('change',apply);scene.background=previous.background;scene.fog=previous.fog;};},[scene]);
  useEffect(()=>{if(!den)return;den.setFrontier(frontier||[]);den.setTally(tally?.rods);},[den,frontier,tally]);
  useEffect(()=>{
   const agents=live.current?.agents;if(!agents)return;
@@ -35,8 +35,9 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
   const bind=()=>{agents.applyLive(liveActorsFromSnapshot(snapshot,{now:Date.now()}),inputs.current.bindings);const m=tableMeeting(snapshot?.meetings,Date.now());agents.applyMeeting(m);if(live.current)live.current.meeting=m;};bind();const timer=setInterval(bind,1000);return()=>clearInterval(timer);
  },[den,snapshot,bindings]);
  useEffect(()=>{live.current?.agents.setSelected(selected??null);},[den,selected]);
+ useEffect(()=>{const visibility=()=>{const agents=live.current?.agents;if(!agents)return;if(!document.hidden){agents.applyLive(liveActorsFromSnapshot(inputs.current.snapshot,{now:Date.now()}),inputs.current.bindings);agents.applyMeeting(tableMeeting(inputs.current.snapshot?.meetings,Date.now()));}agents.setHidden(document.hidden);};document.addEventListener('visibilitychange',visibility);visibility();return()=>document.removeEventListener('visibilitychange',visibility);},[den]);
  useFrame((_,delta)=>{
-  const l=live.current;if(!l)return;const dt=Math.min(delta,.1);l.agents.update(dt,l.media.matches);l.elapsed=(l.elapsed||0)+(l.media.matches?0:dt);l.den.ambient.pose(l.elapsed,null,l.media.matches);l.den.garden.assets.tea.koi.update(dt,l.media.matches);l.den.world.updateMatrixWorld(true);
+  const l=live.current;if(!l)return;const dt=Math.min(delta,.1);l.agents.update(dt,l.media.matches);l.elapsed=(l.elapsed||0)+(l.media.matches?0:dt);l.den.ornaments?.update(camera,size.height);l.den.world.updateMatrixWorld(true);
   // Labels float .4 above the head: Bao's crown is 3; a species publishes its own head top (antlers included).
   const labelAt=model=>{const head=l.den.pandaRigs.get(model)?.rig.profile.envelope?.head;return model.localToWorld(new THREE.Vector3(0,(head?.labelTop??head?.top??3)+.4,0));};
   const figures=l.agents.liveFigures(),anchorsNow=new Map();
@@ -83,7 +84,7 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
  };
  return <>
   <hemisphereLight args={['#fff1d8','#8fa47b',1.65]}/>
-  <directionalLight position={[-35,60,30]} intensity={2.5} color='#ffebc3' castShadow shadow-mapSize={[2048,2048]} shadow-camera-left={-62} shadow-camera-right={62} shadow-camera-top={62} shadow-camera-bottom={-62} shadow-camera-far={160} shadow-normalBias={.06}/>
+  <directionalLight position={[-35,60,30]} intensity={2.5} color='#ffebc3' castShadow shadow-mapSize={[2048,2048]} shadow-camera-left={-80} shadow-camera-right={70} shadow-camera-top={75} shadow-camera-bottom={-70} shadow-camera-far={200} shadow-normalBias={.06}/>
   <directionalLight position={[12,10,-8]} intensity={.65} color="#d6e9ff"/>
   {den?<primitive object={den.world} dispose={null} onClick={hit}/>:null}
  </>;

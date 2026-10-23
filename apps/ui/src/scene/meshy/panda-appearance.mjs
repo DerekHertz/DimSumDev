@@ -10,7 +10,7 @@ import {disposeWorld} from './assets.mjs';
 
 // team-and-den-ux/23: `characters` maps a role to its own loaded species source; a role without one keeps Bao's body.
 /** Appearance only: callers own identity, placement, availability and actions. */
-export function createPandaAppearanceFactory({body,characters={},castProfiles=CAST_PROFILES,...templates}){
+export function createPandaAppearanceFactory({body,characters={},castProfiles=CAST_PROFILES,approvedOnly=false,...templates}){
  const outfits=new T.Group(),cache=new Map(),instances=new Map();let disposed=false;
  function createPanda(role,{runtime='claude'}={}){
   if(disposed)throw Error('Panda appearance factory disposed');
@@ -23,6 +23,12 @@ export function createPandaAppearanceFactory({body,characters={},castProfiles=CA
    const profile=bao?BAO_PRODUCTION:cast||CHARACTER_PROFILES[role],source=bao||(cast?characters[species]:characters[role]),rig=createRig(source,profile);
    rig.model.userData={roleId:role,actorKey:role,runtime,species:profile.id};rig.model.scale.setScalar(role==='orchestrator'?1.35:.68);
    instances.set(rig.model,{rig,tool:null});return {model:rig.model,rig};
+  }
+  if(approvedOnly){
+   const model=new T.Group(),geometry=new T.CylinderGeometry(.45,.45,.08,12),material=new T.MeshStandardMaterial({color:'#89928a',roughness:1}),marker=new T.Mesh(geometry,material);model.add(marker);
+   model.userData={roleId:role,runtime,modelUnavailable:true};
+   const rig={model,profile:{id:'unavailable',envelope:{head:{top:.2}}},poseIdle(){},poseWaddle(){},poseSit(){},dispose(){geometry.dispose();material.dispose();model.removeFromParent();}};
+   instances.set(model,{rig,tool:null});return {model,rig};
   }
   const key=runtime+':'+role;
   if(!cache.has(key)){const outfit=createRoleOutfit(role,templates,{runtime});cache.set(key,outfit);outfits.add(outfit);}

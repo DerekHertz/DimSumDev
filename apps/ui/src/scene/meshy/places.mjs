@@ -12,6 +12,7 @@ export function createPlaceRegistry(world,{getBodies=()=>[]}={}){
  }
  const ground=(position,envelope,work)=>work?work.groundAt(world.navigation,position.x,position.z,position.y,envelope.radius,envelope.height):world.navigation.groundAt(position.x,position.z,position.y,envelope.radius,envelope.height);
  function fits(position,envelope,owner,ignore=null,work=null){
+  if(world.fitsPlace)return world.fitsPlace(position,envelope,owner,ignore,places,getBodies());
   const y=ground(position,envelope,work);
   if(y===null||Math.abs(y-position.y)>.1)return false;
   // Authored standing origins may sit above their supporting floor. Check the

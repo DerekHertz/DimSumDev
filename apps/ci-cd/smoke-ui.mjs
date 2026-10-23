@@ -224,9 +224,9 @@ async function main() {
       await page.setViewportSize({ width: 1440, height: 900 });
       // The signs follow a resize a few frames late (longer under load): the first probe can still show the
       // phone-sized layout from the previous check, which also "fits". Take the baseline only once the signs are
-      // centred on the scene box. Steamers and Tea & Pantry flank the garden
-      // at x -20.2 and +20.2.
-      const centred = (p) => p.signs["Steamers"] && p.signs["Tea & Pantry"] && Math.abs((p.signs["Steamers"].x + p.signs["Tea & Pantry"].x) / 2 - p.width / 2) < 2;
+      // settled at the approved target x=-6. Team plots flank x=±30.5;
+      // their midpoint therefore projects six scene units right of the target.
+      const centred = (p) => p.signs["Steamers"] && p.signs["Tea & Pantry"] && Math.abs((p.signs["Steamers"].x + p.signs["Tea & Pantry"].x) / 2 - p.width / 2 - (p.signs["Tea & Pantry"].x-p.signs["Steamers"].x)*6/61) < 2;
       const base = await settle((p) => centred(p) && fits(p), "default frame before zoom");
       // Projected positions remain measurable when close zoom clips the outer signs.
       const gap = (p) => p.projected["Tea & Pantry"].x - p.projected["Steamers"].x;
@@ -235,7 +235,7 @@ async function main() {
       await page.mouse.wheel(0, -300); // exponential: zoom factor 1 -> exp(-0.3) = 0.7408, so 1/0.7408 = 1.3499 times wider
       const zoomed = await settle((p) => Math.abs(gap(p) / gap(base) - 1.3499) < 0.03, "zoom in by exp(-0.3)");
       await page.mouse.wheel(0, -5000); // close zoom allows inspection of the personal workstations
-      const nearest = await settle((p) => Math.abs(gap(p) / gap(base) - 4) < 0.04, "zoom clamps at 0.25");
+      const nearest = await settle((p) => Math.abs(gap(p) / gap(base) - 1/.55) < 0.04, "zoom clamps at 0.55");
       await page.mouse.wheel(0, 20000); // clamps at 1.2: 1/1.2 = 0.833
       const farthest = await settle((p) => Math.abs(gap(p) / gap(base) - 1 / 1.2) < 0.03, "zoom clamps at 1.2");
       return `spacing x${(gap(zoomed) / gap(base)).toFixed(3)}, x${(gap(nearest) / gap(base)).toFixed(3)} (nearest), x${(gap(farthest) / gap(base)).toFixed(3)} (farthest)`;
