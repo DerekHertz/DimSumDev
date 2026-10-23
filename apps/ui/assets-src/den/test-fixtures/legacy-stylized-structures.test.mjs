@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {Box3, Vector3, Raycaster} from 'three';
-import {createStylizedStructure, STYLIZED_STRUCTURE_IDS} from './stylized-structures.mjs';
-import {createSurfaceNavigation} from './navigation.mjs';
+import {createStylizedStructure, STYLIZED_STRUCTURE_IDS} from './legacy-stylized-structures.mjs';
+import {createSurfaceNavigation} from '../../../src/scene/meshy/navigation.mjs';
 
 function walk(nav, from, to) {
   let floor = 0;

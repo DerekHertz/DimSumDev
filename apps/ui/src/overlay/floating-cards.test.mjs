@@ -9,7 +9,7 @@ import { lightenScene } from "../../../ci-cd/light-scene.mjs";
 
 const DESKTOP = { width: 1440, height: 900 };
 const PHONE = { width: 390, height: 844 };
-const ZOOM_NEAREST = 0.25;
+const ZOOM_NEAREST = 0.55;
 const ZOOM_FARTHEST = 1.2;
 const near = (a, b, tol = 1.5) => Math.abs(a - b) <= tol;
 
@@ -132,6 +132,14 @@ async function openApp({ snapshot = fixture(), viewport = DESKTOP, hasTouch = fa
 // Needs-you body so its keyboard handler receives the key; sheet visibility belongs to the rail.
 const header = (sheet) => sheet.locator('[data-overlay="needs-you"] button').first();
 const zoomValue = async (zoom) => Number(await zoom.getAttribute("data-zoom"));
+const exposeSceneControls = async (page,zoom) => {
+  const close=page.locator('[data-sheet="topic"] .den-sheet-close');
+  if(await close.count())await close.click();
+  assert.ok(await zoom.getByRole('button',{name:'2 · Team'}).evaluate(el=>{
+    const r=el.getBoundingClientRect(),hit=document.elementFromPoint(r.x+r.width/2,r.y+r.height/2);
+    return el===hit||el.contains(hit);
+  }),'scene control receives native pointer hits after closing the docked topic sheet');
+};
 const token = (page, name) =>
   page.evaluate((n) => {
     const probe = document.createElement("span");
@@ -434,7 +442,7 @@ test("clicking an open team pill zooms to that team (level 2 · Team becomes cur
 
 // ---- Zoom switcher and free zoom -----------------------------------------------------------------------------
 
-test("zoom switcher labels are exactly 1 · Den, 2 · Team, 3 · Panda, 4 · Workspace; Level 1 is current in qi; + and - have aria-labels (criterion: labels)", { timeout: 90000 }, withApp({}, async ({ page, zoom }) => {
+test("zoom switcher labels are exactly 1 · Den, 2 · Team, 3 · Panda, 4 · Workspace; Level 1 uses accessible qi ink; + and - have aria-labels (criterion: labels)", { timeout: 90000 }, withApp({}, async ({ page, zoom }) => {
   const nav = page.getByRole("navigation", { name: "Zoom level" });
   assert.equal(await nav.count(), 1);
   const levels = await zoom.locator("button").evaluateAll((bs) => bs.map((b) => b.textContent.trim()).filter((t) => /^\d ·/.test(t)));
@@ -443,12 +451,13 @@ test("zoom switcher labels are exactly 1 · Den, 2 · Team, 3 · Panda, 4 · Wor
   assert.equal(await zoom.getByRole("button", { name: "Zoom out" }).count(), 1);
   const den = zoom.getByRole("button", { name: "1 · Den" });
   assert.equal(await den.getAttribute("aria-current"), "true");
-  assert.equal(await colourOf(den), await token(page, "qi"), "current level is qi");
-  assert.equal(await colourOf(zoom.getByRole("button", { name: "2 · Team" })), await token(page, "ink-muted"));
+  assert.equal(await colourOf(den), await token(page, "qi"), "current level has accessible qi ink");
+  assert.equal(await colourOf(zoom.getByRole("button", { name: "2 · Team" })), await token(page, "ink"));
   assert.equal(await zoomValue(zoom), 1, "starts at the Level 1 framing");
 }));
 
-test("clicking a level makes it current and dollies in (Level 3 is closer than Level 2, which is closer than Level 1)", { timeout: 90000 }, withApp({}, async ({ zoom }) => {
+test("clicking a level makes it current and dollies in (Level 3 is closer than Level 2, which is closer than Level 1)", { timeout: 90000 }, withApp({}, async ({ page,zoom }) => {
+  await exposeSceneControls(page,zoom);
   await zoom.getByRole("button", { name: "2 · Team" }).click();
   const two = await zoomValue(zoom);
   assert.equal(await zoom.getByRole("button", { name: "2 · Team" }).getAttribute("aria-current"), "true");
@@ -459,7 +468,8 @@ test("clicking a level makes it current and dollies in (Level 3 is closer than L
   assert.ok(three >= ZOOM_NEAREST, "within the clamp");
 }));
 
-test("+ and - buttons step the same zoom the wheel and keys use, and clamp at [0.25, 1.2]", { timeout: 90000 }, withApp({}, async ({ page, zoom }) => {
+test("+ and - buttons step the same zoom the wheel and keys use, and clamp at [0.55, 1.2]", { timeout: 90000 }, withApp({}, async ({ page, zoom }) => {
+  await exposeSceneControls(page,zoom);
   const zin = zoom.getByRole("button", { name: "Zoom in" });
   const zout = zoom.getByRole("button", { name: "Zoom out" });
   await zin.click();
@@ -477,6 +487,7 @@ test("+ and - buttons step the same zoom the wheel and keys use, and clamp at [0
 }));
 
 test("scroll wheel over the scene zooms freely and clamps at both ends (scope 2026-10-01: wheel, clamp)", { timeout: 90000 }, withApp({}, async ({ page, zoom }) => {
+  await exposeSceneControls(page,zoom);
   await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') === null, null, { timeout: 60000 });
   const canvas = await page.locator('.forest-canvas').boundingBox();
   await page.mouse.move(canvas.x + canvas.width * .85, canvas.y + canvas.height * .15);

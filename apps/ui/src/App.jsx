@@ -49,6 +49,9 @@ import { actorBindings, NAVIGATION_TARGETS, MESHY_TEAM_LABELS } from "./scene/me
 import { MeetingLayer } from "./scene/MeetingLayer.jsx";
 import { claimOf, tableMeeting } from "./scene/meshy/meeting-table.mjs";
 import { RESIDENTS, RUNTIME_UNAVAILABLE, boundAgentKey } from './shell/resident-inventory.mjs';
+import {createRoofPreference} from './scene/meshy/roof-preference.mjs';
+import {activeResidents} from './scene/meshy/approved-plan.mjs';
+const SCENE_RESIDENTS=activeResidents(RESIDENTS);
 
 class SceneBoundary extends Component {
   state={error:null};
@@ -96,8 +99,11 @@ export function App() {
   const placeholder = inDemo || approvalDemo ? null : panelPlaceholder(connection);
   const [selected, setSelected] = useState(null);
   const stage = useMemo(() => ({ anchors: new Map(), camera: null, size: null, explorer: null, tallyAnchor: TALLY_ANCHOR }), []);
-  const camera = useMemo(() => createDenCameraStore(createCameraStore({minZoom:.25,levels:{1:1,2:.4,3:.25}}),()=>stage.explorer?.exit(), NAVIGATION_TARGETS), [stage]);
+  const camera = useMemo(() => createDenCameraStore(createCameraStore({minZoom:.55,levels:{1:1,2:.75,3:.55}}),()=>stage.explorer?.exit(), NAVIGATION_TARGETS), [stage]);
   const [den,setDen]=useState(null);
+  const [roofs]=useState(()=>{let storage;try{storage=window.localStorage;}catch{}return createRoofPreference(storage);});
+  const [roofMode,setRoofMode]=useState(roofs.mode);
+  useEffect(()=>{den?.garden?.setRoofMode(roofMode);},[den,roofMode]);
   const [gardenLoad, setGardenLoad] = useState({ status: 'loading', message: 'Opening the garden…' });
   const [exploring,setExploring]=useState(false);
   const [cursorFree, setCursorFree] = useState(false);
@@ -375,7 +381,7 @@ export function App() {
     else if (id === 'reset') { camera.goToLevel(1); setToast('Back to the whole den'); }
     else openTopic(id, from);
   }, [talkToBao, denDemoMode, camera, openTopic]);
-  const activity = useMemo(() => deskActivity(snapshot, { now }), [snapshot, now]);
+  const activity = useMemo(() => deskActivity(snapshot, { now, residents:SCENE_RESIDENTS }), [snapshot, now]);
   const badges = useMemo(() => railBadges({ snapshot, now, ownBuild: inDemo ? null : live.ownBuild }), [snapshot, now, inDemo, live.ownBuild]);
   const overflow = snapshot ? Math.max(0, activeCount(snapshot) - MAX_PLUSH) : 0;
   const floatOpen = !!(selected || approval.state.open || message.state.open || (engaged && shownCard));
@@ -383,12 +389,17 @@ export function App() {
     <div className={`shell procedural-den forest-shell den-shell${exploring ? " den-visiting" : ""}${cursorFree ? " den-cursor-free" : ""}${!exploring && picked != null ? " den-picked" : ""}`}>
       <header className="den-bar">
         <LogoPill connection={connection} demo={denDemo.active} />
-        <ZoomSwitcher camera={camera} />
         <button type="button" className="btn btn-solid den-bar-talk" aria-pressed={baoOpen} onClick={(e) => talkToBao(e.currentTarget)}>Talk to Bao</button>
       </header>
       <Rail topic={topic} baoOpen={baoOpen} badges={badges} onEntry={onRail} buildLabel={buildLabel(snapshot?.build)} demoActive={denDemo.active} offline={!inDemo && connection.phase !== 'live'} />
       <div className="den-stage">
-        <main aria-label="Den scene" aria-keyshortcuts="ArrowLeft ArrowRight + -" tabIndex={0} className="scene forest-garden">
+        <div className="den-camera-controls">
+          <ZoomSwitcher camera={camera} />
+          <div role="group" aria-label="Roof visibility" className="den-roof-controls">
+            {['full','cutaway'].map(mode=><button key={mode} type="button" className="btn btn-outline" aria-pressed={roofMode===mode} onClick={()=>{roofs.set(mode);setRoofMode(mode);}}>{mode==='full'?'Full roofs':'Cutaway'}</button>)}
+          </div>
+        </div>
+        <main aria-label="Den scene" aria-describedby="den-navigation-hint" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown + -" tabIndex={0} className="scene forest-garden">
           <div className="forest-canvas">
             <SceneBoundary>
               <Canvas aria-hidden="true" orthographic shadows dpr={[1,1.5]} frameloop="demand"
@@ -433,7 +444,7 @@ export function App() {
                 stage.explorer?.capture();
               }}>Look around</button> : null}
             </div>
-            <p className="forest-garden-hint">{exploring ? exploreHint : 'Drag to move around · scroll to zoom · select a panda to visit'}</p>
+            <p id="den-navigation-hint" className="forest-garden-hint">{exploring ? exploreHint : 'Drag / arrows to orbit · Shift-drag / Shift-arrows / right-drag to pan · scroll / pinch to zoom · Den to reset'}</p>
           </div>
         </main>
         <Cards snapshot={snapshot} ownBuild={inDemo ? null : live.ownBuild} now={now} connection={connection} placeholder={placeholder} camera={camera} steering={steering}
@@ -443,7 +454,7 @@ export function App() {
         {topic === 'team' ? (
           <Sheet id="sheet-topic" slot="topic" eyebrow={SHEET_HEADS.team[0]} title={SHEET_HEADS.team[1]} closeLabel="Close panel" onClose={closeTopic} focusKey="team">
             <Residents snapshot={snapshot} now={now} bindings={bindings} scenePresentations={scenePresentations} onInspectTools={inspectTools} onTalk={talkToResident} onViewWork={viewResidentWork} getTalkState={residentTalkState} />
-            <p className="forest-muted">{RESIDENTS.length} residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}</p>
+            <p className="forest-muted">{SCENE_RESIDENTS.length} garden residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}. All callable roles and runs remain available in Team.</p>
           </Sheet>
         ) : null}
         {topic === 'replay' ? (

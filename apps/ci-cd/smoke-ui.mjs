@@ -220,14 +220,16 @@ async function main() {
       return `${Object.keys(p.signs).length} signs inside ${Math.round(p.width)}x${Math.round(p.height)}`;
     });
 
+    let defaultFrame;
     await check("camera zoom: wheel zoom scales the sign spacing by 1/d (exponential) and stays within the range", async () => {
       await page.setViewportSize({ width: 1440, height: 900 });
       // The signs follow a resize a few frames late (longer under load): the first probe can still show the
       // phone-sized layout from the previous check, which also "fits". Take the baseline only once the signs are
-      // centred on the scene box. Steamers and Tea & Pantry flank the garden
-      // at x -20.2 and +20.2.
-      const centred = (p) => p.signs["Steamers"] && p.signs["Tea & Pantry"] && Math.abs((p.signs["Steamers"].x + p.signs["Tea & Pantry"].x) / 2 - p.width / 2) < 2;
+      // settled at the approved target x=-6. Team plots flank x=±30.5;
+      // their midpoint therefore projects six scene units right of the target.
+      const centred = (p) => p.signs["Steamers"] && p.signs["Tea & Pantry"] && Math.abs((p.signs["Steamers"].x + p.signs["Tea & Pantry"].x) / 2 - p.width / 2 - (p.signs["Tea & Pantry"].x-p.signs["Steamers"].x)*6/61) < 2;
       const base = await settle((p) => centred(p) && fits(p), "default frame before zoom");
+      defaultFrame=base;
       // Projected positions remain measurable when close zoom clips the outer signs.
       const gap = (p) => p.projected["Tea & Pantry"].x - p.projected["Steamers"].x;
       const box = await page.locator('.forest-canvas canvas').boundingBox();
@@ -235,14 +237,18 @@ async function main() {
       await page.mouse.wheel(0, -300); // exponential: zoom factor 1 -> exp(-0.3) = 0.7408, so 1/0.7408 = 1.3499 times wider
       const zoomed = await settle((p) => Math.abs(gap(p) / gap(base) - 1.3499) < 0.03, "zoom in by exp(-0.3)");
       await page.mouse.wheel(0, -5000); // close zoom allows inspection of the personal workstations
-      const nearest = await settle((p) => Math.abs(gap(p) / gap(base) - 4) < 0.04, "zoom clamps at 0.25");
+      const nearest = await settle((p) => Math.abs(gap(p) / gap(base) - 1/.55) < 0.04, "zoom clamps at 0.55");
       await page.mouse.wheel(0, 20000); // clamps at 1.2: 1/1.2 = 0.833
       const farthest = await settle((p) => Math.abs(gap(p) / gap(base) - 1 / 1.2) < 0.03, "zoom clamps at 1.2");
       return `spacing x${(gap(zoomed) / gap(base)).toFixed(3)}, x${(gap(nearest) / gap(base)).toFixed(3)} (nearest), x${(gap(farthest) / gap(base)).toFixed(3)} (farthest)`;
     });
 
-    await check("camera pan: dragging 100 px right moves every sign 100 px right", async () => {
+    await check("camera controls: Shift-drag pans, primary drag orbits both axes, and Den resets the framing", async () => {
       await page.setViewportSize({ width: 1440, height: 900 });
+      await page.locator('[data-rail="reset"]').click();
+      const defaults = await settle((p) => fits(p)&&Object.entries(defaultFrame.projected).every(([name,a])=>{
+        const b=p.projected[name];return b&&Math.abs(a.x-b.x)<3&&Math.abs(a.y-b.y)<3;
+      }), "default framing before camera gestures");
       const wheelBox=await page.locator('.forest-canvas canvas').boundingBox();
       await page.mouse.move(wheelBox.x+wheelBox.width*.85,wheelBox.y+wheelBox.height*.15);
       await page.mouse.wheel(0, -780.1586); // factor 1.2 -> .55: keep both flanking signs visible while panning
@@ -255,15 +261,31 @@ async function main() {
       const cx = box.x + box.width / 2;
       const cy = box.y + box.height / 2;
       await page.mouse.move(cx, cy);
+      await page.keyboard.down('Shift');
       await page.mouse.down();
       await page.mouse.move(cx + 50, cy, { steps: 5 });
       await page.mouse.move(cx + 100, cy, { steps: 5 });
       await page.mouse.up();
+      await page.keyboard.up('Shift');
       const after = await settle((p) => names.every((n) => p.signs[n] && Math.abs(p.signs[n].x - start.signs[n].x - 100) < 4), "drag by 100 px");
       for (const n of names) {
         if (Math.abs(after.signs[n].y - start.signs[n].y) > 4) throw new Error(`${n} sign moved vertically by ${after.signs[n].y - start.signs[n].y}`);
       }
-      return `${names.length} signs shifted ${Math.round(after.signs[names[0]].x - start.signs[names[0]].x)} px`;
+      const orbitStart = await sceneProbe();
+      await page.mouse.move(cx, cy);
+      await page.mouse.down();
+      await page.mouse.move(cx + 50, cy + 40, { steps: 5 });
+      await page.mouse.up();
+      const orbitEnd = await settle((p) => {
+        const a=orbitStart.projected['The Pass'],b=p.projected['The Pass'];
+        return a&&b&&Math.abs(a.x-b.x)>5&&Math.abs(a.y-b.y)>5;
+      }, 'primary drag changes both orbit axes');
+      await page.locator('[data-rail="reset"]').click();
+      const reset = await settle((p) => {
+        const a=defaults.projected['The Pass'],b=p.projected['The Pass'];
+        return a&&b&&Math.abs(a.x-b.x)<3&&Math.abs(a.y-b.y)<3;
+      }, 'Den returns the camera to its initial framing');
+      return `${names.length} signs shifted ${Math.round(after.signs[names[0]].x - start.signs[names[0]].x)} px; orbit changed x/y by ${Math.round(orbitEnd.projected['The Pass'].x-orbitStart.projected['The Pass'].x)}/${Math.round(orbitEnd.projected['The Pass'].y-orbitStart.projected['The Pass'].y)} px; Den reset to ${Math.round(reset.projected['The Pass'].x)},${Math.round(reset.projected['The Pass'].y)}`;
     });
 
     // den-v1/03, back for den-layout/04: Enter the den switches to a first-person camera in the restaurant scene, WASD

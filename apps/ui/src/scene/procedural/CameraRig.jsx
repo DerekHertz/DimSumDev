@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useFrame, useThree } from "@react-three/fiber";
-import { cameraConfig, clampTarget, clampZoom, dragPan, keyPan, pinchZoom, wheelZoom } from './camera.mjs';
+import { cameraConfig, clampTarget, clampZoom } from './camera.mjs';
+import { bindCameraControls } from './camera-controls.mjs';
 import { createDenExplorer } from './explorer.mjs';
 import * as THREE from 'three';
 import { walkLocation } from '../meshy/layout.mjs';
@@ -32,69 +33,12 @@ export function CameraRig({store,stage,den,onModeChange,onHint,onCursorChange,on
   const now = useRef({ target: [...store.getTarget()], zoom: store.getZoom() });
 
   useEffect(() => {
-    const el = gl.domElement;
-    const host = el.parentElement?.closest("main") ?? el;
-    const view = (zoom = store.getZoom()) => ({ width:viewport.current.width, height:viewport.current.height, zoom });
-    // One finger drags the ground; two fingers pinch the zoom (the gesture's own start is the reference).
-    const pointers = new Map();
-    let drag = null;
-    let pinch = null;
-    const spread = () => {
-      const [a, b] = [...pointers.values()];
-      return Math.hypot(a.x - b.x, a.y - b.y);
-    };
-    const onDown = (e) => {
-      if(!navigation.enabled||e.button>0)return;
-      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (pointers.size === 2) {
-        drag = null;
-        pinch = { dist: spread(), zoom: store.getZoom() };
-      } else if (pointers.size === 1) {
-        drag = { x: e.clientX, y: e.clientY };
-      }
-      el.setPointerCapture?.(e.pointerId);
-    };
-    const onMove = (e) => {
-      if(!navigation.enabled)return;
-      if (!pointers.has(e.pointerId)) return;
-      pointers.set(e.pointerId, { x: e.clientX, y: e.clientY });
-      if (pinch && pointers.size === 2) {
-        store.setZoom(pinchZoom(pinch.zoom, pinch.dist, spread()));
-        return;
-      }
-      if (!drag) return;
-      store.setTarget(dragPan(store.getTarget(), { dx: e.clientX - drag.x, dy: e.clientY - drag.y }, view()));
-      drag = { x: e.clientX, y: e.clientY };
-    };
-    const onUp = (e) => {
-      pointers.delete(e.pointerId);
-      el.releasePointerCapture?.(e.pointerId);
-      if (pointers.size < 2) pinch = null;
-      // The finger left behind carries on as a drag from where it stands.
-      drag = pointers.size === 1 ? [...pointers.values()][0] : null;
-    };
-    const onWheel = (e) => { if(!navigation.enabled)return; e.preventDefault(); store.setZoom(wheelZoom(store.getZoom(), e.deltaY)); };
-    const onKey = (e) => {
-      if (!navigation.enabled || e.metaKey || e.ctrlKey || e.altKey || e.target.closest('input,textarea,select,button,a,[contenteditable],[role="dialog"]')) return;
-      if (!["ArrowLeft", "ArrowRight", "+", "=", "-", "_"].includes(e.key)) return;
-      e.preventDefault();
-      store.setTarget(keyPan(store.getTarget(), e.key, view()));
-      store.stepZoom(e.key);
-    };
-    el.addEventListener("pointerdown", onDown);
-    el.addEventListener("pointermove", onMove);
-    el.addEventListener("pointerup", onUp);
-    el.addEventListener("pointercancel", onUp);
-    el.addEventListener("wheel", onWheel, { passive: false });
-    host.addEventListener("keydown", onKey);
-    return () => {
-      el.removeEventListener("pointerdown", onDown);
-      el.removeEventListener("pointermove", onMove);
-      el.removeEventListener("pointerup", onUp);
-      el.removeEventListener("pointercancel", onUp);
-      el.removeEventListener("wheel", onWheel);
-      host.removeEventListener("keydown", onKey);
-    };
+    const canvas = gl.domElement;
+    return bindCameraControls({
+      canvas, host:canvas.parentElement?.closest('main')??canvas, store,
+      enabled:()=>navigation.enabled,
+      view:()=>({...viewport.current,zoom:store.getZoom(),orbit:store.getOrbit()}),
+    });
   }, [gl, store, navigation]);
 
   useFrame((_, dt) => {
@@ -121,7 +65,7 @@ export function CameraRig({store,stage,den,onModeChange,onHint,onCursorChange,on
     }
     const zoom = clampZoom(n.zoom);
     const { width, height } = viewport.current;
-    const c = cameraConfig({ width, height, zoom, target: n.target });
+    const c = cameraConfig({ width, height, zoom, target: n.target, orbit:store.getOrbit() });
     camera.userData.viewport = { width, height }; // the size this frustum was built for; ChipLayer projects with it
     camera.manual = true; // R3F would otherwise reset the frustum to pixel units on resize
     camera.zoom = 1;

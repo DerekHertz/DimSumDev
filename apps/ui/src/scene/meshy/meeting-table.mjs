@@ -1,6 +1,6 @@
 // den-mvp/64: a meeting at Bao's table. Which meeting the table shows, where its seats are, what each seat says,
 // and the glide route a panda takes to its seat. Pure: the actors and the label layer read it; the snapshot decides.
-export const TABLE = Object.freeze({ x: 0, z: 3.15 }); // the shared dim sum table, in front of Bao (world.mjs: center)
+export const TABLE = Object.freeze({ x: 0, z: -4 }); // approved central meeting plaza
 export const PLAZA_RING = 8; // the stone ring around the plaza; far teams join it before turning in
 export const FAREWELL_MS = 6000; // how long Bao says what you chose before the table clears
 export const CLAIM_MAX = 80;
@@ -29,6 +29,15 @@ export function seatSpots(n) {
     const dx = RX * Math.sin(a * deg), dz = RZ * Math.cos(a * deg);
     return { x: TABLE.x + dx, z: TABLE.z + dz, yaw: Math.atan2(-dx, -dz) };
   });
+}
+
+export function turnTeaTray(tray,meeting,dt,reducedMotion){
+ const speaker=seated(meeting)?meeting.seats.findIndex(s=>s.role===meeting.live?.role):-1;
+ if(!tray||reducedMotion||speaker<0)return;
+ const spot=seatSpots(meeting.seats.length)[speaker];if(!spot)return;
+ const target=Math.atan2(spot.x-TABLE.x,spot.z-TABLE.z);
+ const difference=Math.atan2(Math.sin(target-tray.rotation.y),Math.cos(target-tray.rotation.y));
+ tray.rotation.y+=difference*Math.min(1,dt*1.5);
 }
 
 const SEAT_LABELS = {

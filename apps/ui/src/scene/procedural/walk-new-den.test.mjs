@@ -93,9 +93,9 @@ test('walk mode enters, moves with W and exits with Esc on the new den, with den
     explorer.update(0.1);
     assert.deepEqual(explorer.camera.position.toArray(), start.toArray(), 'standing still without a key');
     doc.emit('keydown', { code: 'KeyW', preventDefault() {}, target: {} });
-    for (let i = 0; i < 30; i++) explorer.update(1 / 30);
+    for (let i = 0; i < 25; i++) explorer.update(1 / 60);
     const walked = explorer.camera.position.distanceTo(start);
-    assert.ok(walked > 1.8 && walked < 2.4, 'one second of W from the spawn covers ~2.1 m (it must face open floor), got ' + walked);
+    assert.ok(walked > 1.8 && walked < 2.4, '25 frames at5 m/s from the spawn cover ~2.1 m of open floor, got ' + walked);
     doc.emit('keydown', { code: 'Escape', preventDefault() {}, target: {} });
     assert.equal(explorer.active, false);
     assert.equal(navigation.enabled, true, 'orbit camera is back after Esc');

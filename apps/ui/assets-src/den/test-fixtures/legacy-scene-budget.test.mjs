@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import * as T from 'three';
-import {createDenScene} from './plush/assembly.mjs';
+import {createDenScene} from '../../../src/scene/meshy/plush/assembly.mjs';
 globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};
 
 // The den froze the user's browser (2026-10-19): the garden drew 3.4M triangles, every one of them twice for the shadow map.

@@ -19,13 +19,14 @@ export function deskResidents(snapshot, options = {}) {
   })}));
 }
 
-export function deskActivity(snapshot, options) {
-  const actors = liveActorsFromSnapshot(snapshot, options);
+export function deskActivity(snapshot, options={}) {
+  const residents=options.residents??RESIDENTS,ids=new Set(residents.map(r=>r.id));
+  const actors = liveActorsFromSnapshot(snapshot, options).filter(a=>ids.has(residentKey(a.role,a.runtime)));
   return {
     working: actors.filter(actor => actor.state === 'working').length,
     waiting: actors.filter(actor => actor.state === 'needs-you').length,
     blocked: actors.filter(actor => actor.state === 'blocked').length,
-    resting: RESIDENTS.length - new Set(actors.map(actor => residentKey(actor.role,actor.runtime))).size,
+    resting: residents.length - new Set(actors.map(actor => residentKey(actor.role,actor.runtime))).size,
     visitors: actors.filter(actor => actor.split).length,
   };
 }

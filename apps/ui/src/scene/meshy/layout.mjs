@@ -4,8 +4,8 @@ import {seated} from './meeting-table.mjs';
 export const canonicalRole = id => ({release:'release-manager',keeper:'knowledge-keeper',writer:'docs-writer',cub:'stem-cub'}[id] || id);
 export const RESIDENT_HEIGHT = 2.04;
 export const PLAYER_EYE_HEIGHT = 1.82;
-export const WALK_START = Object.freeze({x:0,z:34,yaw:0,pitch:.04,groundY:.26,eyeHeight:PLAYER_EYE_HEIGHT});
-export const NAVIGATION_TARGETS = Object.freeze({pass:[0,2,-17.4],center:[0,2,0],steamers:[-20.2,1,-11.9],'front-of-house':[21,1,5],front:[21,1,5],tea:[20.2,1,-11.9],pantry:[20.2,1,-11.9],library:[-21,1,6],gate:[0,1,34],training:[0,1,25.6],festival:[-26,1,20],dining:[-10,1,20.5],pavilion:[10.5,1,20.5],games:[-10,1,20.5]});
+export const WALK_START = Object.freeze({x:0,z:42,yaw:0,pitch:.04,groundY:.36,eyeHeight:PLAYER_EYE_HEIGHT});
+export const NAVIGATION_TARGETS = Object.freeze({pass:[-30.5,2,-32],center:[0,2,-4],steamers:[-30.5,1,24],'front-of-house':[30.5,1,24],front:[30.5,1,24],tea:[30.5,1,-32],pantry:[30.5,1,-32],library:[0,1,24],gate:[0,1,42],training:[0,1,39.8],festival:[-65,1,-4],dining:[46,1,-4],pavilion:[-46,1,-4],games:[46,1,-4]});
 export function actorBindings(live=[],previous=new Map(),{meeting=null}={}) {
   const next=new Map();
   for(const runtime of ['claude','codex'])for(const role of LIVE_ROLES){
@@ -30,11 +30,11 @@ export function meshMotion(time,index=0,reduced=false){
 }
 
 export const MESHY_TEAM_LABELS = Object.freeze([
- {id:'pass',text:'The Pass',x:0,y:6.8,z:-17.4},
- {id:'steamers',text:'Steamers',x:-20.2,y:6.8,z:-11.9},
- {id:'front-of-house',text:'Front of House',x:21,y:6.8,z:5},
- {id:'tea',text:'Tea & Pantry',x:20.2,y:6.8,z:-11.9},
- {id:'library',text:'Library',x:-21,y:6.8,z:6},
+ {id:'pass',text:'The Pass',x:-30.5,y:7.5,z:-32},
+ {id:'steamers',text:'Steamers',x:-30.5,y:7.5,z:24},
+ {id:'front-of-house',text:'Front of House',x:30.5,y:7.5,z:24},
+ {id:'tea',text:'Tea & Pantry',x:30.5,y:7.5,z:-32},
+ {id:'library',text:'Library',x:0,y:6.8,z:24},
 ]);
 
 const WALK_PLACES = [

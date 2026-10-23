@@ -12,7 +12,7 @@ import {createDenScene,GROUND} from '../../src/scene/meshy/plush/assembly.mjs';
 import {residentHomes} from '../../src/scene/meshy/resident-homes.mjs';
 import {createGardenNavigation} from '../../src/scene/meshy/garden-navigation.mjs';
 import {gardenRoute} from '../../src/scene/meshy/garden-route.mjs';
-import {seatSpots} from '../../src/scene/meshy/meeting-table.mjs';
+import {seatSpots,TABLE} from '../../src/scene/meshy/meeting-table.mjs';
 import {CAST_PROFILES} from '../../src/scene/meshy/cast-profiles.mjs';
 
 const [id,out]=process.argv.slice(2),profile=CAST_PROFILES[id];
@@ -71,7 +71,9 @@ try{
    const n=geometry().triangles.filter(tri=>ws.stoolParts.some(p=>touches(tri,p))).length;if(n)row.stool.push({t,triangles:n});
   }
   row.workstation={team:ws.team,role:ws.role};result.homes.push(row);
-  for(let n=1;n<=6;n++)for(const [seat,spot] of seatSpots(n).entries()){
+  // This historical acceptance fixture retains the legacy table and its seat ring.
+  for(let n=1;n<=6;n++)for(const [seat,current] of seatSpots(n).entries()){
+   const spot={...current,x:current.x-TABLE.x,z:current.z-TABLE.z+3.15};
    rig.poseSit(0,{reducedMotion:true});gesture.pose(null,0);model.position.set(spot.x,GROUND,spot.z);model.rotation.y=spot.yaw;
    const {triangles}=geometry(),crossings=triangles.filter(tri=>tableParts.some(p=>touches(tri,p))).length;
    if(home.runtime===mine[0].runtime||crossings)result.seats.push({runtime:home.runtime,count:n,seat,crossings,reachable:gardenRoute(world,{x:0,y:GROUND,z:6},spot).length>0});

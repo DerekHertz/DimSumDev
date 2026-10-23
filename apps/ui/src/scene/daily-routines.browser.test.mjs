@@ -5,9 +5,7 @@ import {chromium} from 'playwright';
 import {buildLaunchOptions} from '../../../ci-cd/launch-options.mjs';
 import {lightenScene} from '../../../ci-cd/light-scene.mjs';
 
-// This tests the shipped frame loop and card wiring, with only rasterisation skipped.
-// The user's separate moving-build review checks appearance with real WebGL draws.
-test('the actual garden keeps owned homes, animates idle residents and koi, holds selection, and respects reduced motion', {timeout:90000},async()=>{
+test('the approved garden keeps 24 owned residents, runs their routines, holds selection and respects reduced motion', {timeout:90000},async()=>{
  let server,browser;
  try{
   server=await createServer({configFile:'apps/ui/vite.config.mjs',configLoader:'native',server:{port:0,host:'127.0.0.1'},logLevel:'silent'});await server.listen();
@@ -21,56 +19,67 @@ test('the actual garden keeps owned homes, animates idle residents and koi, hold
   await page.waitForFunction(()=>{const button=document.querySelector('.den-entry button');return button&&button.getAttribute('aria-disabled')!=='true';},null,{timeout:60000});
   const initial=await page.evaluate(async()=>{
    const fiber=performance.getEntriesByType('resource').find(r=>r.name.includes('/@react-three_fiber.js'));
-   const {_roots}=await import(fiber.name);
-   const scene=_roots.get(document.querySelector('canvas')).store.getState().scene;
-   const world=scene.getObjectByName('Dim Sum Dev · plush bamboo garden');
-   const pandas={};world.traverse(n=>{if(n.userData.actorKey)pandas[n.userData.actorKey]=n;});
-   window.routineProbe={world,pandas,fish:[1,2,3].map(i=>world.getObjectByName('Tea garden koi '+i))};
-   const outfits=Object.entries(pandas).map(([id,p])=>{
-    const garment=p.getObjectByName('Shared-rig outfit'),skins=[];p.traverse(n=>{if(n.isSkinnedMesh)skins.push(n);});
-    return {id,species:p.userData.species,count:garment.children.length,shared:skins.every(n=>n.skeleton===skins[0].skeleton),textured:skins.some(n=>(Array.isArray(n.material)?n.material:[n.material]).some(m=>m.map))};
+   const {_roots}=await import(fiber.name);const state=_roots.get(document.querySelector('canvas')).store.getState();
+   const world=state.scene.getObjectByName('Dim Sum Dev · plush bamboo garden'),residents={};
+   world.traverse(node=>{if(node.userData.actorKey)residents[node.userData.actorKey]=node;});
+   const pond=world.getObjectByName('Proposed pond structure'),fishBatches=[];
+   pond?.traverse(node=>{if(node.isMesh&&node.name.endsWith(' · material batch')&&node.material?.color?.getHexString()==='d47d68')fishBatches.push(node);});
+   const outfits=Object.entries(residents).map(([id,model])=>{
+    const garment=model.getObjectByName('Shared-rig outfit'),skins=[];model.traverse(node=>{if(node.isSkinnedMesh)skins.push(node);});
+    return {id,species:model.userData.species,count:garment?.children.length??0,shared:skins.length>0&&skins.every(node=>node.skeleton===skins[0].skeleton),textured:skins.some(node=>(Array.isArray(node.material)?node.material:[node.material]).some(material=>material.map))};
    });
-   return {pandas:Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,p.position.toArray()])),homes:Object.fromEntries(Object.entries(pandas).map(([id,p])=>[id,p.userData.home.toArray()])),spine:pandas.developer.getObjectByName('Spine').scale.toArray(),fish:window.routineProbe.fish.map(f=>f.position.toArray()),outfits};
+   window.routineProbe={world,residents,fishBatches:fishBatches.map(node=>node.name)};
+   return {homes:Object.fromEntries(Object.entries(residents).map(([id,model])=>[id,model.userData.home.toArray()])),pond:!!pond,fishBatches:fishBatches.length,outfits,residentIds:Object.keys(residents)};
   });
-  assert.equal(initial.fish.length,3);assert.equal(Object.keys(initial.pandas).length,32);
-  // team-and-den-ux/23: the red panda and cloud dragon wear outfits fused into their own textured body; 24 adds Bao's giant panda, 35 the rest of the cast.
-  assert.deepEqual([...new Set(initial.outfits.filter(o=>o.species).map(o=>o.species))].sort(),['cloud-dragon','cloud-tortoise','fox','giant-panda','golden-monkey','jiao','lion','lucky-cat','pangolin','red-crowned-crane','red-panda','river-otter','sika-deer']);
-  assert.ok(initial.outfits.every(o=>(o.species||o.count>0)&&o.shared&&o.textured),'all actual residents retain textured outfits on their shared skeleton');
-  await page.waitForFunction(before=>{
-   const p=window.routineProbe;
-   return p.fish.every((f,i)=>f.position.toArray().some((v,j)=>Math.abs(v-before.fish[i][j])>.02))&&p.pandas.developer.getObjectByName('Spine').scale.toArray().some((v,j)=>Math.abs(v-before.spine[j])>.001);
-  },initial,{timeout:15000});
-  const walking=await page.evaluate(before=>{
-   const {pandas}=window.routineProbe,id='developer',p=pandas[id];
-   const skins=[];p.traverse(n=>{if(n.isSkinnedMesh)skins.push(n);});
-   window.routineProbe.walking={id,p,skins,spine:p.getObjectByName('Spine').scale.clone()};
-   return {id,species:p.userData.species,outfitMeshes:p.getObjectByName('Shared-rig outfit').children.length};
-  },initial.pandas);
-  assert.ok(walking.species||walking.outfitMeshes>0);
-  await page.waitForFunction(()=>{const w=window.routineProbe.walking;return w.p.getObjectByName('Spine').scale.distanceTo(w.spine)>.001;},null,{timeout:10000});
-  assert.ok(await page.evaluate(()=>window.routineProbe.walking.skins.every(mesh=>{
-   const positions=mesh.geometry.attributes.position,point=mesh.position.clone();
-   for(let i=0;i<positions.count;i+=Math.max(1,Math.floor(positions.count/40))){point.fromBufferAttribute(positions,i);mesh.applyBoneTransform(i,point);if(!point.toArray().every(Number.isFinite))return false;}
-   return true;
-  })),'body and actual outfit vertices stay finite during assembled idle animation');
-  // Residents roam now, so a position proves nothing about timing; the owned home each one keeps is what must hold.
-  assert.deepEqual(await page.evaluate(()=>Object.fromEntries(Object.entries(window.routineProbe.pandas).map(([id,p])=>[id,p.userData.home.toArray()]))),initial.homes,'idle animation retains every owned home');
-  const key=await page.evaluate(before=>{
-   const {world,pandas}=window.routineProbe,key='developer';
-   // Invoke the real scene pick handler; overview roofs can occlude a screen-coordinate click.
-   world.__r3f.handlers.onClick({object:pandas[key],stopPropagation(){}});return key;
-  },initial.pandas);
+  assert.equal(initial.residentIds.length,24,'only the signed active residents have physical actor identities');
+  assert.equal(initial.pond,true,'the approved pond is present in the assembled garden');assert.equal(initial.fishBatches,1,'the three signed coral fish bodies survive in the pond’s coral material batch');
+  assert.deepEqual([...new Set(initial.outfits.filter(outfit=>outfit.species).map(outfit=>outfit.species))].sort(),['cloud-dragon','cloud-tortoise','fox','giant-panda','golden-monkey','jiao','lion','lucky-cat','pangolin','red-crowned-crane','red-panda','river-otter','sika-deer']);
+  assert.ok(initial.outfits.every(outfit=>(outfit.species||outfit.count>0)&&outfit.shared&&outfit.textured),'actual residents retain textured outfits on their shared skeleton');
+  await page.waitForFunction(()=>Object.values(window.routineProbe.residents).some(model=>model.position.distanceTo(model.userData.home)>.05),null,{timeout:30000});
+  const moved=await page.evaluate(()=>Object.entries(window.routineProbe.residents).filter(([,model])=>model.position.distanceTo(model.userData.home)>.05).map(([id])=>id));
+  assert.ok(moved.length>0,'the live frame loop moves an idle resident along an approved routine');
+  assert.deepEqual(await page.evaluate(()=>Object.fromEntries(Object.entries(window.routineProbe.residents).map(([id,model])=>[id,model.userData.home.toArray()]))),initial.homes,'routines preserve every resident’s owned home');
+  assert.ok(await page.evaluate(()=>{
+   const model=window.routineProbe.residents.developer,skins=[];model.traverse(node=>{if(node.isSkinnedMesh)skins.push(node);});
+   return skins.length>0&&skins.every(mesh=>{const positions=mesh.geometry.attributes.position,point=mesh.position.clone();for(let i=0;i<positions.count;i+=Math.max(1,Math.floor(positions.count/40))){point.fromBufferAttribute(positions,i);mesh.applyBoneTransform(i,point);if(!point.toArray().every(Number.isFinite))return false;}return true;});
+  }),'actual resident body and outfit vertices stay finite during the routine animation');
+  const key=await page.evaluate(()=>{
+   const {world,residents}=window.routineProbe,id='developer';world.__r3f.handlers.onClick({object:residents[id],stopPropagation(){}});return id;
+  });
   const card=page.getByRole('region',{name:'Selected panda'});await card.waitFor();assert.match(await card.innerText(),/Resident · no agent running/);
-  await page.waitForTimeout(200);const held=await page.evaluate(key=>window.routineProbe.pandas[key].getObjectByName('Spine').scale.toArray(),key);
-  await page.waitForTimeout(350);assert.deepEqual(await page.evaluate(key=>window.routineProbe.pandas[key].getObjectByName('Spine').scale.toArray(),key),held);
+  await page.waitForTimeout(200);const held=await page.evaluate(id=>window.routineProbe.residents[id].getObjectByName('Spine').scale.toArray(),key);
+  await page.waitForTimeout(350);assert.deepEqual(await page.evaluate(id=>window.routineProbe.residents[id].getObjectByName('Spine').scale.toArray(),key),held,'selection holds the actual resident pose');
   await page.getByRole('button',{name:'Close panda card'}).click();await card.waitFor({state:'hidden'});
-  await page.waitForFunction(({key,held})=>window.routineProbe.pandas[key].getObjectByName('Spine').scale.toArray().some((v,j)=>Math.abs(v-held[j])>.001),{key,held});
-  await page.emulateMedia({reducedMotion:'reduce'});await page.waitForTimeout(200);
-  const still=()=>page.evaluate(()=>({fish:window.routineProbe.fish.map(f=>[...f.position.toArray(),...f.children.find(n=>n.name.endsWith('tail')).quaternion.toArray()]),pandas:Object.values(window.routineProbe.pandas).map(p=>[...p.position.toArray(),...p.getObjectByName('Spine').scale.toArray()])}));
-  const paused=await still();
-  assert.deepEqual(await page.evaluate(()=>Object.fromEntries(Object.entries(window.routineProbe.pandas).map(([id,p])=>[id,p.position.toArray()]))),initial.homes,'reduced motion sends every roamer to its owned home');await page.waitForTimeout(350);assert.deepEqual(await still(),paused);
+  await page.waitForFunction(({id,held})=>window.routineProbe.residents[id].getObjectByName('Spine').scale.toArray().some((v,j)=>Math.abs(v-held[j])>.001),{id:key,held});
+  await page.emulateMedia({reducedMotion:'reduce'});
+  await page.waitForFunction(()=>{
+   const current=Object.values(window.routineProbe.residents).map(model=>[...model.position.toArray(),...model.getObjectByName('Spine').scale.toArray()]);
+   const stable=JSON.stringify(current)===JSON.stringify(window.routineProbe.previousReduced);window.routineProbe.previousReduced=current;return stable;
+  },null,{timeout:10000});
+  const safe=await page.evaluate(async()=>{
+   const [{createApprovedGarden},{createApprovedNavigation},{CAST_PROFILES},{castCharacterId},{BAO_PRODUCTION},{CHARACTER_PROFILES}]=await Promise.all([
+    import('/src/scene/meshy/approved-garden.mjs'),import('/src/scene/meshy/approved-navigation.mjs'),import('/src/scene/meshy/cast-profiles.mjs'),import('/src/scene/meshy/cast.mjs'),import('/src/scene/meshy/bao-profile.mjs'),import('/src/scene/meshy/character-profiles.mjs')]);
+   const garden=createApprovedGarden(),navigation=createApprovedNavigation(garden);
+   try{return Object.entries(window.routineProbe.residents).map(([id,model])=>{
+    const {roleId,runtime,species}=model.userData;
+    const profile=roleId==='orchestrator'&&runtime==='claude'?BAO_PRODUCTION:CAST_PROFILES[castCharacterId(roleId,runtime)]||CHARACTER_PROFILES[roleId];
+    if(!profile?.foot||profile.id!==species)throw new Error('Missing or mismatched production rig profile for '+id);
+    const panda={model,rig:{profile}},position=model.position,yaw=model.rotation.y;
+    const homeContact=position.distanceTo(model.userData.home)<1e-6&&[-1,1].every(side=>{
+     const x=side*profile.foot.x*model.scale.x,z=profile.foot.z*model.scale.x;
+     const floor=navigation.supportAt(position.x+x*Math.cos(yaw)+z*Math.sin(yaw),position.z-x*Math.sin(yaw)+z*Math.cos(yaw));
+     return floor!==null&&position.y>=floor-.025&&position.y-floor<.075;
+    });
+    return {id,supported:navigation.supported({panda},position,yaw)||homeContact,home:model.userData.home.toArray()};
+   });}finally{garden.dispose();}
+  });
+  assert.equal(safe.length,24,'support validation covers every signed resident');
+  assert.ok(safe.every(row=>row.supported),'every reduced-motion body remains supported at home or its last safe position');
+  assert.deepEqual(Object.fromEntries(safe.map(row=>[row.id,row.home])),initial.homes,'safe freeze retains every owned home even when a return is obstructed');
+  const paused=await page.evaluate(()=>({fishBatches:window.routineProbe.fishBatches,residents:Object.values(window.routineProbe.residents).map(model=>[...model.position.toArray(),...model.getObjectByName('Spine').scale.toArray()])}));
+  await page.waitForTimeout(350);
+  assert.deepEqual(await page.evaluate(()=>({fishBatches:window.routineProbe.fishBatches,residents:Object.values(window.routineProbe.residents).map(model=>[...model.position.toArray(),...model.getObjectByName('Spine').scale.toArray()])})),paused,'reduced motion holds supported residents without gait or idle sway and leaves signed pond figures static');
   await page.emulateMedia({reducedMotion:'no-preference'});
-  await page.waitForFunction(before=>window.routineProbe.fish.some((f,i)=>f.position.toArray().some((v,j)=>Math.abs(v-before.fish[i][j])>.01)),paused);
   assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
  }finally{await browser?.close();await server?.close();}
 });

@@ -31,7 +31,7 @@ export function Residents({ snapshot, now, bindings, scenePresentations, onTalk,
   const visitors = rows.filter(row => row.visitor).length;
 
   return <section className="forest-residents" aria-label="Panda profiles">
-    <p className="forest-muted forest-residents-intro">{RESIDENTS.length} residents{visitors ? ` · ${visitors} ${visitors === 1 ? 'visitor' : 'visitors'}` : ''}. Pick a panda to visit.</p>
+    <p className="forest-muted forest-residents-intro">{RESIDENTS.length} role and runtime profiles{visitors ? ` · ${visitors} ${visitors === 1 ? 'visitor' : 'visitors'}` : ''}. Legacy roles remain available in Team while the garden shows its active residents.</p>
     <section className="forest-profile" aria-labelledby={profileId}>
       <header className="forest-profile-heading">
         <Portrait row={selected} large />
