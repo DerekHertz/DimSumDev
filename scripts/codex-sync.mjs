@@ -24,16 +24,14 @@ export const CODEX_EFFORT = { default: "medium", architect: "high", security: "h
 // A role not listed here gets only its org purpose. Keep each short: a role file is about 2 KB.
 export const ROLE_FOCUS = {
   architect: "Answer the design question in the ticket with seams a developer can test; write an ADR only when the decision is hard to reverse.",
+  "chief-of-staff": "Fresh subagent per stage; ship except the user-kept approvals in team-protocol Gates.",
   "code-reviewer": "Read the candidate commit's diff on two axes, standards and spec fit; write no code. On a bug ticket, check the fix lands at the layer named in the cause note (in the ticket's Comments), grep the cause pattern outside the diff and list the hits as Pre-existing. Each finding is file:line and a reason; end with `board comment --verdict pass|bounce` naming the commit.",
   designer: "Run only the mode the ticket names (direction, spec, review, critique). The user decides visuals.",
   developer: "Write one failing test per criterion first, or start from qa's tests branch without editing its tests; make them pass, run only the covering tests, commit, release at in-review. On a bug ticket, load diagnosing-bugs first and post the cause note as a ticket comment (the Cause field stays empty; symptom, repro, hypotheses, chosen cause, where else, target layer) before the first test; fix at the target layer. File work outside the ticket as a new ticket. Never review your own work. In a fix round answer each finding in one line: fixed, wrong, intentional or didn't matter.",
-  herald: "Write one short draft outside the repo; it must pass scripts/draft-check.mjs.",
-  orchestrator: "Hand each stage (developer, then code-reviewer and qa, then risk-check) to a fresh subagent thread and carry only handoff paths, not stage output. After the user approves a ticket, dispatch and run its relay through merge on green CI without asking again, except the user-kept approvals in team-protocol Gates (approving the ticket covers its dispatches and its merge on green); at most two workers on disjoint files.",
   product: "Settle requirements with the user in CONTEXT.md terms; publish the spec only after the user confirms.",
   qa: "specify: failing tests for every testable criterion. verify: map each criterion to a test that fails without the change and give a verdict on each `node scripts/test-guard.mjs` hit, with `board comment --verdict pass|bounce`.",
   "release-manager": "Propose; never push, merge or tag. Answer the question you were started for with evidence.",
   runner: "Do exactly the task as written; start no agents.",
-  scout: "Read only; start no agents.",
   security: "Check the branch for vulnerabilities, risky dependencies, secrets and CI changes; verdict via `board comment --verdict pass|bounce`. Scan the range with gitleaks; a committed secret always bounces; never print a secret's value. CI actions pin to a commit SHA, and `pull_request_target` never checks out PR code.",
   sre: "Measure, do not change; every finding is a ticket or a proposal for the user.",
   "technical-writer": "Make the docs match what the code does, with a source for every claim; never publish.",
@@ -65,8 +63,8 @@ function runtimeWording(text) {
     .replace(/Up to two worker agents run at once[^\n]*reserved slot beside them\./g, "Codex uses the worker ceiling in `.codex/runtime-guidance.md`, without reserved extra slots; stricter runtime, resource and ticket limits still apply.")
     .replace(/^- The agent tree has three levels:[^\n]*$/m, "- Codex delegation follows `.codex/runtime-guidance.md`: one implementation owner, at most two live workers besides the owner, no reserved bonus slots, and no agent started by a leaf. Stricter session and resource limits win.")
     .replace(/Start `runner` \(Haiku, up to 4 at once\)/g, "When independent delegation is useful and permitted, start `runner` (within the Codex worker ceiling)")
-    .replace(/Have `scout` run the smoke check:/g, "Run the smoke check locally, or delegate a bounded read-only check when permitted:")
-    .replace(/Run typechecking regularly, single test files regularly, and the full test suite once at the end\. Delegate long test or log output to the `scout` subagent so only a summary comes back\./g, "Run required typechecking and literal covering test files with bounded concurrency and timeouts, including affected existing callers. In resource-limited den agents, leave full suites and browser workloads to designated checks/CI or a separately authorized capable environment. Delegate only independent checkable work when permitted; report exact evidence and remaining checks.")
+    .replace(/Have `runner` run the smoke check:/g, "Run the smoke check locally, or delegate a bounded read-only check when permitted:")
+    .replace(/Run typechecking regularly, single test files regularly, and the full test suite once at the end\. Delegate long test or log output to the `runner` subagent so only a summary comes back\./g, "Run required typechecking and literal covering test files with bounded concurrency and timeouts, including affected existing callers. In resource-limited den agents, leave full suites and browser workloads to designated checks/CI or a separately authorized capable environment. Delegate only independent checkable work when permitted; report exact evidence and remaining checks.")
     .replace(/claude-(?:haiku|sonnet|opus)-[\w.-]+/g, "configured Codex model ID")
     .replace(/\b(?:Sonnet(?: 5\.5)?|Haiku)\b/g, "Codex")
     .replace(/\bOpus agents\b/g, "higher-cost agents");

@@ -65,15 +65,13 @@ test("the release manager and SRE propose; neither pushes, merges or restarts", 
 });
 
 test("every file that describes the relay names the code reviewer beside qa", () => {
-  for (const rel of ["CLAUDE.md", ".claude/skills/team-protocol/SKILL.md", ".claude/agents/orchestrator.md"]) assert.match(read(rel), /code-reviewer/, rel);
+  for (const rel of ["CLAUDE.md", ".claude/skills/team-protocol/SKILL.md", ".claude/agents/chief-of-staff.md"]) assert.match(read(rel), /code-reviewer/, rel);
   assert.match(read("CLAUDE.md"), /release manager's steps/);
   assert.match(read("CLAUDE.md"), /docs\/agents\/team-charter\.md/);
-  assert.match(front("orchestrator").tools, /code-reviewer/);
+  assert.match(front("chief-of-staff").tools, /code-reviewer/);
 });
 
-test("the retiring roles name their successors", () => {
-  for (const [role, successor] of [["orchestrator", /Bao and Jiao/], ["herald", /technical writer/], ["scout", /runner/]]) {
-    assert.match(front(role).body, /retiring \(ADR 0029/, role);
-    assert.match(front(role).body, successor, role);
-  }
+test("the retired roles have no role file, and CLAUDE.md names their successors (team-and-den-ux/57)", () => {
+  for (const role of ["orchestrator", "herald", "scout"]) assert.throws(() => read(`.claude/agents/${role}.md`), /ENOENT/, role);
+  assert.match(read("CLAUDE.md"), /`orchestrator`, `herald` and `scout` are retired[^\n]*chief of staff[^\n]*technical writer[^\n]*runner/);
 });

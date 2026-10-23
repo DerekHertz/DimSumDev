@@ -54,8 +54,8 @@ function hits(re, { allowNotes = false } = {}) {
 }
 
 const STATION_OF = {
-  orchestrator: "pass", product: "pass", architect: "pass",
-  developer: "steamers", scout: "steamers",
+  "chief-of-staff": "pass", product: "pass", architect: "pass",
+  developer: "steamers", runner: "steamers",
   qa: "tea-pantry", security: "tea-pantry",
   designer: "front-of-house",
 };
@@ -86,8 +86,6 @@ test("agent prose uses team names, not Brain/Muscles/Immune/Skin agent (criterio
   assert.deepEqual(hits(/\b(Brain|Muscles|Immune|Skin) (role|organ)\b|\((Brain|Muscles|Immune|Skin)\)/), []);
   const qa = fs.readFileSync(path.join(ROOT, ".claude", "agents", "qa.md"), "utf8");
   assert.match(qa, /\*\*qa\*\* agent of the Tea (&|and) Pantry team/i);
-  const orch = fs.readFileSync(path.join(ROOT, ".claude", "agents", "orchestrator.md"), "utf8");
-  assert.match(orch, /agent of the (Pass|The Pass) team/i);
 });
 
 test("'Brain gate' is renamed to 'Pass gate' everywhere in scope (criterion 3)", () => {

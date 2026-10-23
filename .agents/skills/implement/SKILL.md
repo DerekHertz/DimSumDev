@@ -13,7 +13,7 @@ Claim the ticket first, following the `team-protocol` skill. Stop and hand off i
 
 Call the Skill tool with "tdd" where possible, at pre-agreed seams.
 
-Run typechecking regularly, single test files regularly, and the full test suite once at the end. Delegate long test or log output to the `runner` subagent so only a summary comes back.
+Run required typechecking and literal covering test files with bounded concurrency and timeouts, including affected existing callers. In resource-limited den agents, leave full suites and browser workloads to designated checks/CI or a separately authorized capable environment. Delegate only independent checkable work when permitted; report exact evidence and remaining checks.
 
 Once done, call the Skill tool with "code-review" to review the work.
 

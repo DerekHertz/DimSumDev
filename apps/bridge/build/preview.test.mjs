@@ -273,7 +273,7 @@ describe("what a preview is told", () => {
         req.on("error", reject);
       });
       const [den, shown] = await Promise.all([listen(t.bridge.port), listen(port)]);
-      await t.bridge.host.start({ ref: "fx/31-told", role: "scout" });
+      await t.bridge.host.start({ ref: "fx/31-told", role: "chief-of-staff" });
       t.fake.spawns.at(-1).emit({ type: "permission-request", requestId: "told-r1", tool: "Bash", input: { command: "ls" } });
       await until(() => den.seen.some((f) => f.type === "approval"), { what: "the approval frame on the den's stream" });
       await until(() => shown.seen.length >= den.seen.length, { what: "the preview's stream to catch up" });

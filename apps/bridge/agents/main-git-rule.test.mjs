@@ -2,7 +2,7 @@
 //
 // PINNED INTERFACE (from the architect's handoff 07-architect.md; the developer builds to this):
 //   compileCeiling(role, { ..., mainGit })   mainGit = absolute plain path of <root>/.git. When given, the compiled ceiling carries
-//       denyAbs for the main .git's refs, HEAD, packed-refs and index, for EVERY role with a ceiling (scout, developer, qa, security),
+//       denyAbs for the main .git's refs, HEAD, packed-refs and index, for EVERY role with a ceiling (chief-of-staff, developer, qa, security),
 //       with or without grants. Fixed names, no client string. Not keyed on `root`. A mainGit that is not a plain absolute path is a
 //       TypeError. Without mainGit the output is as before (grants-paths.test.mjs stays green).
 //   Compiled into settings (buildClaudeArgs): sandbox.filesystem.denyWrite has <mainGit>/refs, /HEAD, /packed-refs, /index (plain),
@@ -36,7 +36,7 @@ const ROOT = "/work/den";
 const MAIN_GIT = `${ROOT}/.git`;
 const WT = `${ROOT}/.claude/worktrees/den-fx-01-abcd1234`;
 const TEXT = "Fetch the package index and note which versions changed.";
-const ROLES_WITH_CEILING = ["scout", "developer", "qa", "security"];
+const ROLES_WITH_CEILING = ["chief-of-staff", "developer", "qa", "security"];
 const WRITING_ROLES = ["developer", "qa", "security"];
 const GRANTS = {
   none: [],
@@ -59,14 +59,14 @@ const settingsOf = (role, compiled) => {
   return JSON.parse(argv[argv.indexOf("--settings") + 1]);
 };
 const compiledFor = (role, grants, extra = {}) => {
-  const worktree = role === "scout" ? undefined : WT;
+  const worktree = role === "chief-of-staff" ? undefined : WT;
   return compileCeiling(role, { ...(worktree ? { worktree } : {}), root: ROOT, mainGit: MAIN_GIT, grants: grants.length ? grants : undefined, ...extra });
 };
 
 describe("compileCeiling with mainGit denies the main .git's refs, HEAD, packed-refs and index", () => {
   for (const role of ROLES_WITH_CEILING) {
     for (const [name, grants] of Object.entries(GRANTS)) {
-      if (role === "scout" && grants.length > 0) continue; // a scout takes no grants (ADR 0021 decision 3)
+      if (role === "chief-of-staff" && grants.length > 0) continue; // a role that writes nothing takes no grants (ADR 0021 decision 3)
       test(`${role}, ${name}: shell writes (sandbox denyWrite) are denied for the four targets`, () => {
         const s = settingsOf(role, compiledFor(role, grants));
         const denyWrite = s.sandbox.filesystem.denyWrite ?? [];
