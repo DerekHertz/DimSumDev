@@ -27,7 +27,8 @@ function isPath(tok) {
 }
 
 export function pathsOf(text) {
-  const body = section(text, "What to build") + "\n" + section(text, "Acceptance criteria");
+  const advisory = text.match(/^Paths \(advisory\):.*$/m)?.[0] ?? "";
+  const body = [section(text, "What to build"), section(text, "Acceptance criteria"), section(text, "Paths \\(advisory\\)"), advisory].join("\n");
   const found = new Set();
   for (const m of body.matchAll(/`([^`\s]+)`/g)) {
     const p = m[1].replace(/^\.\//, "");

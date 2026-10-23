@@ -14,6 +14,7 @@ The board is `.scratch/<feature>/` in the main checkout (`$DEN_ROOT`, else the f
 - `npm run board -- comment <ref> "<text>" [--verdict pass|bounce]`: short text; detail goes in the handoff. Reviewers (`code-reviewer`, `qa`, `security`) write their verdict with `--verdict`.
 - `npm run board -- status <ref>`: read a ticket's status.
 - `npm run board -- handoff <ref> --template`, then `npm run board -- handoff <ref> --from /tmp/<file>.md --name <NN>-<role>.md`: draft under `/tmp`, never in a worktree.
+- Every role files discovered work as a new ticket instead of chasing it: `.scratch/<feature>/issues/<NN>-<slug>.md`, format in `docs/agents/issue-tracker.md`, `Status: ready-for-human`; name it in your handoff.
 - `npm run board -- release <ref> --status <resolved|blocked|in-review> [--reason "..."]`: needs a handoff published after your claim. On a code ticket a developer releases at `in-review`; reviewers leave the status alone; the orchestrator resolves it after the merge.
 
 ## Relay
@@ -30,6 +31,6 @@ Open with the outcome. Evidence is a few lines: the commands run and their exit 
 
 ## End
 
-Commit on your branch (a WIP commit, never a stash), stop background processes, release the ticket, then stop. Do not start a second ticket.
+Commit on your branch (a WIP commit, never a stash), stop background processes, release the ticket, then stop. Do not start a second ticket. An agent that launches subagents waits for their reports before it hands off or ends. A retry brief holds the ticket, the cause note and a failure summary of at most ~10 lines, never transcript excerpts.
 
 In a worktree, run `npm ci` first, give every long command a `timeout`, and keep shell calls plain. Write prose files with the file tool, not a heredoc.

@@ -8,7 +8,7 @@ color: green
 isolation: worktree
 skills:
   - team-protocol
-  - ponytail
+  - blast-radius
   - tdd
 org:
   team: tea-pantry
@@ -49,7 +49,7 @@ If any step needs judgment beyond these rules, don't guess: say "escalate to ful
 **Full verify** (`Verify mode: full`, or no mode line): the steps below.
 
 1. Check out the developer's branch named by the orchestrator. In verify, `runner` makes no edit: it only runs and reads, so a leaf cannot weaken a test your guard step compares. Start `runner` (Haiku, anything you can verify: the covering tests, a diff of your test files, a list of out-of-scope files) or `scout` to run the tests that cover the change and report. In a den agent, run only those: `timeout 300 node --test --test-concurrency=2 <test files>`. Never `npm test`, `npm run test:rest` or a glob over a folder: a whole suite passes an agent's 256-task limit, and a browser file starts Chromium, which passes its 2 GiB. The den's checks and CI run the full suite and the browser files.
-2. Blast radius: look for what the change breaks beyond the diff. Grep the callers and other entry points of each changed function, export, script or file format, and prove the ones that matter by running code (a test, the command), not by reading. A break you prove is a bounce.
+2. Blast radius (the `blast-radius` skill): look for what the change breaks beyond the diff. Grep the callers and other entry points of each changed function, export, script or file format, and prove the ones that matter by running code (a test, the command), not by reading. A break you prove is a bounce.
 3. Bounce the branch if any of these hold:
    - a test fails or is skipped
    - one of your specify tests was deleted, weakened, or had its assertions changed (diff your test files against your specify commit)
@@ -59,3 +59,5 @@ If any step needs judgment beyond these rules, don't guess: say "escalate to ful
    - a test only checks mocks or implementation details, or misses an obvious edge case the ticket names
 4. Write the verdict in `## Comments`: `QA pass` or `QA bounce`, with each finding as `file:line` and one line of why.
 5. Hand off. Don't fix the code yourself; findings go back to the developer.
+
+- For a "where is X / how does Y work" search you may run `node scripts/jg.mjs "<question>" [root]`, root being your checkout or a non-hidden subdirectory of it, no flags (the wrapper keeps `.scratch/` and `.claude/` out of the provider's reach). If it prints `jg: no result`, exits non-zero or returns nothing useful, fall back to `rg` and say so in one line. Never run `jg` directly. Use `rg` for an exact symbol, string or filename.

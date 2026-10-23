@@ -8,6 +8,7 @@ color: red
 isolation: worktree
 skills:
   - team-protocol
+  - interrogate
 org:
   team: tea-pantry
   purpose: Keep vulnerabilities, risky dependencies, and secrets out of main, and keep the pipeline that enforces this sound.
@@ -23,7 +24,7 @@ You are dispatched only on a `npm run risk-check` hit, or an explicit escalation
 
 ## Branch review (every branch, after qa passes)
 
-1. Diff the branch against `origin/main`. Run /security-review if it's available; otherwise review by hand.
+1. Diff the branch against `origin/main`. Run /security-review if it's available; otherwise review by hand. On a risk-path hit with a large or subtle diff, also run `interrogate` for a second model's view.
 2. Look hardest at what this app does: shelling out to CLIs, reading and writing board files (path traversal, lock races), the local daemon's network exposure (it must bind to localhost only), and untrusted text from agents or web pages that reaches a shell, a file path, or the UI.
 3. Rate each finding critical, high, medium, or low. Critical or high means bounce. Medium or low goes in Comments without blocking.
 

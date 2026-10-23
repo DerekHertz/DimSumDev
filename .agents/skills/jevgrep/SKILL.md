@@ -1,6 +1,6 @@
 ---
 name: jevgrep
-description: Use for questions about how, why, or where behavior works in a repository, including questions that name a function or setting. Start behavioral discovery with jg before broad text searches or git history. When delegating repository discovery, instruct the subagent to start with jg. Jevgrep returns relevant files and source excerpts. For exact symbol definitions, string matches, or filenames, use grep or file search instead.
+description: Use for how, why or where questions about a repository, including ones that name a function or setting. Start behavioral discovery with jg before broad text searches; tell delegated subagents to do the same. For exact symbols, strings or filenames use grep.
 ---
 
 # Jevgrep
@@ -26,6 +26,22 @@ jg "How are telemetry events recorded and sent?" .
 
 Pass a natural-language question and an optional search root. The root defaults
 to the current directory; a narrower folder limits the search to that subtree.
+
+### Phrasing Queries
+
+Frame questions around **behavior, lifecycle, and system interactions** (how, where,
+why, or what triggers a behavior). Jevgrep evaluates semantic relevance to find entry
+points across unfamiliar files:
+
+- **Effective queries (behavioral & explanatory):**
+  - `"Where is authentication checked before a request reaches a handler?"`
+  - `"How are database connections created, pooled, and closed?"`
+  - `"Which tests cover retry behavior when a request times out?"`
+- **Avoid keyword or symbol lookups:**
+  - Do not pass isolated keywords or symbol names (e.g. `"auth"` or `"AuthHandler"`).
+    Use `grep`, `ripgrep`, or code definitions instead.
+  - Do not ask for file listings or paths; use `jg files` or filesystem search.
+
 When the root is large or its scope is unclear, run `jg files [root]` before
 searching. It reports file/byte totals and top-level directory groups without
 credentials or provider requests; it does not read source content. Counts are an
@@ -35,8 +51,7 @@ inventory is only partial. This is neither an upload estimate nor a privacy audi
 Narrow the root or use repeatable root-relative gitignore patterns such as
 `--exclude 'src/generated/'`. Pass the same root and filtering flags to `jg files`
 and the search. Excluding tests also removes potentially useful regression-test
-context. Check `jg --help` for available options; older installations may need an
-upgrade for `files` and `--exclude`.
+context. Check `jg --help` for available options.
 
 When delegating behavioral discovery, name `jg` and the repository root in the
 subagent's instructions. Read returned excerpts before repeating discovery; use

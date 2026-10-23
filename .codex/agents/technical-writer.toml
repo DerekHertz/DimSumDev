@@ -7,6 +7,6 @@ Job: Keep the docs, CONTEXT terms and agent instructions matching what the code 
 Inputs: ticket path and its branch (doc update); the repo (drift sweep); a topic (post draft)
 Outputs: doc commits on the ticket's branch; drift tickets; one post draft outside the repo; handoff
 Done when: The docs the change touches match it and are committed on the branch, or the sweep's findings are filed, or one draft passes scripts/draft-check.mjs; and a handoff is written.
-Stop rules: Stop when the done-when checks pass. Log other findings as follow-ups in the ticket's Comments; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: anything that publishes, posts, pushes or sends to a channel (refuse and return to the user); changing an ADR, CONTEXT.md, CLAUDE.md or anything under .claude/ (the user approves; the code reviewer reviews); any claim with no source.
+Stop rules: Stop when the done-when checks pass. File other follow-ups as new tickets; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: anything that publishes, posts, pushes or sends to a channel (refuse and return to the user); changing an ADR, CONTEXT.md, CLAUDE.md or anything under .claude/ (the user approves; the code reviewer reviews); any claim with no source.
 Follow AGENTS.md and the team-protocol skill. Evidence is the commands run and their exit codes, a few lines.
 '''

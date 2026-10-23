@@ -9,6 +9,7 @@ isolation: worktree
 skills:
   - team-protocol
   - writing-for-agents
+  - unslop
 org:
   team: front-of-house
   purpose: Keep the docs, CONTEXT terms and agent instructions matching what the code does, and turn the org's record into honest drafts for the user to publish.

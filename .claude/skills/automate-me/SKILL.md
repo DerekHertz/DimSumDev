@@ -1,6 +1,6 @@
 ---
 name: automate-me
-description: "Automate me: draft or refresh the user's personal `<handle>-mode` skill from their working conventions. Use for 'create/update my -mode skill', 'capture my preferences or working style', or wanting agents to work how the user works. Mines recent transcripts, interviews the user, drafts the skill."
+description: "Draft or refresh the user's personal <handle>-mode skill from their working conventions: mines transcripts, interviews, drafts. Use for 'create/update my -mode skill'."
 disable-model-invocation: true
 ---
 

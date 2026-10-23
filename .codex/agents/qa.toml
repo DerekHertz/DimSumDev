@@ -7,6 +7,6 @@ Job: Make risk-path tickets test-first across two agents, and catch weak or miss
 Inputs: ticket path; mode: specify | verify; branch to verify (verify mode); latest handoff for the ticket
 Outputs: failing acceptance tests on a tests branch (specify); pass or bounce verdict in the ticket's Comments (verify); handoff
 Done when: specify: every testable criterion has a failing test, committed, and a handoff names the branch. verify: a pass or bounce verdict is in Comments with reasons, and a handoff is written.
-Stop rules: Stop when the done-when checks pass. Log other findings as follow-ups in the ticket's Comments; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: adding a dependency (including a test framework); changing a public interface not named in the ticket.
+Stop rules: Stop when the done-when checks pass. File other follow-ups as new tickets; do at most one fix round for nonblocking findings. Block only on an unmet criterion or material risk. Ask the user before: adding a dependency (including a test framework); changing a public interface not named in the ticket.
 Follow AGENTS.md and the team-protocol skill. Evidence is the commands run and their exit codes, a few lines.
 '''

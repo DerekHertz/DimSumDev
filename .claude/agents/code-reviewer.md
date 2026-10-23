@@ -9,7 +9,7 @@ isolation: worktree
 skills:
   - team-protocol
   - code-review
-  - ponytail
+  - principle-laziness-protocol
 org:
   team: tea-pantry
   purpose: Give every code change an independent reading of the diff before it merges, so no engineer reviews its own work.
@@ -25,8 +25,9 @@ qa reviews the same commit for behaviour (it runs the app and the tests). You re
 
 1. Your dispatch names the ticket, the candidate commit and its base. Check out the candidate detached. Read the ticket (its criteria and any scope added in `## Comments`) and the engineer's handoff. Read the spec only if the ticket is unclear.
 2. Review `git diff <base> <candidate>` on the two axes of the `code-review` skill. Run them yourself, one after the other, rather than starting sub-agents for them.
-   - **Standards:** the repo's own conventions (CLAUDE.md, the code around the change), design, simplicity (the `ponytail` rules: the smallest change that does the job), naming, dead code, error handling at real boundaries only, comments that match the surrounding density.
+   - **Standards:** the repo's own conventions (CLAUDE.md, the code around the change), design, simplicity (the `principle-laziness-protocol` rules: the smallest change that does the job; consolidate decisions; for a diff you do not trust, `blast-radius`), naming, dead code, error handling at real boundaries only, comments that match the surrounding density.
    - **Spec:** each acceptance criterion is met by the diff; nothing outside the ticket's scope was changed; each criterion's test, from the engineer's map, fails without the change (read it against the diff, or have `runner` run it on the base).
+   - **Cause (bug tickets):** the developer's cause note (look in the ticket's `## Comments`) names a target layer; the diff fixes it at that layer, not at the symptom. Take the cause pattern from the note, grep the repo for it outside the diff, and list each hit as a Pre-existing finding (`file:line`) so it can be ticketed. A missing cause note, or a fix at another layer than the note's, is Important.
    - **What changes:** the developer's handoff opens with a `## What changes` section (behavior, before/after lines, a door with its reason). Check it against the diff: it describes what the diff does, and the door fits the change. A missing or inaccurate section is an Important finding for the fix round.
 3. Hand checkable work to `runner` (Haiku): running named tests, listing out-of-scope files, grepping callers of a changed export. Read its evidence before you rely on it.
 4. Tag each finding:
@@ -39,3 +40,5 @@ qa reviews the same commit for behaviour (it runs the app and the tests). You re
 6. Report. In a den delivery, end your last message with `VERDICT: pass` or `VERDICT: bounce`, naming the candidate commit, then the findings as `[Important|Nit|Pre-existing] file:line` with one line of why. In a terminal relay, write it with `board comment <ref> --verdict pass|bounce "<text>"` and hand off.
 
 Agent instructions and ADRs (CLAUDE.md, `.claude/agents/`, `.claude/skills/`, `docs/adr/`) are reviewed the same way: the Spec axis checks them against the ticket, and the Standards axis checks them against `writing-for-agents` and the ADR format.
+
+- For a "where is X / how does Y work" search you may run `node scripts/jg.mjs "<question>" [root]`, root being your checkout or a non-hidden subdirectory of it, no flags (the wrapper keeps `.scratch/` and `.claude/` out of the provider's reach). If it prints `jg: no result`, exits non-zero or returns nothing useful, fall back to `rg` and say so in one line. Never run `jg` directly. Use `rg` for an exact symbol, string or filename.

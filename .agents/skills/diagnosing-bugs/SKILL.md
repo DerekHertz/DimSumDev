@@ -111,7 +111,13 @@ Tool preference:
 
 **Perf branch.** For performance regressions, logs are usually wrong. Instead: establish a baseline measurement (timing harness, `performance.now()`, profiler, query plan), then bisect. Measure first, fix second.
 
+### Where else does this cause exist
+
+Once a probe confirms the cause, state it as a pattern (the call, assumption or shape that is wrong) and grep the repo for it. Done when every hit is listed with its verdict: fixed in this change, filed as its own ticket, or not affected (why). A fix to one instance leaves the rest of the class.
+
 ## Phase 5: Fix + regression test
+
+Fix at the layer where the cause lives, not the nearest layer to the symptom.
 
 Write the regression test **before the fix**, but only if there is a **correct seam** for it.
 
@@ -122,7 +128,7 @@ A correct seam is one where the test exercises the **real bug pattern** as it oc
 If a correct seam exists:
 
 1. Turn the minimised repro into a failing test at that seam.
-2. Watch it fail.
+2. Watch it fail. If you forced the red by mutating code or a fixture, `diff` against a pristine copy to prove the mutation landed before you trust it.
 3. Apply the fix.
 4. Watch it pass.
 5. Re-run the Phase 1 feedback loop against the original (un-minimised) scenario.
