@@ -30,6 +30,7 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
  const available=a=>!a.live&&!a.meetingOwned&&!a.meetingTrip&&!a.hosting&&!a.outing&&!a.stationary&&a.panda.model.visible&&!['failed','waiting_on_user','blocked','needs-you'].includes(a.state);
  const idle=a=>available(a)&&(!a.nextOuting||a.nextOuting<=time);
  const plan=(a,to)=>den.routineRoute?den.routineRoute(a,a.panda.model.position,to):gardenRoute(den.walkWorld,a.panda.model.position,to);
+ const validPath=(a,spot,path)=>path.length&&routeLength(a.panda.model.position,path)<=(spot.kind==='friend'?100:60)&&(!den.garden?.approved||spot.kind==='friend'||routeSeconds(a,path)<=20);
  const clear=(a,from,to)=>den.routineClear?den.routineClear(a,from,to):den.walkWorld.navigation.groundAt(to.x,to.z,to.y,a.envelope.radius,a.envelope.height)!==null;
  const lease=(a,spot)=>{
   if(reservations.has(spot.id))return false;
@@ -71,11 +72,12 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
    const a=all[cursor++%all.length];if(!idle(a))continue;
    for(const spot of choices(a).slice(0,8)){
     if(spot.host&&!available(spot.host))continue;
-    const path=plan(a,spot.position);if(!path.length||routeLength(a.panda.model.position,path)>(spot.kind==='friend'?100:60)||den.garden?.approved&&spot.kind!=='friend'&&routeSeconds(a,path)>20)continue;
+    const path=plan(a,spot.position);if(!validPath(a,spot,path))continue;
     if(spot.kind==='games'){
      const partner=all.find(b=>b!==a&&idle(b));if(!partner||count>1)continue;
-     const second=(den.routineSpots||[]).find(s=>s.group===spot.group&&s.id!==spot.id&&!reservations.has(s.id));if(!second)continue;
-     const other=plan(partner,second.position);if(!other.length||routeLength(partner.panda.model.position,other)>60)continue;
+     const candidate=(den.routineSpots||[]).find(s=>s.group===spot.group&&s.id!==spot.id&&!reservations.has(s.id));if(!candidate)continue;
+     const second=den.routinePlace?den.routinePlace(partner,candidate):candidate;if(!second)continue;
+     const other=plan(partner,second.position);if(!validPath(partner,second,other))continue;
      if(!lease(a,spot))continue;if(!lease(partner,second)){reservations.delete(spot.id);registry?.release(spot.id,a.identity);if(a.approachPlace)registry?.release(a.approachPlace,a.identity);a.approachPlace=null;continue;}
      const group='outing:'+a.id+':'+time;begin(a,spot,path,group);begin(partner,second,other,group);return;
     }

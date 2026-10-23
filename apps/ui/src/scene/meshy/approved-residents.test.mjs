@@ -1,7 +1,74 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {approvedFixture} from './approved.test-fixture.mjs';
-import {routeLength} from './daily-routines.mjs';
+import {routeLength,routeSeconds} from './daily-routines.mjs';
+
+function gamePair(f,ids=['designer','technical-writer']){
+ for(const a of f.actors.actors.values())a.stationary=!ids.includes(a.id);
+ f.den.friendPlace=()=>null;
+ f.den.routineSpots=f.den.routineSpots.filter(s=>s.kind==='games');
+ return ids.map(id=>f.actors.actors.get(id));
+}
+
+test('55-E/F: both assembled mahjong players reserve prepared supported approaches before departing and settle',()=>{
+ const f=approvedFixture();try{
+  const pair=gamePair(f);f.tick(2.1);
+  assert.ok(pair.every(a=>a.outing?.stage==='outbound'));
+  assert.equal(pair[0].outing.group,pair[1].outing.group);
+  for(const a of pair){
+   const spot=a.outing.spot;
+   assert.ok(spot.approachPath?.length,a.id+' has a prepared supported approach');
+   assert.equal(f.actors.places.get(spot.id).owner,a.identity);
+   assert.equal(f.actors.places.get('approach:'+spot.id).owner,a.identity);
+   assert.ok(routeSeconds(a,a.path)<=20,a.id+' route fits the time cap');
+  }
+  f.tick(20);
+  for(const a of pair){assert.equal(a.outing.stage,'visit');assert.ok(f.den.walkWorld.supported(a,a.panda.model.position,a.yaw));}
+ }finally{f.dispose();}
+});
+
+test('55-F: an assembled partner route under 60 units but over 20 seconds cannot start a game',()=>{
+ const f=approvedFixture();try{
+  const [primary,partner]=gamePair(f,['qa','designer']);
+  f.den.routineSpots=f.den.routineSpots.filter(s=>['leisure:games:0','leisure:games:1'].includes(s.id));
+  const prepare=f.den.routinePlace;
+  const first=prepare(primary,f.den.routineSpots[0]),second=prepare(partner,f.den.routineSpots[1]);
+  const primaryPath=f.den.routineRoute(primary,primary.home,first.position),partnerPath=f.den.routineRoute(partner,partner.home,second.position);
+  assert.ok(primaryPath.length&&routeSeconds(primary,primaryPath)<20);
+  assert.ok(partnerPath.length&&routeLength(partner.home,partnerPath)<60&&routeSeconds(partner,partnerPath)>20);
+  // Restrict each resident to that measured seat; keep the real support and route planners.
+  f.den.routinePlace=(a,s)=>(a===primary?s.id===first.id:s.id===second.id)?prepare(a,s):null;
+  f.tick(2.1);
+  assert.ok([primary,partner].every(a=>!a.outing));
+  assert.equal(f.actors.routines.reservations.size,0);
+  assert.equal([...f.actors.places.values()].filter(p=>p.owner&&p.kind==='leisure').length,0);
+ }finally{f.dispose();}
+});
+
+test('55-E: an unavailable supported partner place leaves both assembled players home',()=>{
+ const f=approvedFixture();try{
+  const pair=gamePair(f),prepare=f.den.routinePlace;
+  f.den.routinePlace=(a,s)=>a===pair[1]?null:prepare(a,s);
+  f.tick(2.1);
+  assert.ok(pair.every(a=>!a.outing));assert.equal(f.actors.routines.reservations.size,0);
+  assert.ok(pair.every(a=>!a.approachPlace));
+ }finally{f.dispose();}
+});
+
+test('55-E: refused partner approach reservation atomically releases the first player destination and approach',()=>{
+ const f=approvedFixture();try{
+  const pair=gamePair(f),reserve=f.actors.places.reserve.bind(f.actors.places);let refused=0;
+  f.actors.places.reserve=(id,owner,envelope)=>{
+   if(owner===pair[1].identity&&id.startsWith('approach:')){refused++;return false;}
+   return reserve(id,owner,envelope);
+  };
+  f.tick(2.1);assert.ok(refused>0,'second prepared approach reaches reservation');
+  assert.ok(pair.every(a=>!a.outing));assert.equal(f.actors.routines.reservations.size,0);
+  assert.ok(pair.every(a=>!a.approachPlace));
+  assert.equal([...f.actors.places.values()].filter(p=>p.owner&&p.kind==='leisure').length,0);
+  for(const a of pair){assert.deepEqual(a.panda.model.position,a.home);assert.equal(f.actors.places.get(a.homePlace).owner,a.identity);}
+ }finally{f.dispose();}
+});
 
 test('55-C/E/F/G: assembled residents reach a supported activity, return to their owned desk and stop under live work',()=>{
  const f=approvedFixture();try{

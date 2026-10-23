@@ -29,10 +29,10 @@
 }
 .den-bar { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--space-4); padding: 0 max(12px, env(safe-area-inset-right, 0px)) 0 max(12px, env(safe-area-inset-left, 0px)); border-bottom: 1px solid var(--line); background: var(--surface-200); min-width: 0; }
 .den-bar .logo-pill { margin-right: auto; min-width: 0; }
-.den-bar .zoom-switcher { position: static; display: flex; flex-direction: row; align-items: center; gap: 6px; padding: 0; background: none; border: 0; box-shadow: none; }
-.den-bar .zoom-levels { display: flex; flex-direction: row; gap: 2px; }
-.den-bar .zoom-level { font-size: 11px; padding: 4px 7px; min-width: 44px; min-height: 44px; }
-.den-bar .zoom-step { min-width: 44px; min-height: 44px; }
+.den-camera-controls .zoom-switcher { position: static; display: flex; flex-direction: row; align-items: center; gap: 6px; padding: 0; background: none; border: 0; box-shadow: none; }
+.den-camera-controls .zoom-levels { display: flex; flex-direction: row; gap: 2px; }
+.den-camera-controls .zoom-level { font-size: 11px; padding: 4px 7px; min-width: 44px; min-height: 44px; }
+.den-camera-controls .zoom-step { min-width: 44px; min-height: 44px; }
 .den-bar-talk { min-height: 44px; padding: 4px 14px; font-size: 12px; box-shadow: none; flex-shrink: 0; }
 .forest-shell .logo-pill { position: static; height: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none; }
 .forest-shell .logo-face, .forest-shell .logo-face svg { width: 26px; height: 26px; }
@@ -146,7 +146,7 @@
 /* Phone width (spec 1.8): usable with no horizontal scroll. The rail stays, icons only; a sheet takes the scene's width. */
 @media (max-width: 640px) {
   .den-bar { gap: 8px; }
-  .den-bar .zoom-levels { display: none; }
+  .den-camera-controls .zoom-levels { display: none; }
   .forest-shell .logo-pill h1 { font-size: 11px; }
   .forest-shell .live-badge { margin-left: 4px; font-size: 10px; }
   .den-rail.is-expanded { width: var(--rail-w); }
@@ -196,7 +196,6 @@
   .forest-shell { --surface-000: #28362b; --surface-100: #18231d; --surface-200: #202d24; --surface-300: #304034; --surface-glass: #202d24f5; --line: #3f5042; --line-strong: #7b947d; --ink: #e0e9d9; --ink-muted: #b1bfaa; --ink-faint: #9cad94; --qi: #b4d69d; --qi-fill: #b4d69d; --on-qi: #18231d; --focus-ring: #b4d69d; }
 }
 .den-camera-controls { position: absolute; z-index: 4; left: var(--space-3); bottom: var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: calc(100% - 32px); padding: var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-m); background: var(--surface-100); }
-.den-camera-controls .zoom-switcher { position: static; display: flex; flex-direction: row; padding: 0; border: 0; box-shadow: none; }
 .den-roof-controls { display: flex; gap: var(--space-1); }
 .den-roof-controls button { min-width: 44px; min-height: 44px; }
 .den-roof-controls button[aria-pressed="true"] { background: var(--qi-fill); color: var(--ink); border-color: var(--qi); }
