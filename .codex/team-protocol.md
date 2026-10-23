@@ -32,6 +32,6 @@ Open with the outcome, then a few lines of evidence (commands run, exit codes), 
 
 ## End
 
-Commit on your branch (a WIP commit, never a stash), stop background processes, release the ticket, then stop. Do not start a second ticket. An agent that launches subagents waits for their reports before it hands off or ends. A retry brief is the ticket, the cause note and a failure summary (~10 lines max), no transcript excerpts.
+Commit on your branch (a WIP commit, never a stash), stop background processes, release the ticket, then stop. Do not start a second ticket. An agent that launches subagents waits for their reports before it hands off or ends. A retry brief is the ticket, the cause note and a failure summary (~10 lines max), never transcript excerpts.
 
 In a worktree, run `npm ci` first, give every long command a `timeout`, and keep shell calls plain. Write prose files with the file tool, not a heredoc.
