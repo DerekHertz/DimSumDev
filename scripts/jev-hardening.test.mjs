@@ -243,3 +243,27 @@ test("Low-80: runJg is refused when checkout param is omitted and root has no .g
     "runJg must refuse when there is no .git ancestor and no explicit checkout param",
   );
 });
+
+// ci-cd/11 (from organism-infra/197): the Low-80 test above assumed nothing named .git sits above tmpdir(). Codex's sandbox
+// leaves an empty /tmp/.git mountpoint on the WSL box, which made runJg treat all of /tmp as a checkout. An empty .git
+// directory is not a repository, so these two tests build their own boundary and do not depend on the machine's /tmp.
+test("Low-80: an empty .git directory above the root is not a checkout, so runJg refuses", async () => {
+  const { runJg } = await import("./jg.mjs");
+  const parent = mkdtempSync(path.join(tmpdir(), "jg-empty-git-"));
+  mkdirSync(path.join(parent, ".git"));
+  const root = path.join(parent, "sub");
+  mkdirSync(root);
+  const run = async () => ({ stdout: "## file.mjs\n", exitCode: 0 });
+  await assert.rejects(() => runJg({ query: "find auth code", root, run }), /refused root .* no checkout/);
+});
+
+test("Low-80: a .git directory with a HEAD is a checkout, so runJg accepts a root below it", async () => {
+  const { runJg } = await import("./jg.mjs");
+  const parent = mkdtempSync(path.join(tmpdir(), "jg-real-git-"));
+  mkdirSync(path.join(parent, ".git"));
+  writeFileSync(path.join(parent, ".git", "HEAD"), "ref: refs/heads/main\n");
+  const root = path.join(parent, "sub");
+  mkdirSync(root);
+  const run = async () => ({ stdout: "## file.mjs\n", exitCode: 0 });
+  await runJg({ query: "find auth code", root, run });
+});
