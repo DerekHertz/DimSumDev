@@ -15,7 +15,7 @@ const run = { slotClass: "worker", id: "run-1", bin: "claude", cwd: "/h/repo/.cl
 const SESSIONS = mkdtempSync(join(tmpdir(), "den-sessions-"));
 test.after(() => rmSync(SESSIONS, { recursive: true, force: true }));
 
-function setup({ proxyUp = true, running = true, oom = { killed: false }, internal = "true", sessionsDir = SESSIONS } = {}) {
+function setup({ proxyUp = true, running = true, oom = { killed: false }, internal = "true", sessionsDir = SESSIONS, stale = false } = {}) {
   const calls = [];
   const spawned = [];
   const docker = async (args) => {
@@ -23,7 +23,8 @@ function setup({ proxyUp = true, running = true, oom = { killed: false }, intern
     if (args[0] === "network" && args[1] === "inspect") return { ok: true, out: args.includes("{{.Internal}}") ? internal : "[]", err: "" };
     if (args[0] === "inspect" && args.includes("{{.State.OOMKilled}}")) return { ok: true, out: String(oom.killed), err: "" };
     if (args[0] === "inspect" && args.at(-1) === "den-proxy") return { ok: proxyUp, out: proxyUp ? "true" : "", err: proxyUp ? "" : "No such object" };
-    if (args[0] === "inspect") return { ok: running, out: running ? "true" : "", err: running ? "" : "No such object" };
+    const on = stale || (running && spawned.length > 0); // stale: a container of that name is running before this launch
+    if (args[0] === "inspect") return { ok: on, out: on ? "true" : "", err: on ? "" : "No such object" };
     return { ok: true, out: "", err: "" };
   };
   const spawn = (bin, argv, opts) => {
@@ -52,6 +53,9 @@ test("launch starts docker with the class limits, the proxy env and the run secr
   assert.equal(spawned[0].opts.env.ANTHROPIC_API_KEY, "s".repeat(32));
   assert.ok(spawned[0].opts.env.HTTPS_PROXY.includes("ssssssss@den-proxy:8080"));
   assert.ok(argv.includes("-w") && argv.includes("/h/repo/.claude/worktrees/w1"));
+  assert.ok(argv.includes("--init"), "an init reaps orphans before they fill --pids-limit (security L4)");
+  assert.ok(argv.some((a, i) => a === "never" && argv[i - 1] === "--pull"));
+  assert.ok(argv.some((a, i) => a === "none" && argv[i - 1] === "--log-driver"), "the stream is not copied to docker's log");
   assert.ok(!argv.some((a) => a.includes("sandbox")), "the CLI sandbox block is dropped inside the container");
   assert.ok(child && typeof group.kill === "function" && typeof group.exhausted === "function");
 });
@@ -169,4 +173,11 @@ test("a secured connection's --mcp-config file is mounted read-only at its host 
   const without = setup();
   await without.launcher.launch(run);
   assert.ok(!without.spawned[0].argv.some((a) => a.includes("/credentials/")));
+});
+
+test("the run is refused, and no secret minted, when a container of the same name is already running (security L5)", async () => {
+  const { launcher, minted, spawned } = setup({ stale: true });
+  await assert.rejects(launcher.launch(run), (err) => err instanceof EnforcementError && /already running/.test(err.message));
+  assert.deepEqual(minted, []);
+  assert.deepEqual(spawned, []);
 });

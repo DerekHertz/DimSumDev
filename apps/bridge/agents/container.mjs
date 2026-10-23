@@ -53,7 +53,8 @@ export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace
   const mount = (src, mode) => ["-v", `${src}:${src}:${mode}`];
   const wt = worktree.slice(worktree.lastIndexOf("/") + 1);
   return [
-    "run", "--rm", "-i", "--name", name, "--network", network, "--read-only", "--tmpfs", "/tmp:rw,exec,size=512m", "--tmpfs", "/root:rw,size=256m",
+    // --init reaps orphans before they fill --pids-limit; the stream is not kept in docker's log; the image is never pulled (security L4).
+    "run", "--rm", "-i", "--name", name, "--init", "--pull", "never", "--log-driver", "none", "--network", network, "--read-only", "--tmpfs", "/tmp:rw,exec,size=512m", "--tmpfs", "/root:rw,size=256m",
     "--user", "0:0", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
     "--memory", `${limits.memoryMiB}m`, "--memory-swap", `${limits.memoryMiB}m`, "--cpus", String(limits.cpuPercent / 100), "--pids-limit", String(limits.tasks),
     ...Object.entries(env).flatMap(([k, v]) => ["-e", `${k}=${v}`]), ...passEnv.flatMap((k) => ["-e", k]),
@@ -154,6 +155,8 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
       plainPath(sessionsDir, "sessionsDir");
       const ready = await preflight();
       if (!ready.ok) throw new EnforcementError(ready.reason);
+      // Security L5: a leftover container of this name would answer the start check while this run's `docker run` fails on the name.
+      if (await up(containerName(id))) throw new EnforcementError(`a container named ${containerName(id)} is already running`);
       const { secret } = await proxy.mintRunSecret({ role: container.role });
       // hardening/16 F4: a run's secret is good for that run only.
       const retire = () => Promise.resolve().then(() => proxy.retireRunSecret(secret)).catch(() => {});
