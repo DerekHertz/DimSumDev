@@ -21,7 +21,9 @@ export function branchNames(handoff) {
   return names.filter((b) => b && !SKIP.has(b) && /[/-]/.test(b));
 }
 
-/** ref "feature/NN-slug" -> the branch names its handoffs record, newest handoff first. */
+/** ref "feature/NN-slug" -> the branch names its handoffs record, in reverse file-name order.
+ * Only a den branch for this ticket counts (`den/<ref>-<id>`): artifacts are agent-written text, and a line naming another
+ * ticket's merged branch must not let the sweep resolve this one. */
 export async function branchesOf(root, ref) {
   const [feature, ticket] = ref.split("/");
   const nn = /^(\d+)-/.exec(ticket ?? "")?.[1];
@@ -30,5 +32,6 @@ export async function branchesOf(root, ref) {
   const names = (await readdir(dir).catch(() => [])).filter((n) => n.endsWith(".md") && n.startsWith(`${nn}-`)).sort().reverse();
   const found = [];
   for (const n of names) found.push(...branchNames(await readFile(path.join(dir, n), "utf8").catch(() => "")));
-  return [...new Set(found)];
+  const own = `den/${ref}-`;
+  return [...new Set(found)].filter((b) => b.startsWith(own));
 }

@@ -1383,8 +1383,8 @@ describe("a router resume of a guardrail or ci-pending pause (den-mvp/106)", () 
 describe("the sweep of in-review tickets whose branch was merged elsewhere (den-mvp/106)", () => {
   const SERVICE = "S".repeat(10) + "e".repeat(33);
   const asService = (t) => ({ Origin: `http://127.0.0.1:${t.bridge.port}`, Authorization: `Bearer ${SERVICE}` });
-  const OWN = "den/fx-08-plain";
-  const SIBLING = "den/fx-07-sibling";
+  const OWN = `den/${REF}-aaaa1111`;
+  const SIBLING = `den/${FEATURE}/07-sibling-bbbb2222`;
   const pr = (number, state) => ({ number, url: `https://github.com/o/r/pull/${number}`, state, sha: "a".repeat(40) });
   const ticketFile = (t) => path.join(t.root, ".scratch", FEATURE, "issues", "08-plain.md");
   const setInReview = (t, extra = "") => writeFileSync(ticketFile(t), readFileSync(ticketFile(t), "utf8").replace(/\*\*Status:\*\* .+/, "**Status:** in-review") + extra);
@@ -1419,6 +1419,17 @@ describe("the sweep of in-review tickets whose branch was merged elsewhere (den-
     assert.deepEqual(res.body.resolved, []);
     assert.equal(t.status(), "in-review");
     assert.equal(t.git.asked.includes(SIBLING), false, "a branch only the prose names is never looked up");
+  });
+  test("a handoff's artifacts naming another ticket's merged branch do not close this ticket", async () => {
+    const t = await setup({ serviceToken: SERVICE });
+    setInReview(t);
+    await handoff(t, [`branch ${SIBLING}`, `branch ${OWN}`]);
+    t.git.byBranch = { [SIBLING]: pr(40, "MERGED"), [OWN]: pr(41, "OPEN") };
+    const res = await t.post("/deliveries/sweep", {}, asService(t));
+    assert.equal(res.status, 200, JSON.stringify(res.body));
+    assert.deepEqual(res.body.resolved, []);
+    assert.equal(t.status(), "in-review");
+    assert.deepEqual(t.git.asked, [OWN], "only a branch named for this ticket is looked up");
   });
   test("the resolve note says the merge was made elsewhere, not by the den's delivery", async () => {
     const t = await setup({ serviceToken: SERVICE });
