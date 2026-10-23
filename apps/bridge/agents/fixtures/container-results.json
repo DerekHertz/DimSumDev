@@ -320,7 +320,7 @@
       "branchLog": "268507e probe\ncbb55b8 spike"
     },
     "inspect": {
-      "env": "HTTPS_PROXY=http://057052c9-27be-4caf-9b94-322d2577a656@den-proxy-conformance:8080\nno_proxy=den-proxy-conformance\nNO_PROXY=den-proxy-conformance\nhttps_proxy=http://057052c9-27be-4caf-9b94-322d2577a656@den-proxy-conformance:8080\nANTHROPIC_BASE_URL=http://den-proxy-conformance:8080\nANTHROPIC_API_KEY=den-dummy-key\n",
+      "env": "HTTPS_PROXY=http://00000000-0000-4000-8000-000000000001@den-proxy-conformance:8080\nno_proxy=den-proxy-conformance\nNO_PROXY=den-proxy-conformance\nhttps_proxy=http://00000000-0000-4000-8000-000000000001@den-proxy-conformance:8080\nANTHROPIC_BASE_URL=http://den-proxy-conformance:8080\nANTHROPIC_API_KEY=den-dummy-key\n",
       "credFiles": "total 4\ndrwxr-xr-x 7 root root 160 Oct 23 02:17 .\ndrwx------ 3 root root  80 Oct 23 02:16 ..\n-rw-r--r-- 1 root root  24 Oct 23 02:17 .last-cleanup\ndrwxr-xr-x 2 root root  60 Oct 23 02:16 backups\ndrwx------ 3 root root  60 Oct 23 02:16 projects\ndrwxr-xr-x 3 root root  60 Oct 23 02:16 session-env\ndrwx------ 2 root root  80 Oct 23 02:16 sessions\ndrwxr-xr-x 2 root root  60 Oct 23 02:16 shell-snapshots\ndone\n",
       "mainConfigWrite": "exit 255: error: could not lock config file /tmp/den-ctr-BXfd6L/.git/config: Read-only file system\n",
       "mainRefsWrite": "exit 2: sh: 1: cannot create /tmp/den-ctr-BXfd6L/.git/refs/heads/main: Read-only file system\n",
