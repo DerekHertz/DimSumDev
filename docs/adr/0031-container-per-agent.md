@@ -48,6 +48,10 @@
 - The den becomes portable to any Linux with rootless Docker. The whole-den container (C1 step 2) is a separate step.
 - The model's auto mode is the CLI's default here. The bridge must keep pinning the permission mode, as the spike's settings did (`defaultMode: default`), or host permission requests stop arriving.
 
+## Amendment 1: the flag (hardening/10, 2026-10-23)
+
+The bridge starts agents in containers when `DEN_AGENT_CONTAINERS=1` is in the den service's environment (`apps/bridge/agents/container.mjs`). Off, the default, agents start on the host exactly as before. To turn it off, remove the variable and restart the den. With the flag on and no agent image or credential proxy, the den refuses to start; each run is also refused when the `den-agents` network, the proxy or the container is not up. The argv follows decisions 2 and 3, with these differences: the bridge's agents run on a detached HEAD, so no `refs/heads` mount is made (the bridge creates the branch afterwards); the CLI's own `sandbox` settings block is dropped inside the container (no bwrap there; the mounts are the boundary) and every permission deny stays. Host-side git in an agent worktree must run with `-c core.fsmonitor= -c core.hooksPath=/dev/null` (`SAFE_GIT`).
+
 ## Follow-up tickets (proposed)
 
 1. **Bridge: spawn agents in containers.** Build the `docker run` argv from the ceiling (mounts from worktree, grants and ticket; limits from `limits.json`), behind a flag, with the wall conformance suite run against it. Risk path.
