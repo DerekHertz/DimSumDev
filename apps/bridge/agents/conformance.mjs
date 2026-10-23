@@ -22,6 +22,7 @@ import { tmpdir, homedir, userInfo } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { runLive } from "./conformance-live.mjs";
+import { runContainer } from "./conformance-container.mjs";
 import { runLimits, runWall } from "./conformance-wall.mjs";
 
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -1284,6 +1285,7 @@ export const SPIKES = {
   Live: { title: "one agent through the bridge itself (den-v1 loop S3): worktree cwd, a held Write outside it, allow over HTTP, tool result, done", turns: 1, run: runLive },
   Wall: { title: "the wall (agent-os/01): the CLI sandbox under the bridge's argv; writes and hosts outside it, the file tools, an escape attempt", turns: 20, run: runWall },
   Limits: { title: "systemd-run limits (agent-os/01 question 5): the CLI in a scope with a memory and a CPU limit; a sandboxed command over each", turns: 3, run: runLimits },
+  Container: { title: "a container per agent (hardening/13, ADR 0031): the seven wall answers from one agent in a rootless Docker container behind the proxy, with the network, limits and .git checks", turns: 16, run: runContainer },
 };
 
 // ---- Runner and CLI ------------------------------------------------------------------------
@@ -1408,7 +1410,7 @@ export function parseCli(argv) {
       const wanted = String(value() ?? "").split(",").map((x) => x.trim());
       const bad = wanted.find((x) => !byLower.has(x.toLowerCase()));
       if (bad !== undefined) {
-        opts.error = `unknown spike ${bad.toUpperCase() || "(empty)"}; choose from ${ids.join(", ")}`;
+        opts.error = `unknown spike ${(/^s\d/i.test(bad) ? bad.toUpperCase() : bad) || "(empty)"}; choose from ${ids.join(", ")}`;
         break;
       }
       const picked = new Set(wanted.map((x) => byLower.get(x.toLowerCase())));
@@ -1429,7 +1431,7 @@ A run whose init is missing, or shows a permissionMode other than default, any M
 S4b is SETUP-INVALID unless its tool (tail -f on a hold file inside the child's cwd) is shown running, by a pid other than the child's, before each signal.
 S8 waits for a peer message until the turn's result (outcome c if it lands late) and probes two control_response shapes. It checks the socket and its directory for group and other bits and the directory's owner uid.
 S6b is SETUP-INVALID when the control's allowed.txt is also absent ("project allow did not apply in the control"): the control's stderr goes to S6b-control.stderr.txt, and two comparison probes run (a //path allow in the worktree, and --repo itself as the cwd with a temporary allow in its .claude/settings.local.json, restored afterwards).
-The default run is S1 to S7; S8, S4b, S6b, S3b, Live, Wall and Limits run only when named (--spike S8,S4b,S6b,S3b,Live,Wall,Limits). S6b adds its worktree to --repo (default: the repository containing this script); run \`claude\` there once so the owner has trusted it.
+The default run is S1 to S7; S8, S4b, S6b, S3b, Live, Wall, Limits and Container run only when named (--spike S8,S4b,S6b,S3b,Live,Wall,Limits,Container). Container reads the owner's login file, so run it by hand, never from an agent behind the wall. S6b adds its worktree to --repo (default: the repository containing this script); run \`claude\` there once so the owner has trusted it.
 Live (npm run smoke:live) starts one agent through startBridge and the production runtime in a throwaway repository, allows its one held Write over HTTP, and saves Live.jsonl (stdout), Live-stdin.jsonl and Live-bridge.jsonl.
 Runs ADR 0016's spikes against the real \`claude\` login (DEN_CLAUDE_BIN overrides the binary).
 --dry-run prints the plan and spends nothing.`;
