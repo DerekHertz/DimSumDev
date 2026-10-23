@@ -1,6 +1,6 @@
 // agent-os/04: the production runtime passes the wall for a role with a ceiling, and only for one.
 // Same harness as claude-process.test.mjs: a stub script behind DEN_CLAUDE_BIN records the argv it was started with.
-// Pinned: spawn({ role, cwd, ... }) treats cwd as the worktree; for developer, qa, scout and security the child's inline
+// Pinned: spawn({ role, cwd, ... }) treats cwd as the worktree; for developer, qa and security the child's inline
 // settings carry the sandbox block with an empty host list (ADR 0021 amendment 1) and, for the roles that write, Write and
 // Edit allow rules for cwd. A cwd that cannot be written as a plain rule keeps the wall and drops the write rules (the ticket
 // file precedent: the request stays). Roles with no ceiling start exactly as before.
@@ -59,8 +59,8 @@ describe("the runtime passes the wall for a role with a ceiling", () => {
     });
   }
 
-  test("scout: the sandbox has no hosts and nothing may be written", async () => {
-    const { settings } = await launch("scout");
+  test("chief-of-staff: the sandbox has no hosts and nothing may be written", async () => {
+    const { settings } = await launch("chief-of-staff");
     assert.deepEqual(noFs(settings.sandbox), noFs(WALL_NO_HOSTS)); // agent-os/02: sandbox.filesystem may now ride along
     assert.deepEqual(settings.permissions.allow, ["Bash"]);
     for (const rule of DENY) assert.ok(settings.permissions.deny.includes(rule), `deny keeps ${rule}`); // agent-os/02: governance denies join the four
@@ -82,7 +82,7 @@ describe("the runtime passes the wall for a role with a ceiling", () => {
 });
 
 describe("every role starts behind the wall (den-mvp outcome 1)", () => {
-  for (const role of ["architect", "designer", "product", "herald", "orchestrator"]) {
+  for (const role of ["architect", "designer", "product", "technical-writer", "orchestrator"]) {
     test(`${role}: the sandbox is on, strict, with no host`, async () => {
       const { settings } = await launch(role);
       assert.equal(settings.sandbox?.enabled, true);

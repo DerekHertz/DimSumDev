@@ -59,20 +59,20 @@ const BODIES = {
   },
   // den-v1 loop S1: a task needs no ticket to exist, so "real" and "bogus" differ only in what would be written.
   "POST /tasks": {
-    real: { role: "scout", text: "count the steamer baskets" },
-    bogus: { role: "herald", text: "something else entirely" },
+    real: { role: "chief-of-staff", text: "count the steamer baskets" },
+    bogus: { role: "sre", text: "something else entirely" },
   },
   // A stop needs a live agent for the authenticated happy path; `prepare` starts one and returns its id.
   "POST /agents/:id/stop": {
     real: {},
     bogus: {},
-    prepare: async () => (await bridge.host.start({ ref: `${FEATURE}/31-auth-stop`, role: "scout" })).agent.id,
+    prepare: async () => (await bridge.host.start({ ref: `${FEATURE}/31-auth-stop`, role: "chief-of-staff" })).agent.id,
   },
   // den-v1 loop S5: a message needs a live agent whose runtime takes messages (the fake is started with send on).
   "POST /agents/:id/message": {
     real: { text: "use port 5173" },
     bogus: { text: "something else entirely" },
-    prepare: async () => (await bridge.host.start({ ref: `${FEATURE}/33-auth-message`, role: "scout" })).agent.id,
+    prepare: async () => (await bridge.host.start({ ref: `${FEATURE}/33-auth-message`, role: "chief-of-staff" })).agent.id,
   },
   // organism-infra/107: a cancel needs a live agent with one message queued; `prepare` makes both, returns the agent id and
   // keeps the message id for the body. A hand-over needs only a live agent.
@@ -82,7 +82,7 @@ const BODIES = {
     },
     bogus: { messageId: "00000000-0000-4000-8000-00000000beef" },
     prepare: async () => {
-      const { agent } = await bridge.host.start({ ref: `${FEATURE}/35-auth-cancel`, role: "scout" });
+      const { agent } = await bridge.host.start({ ref: `${FEATURE}/35-auth-cancel`, role: "chief-of-staff" });
       queuedMessageId = (await bridge.host.message(agent.id, { text: "cancel me" })).messageId;
       return agent.id;
     },
@@ -90,7 +90,7 @@ const BODIES = {
   "POST /agents/:id/handover": {
     real: {},
     bogus: {},
-    prepare: async () => (await bridge.host.start({ ref: `${FEATURE}/36-auth-handover`, role: "scout" })).agent.id,
+    prepare: async () => (await bridge.host.start({ ref: `${FEATURE}/36-auth-handover`, role: "chief-of-staff" })).agent.id,
   },
   // organism-infra/141: an approval needs a live agent holding a permission request; `prepare` makes one and returns
   // its minted id. A deny needs no prior GET, so the authenticated happy path is a plain 200.
@@ -98,7 +98,7 @@ const BODIES = {
     real: { decision: "deny" },
     bogus: { decision: "deny" },
     prepare: async () => {
-      const { agent } = await bridge.host.start({ ref: `${FEATURE}/32-auth-approve`, role: "scout" });
+      const { agent } = await bridge.host.start({ ref: `${FEATURE}/32-auth-approve`, role: "chief-of-staff" });
       fake.spawns.at(-1).emit({ type: "permission-request", requestId: "auth-r1", tool: "Bash", input: { command: "ls" } });
       for (let i = 0; i < 100; i += 1) {
         const state = await send(bridge, { path: "/state" });
@@ -113,7 +113,7 @@ const BODIES = {
   "POST /conversations/:role/message": {
     real: { text: "use port 5173" },
     bogus: { text: "something else entirely" },
-    prepare: async () => ((await bridge.host.start({ ref: `${FEATURE}/34-auth-converse`, role: "herald" })), "herald"),
+    prepare: async () => ((await bridge.host.start({ ref: `${FEATURE}/34-auth-converse`, role: "chief-of-staff" })), "chief-of-staff"),
   },
   // den-mvp outcome 3: a delivery is started on a frontier ticket; the steering rows need one that is running or waiting.
   "POST /deliveries": {
@@ -139,7 +139,7 @@ const BODIES = {
     },
   },
   // den-mvp outcome 4: a meeting is started on a topic; the steering rows need one that is running, waiting or briefed.
-  "POST /meetings": { real: { topic: "one log or many?", roles: ["qa"] }, bogus: { topic: "something else", roles: ["scout"] } },
+  "POST /meetings": { real: { topic: "one log or many?", roles: ["qa"] }, bogus: { topic: "something else", roles: ["sre"] } },
   "POST /meetings/:id/stop": { real: {}, bogus: {}, prepare: () => meeting() },
   "POST /meetings/:id/resume": { real: {}, bogus: {}, prepare: () => meeting({ stopped: true }) },
   "POST /meetings/:id/close": { real: {}, bogus: {}, prepare: () => meeting({ stopped: true }) },

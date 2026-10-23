@@ -18,7 +18,7 @@ import { AUTO_INPUT_MAX_BYTES, LOG_MAX_BYTES, createLibrary, skillOf } from "./l
 
 const CATALOG = parseCatalog({
   connections: [
-    { name: "docs", title: "Docs", purpose: "Look things up.", url: "https://docs.example.com/mcp", credential: "none", roles: ["scout", "architect"], tools: { find: "read", save: "change" } },
+    { name: "docs", title: "Docs", purpose: "Look things up.", url: "https://docs.example.com/mcp", credential: "none", roles: ["sre", "architect"], tools: { find: "read", save: "change" } },
     { name: "notes", title: "Notes", purpose: "Keep notes.", script: "apps/bridge/library/servers/test-server.mjs", credential: "none", roles: ["architect"], tools: { echo: "read", note: "publish" } },
   ],
 });
@@ -33,14 +33,14 @@ afterEach(async () => {
   dirs = [];
 });
 // A den checkout with role files and skills, and a state directory, both disposable.
-async function den({ architect = "tools: Read, Skill, mcp__docs, mcp__notes__echo", scout = "tools: Read, Bash" } = {}) {
+async function den({ architect = "tools: Read, Skill, mcp__docs, mcp__notes__echo", sre = "tools: Read, Bash" } = {}) {
   const root = await mkdtemp(path.join(os.tmpdir(), "den-library-"));
   dirs.push(root);
   await mkdir(path.join(root, ".claude", "agents"), { recursive: true });
   await mkdir(path.join(root, ".claude", "skills", "tdd"), { recursive: true });
   await mkdir(path.join(root, ".claude", "skills", "empty"), { recursive: true });
   await writeFile(path.join(root, ".claude", "agents", "architect.md"), `---\nname: architect\n${architect}\n---\nbody\n`);
-  await writeFile(path.join(root, ".claude", "agents", "scout.md"), `---\nname: scout\n${scout}\n---\nbody\n`);
+  await writeFile(path.join(root, ".claude", "agents", "sre.md"), `---\nname: sre\n${sre}\n---\nbody\n`);
   await writeFile(path.join(root, ".claude", "skills", "tdd", "SKILL.md"), "---\nname: tdd\ndescription: Test first.\n---\n# TDD\n");
   return { denRoot: root, stateDir: path.join(root, "state") };
 }
@@ -59,7 +59,7 @@ describe("what a run is started with", () => {
 
   test("a role whose file does not name the connection is started without it, and so is a role the catalog leaves out", async () => {
     t = await makeBridge({ library: await library() });
-    await t.dispatch("scout"); // in the catalog, not in its role file
+    await t.dispatch("sre"); // in the catalog, not in its role file
     assert.equal(t.fake.spawns[0].args.connections, undefined);
     t.fake.spawns[0].exit();
     await t.close();
@@ -192,8 +192,8 @@ describe("a connection's tool call", () => {
   });
 
   test("another role's connection is refused even when its tools were discovered", async () => {
-    t = await makeBridge({ library: await library({ scout: "tools: Read, mcp__docs, mcp__notes" }) });
-    await t.dispatch("scout");
+    t = await makeBridge({ library: await library({ sre: "tools: Read, mcp__docs, mcp__notes" }) });
+    await t.dispatch("sre");
     const rec = t.fake.spawns[0];
     assert.deepEqual(rec.args.connections.map((c) => c.name), ["docs"]); // notes lists the architect only
     request(rec, "r1", "mcp__notes__echo");
@@ -226,8 +226,8 @@ describe("the library panel's data", () => {
     assert.deepEqual(notes.where, { kind: "local" });
     assert.deepEqual(docs.tools, [{ name: "find", capability: "read" }, { name: "save", capability: "change" }]);
     assert.deepEqual(docs.status, { state: "not-seen", reason: "No agent has started with it yet." });
-    assert.deepEqual(docs.roles.map((r) => [r.role, r.usable]), [["scout", false], ["architect", true]]);
-    assert.match(docs.roles[0].reason, /scout\.md does not name it/);
+    assert.deepEqual(docs.roles.map((r) => [r.role, r.usable]), [["sre", false], ["architect", true]]);
+    assert.match(docs.roles[0].reason, /sre\.md does not name it/);
     assert.deepEqual(body.skills, [{ kind: "skill", name: "tdd", description: "Test first.", roles: ["architect"] }]);
   });
 

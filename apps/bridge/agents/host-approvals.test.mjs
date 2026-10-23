@@ -293,7 +293,7 @@ describe("fail closed: expiry, the per-agent cap, user stop, child exit and shut
   test("cap: the 21st pending request expires the oldest (answered deny); other agents are untouched", async () => {
     t = await makeBridge();
     const { agent, rec } = await hold({ command: "c0" }, { requestId: "req-0" });
-    const other = (await t.bridge.host.start({ ref: SECOND_REF, role: "scout" })).agent;
+    const other = (await t.bridge.host.start({ ref: SECOND_REF, role: "sre" })).agent;
     const otherRec = t.fake.spawns[1];
     request(otherRec, "other-0", "Bash", { command: "other" });
     await approvalsReach(other.id, 1);
@@ -337,7 +337,7 @@ describe("fail closed: expiry, the per-agent cap, user stop, child exit and shut
     t = await makeBridge();
     const { agent, rec } = await hold({ command: "c0" }, { requestId: "req-0" });
     request(rec, "req-1", "Bash", { command: "c1" });
-    const other = (await t.bridge.host.start({ ref: SECOND_REF, role: "scout" })).agent;
+    const other = (await t.bridge.host.start({ ref: SECOND_REF, role: "sre" })).agent;
     const otherRec = t.fake.spawns[1];
     request(otherRec, "other-0", "Bash", { command: "other" });
     await approvalsReach(agent.id, 2);

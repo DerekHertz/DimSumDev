@@ -6,7 +6,7 @@ import { connectionsFor, decideTool, loadCatalog, parseCatalog, toolsOfRoleFile 
 
 const entry = (over = {}) => ({
   name: "docs", title: "Docs", purpose: "Look things up.", url: "https://docs.example.com/mcp", credential: "none",
-  roles: ["scout", "developer"], tools: { find: "read", save: "change", post: "publish" }, ...over,
+  roles: ["sre", "developer"], tools: { find: "read", save: "change", post: "publish" }, ...over,
 });
 const one = (over) => parseCatalog({ connections: [entry(over)] }, { denRoot: "/den" });
 const rejects = (over, why) => assert.throws(() => one(over), /connections\.json/, why);
@@ -57,7 +57,7 @@ describe("the catalog file", () => {
 
   test("names, roles and tools are checked", () => {
     for (const name of ["Docs", "a__b", "-a", "a_b", "", "a".repeat(40), 3]) rejects({ name }, String(name));
-    for (const roles of [[], ["nobody"], ["scout", "scout"], "scout"]) rejects({ roles }, JSON.stringify(roles));
+    for (const roles of [[], ["nobody"], ["sre", "sre"], "sre"]) rejects({ roles }, JSON.stringify(roles));
     for (const tools of [{}, { "a__b": "read" }, { find: "admin" }, { "": "read" }, ["find"]]) rejects({ tools }, JSON.stringify(tools));
     assert.throws(() => parseCatalog({ connections: [entry(), entry()] }), /used twice/);
   });
@@ -67,26 +67,26 @@ describe("what a role may do with a connection", () => {
   const catalog = parseCatalog({ connections: [entry(), entry({ name: "other", roles: ["qa"], tools: { peek: "read" } })] });
 
   test("a role is started with the connections that list it, and no others", () => {
-    assert.deepEqual(connectionsFor(catalog, "scout").map((c) => c.name), ["docs"]);
+    assert.deepEqual(connectionsFor(catalog, "sre").map((c) => c.name), ["docs"]);
     assert.deepEqual(connectionsFor(catalog, "qa").map((c) => c.name), ["other"]);
-    assert.deepEqual(connectionsFor(catalog, "herald"), []);
+    assert.deepEqual(connectionsFor(catalog, "designer"), []);
   });
 
   test("a tool that is not a connection's is not this module's to answer", () => {
-    for (const tool of ["Bash", "Read", "WebFetch", "mcp", undefined, 4]) assert.equal(decideTool(catalog, "scout", tool), null);
+    for (const tool of ["Bash", "Read", "WebFetch", "mcp", undefined, 4]) assert.equal(decideTool(catalog, "sre", tool), null);
   });
 
   test("a read is allowed, a change or a publish is asked, by what the catalog says and not by what the tool is called", () => {
-    assert.deepEqual(decideTool(catalog, "scout", "mcp__docs__find"), { kind: "allow", capability: "read", connection: "docs", tool: "find" });
+    assert.deepEqual(decideTool(catalog, "sre", "mcp__docs__find"), { kind: "allow", capability: "read", connection: "docs", tool: "find" });
     assert.equal(decideTool(catalog, "developer", "mcp__docs__save").kind, "ask");
     assert.equal(decideTool(catalog, "developer", "mcp__docs__post").kind, "ask");
   });
 
   test("a tool the server offers and the catalog does not name is refused, as is another role's connection and an unknown one", () => {
     for (const [role, tool] of [
-      ["scout", "mcp__docs__delete_everything"], ["scout", "mcp__docs"], ["scout", "mcp__docs__"], ["scout", "mcp__docs__find__x"],
-      ["qa", "mcp__docs__find"], ["scout", "mcp__other__peek"], ["scout", "mcp__blender__execute_blender_code"], ["scout", "mcp____find"],
-      ["scout", "mcp__docs__constructor"], ["scout", "mcp__constructor__find"],
+      ["sre", "mcp__docs__delete_everything"], ["sre", "mcp__docs"], ["sre", "mcp__docs__"], ["sre", "mcp__docs__find__x"],
+      ["qa", "mcp__docs__find"], ["sre", "mcp__other__peek"], ["sre", "mcp__blender__execute_blender_code"], ["sre", "mcp____find"],
+      ["sre", "mcp__docs__constructor"], ["sre", "mcp__constructor__find"],
     ]) {
       const verdict = decideTool(catalog, role, tool);
       assert.equal(verdict.kind, "refuse", `${role} ${tool}`);
@@ -97,7 +97,7 @@ describe("what a role may do with a connection", () => {
 
 describe("the role file's tools line", () => {
   test("it names connections by connection or by tool; a file with no such line hides nothing", () => {
-    const file = (tools) => `---\nname: scout\n${tools}model: haiku\n---\n\nbody mcp__body__x\n`;
+    const file = (tools) => `---\nname: sre\n${tools}model: haiku\n---\n\nbody mcp__body__x\n`;
     assert.deepEqual([...toolsOfRoleFile(file("tools: Read, Bash, mcp__context7, mcp__blender__get_objects_summary\n"))].sort(), ["blender", "context7"]);
     assert.deepEqual([...toolsOfRoleFile(file("tools: Read, Bash\n"))], []);
     assert.equal(toolsOfRoleFile(file("")), null);
@@ -109,7 +109,7 @@ describe("socket and deepwiki (den-mvp/36)", () => {
   // Tool names checked live against both servers on 2026-10-15 (F16: names drift from the docs; DeepWiki's docs say ask_question).
   const catalog = loadCatalog();
   const roleFile = (role) => readFileSync(new URL(`../../../.claude/agents/${role}.md`, import.meta.url), "utf8");
-  for (const [name, roles, tool] of [["socket", ["security", "developer"], "depscore"], ["deepwiki", ["scout", "architect", "developer"], "ask_wiki_question"]]) {
+  for (const [name, roles, tool] of [["socket", ["security", "developer"], "depscore"], ["deepwiki", ["architect", "developer"], "ask_wiki_question"]]) {
     test(`${name}: every tool is a read, given to ${roles.join(", ")}, and each of those role files names it`, () => {
       const c = catalog.connections.find((x) => x.name === name);
       assert.ok(c, `${name} is in connections.json`);

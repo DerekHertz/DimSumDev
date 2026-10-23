@@ -146,7 +146,7 @@ describe("one capacity rule: live host agents plus foreign claim locks (max 2 in
   test("POST /tasks uses the same rule, and a refused task writes no ticket", async () => {
     t = await makeBridge({ policy: { maxConcurrent: 2 }, preWrite: withLocks("07-bumpable") });
     assert.equal((await t.bridge.host.start({ ref: `${FEATURE}/21-hop`, role: "architect" })).status, 201);
-    const res = await t.post("/tasks", { role: "herald", text: "Polish the lids." });
+    const res = await t.post("/tasks", { role: "technical-writer", text: "Polish the lids." });
     assert.equal(res.status, 429, res.text);
     assert.ok(res.body.error.includes(R07), res.body.error);
     const den = await readdir(path.join(t.fx.root, ".scratch", "den", "issues")).catch(() => []);

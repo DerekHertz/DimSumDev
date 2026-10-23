@@ -102,7 +102,7 @@ describe("startBridge over the real Claude runtime", () => {
 // this test's own, so the probes stay small; skipped, with the launcher's reason, where the host cannot enforce.
 const enforceEnv = { PATH: process.env.PATH, HOME: process.env.HOME };
 const enforceable = await createResourceLauncher({ env: enforceEnv }).preflight();
-const LIVE_LIMITS = { classes: { worker: { memoryMiB: 160, cpuPercent: 50, tasks: 48 }, bao: { memoryMiB: 160, cpuPercent: 50, tasks: 48 }, scout: { memoryMiB: 160, cpuPercent: 50, tasks: 48 } }, aggregate: { memoryMiB: 512, cpuPercent: 100, tasks: 160 }, storage: { jobMiB: 16, outputMiB: 1 }, checks: { memoryMiB: 160, cpuPercent: 50, tasks: 48 }, guard: { memoryMiB: 160, cpuPercent: 50, tasks: 48 } };
+const LIVE_LIMITS = { classes: { worker: { memoryMiB: 160, cpuPercent: 50, tasks: 48 }, bao: { memoryMiB: 160, cpuPercent: 50, tasks: 48 } }, aggregate: { memoryMiB: 512, cpuPercent: 100, tasks: 160 }, storage: { jobMiB: 16, outputMiB: 1 }, checks: { memoryMiB: 160, cpuPercent: 50, tasks: 48 }, guard: { memoryMiB: 160, cpuPercent: 50, tasks: 48 } };
 const LIVE_SLICE = `den-test-h${process.pid}`;
 const processGroup = (pid) => Number(readFileSync(`/proc/${pid}/stat`, "utf8").replace(/^.*\) /, "").split(" ")[2]);
 

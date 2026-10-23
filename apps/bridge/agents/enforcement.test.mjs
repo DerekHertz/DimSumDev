@@ -30,7 +30,7 @@ describe("the host refuses a run the kernel cannot confine", () => {
     const res = await t.dispatch("developer");
     assert.equal(res.status, 503, res.text);
     assert.equal(res.body.error, `the run was refused: ${REASON}`);
-    const task = await t.post("/tasks", { role: "scout", text: "what is the package name?" });
+    const task = await t.post("/tasks", { role: "sre", text: "what is the package name?" });
     assert.equal(task.status, 503, task.text);
     assert.equal(task.body.error, `the run was refused: ${REASON}`);
     assert.equal(t.fake.spawns.length, 0);
@@ -274,7 +274,7 @@ describe("any way out brings the read limit, with the project and the toolchain 
   });
 
   test("a role that cannot write gets the limit too", () => {
-    const s = settingsFor("scout", { root: ROOT, mainGit: MAIN_GIT, home: HOME, toolchain: NODE, remote: true });
+    const s = settingsFor("chief-of-staff", { root: ROOT, mainGit: MAIN_GIT, home: HOME, toolchain: NODE, remote: true });
     assert.deepEqual(s.sandbox.filesystem.denyRead, ["~/"]);
     assert.deepEqual([...s.sandbox.filesystem.allowRead].sort(), OPEN.filter((p) => p !== WT).sort());
   });

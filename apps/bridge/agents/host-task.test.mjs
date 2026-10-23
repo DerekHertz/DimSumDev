@@ -40,23 +40,23 @@ const sessionLines = async () => (await readFile(t.sessionsFile, "utf8")).split(
 describe("POST /tasks starts a role on a ticket the route writes", () => {
   test("a task becomes a den ticket and a live agent in direct mode", async () => {
     t = await makeBridge();
-    const res = await t.post("/tasks", { role: "scout", text: TEXT });
+    const res = await t.post("/tasks", { role: "sre", text: TEXT });
     assert.equal(res.status, 201, res.text);
     const { agent, ticket } = res.body;
-    assert.deepEqual(ticket, { ref: `${DEN_FEATURE}/01-scout` });
+    assert.deepEqual(ticket, { ref: `${DEN_FEATURE}/01-sre` });
     assert.match(agent.id, AGENT_ID_RE);
-    assert.deepEqual({ ref: agent.ref, role: agent.role, mode: agent.mode, state: agent.state }, { ref: ticket.ref, role: "scout", mode: "direct", state: "working" });
-    assert.match(agent.worktree, /^\.claude\/worktrees\/den-den-01-scout-/);
+    assert.deepEqual({ ref: agent.ref, role: agent.role, mode: agent.mode, state: agent.state }, { ref: ticket.ref, role: "sre", mode: "direct", state: "working" });
+    assert.match(agent.worktree, /^\.claude\/worktrees\/den-den-01-sre-/);
     assert.ok((await stat(path.join(t.fx.root, agent.worktree))).isDirectory());
 
-    const file = path.join(issuesDir(t.fx.root), "01-scout.md");
+    const file = path.join(issuesDir(t.fx.root), "01-sre.md");
     const md = await readFile(file, "utf8");
     assert.match(md, /^> Count the steamer baskets and tell me how many are chipped\.$/m);
     assert.equal(await getStatus(t.fx.root, ticket.ref), "ready-for-agent");
     assert.ok((await t.state()).tickets.some((x) => x.ref === ticket.ref), "the ticket is on the board snapshot");
 
     const spawn = (await sessionLines()).find((l) => l.agentId === agent.id);
-    assert.deepEqual({ event: spawn.event, ref: spawn.ref, role: spawn.role, route: spawn.route }, { event: "spawn", ref: ticket.ref, role: "scout", route: "POST /tasks" });
+    assert.deepEqual({ event: spawn.event, ref: spawn.ref, role: spawn.role, route: spawn.route }, { event: "spawn", ref: ticket.ref, role: "sre", route: "POST /tasks" });
   });
 
   test("the task text reaches the ticket file only: not the spawn arguments, the prompt, the snapshot or the audit", async () => {
@@ -123,9 +123,9 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     const over = "é".repeat(TASK_MAX_BYTES / 2 + 1); // two bytes each: one byte over
     const bad = [
       { text: TEXT }, { role: "wizard", text: TEXT }, { role: 7, text: TEXT }, { role: "--agent", text: TEXT },
-      { role: "scout" }, { role: "scout", text: "" }, { role: "scout", text: "  \n\t " }, { role: "scout", text: 42 }, { role: "scout", text: [TEXT] },
-      { role: "scout", text: over },
-      { role: "scout", text: `post it with ${["xoxb", "1234567890abcdef"].join("-")}` }, // built at runtime: a Slack-token shape
+      { role: "sre" }, { role: "sre", text: "" }, { role: "sre", text: "  \n\t " }, { role: "sre", text: 42 }, { role: "sre", text: [TEXT] },
+      { role: "sre", text: over },
+      { role: "sre", text: `post it with ${["xoxb", "1234567890abcdef"].join("-")}` }, // built at runtime: a Slack-token shape
     ];
     for (const body of bad) {
       const res = await t.post("/tasks", body);
@@ -135,11 +135,11 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     assert.equal(Buffer.byteLength("é".repeat(TASK_MAX_BYTES / 2)), TASK_MAX_BYTES);
     assert.deepEqual(await tickets(t.fx.root), []);
     assert.equal(t.fake.spawns.length, 0);
-    assert.equal((await t.post("/tasks", { role: "scout", text: "é".repeat(TASK_MAX_BYTES / 2) })).status, 201, "exactly the cap is allowed");
+    assert.equal((await t.post("/tasks", { role: "sre", text: "é".repeat(TASK_MAX_BYTES / 2) })).status, 201, "exactly the cap is allowed");
     // Extra body fields are ignored, never forwarded: a client cannot pick the ref or the mode.
-    const extra = await t.post("/tasks", { role: "herald", text: TEXT, ref: DISPATCH_REF, mode: "review", model: "opus" });
+    const extra = await t.post("/tasks", { role: "technical-writer", text: TEXT, ref: DISPATCH_REF, mode: "review", model: "opus" });
     assert.equal(extra.status, 201, extra.text);
-    assert.equal(extra.body.agent.ref, "den/02-herald");
+    assert.equal(extra.body.agent.ref, "den/02-technical-writer");
     assert.equal(extra.body.agent.mode, "direct");
     assert.equal(JSON.stringify(t.fake.spawns[1].args).includes("opus"), false);
   });
@@ -148,7 +148,7 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     t = await makeBridge({ policy: { maxConcurrent: 2 } });
     assert.equal((await t.post("/tasks", { role: "product", text: TEXT })).status, 201);
     assert.equal((await t.dispatch("architect")).status, 201);
-    const res = await t.post("/tasks", { role: "herald", text: TEXT });
+    const res = await t.post("/tasks", { role: "technical-writer", text: TEXT });
     assert.equal(res.status, 429, res.text);
     assert.match(res.body.error, /max_concurrent_agents/);
     assert.deepEqual(await tickets(t.fx.root), ["01-product.md"]);
@@ -157,7 +157,7 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
 
   test("two tasks posted at once with one slot left: one starts, the other is refused and writes no ticket", async () => {
     t = await makeBridge({ policy: { maxConcurrent: 1 }, runtimeConfig: { spawnDelayMs: 30 } });
-    const both = await Promise.all([t.post("/tasks", { role: "product", text: TEXT }), t.post("/tasks", { role: "herald", text: TEXT })]);
+    const both = await Promise.all([t.post("/tasks", { role: "product", text: TEXT }), t.post("/tasks", { role: "technical-writer", text: TEXT })]);
     assert.deepEqual(both.map((r) => r.status).sort(), [201, 429]);
     assert.equal((await tickets(t.fx.root)).length, 1);
     assert.equal(t.fake.spawns.length, 1);
@@ -167,7 +167,7 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     t = await makeBridge({
       preWrite: (root) => appendFile(`${root}/.scratch/usage.jsonl`, JSON.stringify({ kind: "usage", ts: "2026-09-29T09:00:00.000Z", five_hour: 93, weekly: 10 }) + "\n"),
     });
-    const res = await t.post("/tasks", { role: "scout", text: TEXT });
+    const res = await t.post("/tasks", { role: "sre", text: TEXT });
     assert.equal(res.status, 429, res.text);
     assert.match(res.body.error, /usage/i);
     assert.deepEqual(await tickets(t.fx.root), []);
@@ -175,31 +175,31 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
 
   test("with no runtime the route answers 503 and writes no ticket", async () => {
     t = await makeBridge({ noRuntime: true });
-    assert.equal((await t.post("/tasks", { role: "scout", text: TEXT })).status, 503);
+    assert.equal((await t.post("/tasks", { role: "sre", text: TEXT })).status, 503);
     assert.deepEqual(await tickets(t.fx.root), []);
   });
 
   test("a runtime that fails to start leaves the ticket on the board and says which one", async () => {
     t = await makeBridge({ runtimeConfig: { failSpawn: true } });
-    const res = await t.post("/tasks", { role: "scout", text: TEXT });
+    const res = await t.post("/tasks", { role: "sre", text: TEXT });
     assert.equal(res.status, 502, res.text);
-    assert.deepEqual(res.body.ticket, { ref: "den/01-scout" });
-    assert.deepEqual(await tickets(t.fx.root), ["01-scout.md"]);
+    assert.deepEqual(res.body.ticket, { ref: "den/01-sre" });
+    assert.deepEqual(await tickets(t.fx.root), ["01-sre.md"]);
     assert.equal((await t.state()).agents.length, 0);
   });
 
   test("no session token: 401, and nothing is written", async () => {
     t = await makeBridge();
-    const res = await t.post("/tasks", { role: "scout", text: TEXT }, { Origin: t.headers.Origin, "Content-Type": "application/json" });
+    const res = await t.post("/tasks", { role: "sre", text: TEXT }, { Origin: t.headers.Origin, "Content-Type": "application/json" });
     assert.equal(res.status, 401);
     assert.deepEqual(await tickets(t.fx.root), []);
     assert.equal(t.fake.spawns.length, 0);
   });
 
-  test("the policy table names the feature, the cap and the fourteen roles (ADR 0029)", () => {
+  test("the policy table names the feature, the cap and the twelve roles (ADR 0029)", () => {
     assert.equal(DEN_FEATURE, "den");
     assert.equal(TASK_MAX_BYTES, 2048);
-    assert.equal(ROLES.length, 14);
+    assert.equal(ROLES.length, 12);
   });
 });
 
@@ -216,16 +216,16 @@ describe("POST /tasks over the real Claude runtime (claude-stub)", () => {
       await fx.cleanup();
     });
     const headers = authed(bridge, await login(bridge));
-    const res = await send(bridge, { method: "POST", path: "/tasks", body: { role: "scout", text: TEXT }, headers });
+    const res = await send(bridge, { method: "POST", path: "/tasks", body: { role: "sre", text: TEXT }, headers });
     assert.equal(res.status, 201, res.text);
     const { agent, ticket } = res.body;
-    assert.equal(ticket.ref, "den/01-scout");
+    assert.equal(ticket.ref, "den/01-sre");
 
     const start = await until(() => stub.start(), { ms: 5000, what: "the stub to start" });
     assert.ok(alive(start.pid), "the stub agent is running");
     assert.equal(start.argv.some((a) => /steamer|chipped/.test(a)), false, "no task text in argv");
-    assert.equal(start.argv[start.argv.indexOf("--agent") + 1], "scout");
-    const file = path.join(issuesDir(fx.root), "01-scout.md");
+    assert.equal(start.argv[start.argv.indexOf("--agent") + 1], "sre");
+    const file = path.join(issuesDir(fx.root), "01-sre.md");
     assert.match(await readFile(file, "utf8"), /^> Count the steamer baskets/m);
     const first = await until(async () => (await stub.stdinLines())[0], { ms: 5000, what: "the first stdin message" });
     const prompt = JSON.stringify(first);

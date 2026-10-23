@@ -28,10 +28,10 @@ const until = async (fn, { ms = 8000, what = "the condition" } = {}) => {
 };
 
 describe("limits.json: the spec's defaults", () => {
-  test("two workers at 2 GiB / one CPU / 256 processes; Bao and a scout at 1 GiB / half a CPU / 128", () => {
+  test("two workers at 2 GiB / one CPU / 256 processes; Bao at 1 GiB / half a CPU / 128; no scout class (team-and-den-ux/57)", () => {
     assert.deepEqual(LIMITS.classes.worker, { memoryMiB: 2048, cpuPercent: 100, tasks: 256 });
     assert.deepEqual(LIMITS.classes.bao, { memoryMiB: 1024, cpuPercent: 50, tasks: 128 });
-    assert.deepEqual(LIMITS.classes.scout, { memoryMiB: 1024, cpuPercent: 50, tasks: 128 });
+    assert.deepEqual(Object.keys(LIMITS.classes), ["worker", "bao"]);
     assert.deepEqual(LIMITS.aggregate, { memoryMiB: 6144, cpuPercent: 300, tasks: 768 });
     assert.deepEqual(LIMITS.storage, { jobMiB: 4096, outputMiB: 20 });
     assert.deepEqual(LIMITS.checks, { memoryMiB: 4096, cpuPercent: 400, tasks: 1024 }, "den-mvp/34: the den's checks, one run at a time");
@@ -71,7 +71,7 @@ describe("limits.json: the spec's defaults", () => {
       edit(copy);
       assert.throws(() => checkLimits(copy), /bad limits data/);
     };
-    bad((l) => delete l.classes.scout);
+    bad((l) => delete l.classes.bao);
     bad((l) => (l.classes.extra = l.classes.worker));
     bad((l) => (l.unlimited = true));
     bad((l) => (l.classes.worker.memoryMiB = 0));
@@ -87,7 +87,7 @@ describe("limits.json: the spec's defaults", () => {
 
 describe("the scope argv and the values it must produce", () => {
   const limit = { memoryMiB: 2048, cpuPercent: 100, tasks: 256 };
-  const argv = buildScopeArgv({ unit: "den-run-abc.scope", slice: "den-agents", limit, fileBytes: 4096 * MIB, bin: "claude", args: ["-p", "--agent", "scout"] });
+  const argv = buildScopeArgv({ unit: "den-run-abc.scope", slice: "den-agents", limit, fileBytes: 4096 * MIB, bin: "claude", args: ["-p", "--agent", "sre"] });
 
   test("a user scope in the agents slice with memory, no swap, CPU and process limits", () => {
     assert.deepEqual(argv.slice(0, 8), ["--user", "--scope", "--quiet", "--collect", "--unit", "den-run-abc.scope", "--slice", "den-agents.slice"]);
@@ -98,7 +98,7 @@ describe("the scope argv and the values it must produce", () => {
 
   test("the launcher's bus variables are removed before the CLI, and the CLI's own flags are never read as the launcher's", () => {
     const rest = argv.slice(argv.indexOf("--") + 1);
-    assert.deepEqual(rest, ["env", "-u", "XDG_RUNTIME_DIR", "-u", "DBUS_SESSION_BUS_ADDRESS", "prlimit", "--fsize=4294967296:4294967296", "--", "/bin/sh", "-c", START_GATE, "den-gate", "bwrap", "--dev-bind", "/", "/", "--unshare-pid", "--proc", "/proc", "--ro-bind", "/sys/fs/cgroup", "/sys/fs/cgroup", "--die-with-parent", "--", "claude", "-p", "--agent", "scout"]);
+    assert.deepEqual(rest, ["env", "-u", "XDG_RUNTIME_DIR", "-u", "DBUS_SESSION_BUS_ADDRESS", "prlimit", "--fsize=4294967296:4294967296", "--", "/bin/sh", "-c", START_GATE, "den-gate", "bwrap", "--dev-bind", "/", "/", "--unshare-pid", "--proc", "/proc", "--ro-bind", "/sys/fs/cgroup", "/sys/fs/cgroup", "--die-with-parent", "--", "claude", "-p", "--agent", "sre"]);
   });
 
   test("the gate runs the command only on the launcher's word: a closed pipe or another word ends it with the refusal code", async () => {
@@ -197,7 +197,7 @@ describe("a host that cannot enforce the limits starts nothing", () => {
     const runtime = createClaudeRuntime({ controlRoot: "/", env: { ...env, DEN_CLAUDE_BIN: "touch" } });
     assert.equal(runtime.enforced, true);
     assert.equal((await runtime.preflight()).ok, false);
-    await assert.rejects(runtime.spawn({ role: "scout", cwd: env.HOME, prompt: marker, sessionId: "0f8fad5b-d9cb-469f-a165-70867728950e" }), { name: "EnforcementError" });
+    await assert.rejects(runtime.spawn({ role: "sre", cwd: env.HOME, prompt: marker, sessionId: "0f8fad5b-d9cb-469f-a165-70867728950e" }), { name: "EnforcementError" });
     await sleep(100);
     assert.equal(existsSync(marker), false);
   });
@@ -277,7 +277,7 @@ describe("job storage: the monitor around a run's work area", () => {
 // ---- live: real processes under reduced limits ------------------------------------------------
 const production = await createResourceLauncher({ env: process.env }).preflight();
 const skip = production.ok ? false : `this host cannot enforce the limits: ${production.reason}`;
-const TEST_LIMITS = { classes: { worker: { memoryMiB: 96, cpuPercent: 20, tasks: 24 }, bao: { memoryMiB: 64, cpuPercent: 10, tasks: 16 }, scout: { memoryMiB: 64, cpuPercent: 10, tasks: 16 } }, aggregate: { memoryMiB: 256, cpuPercent: 40, tasks: 64 }, storage: { jobMiB: 1, outputMiB: 1 }, checks: { memoryMiB: 96, cpuPercent: 20, tasks: 24 }, guard: { memoryMiB: 96, cpuPercent: 20, tasks: 24 } };
+const TEST_LIMITS = { classes: { worker: { memoryMiB: 96, cpuPercent: 20, tasks: 24 }, bao: { memoryMiB: 64, cpuPercent: 10, tasks: 16 } }, aggregate: { memoryMiB: 256, cpuPercent: 40, tasks: 64 }, storage: { jobMiB: 1, outputMiB: 1 }, checks: { memoryMiB: 96, cpuPercent: 20, tasks: 24 }, guard: { memoryMiB: 96, cpuPercent: 20, tasks: 24 } };
 const SLICE = `den-test-p${process.pid}`;
 let seq = 0;
 
@@ -406,8 +406,8 @@ echo done`);
     }
   });
 
-  test("Bao's and a scout's class get their own, smaller limits", async () => {
-    for (const cls of ["bao", "scout"]) {
+  test("Bao's class gets its own, smaller limits", async () => {
+    for (const cls of ["bao"]) {
       const run = await start("sleep 20", cls);
       for (const [file, want] of Object.entries(groupFiles(TEST_LIMITS.classes[cls]))) assert.equal(value(run.group, file), want, `${cls} ${file}`);
       run.group.kill();
@@ -467,7 +467,7 @@ echo done`);
   });
 
   test("aggregate: the slice bounds all runs together, below the sum of what each could take alone", async () => {
-    const runs = [await start("sleep 20"), await start("sleep 20"), await start("sleep 20", "bao"), await start("sleep 20", "scout")];
+    const runs = [await start("sleep 20"), await start("sleep 20"), await start("sleep 20", "bao"), await start("sleep 20")];
     const slice = path.dirname(runs[0].group.dir);
     for (const run of runs) assert.equal(path.dirname(run.group.dir), slice, "every run is under the one slice");
     assert.equal(readFileSync(path.join(slice, "memory.max"), "utf8").trim(), String(TEST_LIMITS.aggregate.memoryMiB * MIB));
@@ -479,18 +479,18 @@ echo done`);
   test("aggregate: runs that each stay under their own process limit are stopped together at the slice's", async () => {
     // Each run holds four processes before its first fork (den-mvp/35): the shell, the two bwrap processes of its pid namespace
     // (the outer one and the namespace's pid 1) and the anchor. So 19 + 19 + 8 forks make 23 + 23 + 12 = 58 under the slice's 64;
-    // a fourth run of 12 forks (16 with its own four, exactly its own limit) is stopped by the slice after two more.
+    // a fourth, worker run of 12 forks (16 with its own four, under its own 24) is stopped by the slice after two more.
     const forks = (n) => `i=0; while [ $i -lt ${n} ]; do sleep 20 & i=$((i+1)); done; echo ok; wait`;
     for (const { group } of open) group.kill();
     if (open.length) await until(() => readFileSync(path.join(path.dirname(open[0].group.dir), "pids.current"), "utf8").trim() === "0", { what: "the slice to be empty of earlier runs" });
     const first = [await start(forks(19)), await start(forks(19)), await start(forks(8), "bao")];
     for (const run of first) await until(() => run.out === "ok\n", { what: "a run under the aggregate to finish its forks" });
-    const last = await start(forks(12), "scout");
+    const last = await start(forks(12));
     const slice = path.dirname(last.group.dir);
     assert.notEqual((await last.exit).code, 0, "the shell's fork was refused");
     assert.equal(last.out, "", "it never reached the end of its loop");
     assert.ok(Number(readFileSync(path.join(slice, "pids.peak"), "utf8")) <= TEST_LIMITS.aggregate.tasks, "the slice never held more than its limit");
-    assert.ok(Number(value(last.group, "pids.peak")) < TEST_LIMITS.classes.scout.tasks, "its own limit was not what stopped it");
+    assert.ok(Number(value(last.group, "pids.peak")) < TEST_LIMITS.classes.worker.tasks, "its own limit was not what stopped it");
     for (const run of first) assert.equal(run.group.exhausted(), null, "the runs under the aggregate are not failed");
     for (const run of [...first, last]) run.group.kill();
     for (const run of [...first, last]) assert.equal(await run.group.settled(3000), true);

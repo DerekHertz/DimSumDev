@@ -211,7 +211,7 @@ describe("cancel is accepted only while the message is queued", () => {
   test("another agent's message cannot be cancelled through this agent", async () => {
     const t = await setup();
     const a = (await t.dispatch("architect")).body.agent;
-    const b = (await t.bridge.host.start({ ref: `${FEATURE}/34-cancel-other`, role: "scout" })).agent;
+    const b = (await t.bridge.host.start({ ref: `${FEATURE}/34-cancel-other`, role: "sre" })).agent;
     const { messageId } = (await t.say(a.id, "for a only")).body;
     assert.equal((await t.cancel(b.id, messageId)).status, 409);
     assert.deepEqual(t.fake.spawns[0].cancelled, []);

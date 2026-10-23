@@ -118,7 +118,7 @@ describe("one worktree per agent", () => {
   test("two agents get two worktrees and two branches", async () => {
     const t = await fake();
     const a = await t.dispatch("architect");
-    const b = await t.bridge.host.start({ ref: NO_GATE_REF, role: "scout" });
+    const b = await t.bridge.host.start({ ref: NO_GATE_REF, role: "sre" });
     assert.equal(a.status, 201, a.text);
     assert.equal(b.status, 201, b.error);
     const [first, second] = t.fake.spawns.map((s) => s.args.cwd);

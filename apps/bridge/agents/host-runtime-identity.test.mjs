@@ -113,7 +113,7 @@ test("omitted runtime maps fake adapter and historical records to canonical Clau
   const t = await setup({ legacy: true, preWrite: (root) => seedSessions(root, [spawnRow(), endRow()]) });
   const old = (await t.state()).agents.find((a) => a.id === A);
   assert.deepEqual([old.runtime, old.project, old.runtimeSessionId], ["claude", "den", SESSION]);
-  const started = await t.post("/tasks", { role: "scout", text: "Inspect baskets." });
+  const started = await t.post("/tasks", { role: "sre", text: "Inspect baskets." });
   assert.equal(started.status, 201, JSON.stringify(started.body));
   assert.equal(started.body.agent.runtime, "claude");
   assert.equal(started.body.agent.runtimeSessionId, started.body.agent.sessionId);
@@ -146,7 +146,7 @@ test("host.direct validates runtime before usage, preflight and createTicket", a
 
 test("known unconfigured Codex is 503 and never falls back to legacy Claude", async () => {
   const t = await setup({ legacy: true });
-  assert.equal((await t.post("/tasks", { role: "scout", text: "Inspect baskets.", runtime: "codex" })).status, 503);
+  assert.equal((await t.post("/tasks", { role: "sre", text: "Inspect baskets.", runtime: "codex" })).status, 503);
   assert.equal((await t.dispatch("codex")).status, 503);
   assert.equal((await t.say({ runtime: "codex", text: "hello" }, "orchestrator")).status, 503, "an unbound Codex desk cannot become Bao's desk");
   assert.equal(t.claude.preflights, 0);
@@ -168,9 +168,9 @@ test("each selected adapter receives its own usage/preflight/recipe and all laun
   const reads = [];
   const t = await setup({ usage: async () => 1, usageByRuntime: { claude: async () => { reads.push("claude"); return 10; }, codex: async () => { reads.push("codex"); return null; } } });
   const a = await t.post("/tasks", { role: "architect", text: "Inspect baskets.", runtime: "claude" });
-  const b = await t.post("/tasks", { role: "scout", text: "Inspect lids.", runtime: "codex" });
+  const b = await t.post("/tasks", { role: "sre", text: "Inspect lids.", runtime: "codex" });
   assert.deepEqual([a.status, b.status], [201, 201]);
-  for (const [runtime, role, fake, result, recipe] of [["claude", "architect", t.claude, a, ".claude/agents/architect.md"], ["codex", "scout", t.codex, b, ".codex/agents/scout.toml"]]) {
+  for (const [runtime, role, fake, result, recipe] of [["claude", "architect", t.claude, a, ".claude/agents/architect.md"], ["codex", "sre", t.codex, b, ".codex/agents/sre.toml"]]) {
     const { args } = fake.spawns[0];
     assert.equal(result.body.agent.runtime, runtime);
     assert.equal(args.runId, result.body.agent.id);
@@ -190,7 +190,7 @@ test("Claude and Codex share two worker slots and concurrent same-ticket exclusi
   assert.equal(t.claude.spawns.length + t.codex.spawns.length, 1);
   const second = await t.post("/tasks", { role: "developer", text: "Inspect lids.", runtime: competing[0].status === 201 ? "codex" : "claude" });
   assert.equal(second.status, 201, JSON.stringify(second.body));
-  const third = await t.post("/tasks", { role: "herald", text: "Inspect cups.", runtime: "codex" });
+  const third = await t.post("/tasks", { role: "technical-writer", text: "Inspect cups.", runtime: "codex" });
   assert.equal(third.status, 429);
   assert.equal(t.claude.spawns.length + t.codex.spawns.length, 2);
 });
@@ -299,8 +299,8 @@ test("matching role and identical thread strings never join Claude/Codex convers
   assert.equal((await t.say({ text: "for Codex", runtime: "codex" })).status, 202);
   assert.deepEqual(t.codex.spawns[0].sent.map((m) => m.text), ["for Codex"]);
   assert.equal(t.claude.spawns[0].sent.length, 0);
-  assert.deepEqual((await t.get("/conversations/scout?runtime=codex&project=den")).body.entries, []);
-  assert.equal((await t.say({ runtime: "codex", runId: b.body.agent.id, text: "wrong role" }, "scout")).status, 404);
+  assert.deepEqual((await t.get("/conversations/sre?runtime=codex&project=den")).body.entries, []);
+  assert.equal((await t.say({ runtime: "codex", runId: b.body.agent.id, text: "wrong role" }, "sre")).status, 404);
   assert.equal((await send(t.bridge, { path: "/conversations/architect?runtime=codex" })).status, 401);
 });
 
@@ -388,7 +388,7 @@ test("follow-up cannot borrow extra worker capacity from its selected runtime", 
   const first = await t.dispatch("codex");
   await t.finish(first, t.codex);
   assert.equal((await t.post("/tasks", { role: "developer", runtime: "claude", text: "Inspect baskets." })).status, 201);
-  assert.equal((await t.post("/tasks", { role: "herald", runtime: "codex", text: "Inspect lids." })).status, 201);
+  assert.equal((await t.post("/tasks", { role: "technical-writer", runtime: "codex", text: "Inspect lids." })).status, 201);
   const result = await t.say({ runtime: "codex", runId: first.body.agent.id, text: "continue" });
   assert.equal(result.status, 429);
   assert.equal(t.codex.spawns.length + t.claude.spawns.length, 3, "only the ended run plus two admitted workers exist");
@@ -520,7 +520,7 @@ test("run-ID actions and shutdown reach only each run's owning process", async (
   assert.equal((await t.post(`/agents/${b.body.agent.id}/handover`)).status, 202);
   await until(() => co.exited);
   assert.equal(cl.exited, false);
-  const next = await t.post("/tasks", { role: "scout", text: "Inspect cups.", runtime: "codex" });
+  const next = await t.post("/tasks", { role: "sre", text: "Inspect cups.", runtime: "codex" });
   assert.equal(next.status, 201, JSON.stringify(next.body));
   assert.equal((await t.post(`/agents/${next.body.agent.id}/stop`, { runtime: "claude" })).status, 202);
   await until(() => t.codex.spawns[1].exited);
@@ -542,7 +542,7 @@ test("Codex 90 percent usage refuses tasks without consulting the Claude reader"
   let claudeReads = 0;
   const t = await setup({ usage: async () => { claudeReads += 1; return 1; }, usageByRuntime: { codex: async () => 90 } });
   const before = claudeReads; // /state or startup may read the Claude snapshot independently.
-  const result = await t.post("/tasks", { role: "scout", runtime: "codex", text: "Inspect baskets." });
+  const result = await t.post("/tasks", { role: "sre", runtime: "codex", text: "Inspect baskets." });
   assert.equal(result.status, 429);
   assert.equal(claudeReads, before);
   assert.equal(t.codex.preflights, 0);
