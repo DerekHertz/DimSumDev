@@ -21,6 +21,13 @@ export function queueDrawerModel(snapshot, nowMs) {
     depths.set(ref, d);
     return d;
   };
+  // den-mvp/106: a delivery paused as `guardrail` waits on the user's merge of its pull request: not blocked, not on checks.
+  const mergeWaits = new Map();
+  for (const d of snapshot?.deliveries ?? []) {
+    if (d?.state === "paused" && d.pause?.kind === "guardrail" && Number.isInteger(d.pr?.number)) {
+      mergeWaits.set(d.ref, { number: d.pr.number, url: typeof d.pr.url === "string" && /^https:\/\//.test(d.pr.url) ? d.pr.url : null });
+    }
+  }
   const stateOf = (t) => (openBlockers(t).length ? "waiting" : t.status === "in-review" ? "review" : YOU.has(t.status) || (t.status === "ready-for-agent" && t.type === "user") ? "you" : "ready");
   const row = (t) => ({
     ref: t.ref,
@@ -31,6 +38,7 @@ export function queueDrawerModel(snapshot, nowMs) {
     state: stateOf(t),
     depth: depthOf(t.ref),
     waitsOn: openBlockers(t).map(shortRef),
+    mergeWait: openBlockers(t).length ? null : mergeWaits.get(t.ref) ?? null,
   });
   const order = (a, b) => a.depth - b.depth || a.priority.localeCompare(b.priority) || compareRefs(a.ref, b.ref);
   const block = (key, name, why, rows) => {

@@ -24,6 +24,7 @@ export const ROUTES = [
   { method: "GET", path: "/conversations/:role", auth: "token", mutating: false },
   { method: "POST", path: "/conversations/:role/message", auth: "token", mutating: true },
   { method: "POST", path: "/deliveries", auth: "token", mutating: true, service: true },
+  { method: "POST", path: "/deliveries/sweep", auth: "token", mutating: true, service: true },
   { method: "POST", path: "/deliveries/:id/resume", auth: "token", mutating: true, service: true },
   { method: "POST", path: "/router-stops", auth: "token", mutating: true, service: true },
   { method: "POST", path: "/router-stops/:id/dismiss", auth: "token", mutating: true },
