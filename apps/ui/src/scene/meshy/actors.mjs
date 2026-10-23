@@ -48,10 +48,10 @@ export function createMeshyActors(den){
   meetings?.update(Math.min(dt,.1),reduced);
   for(const [key,a]of actors){
    const p=a.panda.model,visit=!reduced&&a.outing?.stage==='visit'?a.outing:null;note(a);
-   if(a.moved)a.gait=(a.gait||0)+a.moved/p.scale.x/WADDLE.stride*WADDLE.duration;
+   if(a.moved)a.gait=(a.gait||0)+a.moved/p.scale.x/(a.panda.rig.profile?.gait?.stride??WADDLE.stride)*(a.panda.rig.profile?.gait?.duration??WADDLE.duration);
    if(key===held&&!reduced)continue;
    p.rotation.y=a.yaw??a.baseYaw;
-   if(a.moved)a.panda.rig.poseWaddle(a.gait);else a.panda.rig.poseIdle(time+a.index*.63,{reducedMotion:reduced||!!a.live});
+   if(a.mount!=null&&!reduced)a.panda.rig.poseMount(a.mount);else if(a.moved)a.panda.rig.poseWaddle(a.gait,{groundAt:den.walkWorld.supportAt});else a.panda.rig.poseIdle(time+a.index*.63,{reducedMotion:reduced||!!a.live});
    if(visit&&!a.panda.model.userData.modelUnavailable){if(a.panda.rig.profile?.sit&&['rest','tea','pond','games'].includes(visit.spot.kind))a.panda.rig.poseSit(1);(a.gesture??=createLeisureGesture(a.panda.rig)).pose(visit.spot.kind==='games'?'mahjong':visit.spot.kind==='friend'?'greeting':visit.spot.kind,visit.elapsed);}else a.gesture?.pose(null,0);
   }
  }

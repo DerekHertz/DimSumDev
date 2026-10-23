@@ -19,6 +19,7 @@ export function gardenRoutineSpots(garden){
 export const ROUTINE_POLICY=Object.freeze({maxOutings:3,maxLocalLength:60,walkSpeed:3,returnSpeed:4,activityMin:45,activityMax:90,cooldownMin:120,cooldownMax:240,yieldSeconds:2});
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 export const routeLength=(from,path)=>path.reduce((sum,p,i)=>sum+distance(i?path[i-1]:from,p),0);
+export function routeSeconds(actor,path){let p=actor.panda.model.position,yaw=actor.yaw??actor.baseYaw,total=0;for(const q of path){const d=distance(p,q),facing=q.yaw??(d<1e-6?yaw:Math.atan2(q.x-p.x,q.z-p.z));total+=d/3;if(q.mount==null)total+=Math.abs(Math.atan2(Math.sin(facing-yaw),Math.cos(facing-yaw)))/3.5;p=q;yaw=facing;}return total;}
 
 // Presentation owns no execution timers. Every journey has a leased destination,
 // and every failed plan stays at the last physically valid position.
@@ -26,12 +27,13 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
  const reservations=new Map(),registry=den.placeRegistry;let time=0,nextDeparture=2,cursor=0,hidden=false,disposed=false;
  for(const a of actors.values()){a.outing=null;a.path=null;a.moved=0;a.yaw=null;}
  const jitter=(low,high)=>low+Math.max(0,Math.min(1,random()))*(high-low);
- const idle=a=>!a.live&&!a.meetingOwned&&!a.meetingTrip&&!a.hosting&&!a.outing&&!a.stationary&&a.panda.model.visible&&(!a.nextOuting||a.nextOuting<=time)&&!['failed','waiting_on_user','blocked','needs-you'].includes(a.state);
+ const available=a=>!a.live&&!a.meetingOwned&&!a.meetingTrip&&!a.hosting&&!a.outing&&!a.stationary&&a.panda.model.visible&&!['failed','waiting_on_user','blocked','needs-you'].includes(a.state);
+ const idle=a=>available(a)&&(!a.nextOuting||a.nextOuting<=time);
  const plan=(a,to)=>den.routineRoute?den.routineRoute(a,a.panda.model.position,to):gardenRoute(den.walkWorld,a.panda.model.position,to);
  const clear=(a,from,to)=>den.routineClear?den.routineClear(a,from,to):den.walkWorld.navigation.groundAt(to.x,to.z,to.y,a.envelope.radius,a.envelope.height)!==null;
  const lease=(a,spot)=>{
   if(reservations.has(spot.id))return false;
-  if(registry){registry.define({id:spot.id,kind:spot.kind==='friend'?'visitor':'leisure',position:spot.position});if(!registry.reserve(spot.id,a.identity,a.envelope))return false;}
+  if(registry){registry.define({id:spot.id,kind:spot.kind==='friend'?'visitor':'leisure',position:spot.position});const yaw=Math.atan2(spot.face.x-spot.position.x,spot.face.z-spot.position.z);if(!registry.reserve(spot.id,a.identity,{...a.envelope,yaw}))return false;}
   reservations.set(spot.id,a.id);return true;
  };
  const release=a=>{const spot=a.outing?.spot;if(spot&&reservations.get(spot.id)===a.id){reservations.delete(spot.id);registry?.release(spot.id,a.identity);}if(a.outing?.host){a.outing.host.hosting=null;a.outing.host.yaw=null;}};
@@ -47,9 +49,9 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
  }
  const choices=a=>{
   const local=['pass','steamers'].includes(a.teamId)?['tea','rest']:['pond','games'];
-  const spots=(den.routineSpots||[]).filter(s=>local.includes(s.kind));
+  const spots=(den.routineSpots||[]).filter(s=>local.includes(s.kind)).map(s=>den.routinePlace?den.routinePlace(a,s):s).filter(Boolean);
   // A friend place comes only from the assembled geometry validator.
-  for(const host of actors.values())if(host!==a&&host.teamId!==a.teamId&&idle(host)){
+  for(const host of actors.values())if(host!==a&&host.teamId!==a.teamId&&available(host)){
    const spot=den.friendPlace?.(a,host);if(spot)spots.push({...spot,kind:'friend',host});
   }
   return spots.filter(s=>!reservations.has(s.id)).sort((x,y)=>distance(a.home,x.position)-distance(a.home,y.position));
@@ -59,8 +61,8 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
   for(let i=0;i<all.length;i++){
    const a=all[cursor++%all.length];if(!idle(a))continue;
    for(const spot of choices(a).slice(0,8)){
-    if(spot.host&&!idle(spot.host))continue;
-    const path=plan(a,spot.position);if(!path.length||routeLength(a.panda.model.position,path)>(spot.kind==='friend'?100:60))continue;
+    if(spot.host&&!available(spot.host))continue;
+    const path=plan(a,spot.position);if(!path.length||routeLength(a.panda.model.position,path)>(spot.kind==='friend'?100:60)||den.garden?.approved&&spot.kind!=='friend'&&routeSeconds(a,path)>20)continue;
     if(spot.kind==='games'){
      const partner=all.find(b=>b!==a&&idle(b));if(!partner||count>1)continue;
      const second=(den.routineSpots||[]).find(s=>s.group===spot.group&&s.id!==spot.id&&!reservations.has(s.id));if(!second)continue;
@@ -78,13 +80,20 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
   if(reduced)remaining=Infinity;
   while(a.path?.length&&remaining>0){
    const n=a.path[0],d=distance(p,n),travel=Math.min(d,remaining),fraction=d?travel/d:1;
+   const facing=n.yaw??(d<1e-6?(a.yaw??a.baseYaw):Math.atan2(n.x-p.x,n.z-p.z)),angle=Math.atan2(Math.sin(facing-(a.yaw??a.baseYaw)),Math.cos(facing-(a.yaw??a.baseYaw)));
+   if(den.garden?.approved&&!reduced&&n.mount==null&&Math.abs(angle)>.01){
+    const yaw=(a.yaw??a.baseYaw)+Math.sign(angle)*Math.min(Math.abs(angle),3.5*dt);
+    if(!den.walkWorld.fits(p,a.envelope,yaw))return;
+    a.yaw=yaw;return;
+   }
    const next={x:p.x+(n.x-p.x)*fraction,y:p.y+(n.y-p.y)*fraction,z:p.z+(n.z-p.z)*fraction};
+   if(n.mount==null&&den.walkWorld.supportAt){const y=den.walkWorld.supportAt(next.x,next.z);if(y===null)return;next.y=y+.045;}
    if(!clear(a,p,next)){
     r.wait+=dt;if(r.wait>=2&&r.replans<1){r.replans++;a.path=plan(a,r.stage==='return'?a.home:r.spot.position);}
     else if(r.wait>=2&&r.replans>=1&&r.stage!=='return')returnHome(a);
     return;
    }
-   r.wait=0;if(d>1e-6)a.yaw=n.yaw??Math.atan2(n.x-p.x,n.z-p.z);p.set(next.x,next.y,next.z);if(!reduced)a.moved+=travel;
+   r.wait=0;a.yaw=facing;a.mount=n.mount??null;p.set(next.x,next.y,next.z);if(!reduced)a.moved+=travel;
    registry?.clearDeparted(a.identity,p,a.envelope);remaining-=travel;if(travel>=d-1e-6)a.path.shift();
   }
   if(!a.path?.length){
@@ -94,7 +103,7 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
   }
  }
  function update(dt,reduced=false){
-  for(const a of actors.values())a.moved=0;
+  for(const a of actors.values()){a.moved=0;a.mount=null;}
   if(disposed||hidden)return;dt=Math.max(0,Math.min(dt,.1));time+=dt;
   for(const a of [...actors.values()].sort((a,b)=>(b.live?1:0)-(a.live?1:0)||a.id.localeCompare(b.id))){
    const r=a.outing;if(!r)continue;

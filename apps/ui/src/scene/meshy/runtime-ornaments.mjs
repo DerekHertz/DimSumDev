@@ -30,16 +30,25 @@ export async function loadOrnaments(){
 }
 
 export function createRuntimeOrnaments(den,artwork){
- const marks=new Map(),point=new Three.Vector3();
+ const marks=new Map(),point=new Three.Vector3(),raycaster=new Three.Raycaster(),projected=new Three.Vector3(),hit=new Three.Vector3();
+ const solids=(den.walkWorld?.physicalObstacles||[]).map(o=>({source:o,box:new Three.Box3(new Three.Vector3(...o.min),new Three.Vector3(...o.max))}));
+ const roofs=[];for(const asset of Object.values(den.garden.assets||{}))asset.roof?.traverse(n=>{if(n.isMesh)roofs.push({mesh:n,box:new Three.Box3().setFromObject(n)});});
  function update(camera,height){
-  const unitsPerPixel=camera.isOrthographic?(camera.top-camera.bottom)/Math.max(1,height):.04;
+  const unitsPerPixel=camera.isOrthographic?(camera.top-camera.bottom)/Math.max(1,height)/camera.zoom:.04,shown=[];
   for(const [model,{rig}]of den.pandaRigs){
    if(model.userData.modelUnavailable)continue;
    let mark=marks.get(model);if(!mark){const art=artwork[model.userData.runtime];if(!art)continue;mark=new Three.Mesh(art.geometry,art.materials);mark.name=model.userData.runtime+' runtime ornament';mark.castShadow=mark.receiveShadow=false;mark.raycast=()=>{};den.world.add(mark);marks.set(model,mark);}
    const head=rig.profile.envelope?.head,top=head?.labelTop??head?.top??3;point.set(0,top,0);model.localToWorld(point);
    const scale=Math.max(1,Math.min(3,14*unitsPerPixel/.66));mark.scale.setScalar(scale);mark.position.copy(point);mark.position.y+=.26+.33*scale;mark.quaternion.copy(camera.quaternion);mark.rotateY(-.18);
-   const occluded=den.garden.roofMode!=='cutaway'&&den.garden.footprints.some(p=>{if(p.id==='pond')return false;const x=point.x-p.x,z=point.z-p.z,localX=x*Math.cos(p.yaw)-z*Math.sin(p.yaw),localZ=x*Math.sin(p.yaw)+z*Math.cos(p.yaw);return Math.abs(localX)<p.width/2&&Math.abs(localZ)<p.depth/2&&mark.position.y+scale*.33>5.9;});
-   mark.visible=model.visible&&!occluded;
+   projected.copy(mark.position).project(camera);raycaster.setFromCamera(new Three.Vector2(projected.x,projected.y),camera);
+   const length=raycaster.ray.origin.distanceTo(mark.position);
+   const blocked=solids.some(({source,box})=>(den.walkWorld?.physicalObstacles||[]).includes(source)&&raycaster.ray.intersectBox(box,hit)&&raycaster.ray.origin.distanceTo(hit)<length-.1)||roofs.some(({mesh,box})=>{
+    if(!raycaster.ray.intersectBox(box,hit)||raycaster.ray.origin.distanceTo(hit)>=length-.1)return false;
+    const material=Array.isArray(mesh.material)?mesh.material[0]:mesh.material;
+    return !(material.clippingPlanes||[]).some(plane=>plane.distanceToPoint(hit)<0);
+   });
+   const crowded=shown.some(p=>Math.hypot((p.x-projected.x)*height/2,(p.y-projected.y)*height/2)<16);
+   mark.visible=model.visible&&!blocked&&!crowded;if(mark.visible)shown.push(projected.clone());
   }
   for(const [model,mark]of marks)if(!den.pandaRigs.has(model)){mark.removeFromParent();marks.delete(model);}
  }

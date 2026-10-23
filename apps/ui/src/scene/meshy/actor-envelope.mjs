@@ -7,12 +7,30 @@ export function actorEnvelope(panda,gesture=null,{oriented=false}={}){
  const {model,rig}=panda,origin=new T.Vector3(),point=new T.Vector3(),bounds=new T.Box3();let radius=0,height=0;
  const base=new T.Vector3(),weighted=new T.Vector3(),bonePoint=new T.Vector3(),footprint=new T.Box3();
  const oldYaw=model.rotation.y;if(oriented)model.rotation.y=0;
- const layers=new Map(),layerHeight=.25;
+ const layers=new Map(),layerHeight=.1;
  function layer(box){
   if(!oriented)return;
   const min=box.min.clone().sub(origin),max=box.max.clone().sub(origin);
   for(let i=Math.floor(min.y/layerHeight);i<=Math.floor(max.y/layerHeight);i++){
    if(!layers.has(i))layers.set(i,new T.Box3());layers.get(i).union(new T.Box3(new T.Vector3(min.x,i*layerHeight,min.z),new T.Vector3(max.x,(i+1)*layerHeight,max.z)));
+  }
+ }
+ function triangleLayers(vertices){
+  const low=Math.floor(Math.min(...vertices.map(p=>p.y))/layerHeight),high=Math.floor(Math.max(...vertices.map(p=>p.y))/layerHeight);
+  for(let i=low;i<=high;i++){
+   let polygon=vertices;
+   for(const [bound,sign]of [[i*layerHeight,1],[(i+1)*layerHeight,-1]]){
+    const output=[];
+    for(let j=0;j<polygon.length;j++){
+     const a=polygon[j],b=polygon[(j+1)%polygon.length],insideA=(a.y-bound)*sign>=0,insideB=(b.y-bound)*sign>=0;
+     if(insideA)output.push(a);
+     if(insideA!==insideB)output.push(a.clone().lerp(b,(bound-a.y)/(b.y-a.y)));
+    }
+    polygon=output;
+   }
+   if(!polygon.length)continue;
+   const box=new T.Box3().setFromPoints(polygon);
+   if(!layers.has(i))layers.set(i,new T.Box3());layers.get(i).union(box);
   }
  }
  // Three's precise skinned bounds recompute a bone product for every vertex
@@ -40,7 +58,7 @@ export function actorEnvelope(panda,gesture=null,{oriented=false}={}){
     }
     point.copy(weighted).applyMatrix4(object.bindMatrixInverse).applyMatrix4(object.matrixWorld);bounds.expandByPoint(point);if(posed)point.toArray(posed,i*3);
    }
-   if(posed){const index=geometry.index,triangle=new T.Box3(),v=new T.Vector3();for(let i=0;i<(index?.count??position.count);i+=3){triangle.makeEmpty();for(let j=0;j<3;j++)triangle.expandByPoint(v.fromArray(posed,(index?index.getX(i+j):i+j)*3));layer(triangle);}}
+   if(posed){const index=geometry.index;for(let i=0;i<(index?.count??position.count);i+=3)triangleLayers([0,1,2].map(j=>new T.Vector3().fromArray(posed,(index?index.getX(i+j):i+j)*3)).map(p=>p.sub(origin)));}
   }
   for(const child of object.children)expand(child);
  }

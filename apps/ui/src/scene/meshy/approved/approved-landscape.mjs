@@ -112,7 +112,7 @@ function clearSite(x,z,radius,footprints,paths,inside){
  return true;
 }
 
-export function buildLandscape(id,{footprints,paths,inside}){
+export function buildLandscape(id,{footprints,paths,inside,capture}){
  const kit=gardenKit(directions[id].name),root=kit.root,plants=kit.group('Bamboo groups'),mountains=kit.group('Rear perimeter mountain layers'),plantings=[],peaks=[];
  const palettes=['#a7bcb4','#7e9e89','#9cb28d'];
  const colors=palettes.map(material);
@@ -139,6 +139,6 @@ export function buildLandscape(id,{footprints,paths,inside}){
   bambooCluster(kit,plants,'B',x,z,scale);plantings.push({x,z,radius});
   if(index%3===0){kit.orb(plants,.62,[x+.65,.28,z+.25],'stone',[1.3,.65,.9]);kit.orb(plants,.48,[x+.55,.58,z+.26],'jadeLight',[1.1,.16,.75]);}
  }
- kit.finish();
+ capture?.(root,null);kit.finish();
  return {root,dispose:()=>kit.dispose(),metrics:{id,name:directions[id].name,settings:levels[id],heroPillars:peaks.filter(peak=>peak.hero).length,plantings,peaks}};
 }

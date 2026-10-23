@@ -15,7 +15,7 @@ export function createApprovedGarden(){
   object.traverse(node=>{
    if(!node.isMesh)return;for(let p=node;p;p=p.parent)if(p===roof)return;
    const bounds=new Three.Box3().setFromObject(node);
-   if(bounds.max.y<=.40||bounds.min.y>=6.5)return;
+   if(bounds.min.y>=6.5)return;
    const matrix=node.matrixWorld.elements,tolerance=1e-6;
    const nearZero=value=>Math.abs(value)<tolerance;
    const sx=Math.hypot(matrix[0],matrix[2]),sz=Math.hypot(matrix[8],matrix[10]);
@@ -34,13 +34,14 @@ export function createApprovedGarden(){
     const position=parent.getWorldPosition(new Three.Vector3());
     metadata.support=true;metadata.supportGroup=`${parent.name}@${position.x.toFixed(3)},${position.y.toFixed(3)},${position.z.toFixed(3)}`;metadata.supportTop=bounds.max.y;
    }
+   if(bounds.max.y<=.40||parent?.name==='Timber foundation and entrance steps'&&bounds.max.y<.5){surfaces.push({...metadata,supportTop:bounds.max.y});return;}
    // Fitted low floors support bodies; all taller furniture remains solid.
    obstacles.push(metadata);
   });
  }
 const land=gardenKit('Accepted garden office');const root=land.root;
 const {group,box,cyl,beam,mesh,sign}=land;
-const buildings=[],footprints=[],paths=[],assets={},obstacles=[];
+const buildings=[],footprints=[],paths=[],assets={},obstacles=[],surfaces=[];
 const garden={radiusX:55,radiusZ:50,centerZ:-4};
 const extension=longitudinal=>Math.abs(longitudinal+4)<28?18*(1-((longitudinal+4)/28)**2)**2:0;
 function inside(horizontal,longitudinal){
@@ -150,12 +151,12 @@ footprints.push({id:'festival',x:-65,z:-4,yaw:Math.PI/2,width:13.2,depth:9});
 box(land.root,[8,.055,16],[-56.5,.21,-4],'jadeLight',.3);
 walk([[-35,-17],[-56.5,-17],[-56.5,9],[-35,9]],6);walk([[-60.5,-4],[-56.5,-4]],6);
 for(const horizontal of [-17,17])box(land.root,[13.2,.08,9],[horizontal,.10,39.8],'jadeLight',.5);
-const landscape=buildLandscape('A',{footprints,paths,inside});
+const landscape=buildLandscape('A',{footprints,paths,inside,capture});
 landscape.root.traverse(node=>{if(node.isMesh)node.castShadow=false;});
 root.add(landscape.root);
 sign(land.root,'WELCOME TO THE DEN',[0,3.2,44],7);for(const horizontal of [-5.1,5.1])beam(land.root,[horizontal,.1,44],[horizontal,4.1,44],.13,'timber');
 // Bake only the land-owned assemblies; building kits retain independent roof materials.
-land.finish([pathGroup,commons]);
+capture(pathGroup,null);capture(commons,null);land.finish([pathGroup,commons]);
 
  // Until 56 installs the office, preserve two usable executive places outside
  // its reserved plot. These do not count as completed executive desks.
@@ -170,7 +171,7 @@ land.finish([pathGroup,commons]);
   for(const {material,root:buildingRoot} of roofMaterials){buildingRoot.updateMatrixWorld(true);material.clippingPlanes=mode==='full'?[]:[new Three.Plane(new Three.Vector3(0,0,-1),-1).applyMatrix4(buildingRoot.matrixWorld)];material.needsUpdate=true;}
  }
  root.updateMatrixWorld(true);
- return {approved:true,root,assets,places:footprints.map(p=>({...p,w:p.width,d:p.depth,name:p.id,rotation:p.yaw})),paths,footprints,obstacles,inside,officePlot:OFFICE_PLOT,welcome,landscape,
+ return {approved:true,root,assets,places:footprints.map(p=>({...p,w:p.width,d:p.depth,name:p.id,rotation:p.yaw})),paths,footprints,obstacles,surfaces,inside,officePlot:OFFICE_PLOT,welcome,landscape,
   docks:workDocks(activeResidents(RESIDENTS)),get roofMode(){return roofMode;},setRoofMode,setRoofs:visible=>setRoofMode(visible?'full':'cutaway'),
   worldPoint(id,point){return assets[id].root.localToWorld(new Three.Vector3(...point));},
   dispose(){for(const asset of Object.values(assets))asset.kit?.dispose?.();library.dispose();festival.dispose();landscape.dispose();land.dispose();root.removeFromParent();}};

@@ -50,6 +50,8 @@ import { MeetingLayer } from "./scene/MeetingLayer.jsx";
 import { claimOf, tableMeeting } from "./scene/meshy/meeting-table.mjs";
 import { RESIDENTS, RUNTIME_UNAVAILABLE, boundAgentKey } from './shell/resident-inventory.mjs';
 import {createRoofPreference} from './scene/meshy/roof-preference.mjs';
+import {activeResidents} from './scene/meshy/approved-plan.mjs';
+const SCENE_RESIDENTS=activeResidents(RESIDENTS);
 
 class SceneBoundary extends Component {
   state={error:null};
@@ -379,7 +381,7 @@ export function App() {
     else if (id === 'reset') { camera.goToLevel(1); setToast('Back to the whole den'); }
     else openTopic(id, from);
   }, [talkToBao, denDemoMode, camera, openTopic]);
-  const activity = useMemo(() => deskActivity(snapshot, { now }), [snapshot, now]);
+  const activity = useMemo(() => deskActivity(snapshot, { now, residents:SCENE_RESIDENTS }), [snapshot, now]);
   const badges = useMemo(() => railBadges({ snapshot, now, ownBuild: inDemo ? null : live.ownBuild }), [snapshot, now, inDemo, live.ownBuild]);
   const overflow = snapshot ? Math.max(0, activeCount(snapshot) - MAX_PLUSH) : 0;
   const floatOpen = !!(selected || approval.state.open || message.state.open || (engaged && shownCard));
@@ -452,7 +454,7 @@ export function App() {
         {topic === 'team' ? (
           <Sheet id="sheet-topic" slot="topic" eyebrow={SHEET_HEADS.team[0]} title={SHEET_HEADS.team[1]} closeLabel="Close panel" onClose={closeTopic} focusKey="team">
             <Residents snapshot={snapshot} now={now} bindings={bindings} scenePresentations={scenePresentations} onInspectTools={inspectTools} onTalk={talkToResident} onViewWork={viewResidentWork} getTalkState={residentTalkState} />
-            <p className="forest-muted">{RESIDENTS.length} residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}</p>
+            <p className="forest-muted">{SCENE_RESIDENTS.length} garden residents{activity.visitors > 0 ? ` · ${activity.visitors} visiting agents` : ''}. All callable roles and runs remain available in Team.</p>
           </Sheet>
         ) : null}
         {topic === 'replay' ? (

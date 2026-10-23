@@ -11,31 +11,38 @@ export function createMeetingResidents(den,actors,places,routines){
   release(a);a.meetingOwned=false;a.meetingTrip={stage:'return',path:den.routineRoute(a,a.panda.model.position,a.home),wait:0,replans:0};returning.add(a);
  }
  function destroy(a){places.disposeActor(a.identity);a.panda.model.removeFromParent();den.destroyPanda?.(a.panda.model);guests.delete(a.id);returning.delete(a);}
- function guestFor(resident,meeting){
+ function guestFor(resident,meeting,spot){
   if(!den.createPanda)return null;
   const id='meeting:'+meeting.id+':'+resident.role,identity=id;
-  const candidates=den.walkWorld.nodes.filter(p=>Math.hypot(p.x-resident.home.x,p.z-resident.home.z)<16).sort((a,b)=>Math.hypot(a.x-resident.home.x,a.z-resident.home.z)-Math.hypot(b.x-resident.home.x,b.z-resident.home.z));
-  let home=null;for(const position of candidates){places.define({id:'staging:'+id,kind:'staging',position});home=places.reserve('staging:'+id,identity,resident.envelope);if(home)break;const old=places.get('staging:'+id);if(old&&!old.owner)old.position={...position};}
+  const candidates=den.walkWorld.nodes.filter(p=>Math.hypot(p.x-spot.x,p.z-spot.z)<18).sort((a,b)=>Math.hypot(a.x-spot.x,a.z-spot.z)-Math.hypot(b.x-spot.x,b.z-spot.z));
+  let home=null;for(const position of candidates){const place=places.define({id:'staging:'+id,kind:'staging',position});if(!place.owner)place.position={...position};home=places.reserve(place.id,identity,resident.envelope);if(home)break;}
   if(!home)return null;
   const panda=den.createPanda(resident.role,{runtime:'claude'});if(panda.model.userData.modelUnavailable){den.destroyPanda(panda.model);places.disposeActor(identity);return null;}
   const a={...resident,id,identity,panda,home:new T.Vector3(home.position.x,home.position.y,home.position.z),homePlace:home.id,dock:null,live:null,outgoing:false,guest:true,outing:null,meetingTrip:null,moved:0};
   panda.model.position.copy(a.home);panda.model.userData.actorKey=id;den.residents.add(panda.model);places.occupy(home.id,identity);guests.set(id,a);return a;
  }
  function start(resident,meeting,spot){
-  const busy=resident.live&&resident.live.ref!==meeting.ref;
-  const a=busy?guestFor(resident,meeting):resident;if(!a)return null;
+  const busy=resident.role!=='orchestrator'&&resident.live&&resident.live.ref!==meeting.ref;
+  const a=busy?guestFor(resident,meeting,spot):resident;if(!a)return null;
   routines.transfer(a);const id='meeting:'+meeting.id+':'+resident.role;
-  const position={x:spot.x,y:.46,z:spot.z};places.define({id,kind:'meeting',position});
-  const lease=places.reserve(id,a.identity,{...a.envelope,yaw:spot.yaw});
-  const path=lease?den.routineRoute(a,a.panda.model.position,position):[];
+  let lease=null,path=[],chosen=null;
+  const radius=Math.hypot(spot.x,spot.z+4)||1;
+  for(const extra of [0,.5,1,1.5,2,2.5]){
+   const position={x:spot.x+spot.x/radius*extra,y:.46,z:spot.z+(spot.z+4)/radius*extra};
+   const place=places.define({id,kind:'meeting',position});if(!place.owner)place.position={...position};
+   lease=places.reserve(id,a.identity,{...a.envelope,yaw:spot.yaw});if(!lease)continue;
+   path=den.routineRoute(a,a.panda.model.position,position);if(path.length){chosen={...spot,...position};path.push({...position,yaw:spot.yaw});break;}places.release(id,a.identity);lease=null;
+  }
   if(!lease||!path.length){if(lease)places.release(id,a.identity);if(a.guest)destroy(a);return null;}
-  a.meetingOwned=true;a.meetingPlace=id;a.meetingTrip={stage:'outbound',path,spot,wait:0,replans:0};a.path=path;return a;
+  a.meetingOwned=true;a.meetingPlace=id;a.meetingTrip={stage:'outbound',path,spot:chosen,wait:0,replans:0};a.path=path;return a;
  }
  function apply(meeting){
   const valid=seated(meeting),signature=valid?meeting.id+':'+meeting.seats.map(s=>s.role).join(','):null;
-  if(signature!==current){for(const a of participants.values())goHome(a);participants.clear();current=signature;}
+  if(signature!==current){for(const a of participants.values())if(a.guest)destroy(a);else goHome(a);participants.clear();current=signature;}
   if(!valid)return;
   const spots=seatSpots(meeting.seats.length);
+  const bao=actors.get('orchestrator');
+  if(bao&&!participants.has('orchestrator')&&!bao.meetingTrip){const chair=start(bao,meeting,{x:0,z:-11,yaw:0});if(chair)participants.set('orchestrator',chair);}
   meeting.seats.forEach((seat,i)=>{
    const resident=[...actors.values()].find(a=>a.role===seat.role&&a.runtime==='claude');if(!resident)return;
    const old=participants.get(seat.role),busy=resident.live&&resident.live.ref!==meeting.ref;
@@ -50,6 +57,7 @@ export function createMeetingResidents(den,actors,places,routines){
    while(trip.path.length&&left>0){
     const next=trip.path[0],distance=Math.hypot(next.x-p.x,next.z-p.z),travel=Math.min(left,distance),k=distance?travel/distance:1;
     const target={x:p.x+(next.x-p.x)*k,y:p.y+(next.y-p.y)*k,z:p.z+(next.z-p.z)*k};
+    if(den.walkWorld.supportAt){const y=den.walkWorld.supportAt(target.x,target.z);if(y===null)break;target.y=y+.045;}
     if(!den.routineClear(a,p,target)){
      trip.wait+=dt;if(trip.wait>=2&&trip.replans<1){trip.replans++;trip.path=den.routineRoute(a,p,trip.stage==='return'?a.home:{x:trip.spot.x,y:.46,z:trip.spot.z});}break;
     }
@@ -60,8 +68,8 @@ export function createMeetingResidents(den,actors,places,routines){
     if(trip.stage==='return'){if(a.guest){destroy(a);continue;}a.meetingTrip=null;a.path=null;a.yaw=null;returning.delete(a);places.occupy(a.homePlace,a.identity);}
     else{trip.stage='seated';a.yaw=trip.spot.yaw;places.occupy(a.meetingPlace,a.identity);}
    }
-   if(a.guest){a.panda.model.rotation.y=a.yaw??a.baseYaw;if(a.moved){a.gait=(a.gait||0)+a.moved/a.panda.model.scale.x/WADDLE.stride*WADDLE.duration;a.panda.rig.poseWaddle(a.gait);}else a.panda.rig.poseIdle(0,{reducedMotion:true});if(trip.stage==='seated')a.panda.rig.poseSit?.(1);}
+   if(a.guest){a.panda.model.rotation.y=a.yaw??a.baseYaw;if(a.moved){a.gait=(a.gait||0)+a.moved/a.panda.model.scale.x/(a.panda.rig.profile?.gait?.stride??WADDLE.stride)*(a.panda.rig.profile?.gait?.duration??WADDLE.duration);a.panda.rig.poseWaddle(a.gait,{groundAt:den.walkWorld.supportAt});}else a.panda.rig.poseIdle(0,{reducedMotion:true});if(trip.stage==='seated')a.panda.rig.poseSit?.(1);}
   }
  }
- return {apply,update,seatModels:()=>new Map([...participants].filter(([,a])=>a.meetingTrip?.stage==='seated').map(([role,a])=>[role,a.panda.model])),seatOf:id=>{for(const [role,a]of participants)if(a.id===id||role===id||'meeting:'+role===id)return {role};return null;},dispose(){for(const a of participants.values()){release(a);a.meetingOwned=false;a.meetingTrip=null;}for(const a of [...guests.values()])destroy(a);for(const a of returning){a.meetingOwned=false;a.meetingTrip=null;}participants.clear();returning.clear();guests.clear();}};
+ return {apply,update,seatModels:()=>new Map([...participants].filter(([role,a])=>role!=='orchestrator'&&a.meetingTrip?.stage==='seated').map(([role,a])=>[role,a.panda.model])),seatOf:id=>{for(const [role,a]of participants)if(a.id===id||role===id||'meeting:'+role===id)return {role};return null;},dispose(){for(const a of participants.values()){release(a);a.meetingOwned=false;a.meetingTrip=null;}for(const a of [...guests.values()])destroy(a);for(const a of returning){a.meetingOwned=false;a.meetingTrip=null;}participants.clear();returning.clear();guests.clear();}};
 }

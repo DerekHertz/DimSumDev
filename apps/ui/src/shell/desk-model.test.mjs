@@ -1,6 +1,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { deskActivity, deskResidents } from './desk-model.mjs';
+import {activeResidents} from '../scene/meshy/approved-plan.mjs';
+import {RESIDENTS} from './resident-inventory.mjs';
+
+test('55-K: scene totals count the 24 visible identities while the callable directory keeps legacy runs',()=>{
+ const sceneResidents=activeResidents(RESIDENTS),snapshot={agents:[{id:'legacy',role:'scout',ref:'work/legacy',state:'working'}]};
+ assert.deepEqual(deskActivity(snapshot,{residents:sceneResidents}),{working:0,waiting:0,blocked:0,resting:24,visitors:0});
+ assert.ok(deskResidents(snapshot).some(r=>r.role==='scout'&&r.ref==='work/legacy'));
+});
 
 test('a quiet garden keeps all thirty-two permanent residents without invented activity', () => {
   const residents = deskResidents(null);
