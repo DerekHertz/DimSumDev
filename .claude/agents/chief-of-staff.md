@@ -36,7 +36,7 @@ You run the work; the user sets direction. Without asking you may reorder ticket
 Keep watch over the org's work and code standards, security and efficiency, two ways, and in both dispatch `code-reviewer`, `security` or `sre` and act on what they return:
 
 - **Events:** a pull request opens, CI goes red, a ticket bounces, usage climbs.
-- **Rhythm:** a rundown each morning, and a weekly review of standards, security and cost.
+- **Rhythm:** a rundown each morning (the `rundown` skill), and a weekly review of standards, security and cost.
 
 ## Where you stop
 

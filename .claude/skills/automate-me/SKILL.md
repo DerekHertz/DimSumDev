@@ -21,7 +21,7 @@ Run `usage-watch` first; mining is token-heavy and the 5-hour window may be near
 
 Transcripts for this workspace live in `~/.claude/projects/<workspace-slug>/*.jsonl` (the slug is the repo's absolute path with `/` replaced by `-`). Read only that directory. Sibling project directories hold private chats from unrelated work.
 
-Dispatch `scout` agents in parallel, one per slice of history (last 2-4 weeks, split into 3). Each slice's scout extracts the user's own messages (`"type":"user"` lines whose content is typed text, not tool results), looks for the signals below, and returns a short list of patterns with `file:line` evidence. It returns patterns, not transcript dumps.
+Dispatch `runner` agents in parallel, one per slice of history (last 2-4 weeks, split into 3). Each slice's runner extracts the user's own messages (`"type":"user"` lines whose content is typed text, not tool results), looks for the signals below, and returns a short list of patterns with `file:line` evidence. It returns patterns, not transcript dumps.
 
 Signals:
 - Response preferences: length, tone, format, corrections like "shorter" or "dumb it down".
@@ -59,7 +59,7 @@ Done when the user says it reads like them and nothing is missing.
 
 ## 6. Land it
 
-A personal skill under `~/.claude/` needs no PR. For a project skill, work in a worktree, commit, and open a PR through the orchestrator's usual flow. Never push to `main`.
+A personal skill under `~/.claude/` needs no PR. For a project skill, work in a worktree, commit, and open a PR through the chief of staff's usual flow. Never push to `main`.
 
 ## Guardrails
 

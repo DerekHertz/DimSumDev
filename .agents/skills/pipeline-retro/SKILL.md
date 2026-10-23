@@ -3,7 +3,7 @@ name: pipeline-retro
 description: "Find repeated relay hiccups (handoff, board, guard, CI) and turn each into one fix, preferring code over wording. Orchestrator only; after every 3 resolved tickets."
 ---
 
-Run this in the main orchestrator session. The goal is fewer repeat failures per ticket, not a complete record. Wording has already failed twice this project: a rule that existed in a skill was still broken by most agents. So prefer a code fix whenever one exists.
+Run this in the main chief-of-staff session. The goal is fewer repeat failures per ticket, not a complete record. Wording has already failed twice this project: a rule that existed in a skill was still broken by most agents. So prefer a code fix whenever one exists.
 
 ## 1. Gather (since the last retro)
 
@@ -38,7 +38,7 @@ A cause is a candidate if it has happened 3 or more times in all, counting incid
 Pick the first fix that applies:
 
 1. **Code:** the board, a script, or a CLI flag can refuse or automate it. Examples: `board release` writing the resolved row, `--verdict` refusing without a lock. File a ticket.
-2. **Dispatch template:** the orchestrator's own prompt caused it. Examples: a paraphrased schema, a missing path. Edit the orchestrator role definition.
+2. **Dispatch template:** the chief of staff's own prompt caused it. Examples: a paraphrased schema, a missing path. Edit the chief of staff role definition.
 3. **Role definition or skill wording:** only when neither 1 nor 2 fits. Put the fix in the one place the agent will read at the moment it acts, and don't duplicate it elsewhere.
 4. **Nothing:** a genuine guardrail that did its job, or a one-off. Say so.
 

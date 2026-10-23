@@ -11,7 +11,7 @@ Claim the ticket first, following the `team-protocol` skill. Stop and hand off i
 
 Call the Skill tool with "tdd" where possible, at pre-agreed seams.
 
-Run typechecking regularly, single test files regularly, and the full test suite once at the end. Delegate long test or log output to the `scout` subagent so only a summary comes back.
+Run typechecking regularly, single test files regularly, and the full test suite once at the end. Delegate long test or log output to the `runner` subagent so only a summary comes back.
 
 Once done, call the Skill tool with "code-review" to review the work.
 

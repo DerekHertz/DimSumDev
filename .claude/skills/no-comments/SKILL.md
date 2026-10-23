@@ -26,6 +26,6 @@ Doubt kills a comment. Narration, banners, commented-out code and workaround exp
 5. Touch comments and the smallest root-cause fix only. If the root cause is outside scope, land the smallest in-scope fix and report the rest as open.
 6. Report: deletions, `MUST KILL` fixes, encoding offers and results, unenforced constraints, open work.
 
-For a fresh view, run steps 1 to 3 in a `code-reviewer` or `scout` leaf and keep the edits in your own context.
+For a fresh view, run steps 1 to 3 in a `code-reviewer` or `runner` leaf and keep the edits in your own context.
 
 <!-- Adapted from pstack no-comments and the comment-sicko agent (MIT, Lauren Tan). See .claude/skills/VENDORED.md. -->
