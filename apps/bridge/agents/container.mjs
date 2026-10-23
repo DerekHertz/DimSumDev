@@ -32,7 +32,7 @@ const plainPath = (p, what) => need(isWorktreePath(p), `${what} must be a plain 
  * sessionStore: the session's persistent folder, mounted at the CLI's session store so a follow-up's --resume finds the conversation.
  * env: plain values put on the argv; passEnv: names docker copies from its own env, for values that must not be on the argv (security M3).
  */
-export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace, ticketFile, grants = [], readOnly = [], sessionStore, limits, env = {}, passEnv = [], cliArgs, network = AGENT_NETWORK }) {
+export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace, ticketFile, mcpConfigFile, grants = [], readOnly = [], sessionStore, limits, env = {}, passEnv = [], cliArgs, network = AGENT_NETWORK }) {
   need(typeof image === "string" && IMAGE_RE.test(image), "image must be a plain image reference");
   need(typeof name === "string" && NAME_RE.test(name), "name must be a plain lower-case name");
   need(typeof network === "string" && NAME_RE.test(network), "network must be a plain lower-case name");
@@ -40,6 +40,7 @@ export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace
   plainPath(mainGit, "mainGit");
   if (ticketFile !== undefined) plainPath(ticketFile, "ticketFile");
   if (sessionStore !== undefined) plainPath(sessionStore, "sessionStore");
+  if (mcpConfigFile !== undefined) plainPath(mcpConfigFile, "mcpConfigFile");
   need(Array.isArray(grants) && grants.length <= 6, "grants must be a short list");
   for (const g of grants) plainPath(g, "a grant");
   need(Array.isArray(readOnly) && readOnly.length <= 64, "readOnly must be a short list");
@@ -60,6 +61,7 @@ export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace
     ...mount(`${mainGit}/worktrees/${wt}`, "rw"), ...mount(`${mainGit}/objects`, "rw"), ...mount(`${mainGit}/logs`, "rw"),
     ...(refsNamespace === undefined ? [] : mount(`${mainGit}/refs/heads/${refsNamespace}`, "rw")),
     ...(ticketFile === undefined ? [] : mount(ticketFile, "ro")),
+    ...(mcpConfigFile === undefined ? [] : mount(mcpConfigFile, "ro")), // a secured connection's tokens: --mcp-config names it at this path
     ...(sessionStore === undefined ? [] : ["-v", `${sessionStore}:${SESSION_STORE}:rw`]),
     ...grants.flatMap((g) => mount(g, "rw")),
     ...readOnly.flatMap((r) => mount(r, "ro")), // docker mounts a deeper target after its parent, so these sit over the rw mounts
@@ -167,7 +169,7 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
         await chmod(sessionStore, 0o700);
         governed = await placeGoverned(governedWrites(args, [cwd, ...(container.grants ?? [])]));
         argv = containerRunArgs({
-          image, name, worktree: cwd, mainGit: container.mainGit, ticketFile: container.ticketFile, grants: container.grants, readOnly: governed.paths, sessionStore, limits: limit, cliArgs: containerCliArgs(args),
+          image, name, worktree: cwd, mainGit: container.mainGit, ticketFile: container.ticketFile, mcpConfigFile: container.mcpConfigFile, grants: container.grants, readOnly: governed.paths, sessionStore, limits: limit, cliArgs: containerCliArgs(args),
           env: { HOME: "/root", CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" }, passEnv: Object.keys(secretEnv),
         });
       } catch (err) {

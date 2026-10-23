@@ -151,9 +151,17 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       const bin = typeof env.DEN_CLAUDE_BIN === "string" && env.DEN_CLAUDE_BIN !== "" ? env.DEN_CLAUDE_BIN : "claude";
       const placeholders = await snapshotPlaceholders({ mainGit, worktree: isWorktreePath(cwd) ? cwd : undefined });
       // The child is inside its resource group, limits read back, before this resolves; a host that cannot do that starts nothing.
+      // hardening/10: what the container launcher mounts. A host launcher gets none of it.
+      const container = launcher.container
+        ? {
+            role, sessionId, mainGit, mcpConfigFile,
+            ticketFile: isTicketFilePath(ticketFile) ? ticketFile : undefined,
+            grants: (ceiling.writePaths ?? []).map((p) => (p.startsWith("~/") && home !== undefined ? `${home}${p.slice(1)}` : p)),
+          }
+        : undefined;
       let launched;
       try {
-        launched = await launcher.launch({ slotClass: slotClassOf(role), id: runId ?? sessionId, bin, args, cwd, env: buildClaudeEnv(env), ...(launcher.container ? { container: { role, sessionId, mainGit, ticketFile: isTicketFilePath(ticketFile) ? ticketFile : undefined, grants: (ceiling.writePaths ?? []).map((p) => (p.startsWith("~/") && home !== undefined ? `${home}${p.slice(1)}` : p)) } } : {}) });
+        launched = await launcher.launch({ slotClass: slotClassOf(role), id: runId ?? sessionId, bin, args, cwd, env: buildClaudeEnv(env), ...(container ? { container } : {}) });
       } catch (err) {
         removeConfig();
         throw err;

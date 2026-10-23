@@ -159,3 +159,14 @@ test("a session id that is not a plain UUID is refused before anything is minted
   assert.deepEqual(minted, []);
   assert.deepEqual(spawned, []);
 });
+
+test("a secured connection's --mcp-config file is mounted read-only at its host path", async () => {
+  const file = "/h/state/den/credentials/run/0b8f1c1e-5c1a-4c0e-9a55-3f2d9e7a4b10.json";
+  const { launcher, spawned } = setup();
+  await launcher.launch({ ...run, container: { ...run.container, mcpConfigFile: file } });
+  const argv = spawned[0].argv;
+  assert.ok(argv.some((a, i) => a === `${file}:${file}:ro` && argv[i - 1] === "-v"));
+  const without = setup();
+  await without.launcher.launch(run);
+  assert.ok(!without.spawned[0].argv.some((a) => a.includes("/credentials/")));
+});
