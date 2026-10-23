@@ -31,6 +31,7 @@ import {
   USAGE_REFUSE_AT, APPROVAL_TTL_MS, SHUTDOWN_SPAWN_WAIT_MS, DIRECT_MODE, DESK_REF,
   TRANSCRIPT_AGENTS, TRANSCRIPT_ENTRIES, TRANSCRIPT_RESULT_MAX, TRANSCRIPT_TEXT_MAX, REPLY_EXCERPT_MAX, USAGE_MESSAGES,
   MESSAGE_MAX_BYTES, MESSAGE_QUEUE_MAX, MESSAGE_SETTLE_MS, CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS,
+  definitionOf,
 } from "./policy.mjs";
 import { ceilingOf, grantContainsWorktrees, parseGrants } from "./claude-adapter.mjs";
 import { parseCatalog } from "../library/catalog.mjs";
@@ -381,8 +382,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     typeof usage === "number" && usage >= USAGE_REFUSE_AT ? refuse(429, `five-hour usage is ${usage}% (limit ${USAGE_REFUSE_AT}%)`) : null;
   // The one capacity rule (organism-infra/226, ADR 0016 amendment 14): live agents plus foreign claim locks fill max;
   // live agents alone fill the session cap. `locked` is read before the synchronous step, never inside it.
-  // den-mvp outcome 1: that rule counts the worker slots. Bao and a scout each have a reserved slot of their own: their
-  // agents (and the locks those agents hold) are not worker load, and no worker may take their slot.
+  // den-mvp outcome 1: that rule counts the worker slots. Bao has a reserved slot of its own: its
+  // agent (and the locks it holds) are not worker load, and no worker may take their slot.
   const liveIn = (cls) => [...liveByRef.values()].filter((a) => slotClassOf(a.role) === cls);
   const capacityNow = (locked, project = "den") => {
     const reservedRefs = new Set([...liveByRef.values()].filter((a) => slotClassOf(a.role) !== "worker").map(refKey));
@@ -755,7 +756,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   // text is in its ticket file (the board is in the main checkout, not in the agent's worktree), so its template
   // names that file by a path built from the bridge's own root and the validated ref.
   const ticketFile = (ref, base = root) => path.join(base, ".scratch", ref.split("/")[0], "issues", `${ref.split("/")[1]}.md`);
-  const recipeOf = (a) => path.join(root, a.runtimeId === "codex" ? ".codex" : ".claude", "agents", `${a.role}.${a.runtimeId === "codex" ? "toml" : "md"}`);
+  const recipeOf = (a) => path.join(root, a.runtimeId === "codex" ? ".codex" : ".claude", "agents", `${definitionOf(a.role)}.${a.runtimeId === "codex" ? "toml" : "md"}`);
   const promptFor = (a) =>
     a.ref === DESK_REF
       ? `You are Bao, the orchestrator, at your desk in the den. Read ${recipeOf(a)} for who you are. ` +

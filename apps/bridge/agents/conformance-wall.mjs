@@ -17,7 +17,7 @@ import path from "node:path";
 import { buildClaudeArgs, encodeControlResponse, encodeUserMessage } from "./claude-adapter.mjs";
 import { scrubLive } from "./conformance-live.mjs";
 
-export const WALL_ROLE = "scout"; // a known role: the production argv template accepts nothing else
+export const WALL_ROLE = "sre"; // team-and-den-ux/19: the scout retired. A known role: the production argv template accepts nothing else
 export const WALL_HOST = "example.com"; // the one host on the wall's list
 export const WALL_BLOCKED_HOST = "example.org"; // a host that is not
 const MODEL_RE = /^[a-z0-9][a-z0-9.-]{0,63}$/;

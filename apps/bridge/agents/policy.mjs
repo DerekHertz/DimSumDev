@@ -1,19 +1,23 @@
 // organism-infra/140 (ADR 0016 decision 3): the steering host's policy values and role table, in one place.
 // Mechanism lives in host.mjs; every number and allowlist a reviewer may want to change lives here.
 
-// den-mvp outcome 1 (spec section 2): two worker slots, plus one slot kept for Bao (the orchestrator) and one for a scout.
-// A reserved slot is never a third worker. Each class has its own hardware limits (limits.json, read by resource-group.mjs).
-export const SLOT_CLASSES = ["worker", "bao", "scout"];
-export const SLOTS = Object.freeze({ worker: 2, bao: 1, scout: 1 });
-export const slotClassOf = (role) => (role === "orchestrator" || role === "chief-of-staff" ? "bao" : role === "scout" ? "scout" : "worker");
+// den-mvp outcome 1 (spec section 2): two worker slots, plus one slot kept for Bao. team-and-den-ux/19 retired the scout and
+// its slot. A reserved slot is never a third worker. Each class has its own hardware limits (limits.json, read by resource-group.mjs).
+export const SLOT_CLASSES = ["worker", "bao"];
+export const SLOTS = Object.freeze({ worker: 2, bao: 1 });
+export const slotClassOf = (role) => (role === DESK_ROLE || role === "chief-of-staff" ? "bao" : "worker");
 export const MAX_CONCURRENT_AGENTS = SLOTS.worker; // max_concurrent_agents (ADR 0002): worker agents plus foreign claim locks
-export const SESSION_CAP = SLOTS.worker + SLOTS.bao + SLOTS.scout; // hard ceiling on live daemon-spawned sessions; a policy override can only lower it
+export const SESSION_CAP = SLOTS.worker + SLOTS.bao; // hard ceiling on live daemon-spawned sessions; a policy override can only lower it
 export const KILL_GRACE_MS = 5000; // between stdin close, SIGTERM and SIGKILL
 export const SHUTDOWN_SPAWN_WAIT_MS = 3000; // organism-infra/143: how long shutdown waits for spawns in flight before it kills synchronously
 export const USAGE_REFUSE_AT = 90; // five-hour usage percent at which dispatch is refused (ADR 0002 auto-pause)
 
-// The known roles (CLAUDE.md); the last four are ADR 0029's, on the worker slot until per-layer caps (codex-residents/11).
-export const ROLES = ["product", "architect", "orchestrator", "chief-of-staff", "developer", "scout", "qa", "security", "designer", "herald", "code-reviewer", "release-manager", "sre", "technical-writer"];
+// team-and-den-ux/19: "orchestrator" is Bao's desk key in run records and the UI, not a role file; it runs the chief of
+// staff's definition. The orchestrator, herald and scout definitions are retired.
+export const DESK_ROLE = "orchestrator";
+export const definitionOf = (role) => (role === DESK_ROLE ? "chief-of-staff" : role);
+// The known roles (CLAUDE.md): the role files plus the desk key.
+export const ROLES = ["product", "architect", DESK_ROLE, "chief-of-staff", "developer", "qa", "security", "designer", "code-reviewer", "release-manager", "sre", "technical-writer"];
 // mode reaches the prompt template, so it is an allowlist, never free text.
 export const MODES = ["verify", "review", "spec", "critique", "direction"];
 

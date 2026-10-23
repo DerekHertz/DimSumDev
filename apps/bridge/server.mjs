@@ -597,7 +597,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   // wall, so the bridge makes the calls. A Run's claim is made when it starts (the host's claimRun) and released when it ends:
   // the last message is published as the ticket's handoff and the ticket returns to ready-for-agent, so it can be Run again or
   // Delivered; a failed or stopped run releases it with a comment. A den task's ticket, written for that task alone, is claimed
-  // at its end instead and goes to in-review. A role the board keeps no handoffs for (herald) leaves nothing.
+  // at its end instead and goes to in-review. A role the board keeps no handoffs for leaves nothing.
   const held = new Map(); // agent id -> { ref, role, mode, task, project }
   const boardMode = (agent) => (agent.mode && modeAllowed(agent.role, agent.mode) ? agent.mode : null);
   function hold(agent, { task }) {

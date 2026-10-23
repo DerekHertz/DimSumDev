@@ -1,8 +1,7 @@
 {
   "classes": {
     "worker": { "memoryMiB": 2048, "cpuPercent": 100, "tasks": 256 },
-    "bao": { "memoryMiB": 1024, "cpuPercent": 50, "tasks": 128 },
-    "scout": { "memoryMiB": 1024, "cpuPercent": 50, "tasks": 128 }
+    "bao": { "memoryMiB": 1024, "cpuPercent": 50, "tasks": 128 }
   },
   "aggregate": { "memoryMiB": 6144, "cpuPercent": 300, "tasks": 768 },
   "storage": { "jobMiB": 4096, "outputMiB": 20 },

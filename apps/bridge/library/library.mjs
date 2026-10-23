@@ -11,7 +11,7 @@ import { closeSync, existsSync, fstatSync, openSync, readSync } from "node:fs";
 import path from "node:path";
 import { hasSecret } from "../../../scripts/exposure.mjs";
 import { CONNECTION_STATES } from "../agents/claude-adapter.mjs";
-import { AGENT_ID_RE, ROLES } from "../agents/policy.mjs";
+import { AGENT_ID_RE, ROLES, definitionOf } from "../agents/policy.mjs";
 import { DEN_ROOT, connectionsFor, decideTool, loadCatalog, toolsOfRoleFile } from "./catalog.mjs";
 
 export const AUTO_INPUT_MAX_BYTES = 2048; // a read with more input than this is asked, not allowed by the bridge
@@ -132,7 +132,7 @@ export function createLibrary({ catalog = loadCatalog(), stateDir, denRoot = DEN
   };
   const roleFile = async (role) => {
     try {
-      return await readFile(path.join(denRoot, ".claude", "agents", `${role}.md`), "utf8");
+      return await readFile(path.join(denRoot, ".claude", "agents", `${definitionOf(role)}.md`), "utf8");
     } catch {
       return "";
     }
