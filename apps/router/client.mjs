@@ -15,7 +15,7 @@ export function createBridgeClient({ url, token }) {
       signal: AbortSignal.timeout(30_000),
     });
     const data = await res.json().catch(() => ({}));
-    return { ok: res.ok, status: res.status, ...(data?.error ? { error: String(data.error) } : {}), ...(data?.draining === true ? { draining: true } : {}), ...(data?.delivery ? { delivery: data.delivery } : {}), ...(data?.request ? { request: data.request } : {}) };
+    return { ok: res.ok, status: res.status, ...(data?.error ? { error: String(data.error) } : {}), ...(data?.draining === true ? { draining: true } : {}), ...(Array.isArray(data?.resolved) ? { resolved: data.resolved } : {}), ...(data?.delivery ? { delivery: data.delivery } : {}), ...(data?.request ? { request: data.request } : {}) };
   };
   return {
     async state() {
@@ -25,6 +25,7 @@ export function createBridgeClient({ url, token }) {
     },
     startDelivery: (ref) => post("/deliveries", { ref }),
     resumeDelivery: (id) => post(`/deliveries/${encodeURIComponent(id)}/resume`, {}),
+    sweep: () => post("/deliveries/sweep", {}),
     recordStop: (stop) => post("/router-stops", { key: stop.key, kind: stop.kind, ...(stop.ref ? { ref: stop.ref } : {}), text: stop.text }),
     /** Follows GET /events; onChange runs for each event message. close() ends it. */
     events(onChange, onEnd = () => {}) {

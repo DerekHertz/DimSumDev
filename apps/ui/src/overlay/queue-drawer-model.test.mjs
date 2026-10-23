@@ -94,3 +94,17 @@ test("a snapshot from a bridge without goals still renders every ticket", () => 
   assert.equal(m.goals[0].name, "No goal");
   assert.deepEqual(m.goalErrors, []);
 });
+
+test("den-mvp/106: a guardrail pause shows Waiting on your merge with the PR, and the ticket is not blocked", async () => {
+  const { queueDrawerModel } = await import("./queue-drawer-model.mjs");
+  const snap = {
+    tickets: [{ ref: "fx/01-a", title: "1: A", status: "in-review", goal: "g", blockedBy: [] }, { ref: "fx/02-b", title: "2: B", status: "in-review", goal: "g", blockedBy: [{ ref: "fx/01-a", status: "in-review" }] }],
+    goals: [{ key: "g", name: "G", why: "w" }],
+    deliveries: [{ ref: "fx/01-a", state: "paused", pause: { kind: "guardrail" }, pr: { number: 357, url: "https://github.com/o/r/pull/357" } }, { ref: "fx/02-b", state: "paused", pause: { kind: "guardrail" }, pr: { number: 9, url: "javascript:x" } }],
+  };
+  const rows = queueDrawerModel(snap, 0).goals[0].tickets;
+  const [a, b] = ["fx/01-a", "fx/02-b"].map((r) => rows.find((t) => t.ref === r));
+  assert.deepEqual(a.mergeWait, { number: 357, url: "https://github.com/o/r/pull/357" });
+  assert.notEqual(a.state, "waiting");
+  assert.equal(b.mergeWait, null, "blocked by an open ticket: it waits on that one");
+});

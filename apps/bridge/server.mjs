@@ -14,6 +14,7 @@ import { createHost } from "./agents/host.mjs";
 import { COORDINATORS } from "./agents/admission.mjs";
 import { createProjects } from "./projects.mjs";
 import { buildSnapshot } from "./snapshot.mjs";
+import { branchesOf } from "./delivery/branches.mjs";
 import { createLedger } from "./agents/ledger.mjs";
 import { createDelivery } from "./delivery/runner.mjs";
 import { createDeliveryBoard } from "./delivery/board.mjs";
@@ -226,6 +227,10 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     checks,
     log: createJobLog(stateDir ?? path.join(root, ".scratch", "_run")),
     onChange: (change) => hub.publish(change),
+    readInReview: async () => {
+      const rows = (await buildSnapshot(root, 0)).tickets.filter((t) => t.status === "in-review" && !t.holder);
+      return Promise.all(rows.map(async (t) => ({ ref: t.ref, branches: await branchesOf(root, t.ref) })));
+    },
     readTicket: async (ref, { project = "den" } = {}) => {
       const snap = await buildSnapshot((await projects.get(project)).root, 0);
       const ticket = snap.tickets.find((t) => t.ref === ref);
@@ -401,6 +406,11 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       const run = postChain.then(() => dismissRouterStop(req, res));
       postChain = run.catch(() => {});
       await run;
+    },
+    "POST /deliveries/sweep": async (req, res) => {
+      if (!(await readJsonObject(req, res))) return;
+      const { status, error, resolved } = await delivery.sweep();
+      reply(res, status, error ? { error } : { resolved });
     },
     "POST /deliveries/:id/resume": (req, res) => steerDelivery(req, res, "resume"),
     "POST /deliveries/:id/stop": (req, res) => steerDelivery(req, res, "stop"),

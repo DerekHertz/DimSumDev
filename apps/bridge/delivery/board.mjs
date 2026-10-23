@@ -50,6 +50,6 @@ export function createDeliveryBoard(root) {
     /** Gives up a step's claim without a handoff: the run failed, was stopped, or left nothing to hand on. */
     drop: (ref, { status, reason }) => release(root, ref, status, reason, status === undefined ? { force: true, keepStatus: true } : { force: true }),
     /** After a confirmed merge. */
-    resolve: (ref, pr) => resolve(root, [ref], { pr: String(pr), note: "merged by the den's delivery" }),
+    resolve: (ref, pr, note = "merged by the den's delivery") => resolve(root, [ref], { pr: String(pr), note }),
   };
 }

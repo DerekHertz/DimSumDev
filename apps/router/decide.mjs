@@ -5,7 +5,12 @@ import { field, pathsOf, unblocked } from "../../scripts/batch-groups.mjs";
 export const STOP_AT_PERCENT = 90;
 export const BRIDGE_DOWN_MS = 10 * 60_000;
 // The pauses the router may resume (decision 8); every other pause is the user's.
-const RESUMABLE = new Set(["bridge-restart", "usage", "no-room"]);
+// den-mvp/106: guardrail and ci-pending are looked at again, at most once per LOOK_INTERVAL_MS per delivery.
+export const RESUMABLE = new Set(["bridge-restart", "usage", "no-room", "guardrail", "ci-pending"]);
+export const LOOK_KINDS = new Set(["guardrail", "ci-pending"]);
+export const LOOK_INTERVAL_MS = 3 * 60_000;
+// Checks that never finish are reported after this many looks (about half an hour); the router still looks.
+export const CI_PENDING_LOOKS = 10;
 
 // "fx/01-slug" and "fx/01" both become "fx/1", so order refs and board refs compare.
 const shortOf = (ref) => {
@@ -28,7 +33,7 @@ function readingProblem(usage) {
   return null;
 }
 
-export function decide({ order, tickets = [], state, usage, stops: known = [], downForMs = 0, changed = new Map() }) {
+export function decide({ order, tickets = [], state, usage, stops: known = [], downForMs = 0, changed = new Map(), looked = new Map(), looks = new Map(), nowMs = 0 }) {
   const seen = new Set(known);
   const stops = [];
   const actions = [];
@@ -44,7 +49,11 @@ export function decide({ order, tickets = [], state, usage, stops: known = [], d
   // A pause key names its occurrence, so a later pause of the same delivery is a new stop.
   for (const d of paused) {
     const kind = d.pause?.kind ?? "unknown";
-    if (!RESUMABLE.has(kind)) stop({ key: `pause:${d.id}:${kind}:${d.updatedAt ?? ""}`, kind, ref: d.ref, text: `${d.ref} is paused (${kind}) and waits for you` });
+    // A guardrail pause is the user's merge: reported once even though the router also looks at it again.
+    if (kind === "guardrail") stop({ key: `pause:${d.id}:${kind}`, kind, ref: d.ref, text: `${d.ref} is paused (${kind}) and waits for your merge` });
+    else if (kind === "ci-pending") {
+      if ((looks.get(d.id) ?? 0) >= CI_PENDING_LOOKS) stop({ key: `pause:${d.id}:${kind}`, kind, ref: d.ref, text: `${d.ref}: the checks have not finished after ${CI_PENDING_LOOKS} looks` });
+    } else if (!RESUMABLE.has(kind)) stop({ key: `pause:${d.id}:${kind}:${d.updatedAt ?? ""}`, kind, ref: d.ref, text: `${d.ref} is paused (${kind}) and waits for you` });
   }
   if (state.update?.draining) return done("the bridge is draining for an update");
   const problem = readingProblem(usage);
@@ -57,7 +66,10 @@ export function decide({ order, tickets = [], state, usage, stops: known = [], d
 
   let room = Number.isInteger(state.capacity?.room) ? state.capacity.room : 0;
   for (const d of paused) {
-    if (room > 0 && RESUMABLE.has(d.pause?.kind)) {
+    const kind = d.pause?.kind;
+    if (LOOK_KINDS.has(kind) && nowMs - (looked.get(d.id) ?? -Infinity) < LOOK_INTERVAL_MS) continue;
+    if (LOOK_KINDS.has(kind)) actions.push({ type: "resume", id: d.id }); // a look starts no agent: it takes no room
+    else if (room > 0 && RESUMABLE.has(kind)) {
       actions.push({ type: "resume", id: d.id });
       room -= 1;
     }
@@ -79,7 +91,7 @@ export function decide({ order, tickets = [], state, usage, stops: known = [], d
   const named = (ref) => (byRef.has(ref) ? pathsOf(byRef.get(ref).text) : []);
   const held = new Map();
   for (const d of deliveries) {
-    if ((d?.state !== "running" && d?.state !== "paused") || ["resolved", "closed"].includes(status.get(d.ref))) continue;
+    if ((d?.state !== "running" && d?.state !== "paused") || ["resolved", "closed", "parked"].includes(status.get(d.ref))) continue;
     const paths = changed.get(d.id) ?? named(d.ref);
     held.set(d.ref, changed.has(d.id) || paths.length ? paths : null);
   }
