@@ -172,21 +172,21 @@ if(kind==='tea'){
  tube(roof,[[-roofWidth/2-.2,8.97,0],[0,9.12,0],[roofWidth/2+.2,8.97,0]],.13,'gold');
  for(const [index,x,runtime,color]of[[0,-6.4,'claude','jade'],[1,6.4,'codex','blue']]){
   box(root,[8.7,.025,11.7],[x,.335,-.8],index?'blue':'jadeLight',.03);
-  table(root,x,-1.8,6.4,2.8,2.0);
-  box(root,[6.15,.12,2.55],[x,2.46,-1.8],index?'blue':'jadeDeep',.08);
+  table(root,x,-1.8,6.4,2.8,1.1);
+  box(root,[6.15,.12,2.55],[x,1.56,-1.8],index?'blue':'jadeDeep',.08);
   for(const horizontal of[x-2.35,x+2.35]){
-   box(root,[1.35,1.65,2.2],[horizontal,1.31,-1.8],'timber',.11);
-   for(const height of[.9,1.4,1.9]){box(root,[1.16,.32,.045],[horizontal,height,-.67],'paleWood',.035);orb(root,.05,[horizontal,height,-.63],'gold');}
+   box(root,[1.35,.75,2.2],[horizontal,.86,-1.8],'timber',.11);
+   for(const height of[.68,.9,1.12]){box(root,[1.16,.16,.045],[horizontal,height,-.67],'paleWood',.035);orb(root,.05,[horizontal,height,-.63],'gold');}
   }
   const backShelf=shelf(root,x,-7.1,7.0);
   for(const height of[2.7,3.6,4.5])box(backShelf,[7,.13,.85],[0,height,0],'paleWood');
   for(const horizontal of[-3.4,3.4])box(backShelf,[.14,4.5,.85],[horizontal,2.3,0],'timber');
   for(let item=0;item<9;item++)box(backShelf,[.3,.62,.50],[-2.7+item*.5,3.99,0],['jade','cream','blue','gold'][item%4],.025);
-  const desk=group('Executive desk accessories',root,[x,2.43,-1.8]);
+  const desk=group('Executive desk accessories',root,[x,1.53,-1.8]);
   box(desk,[2.7,.04,1.45],[0,.13,0],'cream',.02);
   for(let line=0;line<5;line++)box(desk,[1.4-line%2*.3,.01,.025],[-.3,.16,-.45+line*.2],color,.002);
   cyl(desk,.18,.38,[2.2,.31,-.5],color);
-  sign(root,index?'JIAO':'BAO',[x,2.60,-.48],1.1,color==='blue'?'blueDeep':'jadeDeep');
+  sign(root,index?'JIAO':'BAO',[x,1.70,-.48],1.1,color==='blue'?'blueDeep':'jadeDeep');
   const executive=actor('panda',x,-4.9,0,1.35);
   const badge=group('Executive accent',executive.model,[0,0,0]);
   tube(badge,[[-.65,2.08,.35],[0,1.94,.85],[.65,2.08,.35]],.09,color);

@@ -2,6 +2,27 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {approvedFixture} from './approved.test-fixture.mjs';
 
+test('56-E: both executive desktops and their accessories stay below a standing visitor’s eye level',t=>{
+ const f=approvedFixture();try{
+  const world=f.den.walkWorld;
+  for(const x of [-6.4,6.4]){
+   const ground=world.navigation.groundAt(x,-31.5);
+   assert.ok(Number.isFinite(ground),'standing approach has a supported floor');
+   const eye=ground+world.eyeHeight;
+   const furniture=world.physicalObstacles.filter(o=>o.min[0]>=x-3.3&&o.max[0]<=x+3.3&&o.min[2]>=-35.3&&o.max[2]<=-32.2);
+   assert.ok(furniture.length>12,'actual desktop, drawers, legs and accessories are measured');
+   const tops=furniture.filter(o=>o.max[0]-o.min[0]>6&&o.max[2]-o.min[2]>2.5);
+   assert.ok(tops.length,'substantial desktop retained');
+   const desktop=Math.max(...tops.map(o=>o.max[1]));
+   assert.ok(desktop<eye,'working surface stays below the visitor eye');
+   const highest=Math.max(...furniture.map(o=>o.max[1]));
+   assert.ok(highest<eye,'desk accessories and nameplate preserve the sightline');
+   assert.ok(Math.min(...furniture.map(o=>o.min[1]))>=world.supportAt(x,-31.5)-.01,'furniture does not sink below the floor');
+   t.diagnostic(JSON.stringify({deskX:x,eye,desktop,highest}));
+  }
+ }finally{f.dispose();}
+});
+
 test('56-B: the usable native office replaces staging with two reserved executive desks',()=>{
  const f=approvedFixture();try{
   const g=f.den.garden;
