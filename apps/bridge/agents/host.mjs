@@ -151,7 +151,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     resume: a.resume, reason: a.reason, project: a.project ?? "den", worktree: a.worktree ?? null, branch: a.branch ?? null,
     model: a.model ?? null, usage: a.usage ?? null, costUsd: a.costUsd ?? null, reply: a.reply ?? null, durationMs: a.durationMs ?? null,
     resumeOf: a.resumeOf ?? null, followUp: canContinue(a) && END_STATES.includes(a.state),
-    wall: wallView(a),
+    parent: a.parent ?? null, wall: wallView(a),
   });
   // agent-os/05: refusals by the wall, counted per kind (hosts together, writes together). A kind's count restarts
   // when the user answers its pause. Absent until there is a refusal.
@@ -476,6 +476,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (noRoom) return unhold(noRoom);
     const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}) });
     agent.intentId = ticket.intent.id;
+    // team-and-den-ux/19: a relay's worker is a child of its ticket's owner, Bao or Jiao. A direct task stands outside a tree.
+    if (entry !== "direct" && entry !== "desk" && !meeting) agent.parent = ticket.intent.owner;
     if (entry === "dispatch") agent.claimed = true; // den-mvp/89: a Run holds the board claim for its whole run; spawnAgent makes it
     return launch(agent, ENTRY_ROUTES[entry], usage === null);
   }
@@ -734,6 +736,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     try {
       await sessions.append({
         event: "spawn", agentId: agent.id, ref: agent.ref, role: agent.role, sessionId: agent.sessionId, runtime: agent.runtimeId, runtimeSessionId: agent.runtimeSessionId, resourceId: agent.id, route: routeName, project: agent.project, worktree: agent.worktree, branch: agent.branch,
+        ...(agent.parent ? { parent: agent.parent } : {}),
         ...(agent.resumeOf ? { resumeOf: agent.resumeOf, origin: agent.origin } : {}),
       });
     } catch (err) {
@@ -1283,6 +1286,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       resumeOf: prev.id, origin: prev.origin ?? prev.id, project: prev.project ?? "den", followUp: { text, messageId },
     });
     agent.intentId = ticket.intent.id;
+    if (prev.parent) agent.parent = prev.parent;
     const started = await launch(agent, CONVERSE_ROUTE, usage === null);
     if (!started.ok) return started;
     sessions

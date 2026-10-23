@@ -724,8 +724,11 @@ export function modeAllowed(role, mode) {
 
 // organism-infra/24 security fix: identity is self-declared, but it must at
 // least name a real agent, so it can never carry newlines or forged markup.
+// team-and-den-ux/19: the chief of staff (Bao, Jiao) resolves tickets. "orchestrator" stays accepted for one release, as a stub.
+const RESOLVER = "chief-of-staff";
+const RESOLVERS = new Set([RESOLVER, "orchestrator"]);
 const KNOWN_ROLES = new Set([
-  "product", "architect", "orchestrator", "developer", "scout",
+  "product", "architect", "chief-of-staff", "orchestrator", "developer", "scout",
   "qa", "security", "designer",
   // ADR 0029 (team-and-den-ux/02)
   "code-reviewer", "release-manager", "sre", "technical-writer",
@@ -818,8 +821,8 @@ export async function reclaim(root, ref, role, options = {}) {
   const { mode, reason } = options;
   checkArgLength(role, "role");
   checkKnownRole(role, "role");
-  if (role === "orchestrator") {
-    throw new BoardError("reclaim as orchestrator is refused (only orchestrator may resolve; use claim on an unlocked ticket)");
+  if (RESOLVERS.has(role)) {
+    throw new BoardError(`reclaim as ${role} is refused (only the chief of staff may resolve; use claim on an unlocked ticket)`);
   }
   if (typeof reason !== "string" || reason.trim() === "") {
     throw new BoardError("reclaim requires --reason <text>");
@@ -1071,11 +1074,11 @@ export async function release(root, ref, newStatus, reason, options = {}) {
       claimMtimeMs = (await stat(paths.claimLockPath)).mtimeMs;
     }
 
-    // organism-infra/24: only an orchestrator claim may resolve a ticket.
+    // organism-infra/24: only a chief-of-staff claim may resolve a ticket.
     // Unlike the handoff check, --force does not bypass this rule.
-    if (newStatus === "resolved" && role !== "orchestrator") {
+    if (newStatus === "resolved" && !RESOLVERS.has(role)) {
       throw new BoardError(
-        `invalid status transition: a claim held by ${role} cannot release ${ref} at resolved (only the orchestrator resolves)`
+        `invalid status transition: a claim held by ${role} cannot release ${ref} at resolved (only the chief of staff resolves)`
       );
     }
 
@@ -1365,11 +1368,11 @@ export async function resolve(root, refs, options = {}) {
     for (const item of planned) {
       const { ref, feature, ticket, paths } = item;
       try {
-        await claim(root, ref, "orchestrator");
+        await claim(root, ref, RESOLVER);
         const nn = /^(\d{2,})-/.exec(ticket)[1];
         const state = {
           ticket: `${feature}/${ticket}`,
-          role: "orchestrator",
+          role: RESOLVER,
           current_step: "resolved",
           artifacts: [`PR #${pr}`],
           decisions: [],
@@ -1381,8 +1384,8 @@ export async function resolve(root, refs, options = {}) {
           `Resolved by \`board resolve\` after PR #${pr} merged.\n` +
           (note ? `\n${sanitizeCommentText(note)}\n` : "");
         const dir = path.join(root, ".scratch", feature, "handoffs");
-        let name = `${nn}-orchestrator-resolve.md`;
-        for (let n = 2; await exists(path.join(dir, name)); n++) name = `${nn}-orchestrator-resolve-${n}.md`;
+        let name = `${nn}-${RESOLVER}-resolve.md`;
+        for (let n = 2; await exists(path.join(dir, name)); n++) name = `${nn}-${RESOLVER}-resolve-${n}.md`;
         const draft = path.join(draftDir, name);
         await writeFile(draft, body, "utf8");
         await publishHandoff(root, ref, draft, { name });
@@ -1400,7 +1403,7 @@ export async function resolve(root, refs, options = {}) {
           const lockContent = await readFile(paths.claimLockPath, "utf8").catch(() => null);
           if (lockContent !== null) {
             const holder = claimingRole(lockContent);
-            if (holder === "orchestrator") {
+            if (RESOLVERS.has(holder)) {
               try {
                 await release(root, ref, item.status, "resolve failed; claim undone", { force: true });
                 undone = `; ${ref} was put back to ${item.status}`;
@@ -1470,7 +1473,7 @@ export async function setOffRelay(root, refs, op, options = {}) {
     await withWriteLock(paths.writeLockPath, async () => {
       await assertWithinRoot(root, paths.issuesDir);
       const content = await readFile(paths.ticketPath, "utf8");
-      const stamp = `- **orchestrator, ${todayUTC()}:** ${spec.label}: ${sanitizeCommentText(reason)}`;
+      const stamp = `- **${RESOLVER}, ${todayUTC()}:** ${spec.label}: ${sanitizeCommentText(reason)}`;
       const withStatus = replaceStatus(content, spec.to);
       const updated = /## Comments/.test(withStatus)
         ? `${withStatus.trimEnd()}\n${stamp}\n`
@@ -1478,7 +1481,7 @@ export async function setOffRelay(root, refs, op, options = {}) {
       await commitWithEvent(paths.eventsPath, () => atomicWrite(paths.ticketPath, updated), {
         feature,
         ticket,
-        role: "orchestrator",
+        role: RESOLVER,
         op,
         from: status,
         to: spec.to,
@@ -1499,7 +1502,7 @@ export async function getStatus(root, ref) {
   return readStatus(content);
 }
 
-const VERDICT_ROLES = new Set(["code-reviewer", "qa", "security", "orchestrator", "designer"]);
+const VERDICT_ROLES = new Set(["code-reviewer", "qa", "security", "chief-of-staff", "orchestrator", "designer"]);
 
 export async function comment(root, ref, text, options = {}) {
   const { as, verdict } = options;
@@ -1550,7 +1553,7 @@ export async function comment(root, ref, text, options = {}) {
     }
     if (verdict !== undefined && !VERDICT_ROLES.has(role)) {
       throw new BoardError(
-        `comment rejected: --verdict is only accepted from qa, security, designer or orchestrator, not ${role}`
+        `comment rejected: --verdict is only accepted from qa, security, designer or chief-of-staff, not ${role}`
       );
     }
     const content = await readFile(paths.ticketPath, "utf8");

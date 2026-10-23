@@ -35,7 +35,7 @@ test("the four new roles have role definitions on the model and team the user ch
 test("the charter has a row for every role definition, with inputs, outputs, authority and hand-offs", () => {
   const header = CHARTER.split("\n").find((l) => l.startsWith("| Role |"));
   for (const col of ["Inputs", "Outputs", "Authority", "Hands to"]) assert.ok(header?.includes(col), `charter table lacks ${col}`);
-  const label = { developer: "Engineer (`developer`)", "code-reviewer": "Code reviewer", "release-manager": "Release manager", sre: "SRE", "technical-writer": "Technical writer", qa: "qa" };
+  const label = { "chief-of-staff": "Chief of staff (Bao, Jiao)", developer: "Engineer (`developer`)", "code-reviewer": "Code reviewer", "release-manager": "Release manager", sre: "SRE", "technical-writer": "Technical writer", qa: "qa" };
   for (const role of ROLES) {
     const name = label[role] ?? role[0].toUpperCase() + role.slice(1);
     assert.ok(CHARTER.split("\n").some((l) => l.startsWith(`| ${name} |`)), `charter has no row for ${role}`);

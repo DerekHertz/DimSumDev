@@ -40,7 +40,7 @@ test("park sets every ref to parked with the reason in a comment and an event", 
     for (const t of [fx.ticket, "02-other"]) {
       const text = await read(fx, t);
       assert.equal(statusOf(text), "parked");
-      assert.match(text, /- \*\*orchestrator, \d{4}-\d{2}-\d{2}:\*\* Parked: refocus: not a v1 step/);
+      assert.match(text, /- \*\*chief-of-staff, \d{4}-\d{2}-\d{2}:\*\* Parked: refocus: not a v1 step/);
     }
     const events = (await eventsRaw(fx)).trim().split("\n").map((l) => JSON.parse(l));
     assert.equal(events.filter((e) => e.op === "park").length, 2);

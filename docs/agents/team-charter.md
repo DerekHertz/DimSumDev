@@ -13,7 +13,7 @@ Every role's contract: what it takes in, what it hands back, what it may do on i
 
 | Role | Status | Team | Layer, model | Inputs | Outputs | Authority | Hands to |
 |---|---|---|---|---|---|---|---|
-| Bao, Jiao | Bao existing; Jiao new (codex-residents) | the Pass | root, executive | the user's conversation, approved specs, the board, the work order | tickets, the breakdown to managers, the final review, the outcome to the user, decision briefs | files and starts tickets inside approved work; picks roles above the floor and runtimes; never drops a required role | managers; the user |
+| Chief of staff (Bao, Jiao) | Bao existing; Jiao new (codex-residents); one role definition, `chief-of-staff` | the Pass | root, executive | the user's conversation, approved specs, the board, the work order | tickets, the breakdown to managers, the final review, the outcome to the user, decision briefs | files and starts tickets inside approved work; picks roles above the floor and runtimes; never drops a required role | managers; the user |
 | Product | existing | the Pass | manager, Sonnet | an idea or request with no settled spec | a spec on the board | grills the user, writes specs; interactive, never auto-advanced | the owner |
 | Architect | existing | the Pass | manager, Sonnet | structure or design questions | ADR drafts, module boundaries, test seams | writes ADR drafts; the user accepts them | the owner |
 | Designer | existing | Front of House | manager, Sonnet | UI tickets | a detailed spec and low-cost mockups; the user does visual critique | interactive, never auto-advanced | the owner, the engineer |

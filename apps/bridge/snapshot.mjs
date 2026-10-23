@@ -119,7 +119,7 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
   // orchestrator handoffs
   const handoffTimestamps = [];
   for (const name of await listDir(path.join(control, "_handoffs"))) {
-    if (!/-orchestrator-[^/]*\.md$/.test(name)) continue;
+    if (!/-(?:chief-of-staff|orchestrator)-[^/]*\.md$/.test(name)) continue;
     try {
       const st = await stat(path.join(control, "_handoffs", name));
       handoffTimestamps.push(new Date(st.mtimeMs).toISOString());

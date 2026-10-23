@@ -45,9 +45,9 @@ test("no leaf role definition (model: haiku) holds Agent", () => {
   for (const l of leaves) assert.deepEqual(front(l).tools.filter((t) => /^Agent\b/.test(t)), [], `${l} is a leaf and holds Agent`);
 });
 
-test("the tree is three levels: only the orchestrator starts branch agents; a branch starts only leaves", () => {
+test("the tree is three levels: only the orchestrator and the chief of staff start branch agents; a branch starts only leaves", () => {
   const leaves = AGENTS.filter((a) => front(a).model === "haiku");
-  for (const a of AGENTS.filter((x) => x !== "orchestrator")) {
+  for (const a of AGENTS.filter((x) => x !== "orchestrator" && x !== "chief-of-staff")) {
     for (const t of agentTargets(front(a).tools)) assert.ok(leaves.includes(t), `${a} starts ${t}, which is not a leaf`);
   }
 });
