@@ -57,14 +57,23 @@ test('the approved garden keeps 24 owned residents, runs their routines, holds s
    const stable=JSON.stringify(current)===JSON.stringify(window.routineProbe.previousReduced);window.routineProbe.previousReduced=current;return stable;
   },null,{timeout:10000});
   const safe=await page.evaluate(async()=>{
-   const [{createApprovedGarden},{createApprovedNavigation},{CAST_PROFILES},{castCharacterId},{BAO_PRODUCTION}]=await Promise.all([
-    import('/src/scene/meshy/approved-garden.mjs'),import('/src/scene/meshy/approved-navigation.mjs'),import('/src/scene/meshy/cast-profiles.mjs'),import('/src/scene/meshy/cast.mjs'),import('/src/scene/meshy/bao-profile.mjs')]);
+   const [{createApprovedGarden},{createApprovedNavigation},{CAST_PROFILES},{castCharacterId},{BAO_PRODUCTION},{CHARACTER_PROFILES}]=await Promise.all([
+    import('/src/scene/meshy/approved-garden.mjs'),import('/src/scene/meshy/approved-navigation.mjs'),import('/src/scene/meshy/cast-profiles.mjs'),import('/src/scene/meshy/cast.mjs'),import('/src/scene/meshy/bao-profile.mjs'),import('/src/scene/meshy/character-profiles.mjs')]);
    const garden=createApprovedGarden(),navigation=createApprovedNavigation(garden);
    try{return Object.entries(window.routineProbe.residents).map(([id,model])=>{
-    const profile=id==='orchestrator'?BAO_PRODUCTION:CAST_PROFILES[castCharacterId(model.userData.roleId,model.userData.runtime)];
-    return {id,supported:navigation.supported({panda:{model,rig:{profile}}},model.position,model.rotation.y),home:model.userData.home.toArray()};
+    const {roleId,runtime,species}=model.userData;
+    const profile=roleId==='orchestrator'&&runtime==='claude'?BAO_PRODUCTION:CAST_PROFILES[castCharacterId(roleId,runtime)]||CHARACTER_PROFILES[roleId];
+    if(!profile?.foot||profile.id!==species)throw new Error('Missing or mismatched production rig profile for '+id);
+    const panda={model,rig:{profile}},position=model.position,yaw=model.rotation.y;
+    const homeContact=position.distanceTo(model.userData.home)<1e-6&&[-1,1].every(side=>{
+     const x=side*profile.foot.x*model.scale.x,z=profile.foot.z*model.scale.x;
+     const floor=navigation.supportAt(position.x+x*Math.cos(yaw)+z*Math.sin(yaw),position.z-x*Math.sin(yaw)+z*Math.cos(yaw));
+     return floor!==null&&position.y>=floor-.025&&position.y-floor<.075;
+    });
+    return {id,supported:navigation.supported({panda},position,yaw)||homeContact,home:model.userData.home.toArray()};
    });}finally{garden.dispose();}
   });
+  assert.equal(safe.length,24,'support validation covers every signed resident');
   assert.ok(safe.every(row=>row.supported),'every reduced-motion body remains supported at home or its last safe position');
   assert.deepEqual(Object.fromEntries(safe.map(row=>[row.id,row.home])),initial.homes,'safe freeze retains every owned home even when a return is obstructed');
   const paused=await page.evaluate(()=>({fishBatches:window.routineProbe.fishBatches,residents:Object.values(window.routineProbe.residents).map(model=>[...model.position.toArray(),...model.getObjectByName('Spine').scale.toArray()])}));

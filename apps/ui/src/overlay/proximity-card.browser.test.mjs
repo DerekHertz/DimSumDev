@@ -65,17 +65,20 @@ test('walking up to a resident shows its nearby card; moving away and leaving hi
     });
     const canvas = await page.locator('.forest-canvas canvas').boundingBox();
     const x = canvas.x + canvas.width / 2, y = canvas.y + canvas.height / 2;
-    const moveUntil = async (predicate, key) => {
+    const moveTo = async (axis, target, positiveKey, negativeKey) => {
       const deadline = Date.now() + 15000;
-      await page.keyboard.down(key);
-      try { while (Date.now() < deadline) { if (predicate(await position())) return; await page.waitForTimeout(100); } throw new Error('walk did not reach the active resident approach'); }
-      finally { await page.keyboard.up(key); }
+      while (Date.now() < deadline) {
+        const gap = target - (await position())[axis];
+        if (Math.abs(gap) <= .15) return;
+        await page.keyboard.press(gap > 0 ? positiveKey : negativeKey, { delay: Math.min(200, Math.abs(gap) * 1000 / 5) });
+      }
+      throw new Error('walk did not reach waypoint '+axis+':'+target+' from '+JSON.stringify(await position()));
     };
     // The walker starts at (0,42): follow the unit-probed route and stop two metres from the resident.
     await page.locator('main[aria-label="Den scene"]').focus();
-    await moveUntil(p => p[2] <= 35, 'KeyW');
-    await moveUntil(p => p[0] >= target.x, 'KeyD');
-    await moveUntil(p => p[2] <= 30.5, 'KeyW');
+    await moveTo(2, 35, 'KeyS', 'KeyW');
+    await moveTo(0, target.x, 'KeyD', 'KeyA');
+    await moveTo(2, 30.5, 'KeyS', 'KeyW');
     await card.waitFor({ timeout: 15000 });
     assert.match(await card.textContent(), /The Stylist/);
     assert.match(await card.textContent(), /Resident · no agent running/);
