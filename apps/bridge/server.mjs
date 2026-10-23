@@ -1196,7 +1196,15 @@ if (startedDirectly()) {
   const image = await readFile(path.join(releaseDir, "agent-image.json"), "utf8").then((t) => JSON.parse(t).imageId, () => null);
   const proxyService = image && createProxyService({ stateDir: denState, releaseDir, ceilings: JSON.parse(await readFile(path.join(releaseDir, "apps", "bridge", "agents", "ceilings.json"), "utf8")), docker: createDocker({ env: process.env }), image });
   const proxy = proxyService ? { ...proxyService, start: () => proxyService.start().catch((e) => console.error(`proxy not started: ${e.message}`)) } : undefined;
-  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, proxy, runtime: createClaudeRuntime({ env: process.env, launcher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
+  // hardening/10 (ADR 0031): DEN_AGENT_CONTAINERS=1 starts each agent in its own container. Off (the default), agents start as before.
+  // On with no image or no proxy, the den does not start: an agent must never silently run on the host the owner asked to keep it off.
+  let agentLauncher = launcher;
+  if (process.env.DEN_AGENT_CONTAINERS === "1") {
+    if (!image || !proxyService) throw new Error("DEN_AGENT_CONTAINERS=1 needs the agent image and the credential proxy: run npm run den:update");
+    const { createContainerLauncher } = await import("./agents/container.mjs");
+    agentLauncher = createContainerLauncher({ env: process.env, image, docker: createDocker({ env: process.env }), proxy: proxyService });
+  }
+  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, proxy, runtime: createClaudeRuntime({ env: process.env, launcher: agentLauncher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
   console.log(`bridge listening on ${bridge.url} (root ${root})`);
   // The only place the launch code is shown (ADR 0016 decision 6.2): once, in a URL fragment the browser never sends.
   console.log(`to steer, open (one use, 5 minutes): ${bridge.url}/#code=${bridge.newLaunchCode()}`);

@@ -6,7 +6,7 @@ import { chmod, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { activeAccount, accountsDir, listAccounts, setActiveAccount } from "./accounts.mjs";
 import { ensureProxy } from "./container.mjs";
-import { roleHosts } from "./proxy.mjs";
+import { portPlan, roleHosts } from "./proxy.mjs";
 import { mintSecret, writeSecrets } from "./secrets.mjs";
 import { TOKEN_FILE_NAME, createTokenRefresher, credentialsFileStore, oauthRefresh, writeAtomic } from "./token.mjs";
 
@@ -52,6 +52,7 @@ export function createProxyService({ stateDir, releaseDir, ceilings, docker, ima
   let writes = Promise.resolve();
 
   return {
+    ports: portPlan(roles), // role -> the proxy port its allowlist listens on
     async start() {
       for (const dir of [path.join(stateDir, "proxy"), path.join(stateDir, "proxy", "accounts")]) {
         await mkdir(dir, { recursive: true, mode: 0o700 });
