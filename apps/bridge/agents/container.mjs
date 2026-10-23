@@ -8,9 +8,6 @@ import { isWorktreePath } from "./claude-adapter.mjs";
 import { agentProxyEnv } from "../proxy/container.mjs";
 import { EnforcementError, LIMITS } from "./resource-group.mjs";
 
-/** Host-side git in an agent worktree must not run code the agent could plant in the worktree's config (hardening/13 security, M). */
-export const SAFE_GIT = Object.freeze(["-c", "core.fsmonitor=", "-c", "core.hooksPath=/dev/null"]);
-
 export const AGENT_NETWORK = "den-agents";
 const NAME_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
 const IMAGE_RE = /^[a-z0-9][a-z0-9._/-]{0,100}(?::[A-Za-z0-9._-]{1,100})?$|^sha256:[0-9a-f]{64}$/;

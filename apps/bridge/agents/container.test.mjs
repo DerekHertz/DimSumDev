@@ -1,7 +1,7 @@
 // hardening/10 (ADR 0031): the pure half of "the bridge spawns agents in containers": the `docker run` argv built from the ceiling.
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SAFE_GIT, containerCliArgs, containerRunArgs } from "./container.mjs";
+import { containerCliArgs, containerRunArgs } from "./container.mjs";
 import { LIMITS } from "./resource-group.mjs";
 
 const base = {
@@ -75,10 +75,6 @@ test("the CLI's own sandbox block is dropped inside the container, and Bash is a
   assert.deepEqual(s.permissions.deny, ["Bash(git push:*)"]);
   assert.deepEqual(s.permissions.allow, ["Read(/x)", "Bash"]);
   assert.throws(() => containerCliArgs(["-p"]), TypeError);
-});
-
-test("host-side git in an agent worktree runs with fsmonitor and hooks switched off", () => {
-  assert.deepEqual([...SAFE_GIT], ["-c", "core.fsmonitor=", "-c", "core.hooksPath=/dev/null"]);
 });
 
 // hardening/10 fix round (security M1): the CLI sandbox's write denies (guardrail and CI paths) are dropped in the container, so
