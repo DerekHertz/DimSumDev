@@ -9,7 +9,6 @@ import { access, appendFile, lstat, mkdir, readFile, realpath, rm, writeFile } f
 import path from "node:path";
 import { promisify } from "node:util";
 import { AGENT_ID_RE, REF_RE, WORKSPACE_BRANCH_PREFIX, WORKTREES_DIR } from "./policy.mjs";
-import { SAFE_GIT } from "./container.mjs"; // git in an agent worktree runs with the planted-config hooks off (hardening/13 security, M)
 
 const exists = (p) => access(p).then(() => true, () => false);
 const BRIEF_NAMES = ["findings.md", "meeting.md", "ticket.md"]; // the notes the bridge leaves in a worktree's .den/
@@ -21,19 +20,35 @@ export const PUBLISH_BRANCH_RE = new RegExp(`^${WORKSPACE_BRANCH_PREFIX}/[a-z0-9
 const COMMIT_RE = /^[0-9a-f]{40,64}$/;
 
 // hardening/10 (hardening/13 security, M): an agent can rewrite its worktree's `.git` file, its admin dir's `commondir` and any
-// `.gitattributes`. The bridge's git in a worktree therefore never reads them: GIT_DIR, GIT_COMMON_DIR and GIT_WORK_TREE come from
-// the worktree's path alone (<root>/.claude/worktrees/<name>, admin dir <root>/.git/worktrees/<name>, as `worktree add` made it),
-// and attributes come from the empty tree, so no filter, textconv or diff driver is selected. A sha256 repository rejects the
-// sha1 empty tree, so git fails closed there.
+// `.gitattributes`. The bridge's git in a worktree therefore never reads them: GIT_COMMON_DIR is what git reports for the trusted
+// root (so a root that is itself a linked worktree works), GIT_DIR is <common>/worktrees/<name> (create checks that `worktree add`
+// recorded exactly that admin dir), GIT_WORK_TREE is the worktree, and attributes come from the empty tree, so no filter, textconv
+// or diff driver is selected. A sha256 repository rejects the sha1 empty tree, so git fails closed there.
 const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
-/** -> { args, env } for host git in the agent worktree `dir`: args go before the subcommand. Throws on a dir the bridge did not make. */
-export function worktreeGit(dir) {
+
+/** Host-side git in an agent worktree must not run code the agent could plant in the worktree's config (hardening/13 security, M). */
+export const SAFE_GIT = Object.freeze(["-c", "core.fsmonitor=", "-c", "core.hooksPath=/dev/null"]);
+
+/** The root of the checkout an agent worktree `dir` belongs to (<root>/.claude/worktrees/<name>). Throws on a dir the bridge did not make. */
+export function worktreeRoot(dir) {
   const parent = typeof dir === "string" && path.isAbsolute(dir) ? path.dirname(dir) : "";
   if (!parent.endsWith(`${path.sep}${WORKTREES_DIR}`)) throw new TypeError("workspace: not an agent worktree path");
-  const mainGit = path.join(parent.slice(0, -WORKTREES_DIR.length - 1), ".git");
+  return parent.slice(0, -WORKTREES_DIR.length - 1);
+}
+
+/** The resolved common git dir of the trusted checkout `root`, as git reports it. */
+export async function gitCommonDir(root, { exec = execFileP } = {}) {
+  const { stdout } = await exec("git", ["-C", root, "rev-parse", "--path-format=absolute", "--git-common-dir"]);
+  return realpath(String(stdout).trim());
+}
+
+/** -> { args, env } for host git in the agent worktree `dir`, under the root's common dir `commonDir`: args go before the subcommand. */
+export function worktreeGit(dir, commonDir) {
+  worktreeRoot(dir);
+  if (typeof commonDir !== "string" || !path.isAbsolute(commonDir)) throw new TypeError("workspace: worktreeGit needs the root's common git dir");
   return {
     args: ["-C", dir, ...SAFE_GIT, `--attr-source=${EMPTY_TREE}`, "-c", "core.attributesFile=/dev/null"],
-    env: { ...process.env, GIT_DIR: path.join(mainGit, "worktrees", path.basename(dir)), GIT_COMMON_DIR: mainGit, GIT_WORK_TREE: dir, GIT_ATTR_NOSYSTEM: "1" },
+    env: { ...process.env, GIT_DIR: path.join(commonDir, "worktrees", path.basename(dir)), GIT_COMMON_DIR: commonDir, GIT_WORK_TREE: dir, GIT_ATTR_NOSYSTEM: "1" },
   };
 }
 
@@ -51,9 +66,12 @@ export function workspaceNames({ ref, agentId } = {}) {
 // exec is a test seam with execFile's promise shape: (file, args) -> Promise<{ stdout }>.
 export function createWorkspaces(root, { exec = execFileP } = {}) {
   const git = (...args) => exec("git", ["-C", root, ...args]);
-  const wt = (dir, ...args) => {
-    const { args: pinned, env } = worktreeGit(dir);
-    return exec("git", [...pinned, ...args], { env });
+  let common = null;
+  const commonDir = () => (common ??= gitCommonDir(root, { exec }).catch((err) => { common = null; throw err; }));
+  const pinned = async (dir) => worktreeGit(dir, await commonDir());
+  const wt = async (dir, ...args) => {
+    const { args: pinnedArgs, env } = await pinned(dir);
+    return exec("git", [...pinnedArgs, ...args], { env });
   };
   const out = async (dir, ...args) => String((await wt(dir, ...args)).stdout).trim();
   async function moveUp(dir) {
@@ -69,7 +87,16 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
       const { worktree, branch } = workspaceNames({ ref, agentId });
       if (base !== undefined && (typeof base !== "string" || !COMMIT_RE.test(base))) throw new TypeError("workspace: base must be a full commit id");
       await git("worktree", "add", "--detach", path.join(root, ...worktree.split("/")), base ?? "HEAD");
-      return { dir: await realpath(path.join(root, ...worktree.split("/"))), worktree, branch };
+      const dir = await realpath(path.join(root, ...worktree.split("/")));
+      // `worktree add` names the admin dir after the worktree unless that name is taken; the bridge pins GIT_DIR (and the
+      // container mounts it) by that name, so any other record is refused while the agent has not yet touched `.git`.
+      const recorded = /^gitdir: (.+)\n?$/.exec(await readFile(path.join(dir, ".git"), "utf8"))?.[1];
+      const admin = (await pinned(dir)).env.GIT_DIR;
+      if (recorded === undefined || (await realpath(recorded).catch(() => null)) !== admin) {
+        await git("worktree", "remove", "--force", dir).catch(() => {});
+        throw new Error(`workspace: worktree add recorded another admin dir than ${admin}`);
+      }
+      return { dir, worktree, branch };
     },
     // The commit a worktree is at now. -> a full commit id.
     async head({ dir } = {}) {
@@ -82,7 +109,7 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
     // den-mvp outcome 4: a meeting run's note (the topic, the takes) is written the same way, as .den/meeting.md.
     async brief({ dir } = {}, text, name = "findings.md") {
       if (!BRIEF_NAMES.includes(name)) throw new TypeError("workspace: unknown note name");
-      const exclude = path.join(worktreeGit(dir).env.GIT_COMMON_DIR, "info", "exclude");
+      const exclude = path.join(await commonDir(), "info", "exclude");
       const current = await readFile(exclude, "utf8").catch(() => "");
       if (!current.split("\n").includes(".den/")) {
         await mkdir(path.dirname(exclude), { recursive: true });
@@ -155,7 +182,7 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
         // `worktree remove` checks that the worktree's `.git` points back to its admin dir; the agent may have rewritten it.
         const dotGit = path.join(dir, ".git");
         await rm(dotGit, { recursive: true, force: true });
-        await writeFile(dotGit, `gitdir: ${worktreeGit(dir).env.GIT_DIR}\n`, { flag: "wx" });
+        await writeFile(dotGit, `gitdir: ${(await pinned(dir)).env.GIT_DIR}\n`, { flag: "wx" });
         await git("worktree", "remove", "--force", dir);
         removed = true;
       }

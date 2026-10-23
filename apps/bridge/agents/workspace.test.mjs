@@ -326,3 +326,36 @@ describe("host git ignores the worktree's own pointers and attributes", () => {
     assert.equal(await marked(marks, "trusted-filter-ran"), false, "a driver chosen by the tree's .gitattributes ran on the host");
   });
 });
+
+// hardening/10 fix round (qa F1, security L3): the common dir comes from the trusted root, so a bridge whose root is itself a
+// linked worktree (where `.git` is a file) still works; the admin dir is the one `worktree add` recorded, checked at create.
+describe("the bridge's git dirs come from the root and from worktree add", () => {
+  test("a root that is a linked worktree creates, reads, briefs and retires an agent worktree", async () => {
+    const { createWorkspaces } = await load();
+    const fx = await fixture({ git: true });
+    const linked = path.join(fx.root, "..", `linked-root-${process.pid}`);
+    await git(fx.root, "worktree", "add", "--detach", linked);
+    cleanups.push(() => run("git", ["-C", fx.root, "worktree", "remove", "--force", linked]).catch(() => {}));
+    const ws = createWorkspaces(linked);
+    const made = await ws.create({ ref: REF, agentId: ID });
+    assert.equal(await ws.head(made), (await git(linked, "rev-parse", "HEAD")).trim());
+    await ws.brief(made, "findings\n");
+    assert.ok((await readFile(path.join(await realpath(fx.root), ".git", "info", "exclude"), "utf8")).includes(".den/"), "brief writes the common exclude");
+    await import("node:fs/promises").then((fs) => fs.rm(path.join(made.dir, ".den"), { recursive: true }));
+    await writeFile(path.join(made.dir, "agent-change.txt"), "x\n");
+    const { removed, saved } = await ws.retire({ ref: REF, agentId: ID });
+    assert.equal(removed, true);
+    assert.ok(saved, "the change was committed to a wip branch");
+  });
+
+  test("create refuses, and leaves no worktree, when git gave the admin dir another name than the worktree's", async () => {
+    const { createWorkspaces } = await load();
+    const fx = await fixture({ git: true });
+    const { worktree } = (await load()).workspaceNames({ ref: REF, agentId: ID });
+    const stale = path.join(fx.root, ".git", "worktrees", path.basename(worktree));
+    await mkdir(stale, { recursive: true });
+    const ws = createWorkspaces(fx.root);
+    await assert.rejects(ws.create({ ref: REF, agentId: ID }), /admin/);
+    assert.equal(await exists(path.join(fx.root, worktree)), false, "the worktree was taken away");
+  });
+});
