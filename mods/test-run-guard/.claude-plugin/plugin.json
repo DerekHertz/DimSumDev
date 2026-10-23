@@ -1,0 +1,6 @@
+{
+  "name": "test-run-guard",
+  "version": "0.1.0",
+  "description": "Blocks unbounded `node --test` runs over many files, which start a Chromium per browser file at once and fill memory.",
+  "author": { "name": "Dim Sum Dev" }
+}
