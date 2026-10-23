@@ -225,6 +225,11 @@ const readOr = (file) => (existsSync(file) ? readFileSync(file, "utf8") : null);
 const FORK = "const {spawn}=require('child_process');let n=0,e=0;for(let i=0;i<400;i++){const c=spawn('sleep',['8'],{stdio:'ignore'});c.on('error',()=>{e++});n++}setTimeout(()=>{console.log(JSON.stringify({spawned:n,errors:e}));process.exit(0)},2000)";
 const HOG = "const b=[];for(let i=0;i<30;i++)b.push(Buffer.alloc(100*1024*1024,1))";
 
+// The spike's proxy has one fake role and no run secrets; allowNoSecrets is the harness's way of saying so (the proxy otherwise fails closed).
+export function containerProxyOptions({ image, tokenDir }) {
+  return { image, tokenDir, proxyDir: PROXY_DIR, roles: { [CONTAINER_ROLE]: [CONTAINER_HOST] }, name: PROXY_NAME, network: NETWORK, allowNoSecrets: true };
+}
+
 export async function runContainer(ctx) {
   const docker = createDocker({ env: ctx.parentEnv });
   const need = async (args) => {
@@ -246,7 +251,7 @@ export async function runContainer(ctx) {
     await writeAtomic(path.join(tokenDir, TOKEN_FILE_NAME), creds.accessToken);
     // The proxy image's default user cannot read the owner's 0600 token file; container root is the owner, as for the agents.
     const proxyDocker = (args) => docker(args[0] === "run" ? [args[0], "--user", "0:0", ...args.slice(1)] : args);
-    await ensureProxy({ docker: proxyDocker, image, tokenDir, proxyDir: PROXY_DIR, roles: { [CONTAINER_ROLE]: [CONTAINER_HOST] }, name: PROXY_NAME, network: NETWORK });
+    await ensureProxy({ docker: proxyDocker, ...containerProxyOptions({ image, tokenDir }) });
     for (let i = 0; i < 40 && !(await docker(["logs", PROXY_NAME])).out.includes('"listening"'); i += 1) await sleep(250);
 
     const env = { HOME: "/root", ...agentProxyEnv({ role: CONTAINER_ROLE, session: sessionId, ports: { [CONTAINER_ROLE]: 8080 }, host: PROXY_NAME }), CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" };

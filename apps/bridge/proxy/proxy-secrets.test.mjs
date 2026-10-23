@@ -209,7 +209,7 @@ describe("secrets files and container args", () => {
     assert.deepEqual(values(args, "--memory"), ["256m"]);
     assert.deepEqual(values(args, "--pids-limit"), ["256"]);
     assert.deepEqual(values(args, "--ulimit"), ["nofile=4096:4096"]);
-    const without = proxyRunArgs({ ...opts, secretsDir: undefined });
+    const without = proxyRunArgs({ ...opts, secretsDir: undefined, allowNoSecrets: true });
     assert.ok(!values(without, "-e").some((e) => e.startsWith("DEN_PROXY_SECRETS_FILE")));
     const key = (a) => values(a, "--label")[0];
     assert.notEqual(key(args), key(without), "adding the secrets mount replaces a running proxy");

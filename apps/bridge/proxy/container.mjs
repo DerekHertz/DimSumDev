@@ -22,10 +22,11 @@ export function agentProxyEnv({ role, session, ports, host = "den-proxy", secret
 
 // The token is mounted as its DIRECTORY: a single-file bind mount keeps the old inode after the refresher's atomic rename.
 // secretsDir (the directory secrets.mjs writes) is mounted read-only as a directory too; the map is never an env value or an argument.
-// Without it the proxy requires no role secret: the wiring must pass it.
-function runShape({ image, tokenDir, proxyDir, secretsDir, roles, basePort = 8080, name = "den-proxy", network = "den-agents" }) {
+// The proxy fails closed: without secretsDir it would take every caller for its role. allowNoSecrets is the test-only escape hatch.
+function runShape({ image, tokenDir, proxyDir, secretsDir, allowNoSecrets = false, roles, basePort = 8080, name = "den-proxy", network = "den-agents" }) {
+  if (!secretsDir && !allowNoSecrets) throw new Error("the proxy needs a secretsDir: without role secrets it cannot tell roles apart");
   const mounts = [`${tokenDir}:${TOKEN_MOUNT}:ro`, `${proxyDir}:${CODE_MOUNT}:ro`, ...(secretsDir ? [`${secretsDir}:${SECRETS_MOUNT}:ro`] : [])];
-  const env = [`DEN_PROXY_TOKEN_FILE=${TOKEN_MOUNT}/access-token`, `DEN_PROXY_ROLES=${JSON.stringify(roles)}`, `DEN_PROXY_BASE_PORT=${basePort}`, ...(secretsDir ? [`DEN_PROXY_SECRETS_FILE=${SECRETS_MOUNT}/secrets.json`] : [])];
+  const env = [`DEN_PROXY_TOKEN_FILE=${TOKEN_MOUNT}/access-token`, `DEN_PROXY_ROLES=${JSON.stringify(roles)}`, `DEN_PROXY_BASE_PORT=${basePort}`, ...(secretsDir ? [`DEN_PROXY_SECRETS_FILE=${SECRETS_MOUNT}/secrets.json`] : ["DEN_PROXY_ALLOW_NO_SECRETS=1"])];
   const cmd = ["node", `${CODE_MOUNT}/den-proxy.mjs`];
   // The key changes with anything that changes the proxy, so a stale allowlist is replaced rather than kept.
   const key = createHash("sha256").update(JSON.stringify({ image, mounts, env, cmd, name, network })).digest("hex").slice(0, 16);

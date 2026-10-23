@@ -134,7 +134,7 @@ function installProcessHandlers(host) {
 // The routes that start a run, a delivery or a meeting, or resume one.
 const STARTS = /^\/(?:agents|tasks|deliveries|meetings)(?:\/[^/]+\/resume)?$/;
 
-export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs } = {}) {
+export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, proxy, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs } = {}) {
   let actualPort = port;
   const git = gitHost ?? createGitHost(root);
   // den-mvp/10 and 11: the den's own build, when it is served from release folders: previews, go-live and roll back. The
@@ -188,6 +188,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     release: () => releases.current(),
     readyRelease: () => readyRelease?.snapshot() ?? null,
     update: () => updater?.snapshot() ?? null,
+    accounts: async () => (proxy ? proxy.status() : null),
     wall: () => wallTables(),
     readUsage: usageReading,
     boardRoot: () => projects.activeRoot(),
@@ -450,6 +451,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     "POST /tickets/approve": (req, res) => steerTicket(req, res, "approve"),
     "POST /tickets/transfer": steerTransfer,
     "POST /admission/runtime": steerAllowlist,
+    "POST /accounts/active": steerAccount,
     "POST /admission/reconcile": steerReconcile,
     "POST /tickets/decline": (req, res) => steerTicket(req, res, "decline"),
     "POST /checks": (req, res) => postChecks(req, res),
@@ -950,6 +952,21 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     const result = await host.admission.setAllowlist(body.allow);
     reply(res, result.ok ? 200 : result.status, result.ok ? { allow: result.allow } : { error: result.error });
   }
+  // POST /accounts/active: { name }. The user's manual switch of the den's Claude account; nothing else calls it (hardening/16).
+  async function steerAccount(req, res) {
+    const body = await readJsonObject(req, res);
+    if (!body) return;
+    if (typeof body.name !== "string" || !body.name) return reply(res, 400, { error: "name must be an account name" });
+    if (!proxy) return reply(res, 409, { error: "the den has no proxy: there are no accounts" });
+    try {
+      await proxy.switchAccount(body.name);
+    } catch (err) {
+      return reply(res, 409, { error: err.message });
+    }
+    const accounts = await proxy.status();
+    hub.publish({ type: "accounts", accounts });
+    reply(res, 200, { accounts });
+  }
   // POST /admission/reconcile: { id, outcome: "ended" | "never-started" }. Clears an attempt a crash left unconfirmed.
   async function steerReconcile(req, res) {
     const body = await readJsonObject(req, res);
@@ -1034,6 +1051,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     res.writeHead(200, { "Content-Type": contentTypeFor(file), "Cache-Control": "no-store", "Content-Security-Policy": CSP });
     res.end(req.method === "HEAD" ? undefined : body);
   }
+  // hardening/16: the proxy and its refreshers come up with the den, before it answers.
+  await proxy?.start();
   // A half-made release folder is never served, and is removed at start; a delivery's waiting preview is served again.
   await delivery.ready;
   if (denBuild) await denBuild.releases.sweep();
@@ -1064,6 +1083,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       ciWatch.stop();
       autoRelease.stop();
       readyRelease?.stop();
+      await proxy?.stop();
       uninstallProcessHandlers();
       await new Promise((resolve) => {
         hub.close();
@@ -1108,7 +1128,15 @@ if (startedDirectly()) {
   // den-mvp/88: the router's service token, written by den:install; none (or a bad file) means no service access.
   const { readServiceToken } = await import("../router/service-token.mjs");
   const serviceToken = await readServiceToken(denState);
-  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, runtime: createClaudeRuntime({ env: process.env, launcher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
+  // hardening/16: the credential proxy and one refresher per den account. It needs the agent image den:update recorded in this release;
+  // run from the checkout, or on a host with no image, there is none. A proxy that fails to start is reported and the den still comes up.
+  const { createProxyService } = await import("./proxy/proxy-service.mjs");
+  const { createDocker } = await import("./service/agent-image.mjs");
+  const releaseDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..");
+  const image = await readFile(path.join(releaseDir, "agent-image.json"), "utf8").then((t) => JSON.parse(t).imageId, () => null);
+  const proxyService = image && createProxyService({ stateDir: denState, releaseDir, ceilings: JSON.parse(await readFile(path.join(releaseDir, "apps", "bridge", "agents", "ceilings.json"), "utf8")), docker: createDocker({ env: process.env }), image });
+  const proxy = proxyService ? { ...proxyService, start: () => proxyService.start().catch((e) => console.error(`proxy not started: ${e.message}`)) } : undefined;
+  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, proxy, runtime: createClaudeRuntime({ env: process.env, launcher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
   console.log(`bridge listening on ${bridge.url} (root ${root})`);
   // The only place the launch code is shown (ADR 0016 decision 6.2): once, in a URL fragment the browser never sends.
   console.log(`to steer, open (one use, 5 minutes): ${bridge.url}/#code=${bridge.newLaunchCode()}`);

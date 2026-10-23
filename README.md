@@ -82,6 +82,15 @@ npm run den:update      # after merging a change to `main`: new release, links s
 
 The service runs from release folders under `~/.local/state/den/` (a copy of `main`, its UI built in a sandbox), not from the checkout, so editing the checkout does not change the running den ([ADR 0026](docs/adr/0026-the-den-serves-itself.md)). `den:install` also installs the router (`den-router.service`), a small process beside the bridge that starts approved tickets in the order you set ([ADR 0027](docs/adr/0027-a-router-beside-the-bridge.md)); a change to the router takes effect on the next `den:install`. Both commands print each step and refuse before changing anything on a host without a systemd user manager or bubblewrap. `npm run bridge` is for development: run it with `PORT=4400 npm run bridge`, on another port than the service.
 
+The den's credential proxy ([ADR 0031](docs/adr/0031-container-per-agent.md)) logs in as its own Claude accounts, not as your interactive `claude`: each refresh token is single use, so sharing one login would make the two race, and the den never reads or writes `~/.claude/.credentials.json`. Add an account once per account:
+
+```sh
+npm run den:account -- add <name>   # opens claude with CLAUDE_CONFIG_DIR set to ~/.local/state/den/accounts/<name>; type /login, then /exit
+npm run den:account -- list         # the accounts, the active one starred
+```
+
+The bridge reports the active account and you switch by hand (`POST /accounts/active` with `{ "name": ... }`; the den has no button for it yet); it never switches by itself when an account hits a usage limit. A running den picks a new account up within a minute.
+
 Run an agent as its own Claude Code session:
 
 ```sh
