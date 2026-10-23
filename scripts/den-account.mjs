@@ -1,7 +1,7 @@
 // hardening/16: the den's own Claude logins, apart from the interactive CLI's. Each lives in <den state>/accounts/<name>.
 //   npm run den:account -- add <name>    opens `claude` with CLAUDE_CONFIG_DIR there; type /login, then /exit
 //   npm run den:account -- list          the accounts, the active one starred
-// Switching is a click in the den. A running den picks a new account up within a minute.
+// Switching is a POST to the bridge's /accounts/active route (no button in the den yet). A running den picks a new account up within a minute.
 import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";

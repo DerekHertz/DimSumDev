@@ -7,18 +7,24 @@ import path from "node:path";
 import { activeAccount, accountsDir, listAccounts, setActiveAccount } from "./accounts.mjs";
 import { ensureProxy } from "./container.mjs";
 import { roleHosts } from "./proxy.mjs";
-import { SECRETS_FILE_NAME, mintSecret, writeSecrets } from "./secrets.mjs";
+import { mintSecret, writeSecrets } from "./secrets.mjs";
 import { TOKEN_FILE_NAME, createTokenRefresher, credentialsFileStore, oauthRefresh, writeAtomic } from "./token.mjs";
 
 const LOOK_MS = 60_000; // how often every account is looked at: a rotation or a switch reaches the proxy within a minute
 
-export function createProxyService({ stateDir, releaseDir, ceilings, docker, image, fetch, now }) {
+export function createProxyService({ stateDir, releaseDir, ceilings, docker, image, fetch, now = Date.now, log = console.error }) {
   const roles = roleHosts(ceilings);
   const served = path.join(stateDir, "proxy", "token"); // mounted into the proxy: holds the active account's access token only
   const secretsDir = path.join(stateDir, "proxy", "secrets");
   const refreshers = new Map(); // account -> refresher; each writes its access token to <stateDir>/proxy/accounts/<name>, which no container mounts
   const privateToken = (name) => path.join(stateDir, "proxy", "accounts", name, TOKEN_FILE_NAME);
   let timer = null;
+  const lastError = new Map(); // account -> the last refresh error logged, so a login that stays broken is said once, not every minute
+  const note = (name, r) => {
+    if (r.error === lastError.get(name)) return;
+    lastError.set(name, r.error);
+    if (r.error) log(`proxy: account ${name}: ${r.error}`);
+  };
 
   async function sync() {
     for (const name of await listAccounts({ stateDir })) {
@@ -37,7 +43,7 @@ export function createProxyService({ stateDir, releaseDir, ceilings, docker, ima
 
   async function tick() {
     await sync();
-    await Promise.all([...refreshers.values()].map((r) => r.tick()));
+    await Promise.all([...refreshers].map(async ([name, r]) => note(name, await r.tick())));
     await publish();
   }
 
@@ -51,7 +57,7 @@ export function createProxyService({ stateDir, releaseDir, ceilings, docker, ima
       await mkdir(secretsDir, { recursive: true });
       await writeSecrets({ dir: secretsDir, secrets });
       await ensureProxy({ docker, image, tokenDir: served, proxyDir: path.join(releaseDir, "apps", "bridge", "proxy"), secretsDir, roles });
-      timer = setInterval(() => tick().catch(() => {}), LOOK_MS);
+      timer = setInterval(() => tick().catch((e) => log(`proxy: refresh round failed: ${e.message}`)), LOOK_MS);
       timer.unref();
     },
     stop() { clearInterval(timer); },
@@ -61,7 +67,9 @@ export function createProxyService({ stateDir, releaseDir, ceilings, docker, ima
       await sync();
       const refresher = refreshers.get(name);
       if (!refresher) throw new Error(`no such account: ${JSON.stringify(name)}`);
-      await refresher.tick();
+      const r = await refresher.tick();
+      note(name, r);
+      if (r.error && !(r.expiresAt > now())) throw new Error(`account ${name} could not refresh and its token has expired: run den:account again`);
       if (!(await readFile(privateToken(name), "utf8").catch(() => null))) throw new Error(`account ${name} has no usable login: run den:account again`);
       await setActiveAccount({ stateDir, name });
       await publish();

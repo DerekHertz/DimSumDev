@@ -89,7 +89,7 @@ npm run den:account -- add <name>   # opens claude with CLAUDE_CONFIG_DIR set to
 npm run den:account -- list         # the accounts, the active one starred
 ```
 
-The den shows the active account and you switch by hand; it never switches by itself when an account hits a usage limit. A running den picks a new account up within a minute.
+The bridge reports the active account and you switch by hand (`POST /accounts/active` with `{ "name": ... }`; the den has no button for it yet); it never switches by itself when an account hits a usage limit. A running den picks a new account up within a minute.
 
 Run an agent as its own Claude Code session:
 
