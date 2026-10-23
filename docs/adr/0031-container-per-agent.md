@@ -10,7 +10,7 @@
 
 1. **Runtime: rootless Docker in WSL, from Docker's apt repo** (`docker-ce`, `docker-ce-rootless-extras`, `uidmap`), daemon as a systemd user service. Not Docker Desktop, not rootful. The bridge talks to `unix:///run/user/1000/docker.sock` with `/usr/bin/docker`, because the `docker` first on `PATH` is Docker Desktop's Windows binary. Install, once:
    ```
-   sudo bash spikes/container-agent/install-rootless.sh   # packages + repo, disables the rootful daemon
+   sudo bash scripts/install-rootless-docker.sh   # packages + repo, disables the rootful daemon
    /usr/bin/dockerd-rootless-setuptool.sh install         # as the user
    ```
 2. **The container.** One per agent, `--rm`, from a pinned image (`node:22-bookworm-slim`, git, the CLI at the den's pinned version). It runs as container root (`--user 0:0`), which rootless Docker maps to the user's own uid, so the bind mounts stay writable with no chown and the user stays unprivileged on the host. It also runs with `--cap-drop ALL`, `--security-opt no-new-privileges`, `--read-only` root, and tmpfs `/tmp` and `/root`. Limits come from the role's class in `limits.json` as `--memory`, `--memory-swap` (the same value, so no swap), `--cpus` (`cpuPercent / 100`) and `--pids-limit`.

@@ -190,7 +190,7 @@ test("containerRunArgs: no way around the boundary, and nothing of the host's en
     try {
       const argv = api.containerRunArgs(p, baseOpts);
       const joined = argv.join("\n");
-      for (const bad of ["--privileged", "--pid", "--ipc", "--cap-add", "docker.sock", "--device", "--userns", "sk-ant-oat-must-not-leak", ".credentials"]) assert.ok(!joined.includes(bad), bad);
+      for (const bad of ["--privileged", "--pid=", "--pid ", "--ipc", "--cap-add", "docker.sock", "--device", "--userns", "sk-ant-oat-must-not-leak", ".credentials"]) assert.ok(!joined.includes(bad), bad);
       assert.ok(!flagValues(argv, "--network").includes("host"));
       assert.ok(!mountsOf(argv).some((m) => m.src === "/" || m.src === process.env.HOME), "no mount of / or the home directory");
       // The only -e values are the ones handed in.

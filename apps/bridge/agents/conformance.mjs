@@ -1410,7 +1410,7 @@ export function parseCli(argv) {
       const wanted = String(value() ?? "").split(",").map((x) => x.trim());
       const bad = wanted.find((x) => !byLower.has(x.toLowerCase()));
       if (bad !== undefined) {
-        opts.error = `unknown spike ${bad || "(empty)"};choose from ${ids.join(", ")}`;
+        opts.error = `unknown spike ${(/^s\d/i.test(bad) ? bad.toUpperCase() : bad) || "(empty)"}; choose from ${ids.join(", ")}`;
         break;
       }
       const picked = new Set(wanted.map((x) => byLower.get(x.toLowerCase())));
