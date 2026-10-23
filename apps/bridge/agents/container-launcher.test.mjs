@@ -15,7 +15,7 @@ const run = { slotClass: "worker", id: "run-1", bin: "claude", cwd: "/h/repo/.cl
 const SESSIONS = mkdtempSync(join(tmpdir(), "den-sessions-"));
 test.after(() => rmSync(SESSIONS, { recursive: true, force: true }));
 
-function setup({ proxyUp = true, running = true, oom = { killed: false }, internal = "true", sessionsDir = SESSIONS, stale = false } = {}) {
+function setup({ proxyUp = true, running = true, oom = { killed: false }, internal = "true", sessionsDir = SESSIONS, stale = false, spawnThrows = false } = {}) {
   const calls = [];
   const spawned = [];
   const docker = async (args) => {
@@ -28,6 +28,7 @@ function setup({ proxyUp = true, running = true, oom = { killed: false }, intern
     return { ok: true, out: "", err: "" };
   };
   const spawn = (bin, argv, opts) => {
+    if (spawnThrows) throw new Error("spawn EACCES");
     const child = Object.assign(new EventEmitter(), { stdin: {}, stdout: {}, stderr: new EventEmitter(), pid: 0 });
     spawned.push({ bin, argv, opts });
     setImmediate(() => child.emit("spawn"));
@@ -202,6 +203,27 @@ test("a governed path with a symlink anywhere under the worktree is refused befo
       assert.deepEqual(spawned, []);
       assert.deepEqual(await readdir(outside), [], "nothing is created at the symlink's target");
     }
+  } finally {
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a synchronous throw from the proxy env or the spawn retires the secret and sweeps the placeholders (security N2)", async () => {
+  const { mkdtemp, mkdir, lstat, rm, realpath } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const pathMod = await import("node:path");
+  const root = await realpath(await mkdtemp(pathMod.join(tmpdir(), "den-gov-throw-")));
+  try {
+    const wt = pathMod.join(root, "w1");
+    await mkdir(wt);
+    const args = ["-p", "--settings", JSON.stringify({ permissions: {}, sandbox: { filesystem: { denyWrite: [`${wt}/.github/workflows`] } } })];
+    const thrown = setup({ spawnThrows: true });
+    await assert.rejects(thrown.launcher.launch({ ...run, cwd: wt, args }), /spawn EACCES/);
+    assert.deepEqual(thrown.retired, ["s".repeat(32)], "the secret is retired when spawn throws");
+    assert.equal(await lstat(`${wt}/.github`).then(() => true, () => false), false, "the placeholder and its dir are swept");
+    const noPort = setup();
+    await assert.rejects(noPort.launcher.launch({ ...run, cwd: wt, args, container: { ...run.container, role: "qa" } }), /no proxy port/);
+    assert.deepEqual(noPort.retired, ["s".repeat(32)], "the secret is retired when the proxy env throws");
   } finally {
     await rm(root, { recursive: true, force: true });
   }
