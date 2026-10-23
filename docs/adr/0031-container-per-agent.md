@@ -1,6 +1,6 @@
 # A container per agent under rootless Docker
 
-**Status:** accepted (user, 2026-10-22). A spike (hardening/05) ran on 2026-10-22. Further hardening of the CLI sandbox wall (hardening/01, 09) is parked in favour of this. It builds on ADR 0021 decision 2, which named a container per agent as the wall's fallback, and on the hardening spec's Containers section (C1-C3). The harness and its evidence are in `spikes/container-agent/` (throwaway).
+**Status:** accepted (user, 2026-10-22). A spike (hardening/05) ran on 2026-10-22. Further hardening of the CLI sandbox wall (hardening/01, 09) is parked in favour of this. It builds on ADR 0021 decision 2, which named a container per agent as the wall's fallback, and on the hardening spec's Containers section (C1-C3). The original harness and its evidence lived in `spikes/container-agent/` (hardening/05); hardening/13 replaced them with `node apps/bridge/agents/conformance.mjs --spike Container`, and the old files are in git history.
 
 **Context.** The CLI sandbox walls shell commands only. The agent process, with its file tools, hooks and MCP, runs outside it, and every hole so far (the file tools, the `.git` refs) was a complete-mediation failure patched one rule at a time. A container puts the whole agent inside the boundary: a path the bridge did not mount is not refused, it is absent.
 
@@ -10,7 +10,7 @@
 
 1. **Runtime: rootless Docker in WSL, from Docker's apt repo** (`docker-ce`, `docker-ce-rootless-extras`, `uidmap`), daemon as a systemd user service. Not Docker Desktop, not rootful. The bridge talks to `unix:///run/user/1000/docker.sock` with `/usr/bin/docker`, because the `docker` first on `PATH` is Docker Desktop's Windows binary. Install, once:
    ```
-   sudo bash spikes/container-agent/install-rootless.sh   # packages + repo, disables the rootful daemon
+   sudo bash scripts/install-rootless-docker.sh   # packages + repo, disables the rootful daemon
    /usr/bin/dockerd-rootless-setuptool.sh install         # as the user
    ```
 2. **The container.** One per agent, `--rm`, from a pinned image (`node:22-bookworm-slim`, git, the CLI at the den's pinned version). It runs as container root (`--user 0:0`), which rootless Docker maps to the user's own uid, so the bind mounts stay writable with no chown and the user stays unprivileged on the host. It also runs with `--cap-drop ALL`, `--security-opt no-new-privileges`, `--read-only` root, and tmpfs `/tmp` and `/root`. Limits come from the role's class in `limits.json` as `--memory`, `--memory-swap` (the same value, so no swap), `--cpus` (`cpuPercent / 100`) and `--pids-limit`.
@@ -22,7 +22,7 @@
 5. **The login lives in the proxy, never in the agent.** The agent gets `ANTHROPIC_BASE_URL=http://den-proxy:8080` and a dummy `ANTHROPIC_API_KEY`. The proxy drops the dummy key, adds `Authorization: Bearer <OAuth access token>` and the `oauth-2025-04-20` beta header, and forwards to `https://api.anthropic.com`. The agent can spend the login through the proxy, which is unavoidable, but it cannot read or copy it. The spike passed the token as a proxy env var. The follow-up must handle refresh (the access token expires; the refresh token stays with the bridge) and keep the token out of `docker inspect` (a file mount into the proxy only).
 6. **gVisor and microVMs: not now.** The rootless container met every question. `runsc` adds a second kernel boundary but its rootless mode is limited, and a microVM (Firecracker, Kata) needs KVM in WSL. Revisit only if the threat model grows to a hostile model escaping a namespace.
 
-## The seven wall questions (evidence: `spikes/container-agent/evidence/`)
+## The seven wall questions (evidence: `apps/bridge/agents/fixtures/container-results.json`, from a `--spike Container` run)
 
 | # | Question | Answer | Evidence |
 |---|---|---|---|

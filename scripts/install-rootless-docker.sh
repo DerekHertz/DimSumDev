@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Root part of the rootless Docker install (hardening/05 spike).
+# Root part of the rootless Docker install (ADR 0031; first written for the hardening/05 spike).
 # Run once with sudo; it installs packages only, no daemon runs as root.
 set -euo pipefail
 apt-get update

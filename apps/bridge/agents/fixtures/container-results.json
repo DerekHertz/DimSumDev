@@ -1,0 +1,371 @@
+{
+  "spike": "Container",
+  "verdict": "go",
+  "answers": {
+    "q1": "yes",
+    "q2": "yes",
+    "q3": "yes",
+    "q4": "yes",
+    "q5": "yes",
+    "q6": "yes",
+    "q7": "partly"
+  },
+  "checks": {
+    "network": true,
+    "limits": true,
+    "git": true
+  },
+  "obs": {
+    "init": {
+      "tools": [
+        "Bash",
+        "Read",
+        "Write",
+        "Edit"
+      ],
+      "model": "claude-haiku-5-5",
+      "permissionMode": "default"
+    },
+    "turns": {
+      "bash-in": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Bash",
+            "input": {
+              "command": "echo IN > /tmp/den-ctr-BXfd6L/.claude/worktrees/probe/in-bash.txt",
+              "description": "Write IN to in-bash.txt in the probe worktree"
+            }
+          }
+        ],
+        "result": {
+          "is_error": false,
+          "text": "(Bash completed with no output)"
+        }
+      },
+      "bash-outside": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Bash",
+            "input": {
+              "command": "echo OUT > /tmp/den-ctr-outside-80bbcc/bash.txt",
+              "description": "Write OUT to bash.txt in the outside directory"
+            }
+          }
+        ],
+        "result": {
+          "is_error": true,
+          "text": "Exit code 1\n/bin/bash: line 1: /tmp/den-ctr-outside-80bbcc/bash.txt: No such file or directory"
+        }
+      },
+      "bash-ro": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Bash",
+            "input": {
+              "command": "echo RO >> /usr/den-ro-probe.txt",
+              "description": "Append RO to den-ro-probe.txt in /usr"
+            }
+          }
+        ],
+        "result": {
+          "is_error": true,
+          "text": "Exit code 1\n/bin/bash: line 1: /usr/den-ro-probe.txt: Read-only file system"
+        }
+      },
+      "bash-mainconfig": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Bash",
+            "input": {
+              "command": "git config --file /tmp/den-ctr-BXfd6L/.git/config core.hooksPath /tmp/evil",
+              "description": "Set core.hooksPath in the repo config to /tmp/evil"
+            }
+          }
+        ],
+        "result": {
+          "is_error": true,
+          "text": "Exit code 255\nerror: could not lock config file /tmp/den-ctr-BXfd6L/.git/config: Read-only file system"
+        }
+      },
+      "write-in": {
+        "permission": [
+          {
+            "tool": "Write",
+            "allowed": true
+          }
+        ],
+        "tools": [
+          {
+            "name": "Write",
+            "input": {
+              "file_path": "/tmp/den-ctr-BXfd6L/.claude/worktrees/probe/in-write.txt",
+              "content": "IN-WRITE"
+            }
+          }
+        ],
+        "result": {
+          "is_error": false,
+          "text": "File created successfully at: /tmp/den-ctr-BXfd6L/.claude/worktrees/probe/in-write.txt (file state is current in your context — no need to Read it back)"
+        }
+      },
+      "write-outside": {
+        "permission": [
+          {
+            "tool": "Write",
+            "allowed": true
+          }
+        ],
+        "tools": [
+          {
+            "name": "Write",
+            "input": {
+              "file_path": "/tmp/den-ctr-outside-80bbcc/write.txt",
+              "content": "OUT-WRITE"
+            }
+          }
+        ],
+        "result": {
+          "is_error": false,
+          "text": "File created successfully at: /tmp/den-ctr-outside-80bbcc/write.txt (file state is current in your context — no need to Read it back)"
+        }
+      },
+      "read-ro": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Read",
+            "input": {
+              "file_path": "/tmp/den-ctr-BXfd6L/.git/ro.txt"
+            }
+          }
+        ],
+        "result": {
+          "is_error": false,
+          "text": "1\tread only\n2\t"
+        }
+      },
+      "edit-ro": {
+        "permission": [
+          {
+            "tool": "Edit",
+            "allowed": true
+          }
+        ],
+        "tools": [
+          {
+            "name": "Edit",
+            "input": {
+              "replace_all": false,
+              "file_path": "/tmp/den-ctr-BXfd6L/.git/ro.txt",
+              "old_string": "read only",
+              "new_string": "EDITED"
+            }
+          }
+        ],
+        "result": {
+          "is_error": true,
+          "text": "EROFS: read-only file system, open '/tmp/den-ctr-BXfd6L/.git/ro.txt.tmp.1.5b10df94e24d'"
+        }
+      },
+      "write-home": {
+        "permission": [
+          {
+            "tool": "Write",
+            "allowed": true
+          }
+        ],
+        "tools": [
+          {
+            "name": "Write",
+            "input": {
+              "file_path": "~/den-ctr-outside-probe-80bbcc.txt",
+              "content": "OUT-HOME"
+            }
+          }
+        ],
+        "result": {
+          "is_error": true,
+          "text": "EROFS: read-only file system, mkdir '~'"
+        }
+      },
+      "read-outside": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Read",
+            "input": {
+              "file_path": "/tmp/den-ctr-outside-80bbcc/secret.txt"
+            }
+          }
+        ],
+        "result": {
+          "is_error": true,
+          "text": "File does not exist. Note: your current working directory is /tmp/den-ctr-BXfd6L/.claude/worktrees/probe."
+        }
+      },
+      "read-host-creds": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Read",
+            "input": {
+              "file_path": "~/den-ctr-decoy-credentials-80bbcc.json"
+            }
+          }
+        ],
+        "result": {
+          "is_error": true,
+          "text": "File does not exist. Note: your current working directory is /tmp/den-ctr-BXfd6L/.claude/worktrees/probe."
+        }
+      },
+      "write-denied": {
+        "permission": [
+          {
+            "tool": "Write",
+            "allowed": false
+          }
+        ],
+        "tools": [
+          {
+            "name": "Write",
+            "input": {
+              "file_path": "/tmp/den-ctr-BXfd6L/.claude/worktrees/probe/denied.txt",
+              "content": "DENIED"
+            }
+          }
+        ],
+        "result": {
+          "is_error": true,
+          "text": "denied by the container check"
+        }
+      },
+      "bash-fail": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Bash",
+            "input": {
+              "command": "ls /tmp/den-ctr-BXfd6L/.claude/worktrees/probe/no-such-file",
+              "description": "List a nonexistent path in the probe worktree"
+            }
+          }
+        ],
+        "result": {
+          "is_error": true,
+          "text": "Exit code 2\nls: cannot access '/tmp/den-ctr-BXfd6L/.claude/worktrees/probe/no-such-file': No such file or directory"
+        }
+      },
+      "net-granted": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Bash",
+            "input": {
+              "command": "curl -sS -m 15 -o /dev/null -w '%{http_code}' https://example.com",
+              "description": "Fetch HTTP status code from example.com"
+            }
+          }
+        ],
+        "result": {
+          "is_error": false,
+          "text": "200"
+        }
+      },
+      "net-blocked": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Bash",
+            "input": {
+              "command": "curl -sS -m 15 -o /dev/null -w '%{http_code}' https://example.org",
+              "description": "Fetch HTTP status code from example.org"
+            }
+          }
+        ],
+        "result": {
+          "is_error": true,
+          "text": "Exit code 56\ncurl: (56) CONNECT tunnel failed, response 403\n000"
+        }
+      },
+      "git-commit": {
+        "permission": [],
+        "tools": [
+          {
+            "name": "Bash",
+            "input": {
+              "command": "git add -A && git -c user.name=a -c user.email=a@b.c commit -qm probe && git log --oneline -1",
+              "description": "Stage all changes, commit with probe message, show latest commit"
+            }
+          }
+        ],
+        "result": {
+          "is_error": false,
+          "text": "268507e probe"
+        }
+      }
+    },
+    "disk": {
+      "inBash": true,
+      "inWrite": true,
+      "denied": false,
+      "home": false,
+      "outsideBash": false,
+      "outsideWrite": false,
+      "roContent": "read only\n",
+      "mainConfigHooks": null,
+      "branchLog": "268507e probe\ncbb55b8 spike"
+    },
+    "inspect": {
+      "env": "HTTPS_PROXY=http://00000000-0000-4000-8000-000000000001@den-proxy-conformance:8080\nno_proxy=den-proxy-conformance\nNO_PROXY=den-proxy-conformance\nhttps_proxy=http://00000000-0000-4000-8000-000000000001@den-proxy-conformance:8080\nANTHROPIC_BASE_URL=http://den-proxy-conformance:8080\nANTHROPIC_API_KEY=den-dummy-key\n",
+      "credFiles": "total 4\ndrwxr-xr-x 7 root root 160 Oct 23 02:17 .\ndrwx------ 3 root root  80 Oct 23 02:16 ..\n-rw-r--r-- 1 root root  24 Oct 23 02:17 .last-cleanup\ndrwxr-xr-x 2 root root  60 Oct 23 02:16 backups\ndrwx------ 3 root root  60 Oct 23 02:16 projects\ndrwxr-xr-x 3 root root  60 Oct 23 02:16 session-env\ndrwx------ 2 root root  80 Oct 23 02:16 sessions\ndrwxr-xr-x 2 root root  60 Oct 23 02:16 shell-snapshots\ndone\n",
+      "mainConfigWrite": "exit 255: error: could not lock config file /tmp/den-ctr-BXfd6L/.git/config: Read-only file system\n",
+      "mainRefsWrite": "exit 2: sh: 1: cannot create /tmp/den-ctr-BXfd6L/.git/refs/heads/main: Read-only file system\n",
+      "rootfsWrite": "exit 2: sh: 1: cannot create /etc/x: Read-only file system\n"
+    },
+    "network": {
+      "direct": {
+        "code": "000",
+        "exit": 6
+      },
+      "dns": {
+        "exit": 2
+      },
+      "rawIp": {
+        "exit": 7
+      },
+      "granted": {
+        "code": "200",
+        "exit": 0
+      },
+      "blocked": {
+        "code": "000",
+        "exit": 56
+      },
+      "api": {
+        "code": "000",
+        "exit": 56
+      }
+    },
+    "limits": {
+      "memoryMax": 2147483648,
+      "cpuMax": "100000 100000",
+      "pidsMax": 256,
+      "memoryHog": {
+        "exit": 137,
+        "oomKill": 1
+      },
+      "cpuBurn": {
+        "seconds": 5,
+        "usageUsec": 5206265
+      },
+      "pidsFork": {
+        "spawned": 400,
+        "errors": 160
+      }
+    }
+  }
+}
