@@ -1,6 +1,6 @@
 ---
 name: team-protocol
-description: Rules every den role follows under Codex: claim one ticket on the board, stop at gates, hand off, end. Read before touching the board.
+description: Rules every den role follows under Codex: claim one ticket, stop at gates, hand off, end. Read before touching the board.
 ---
 
 # Team protocol (Codex)
@@ -15,7 +15,7 @@ The board is `.scratch/<feature>/` in the main checkout (`$DEN_ROOT`, else the f
 - `npm run board -- status <ref>`: read a ticket's status.
 - `npm run board -- handoff <ref> --template`, then `npm run board -- handoff <ref> --from /tmp/<file>.md --name <NN>-<role>.md`: draft under `/tmp`, never in a worktree.
 - Every role files discovered work as a new ticket instead of chasing it: `.scratch/<feature>/issues/<NN>-<slug>.md`, format in `docs/agents/issue-tracker.md`, `Status: ready-for-agent`; name it in your handoff.
-- Pickup: propose the top ready ticket ("Can I work on <ref>?", why, estimate); start on yes.
+- Pickup: ask "Can I work on <ref>?" (top ready ticket, why, estimate); start on yes. A user-approved queue skips the ask.
 - `npm run board -- release <ref> --status <resolved|blocked|in-review> [--reason "..."]`: needs a handoff published after your claim. On a code ticket a developer releases at `in-review`; reviewers leave the status alone; the orchestrator resolves it after the merge.
 
 ## Relay
@@ -28,10 +28,10 @@ Stop and ask the user before: pushing, opening a PR or merging; deleting files o
 
 ## Handoff
 
-Open with the outcome. Evidence is a few lines: the commands run and their exit codes. List open items and the smallest remaining decision. Final report: verdict, branch, SHA, numbers, handoff pointer, and your worktree path with clean or dirty. Report environment failures (tool, exact error, suggested fix) instead of working around them.
+Open with the outcome. Evidence is a few lines: the commands run and their exit codes. List open items and the smallest remaining decision. Final report: verdict, branch, SHA, numbers, handoff pointer, and worktree path (clean or dirty). Report environment failures (tool, exact error, suggested fix) instead of working around them.
 
 ## End
 
-Commit on your branch (a WIP commit, never a stash), stop background processes, release the ticket, then stop. An agent that launches subagents waits for their reports before it hands off or ends. A retry brief holds the ticket, the cause note and a failure summary of at most ~10 lines, never transcript excerpts.
+Commit on your branch (a WIP commit, never a stash), stop background processes, release the ticket, then stop. Do not start a second ticket. An agent that launches subagents waits for their reports before it hands off or ends. A retry brief is the ticket, the cause note and a failure summary (~10 lines max), no transcript excerpts.
 
 In a worktree, run `npm ci` first, give every long command a `timeout`, and keep shell calls plain. Write prose files with the file tool, not a heredoc.
