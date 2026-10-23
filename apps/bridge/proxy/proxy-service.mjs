@@ -2,7 +2,7 @@
 // single use, so an account that is not active still needs its refresher), serves the active account's access token to the proxy, and mints
 // the per-run secrets. The active account changes only when the user says so (switchAccount); no usage limit or failed refresh moves it.
 // Never reads or writes the interactive CLI's credentials: every path is under stateDir.
-import { mkdir, readFile } from "node:fs/promises";
+import { chmod, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { activeAccount, accountsDir, listAccounts, setActiveAccount } from "./accounts.mjs";
 import { ensureProxy } from "./container.mjs";
@@ -53,6 +53,10 @@ export function createProxyService({ stateDir, releaseDir, ceilings, docker, ima
 
   return {
     async start() {
+      for (const dir of [path.join(stateDir, "proxy"), path.join(stateDir, "proxy", "accounts")]) {
+        await mkdir(dir, { recursive: true, mode: 0o700 });
+        await chmod(dir, 0o700);
+      }
       await tick();
       await mkdir(secretsDir, { recursive: true });
       await writeSecrets({ dir: secretsDir, secrets });

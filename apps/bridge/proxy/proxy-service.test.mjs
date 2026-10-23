@@ -19,7 +19,7 @@
 // Nothing here switches accounts by itself: a usage limit (HTTP 429) or a failed refresh leaves the active account as it is.
 import { test, describe, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
+import { chmod, mkdir, mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { roleHosts } from "./proxy.mjs";
@@ -103,6 +103,15 @@ describe("createProxyService", () => {
       assert.ok(env.includes(`DEN_PROXY_ROLES=${JSON.stringify(roleHosts(CEILINGS))}`), env.join(" "));
       assert.ok(env.some((e) => e.startsWith("DEN_PROXY_SECRETS_FILE=")), env.join(" "));
       assert.equal(args.at(-3), "den-agent:test"); // image, then `node /den-proxy/den-proxy.mjs`
+    });
+
+    // hardening/16 security F3: nobody else on the box needs to list the proxy's folders.
+    test("the proxy folder and its private accounts folder are mode 0700, even when they already existed at 0755", async () => {
+      await seed("a");
+      await mkdir(path.join(stateDir, "proxy", "accounts"), { recursive: true, mode: 0o755 });
+      await chmod(path.join(stateDir, "proxy"), 0o755);
+      await make().start();
+      for (const dir of [path.join(stateDir, "proxy"), path.join(stateDir, "proxy", "accounts")]) assert.equal((await stat(dir)).mode & 0o777, 0o700, dir);
     });
 
     test("the secrets file exists, as an empty map, before the proxy container is run", async () => {
