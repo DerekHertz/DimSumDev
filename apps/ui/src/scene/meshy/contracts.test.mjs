@@ -27,18 +27,18 @@ test('Meshy motion is finite gentle root movement and reduced motion stops it', 
 });
 test('new walking world may set its own floor, spawn and collision boundaries without old obstacles', () => {
   const state=startWalk(WALK_START);
-  assert.equal(state.x,0);assert.equal(state.z,34);
+  assert.equal(state.x,0);assert.equal(state.z,42);assert.equal(state.groundY,.36);
   const world={floorRadius:29,floorCenter:{x:0,z:-1},obstacles:[{type:'box',x:2,z:24,halfX:.4,halfZ:1.5}],avoid:[]};
   assert.equal(isWalkBlocked(0,24,world),false,'central gate passage stays open');
   assert.equal(isWalkBlocked(2,24,world),true,'gate post stops the walker');
   assert.equal(isWalkBlocked(0,27.9,world),true,'body stays inside the shifted island');
-  assert.deepEqual(NAVIGATION_TARGETS.library,[-21,1,6]);
+  assert.deepEqual(NAVIGATION_TARGETS.library,[0,1,24]);
 });
 test('first-person eye height follows a regular adult resident while walking and climbing', () => {
   const start=startWalk(WALK_START);
-  assert.equal(RESIDENT_HEIGHT,2.04);assert.equal(start.y,2.08);
-  const world={eyeHeight:PLAYER_EYE_HEIGHT,floorRadius:29,floorCenter:{x:0,z:-1},obstacles:[],avoid:[]};
-  assert.equal(walk(start,{forward:1,reducedMotion:true},.1,world).y,2.08);
-  const raised={...world,navigation:{groundAt:()=>.36}};
-  assert.ok(Math.abs(walk({...start,groundY:.36},{forward:1,reducedMotion:true},.1,raised).y-2.18)<1e-8);
+  assert.equal(RESIDENT_HEIGHT,2.04);assert.equal(PLAYER_EYE_HEIGHT,1.82);assert.equal(start.y,2.18);
+  const world={eyeHeight:PLAYER_EYE_HEIGHT,floorRadius:70,obstacles:[],avoid:[],navigation:{groundAt:()=>.36}};
+  assert.equal(walk(start,{forward:1,reducedMotion:true},.1,world).y,2.18);
+  const raised={...world,navigation:{groundAt:()=>.46}};
+  assert.ok(Math.abs(walk(start,{forward:1,reducedMotion:true},.1,raised).y-2.28)<1e-8);
 });

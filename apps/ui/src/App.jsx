@@ -396,10 +396,10 @@ export function App() {
         <div className="den-camera-controls">
           <ZoomSwitcher camera={camera} />
           <div role="group" aria-label="Roof visibility" className="den-roof-controls">
-            {['full','cutaway'].map(mode=><button key={mode} type="button" className="btn" aria-pressed={roofMode===mode} onClick={()=>{roofs.set(mode);setRoofMode(mode);}}>{mode==='full'?'Full roofs':'Cutaway'}</button>)}
+            {['full','cutaway'].map(mode=><button key={mode} type="button" className="btn btn-outline" aria-pressed={roofMode===mode} onClick={()=>{roofs.set(mode);setRoofMode(mode);}}>{mode==='full'?'Full roofs':'Cutaway'}</button>)}
           </div>
         </div>
-        <main aria-label="Den scene" aria-keyshortcuts="ArrowLeft ArrowRight + -" tabIndex={0} className="scene forest-garden">
+        <main aria-label="Den scene" aria-describedby="den-navigation-hint" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown + -" tabIndex={0} className="scene forest-garden">
           <div className="forest-canvas">
             <SceneBoundary>
               <Canvas aria-hidden="true" orthographic shadows dpr={[1,1.5]} frameloop="demand"
@@ -444,7 +444,7 @@ export function App() {
                 stage.explorer?.capture();
               }}>Look around</button> : null}
             </div>
-            <p className="forest-garden-hint">{exploring ? exploreHint : 'Drag to move around · scroll to zoom · select a panda to visit'}</p>
+            <p id="den-navigation-hint" className="forest-garden-hint">{exploring ? exploreHint : 'Drag / arrows to orbit · Shift-drag / Shift-arrows / right-drag to pan · scroll / pinch to zoom · Den to reset'}</p>
           </div>
         </main>
         <Cards snapshot={snapshot} ownBuild={inDemo ? null : live.ownBuild} now={now} connection={connection} placeholder={placeholder} camera={camera} steering={steering}

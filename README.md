@@ -128,7 +128,10 @@ npm run next-session            # prints the command to resume from the latest h
 | Ctrl/Cmd + K | Focus the input bar |
 | 1 Den · 2 Team · 3 Panda · 4 Workspace | Jump the overview camera to a zoom level |
 | + / − / wheel / pinch | Zoom the overview camera |
-| ← / → / drag | Pan the overview camera |
+| Arrows / drag | Orbit and tilt the overview camera |
+| Shift + arrows / Shift + drag / right-drag | Pan the overview camera |
+
+The **Den** camera button restores the original target, tilt and zoom. First-person walking moves at 5 scene units/sec, or 9 while holding Shift; residents retain their own pacing. Floating exterior panels use subtle frosted glass in the current palette, with solid surfaces when backdrop filtering is unsupported, reduced transparency is requested, or forced colors are active.
 
 Beside the camera controls, **Roof visibility** offers **Full roofs** and **Cutaway**. Full roofs is the first-use default; the choice is saved in this browser, with Full roofs as the fallback when storage is invalid or unavailable. Cutaway retains the rear roof section and frame to reveal interiors ([controls](apps/ui/src/App.jsx), [preference and tests](apps/ui/src/scene/meshy/residents-55.test.mjs), [roof construction](apps/ui/src/scene/meshy/approved/approved-structures.mjs)).
 

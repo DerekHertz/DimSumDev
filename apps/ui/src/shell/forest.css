@@ -12,7 +12,7 @@
 .transcript-active-tools button { color:var(--ink); background:var(--surface-200); border:1px solid var(--line); border-radius:var(--radius-s); min-height:32px; }
 .forest-shell {
   --surface-000: #e6eddf; --surface-100: #f7f7ef; --surface-200: #fffef9;
-  --surface-300: #edf0e4; --surface-glass: #fffef9f5; --line: #dce3d3;
+  --surface-300: #edf0e4; --surface-glass: var(--surface-200); --line: #dce3d3;
   --line-strong: #a4b296; --ink: #344b35; --ink-muted: #64745f; --ink-faint: #72806a;
   --qi: #486d3e; --qi-fill: #486d3e; --on-qi: #fffef9; --focus-ring: #486d3e;
   --font-sans: "Segoe UI", system-ui, sans-serif; --font-display: Georgia, "Times New Roman", serif;
@@ -33,7 +33,7 @@
 .den-camera-controls .zoom-levels { display: flex; flex-direction: row; gap: 2px; }
 .den-camera-controls .zoom-level { font-size: 11px; padding: 4px 7px; min-width: 44px; min-height: 44px; }
 .den-camera-controls .zoom-step { min-width: 44px; min-height: 44px; }
-.den-bar-talk { min-height: 44px; padding: 4px 14px; font-size: 12px; box-shadow: none; flex-shrink: 0; }
+.den-bar-talk { flex: none; height: 44px; min-height: 44px; padding: 4px 14px; font-size: 12px; box-shadow: none; white-space: nowrap; }
 .forest-shell .logo-pill { position: static; height: auto; padding: 0; border: 0; border-radius: 0; box-shadow: none; background: none; }
 .forest-shell .logo-face, .forest-shell .logo-face svg { width: 26px; height: 26px; }
 .forest-shell .logo-pill h1 { font: 600 12px/1.5 var(--font-sans); letter-spacing: .14em; text-transform: uppercase; white-space: nowrap; }
@@ -193,10 +193,30 @@
 .forest-portrait-caption .forest-dot { width: 4px; height: 4px; }
 .forest-muted { color: var(--ink-muted); font-size: 12px; line-height: 1.7; }
 @media (prefers-color-scheme: dark) {
-  .forest-shell { --surface-000: #28362b; --surface-100: #18231d; --surface-200: #202d24; --surface-300: #304034; --surface-glass: #202d24f5; --line: #3f5042; --line-strong: #7b947d; --ink: #e0e9d9; --ink-muted: #b1bfaa; --ink-faint: #9cad94; --qi: #b4d69d; --qi-fill: #b4d69d; --on-qi: #18231d; --focus-ring: #b4d69d; }
+  .forest-shell { --surface-000: #28362b; --surface-100: #18231d; --surface-200: #202d24; --surface-300: #304034; --surface-glass: var(--surface-200); --line: #3f5042; --line-strong: #7b947d; --ink: #e0e9d9; --ink-muted: #b1bfaa; --ink-faint: #9cad94; --qi: #b4d69d; --qi-fill: #b4d69d; --on-qi: #18231d; --focus-ring: #b4d69d; }
 }
-.den-camera-controls { position: absolute; z-index: 4; left: var(--space-3); bottom: var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: calc(100% - 32px); padding: var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-m); background: var(--surface-100); }
+.den-camera-controls { position: absolute; z-index: 4; left: var(--space-3); bottom: var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: calc(100% - 32px); padding: var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-m); background: var(--surface-glass); }
 .den-roof-controls { display: flex; gap: var(--space-1); }
-.den-roof-controls button { min-width: 44px; min-height: 44px; }
-.den-roof-controls button[aria-pressed="true"] { background: var(--qi-fill); color: var(--ink); border-color: var(--qi); }
+.den-roof-controls button { flex: none; min-width: 44px; min-height: 44px; font: 700 11px/16px var(--font-sans); }
+.den-roof-controls button:hover { background: var(--surface-300); }
+.den-roof-controls button[aria-pressed="true"] { background: var(--qi-fill); color: var(--on-qi); border-color: var(--qi); }
 .den-roof-controls button:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+
+@supports ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) and (background: color-mix(in srgb, white, transparent)) {
+  .forest-shell { --surface-glass: color-mix(in srgb, var(--surface-200) 84%, transparent); }
+  .den-sheet, .forest-shell .transcript-panel, .den-camera-controls,
+  .forest-legend, .den-location, .den-toast, .forest-shell .scene-zone-notice,
+  .forest-shell .proximity-card, .forest-shell .message-composer, .forest-shell .panda-detail, .forest-shell .approval-panel {
+    --ink-muted: var(--ink); --ink-faint: var(--ink);
+    -webkit-backdrop-filter: blur(12px) saturate(110%); backdrop-filter: blur(12px) saturate(110%);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, var(--surface-200) 65%, transparent), var(--shadow-panel);
+  }
+}
+@media (prefers-reduced-transparency: reduce), (forced-colors: active) {
+  .forest-shell { --surface-glass: var(--surface-200); }
+  .den-sheet, .forest-shell .transcript-panel, .den-camera-controls,
+  .forest-legend, .den-location, .den-toast, .forest-shell .scene-zone-notice,
+  .forest-shell .proximity-card, .forest-shell .message-composer, .forest-shell .panda-detail, .forest-shell .approval-panel {
+    -webkit-backdrop-filter: none; backdrop-filter: none; box-shadow: none;
+  }
+}
