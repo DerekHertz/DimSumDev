@@ -1,5 +1,6 @@
 import * as T from 'three';
 import {seated,seatSpots} from './meeting-table.mjs';
+import {ROUTINE_POLICY} from './daily-routines.mjs';
 import {WADDLE} from './panda-rig.mjs';
 
 // Physical presentation only. The bridge's meeting snapshot remains the owner
@@ -53,7 +54,7 @@ export function createMeetingResidents(den,actors,places,routines){
  function update(dt,reduced=false){
   for(const a of [...participants.values(),...returning]){
    const trip=a.meetingTrip;if(!trip)continue;if(a.guest)a.moved=0;
-   const p=a.panda.model.position;let left=reduced?Infinity:dt*(a.live?4:3);a.path=trip.path;
+   const p=a.panda.model.position;let left=reduced?Infinity:dt*(a.live?ROUTINE_POLICY.returnSpeed:ROUTINE_POLICY.walkSpeed);a.path=trip.path;
    while(trip.path.length&&left>0){
     const next=trip.path[0],distance=Math.hypot(next.x-p.x,next.z-p.z),travel=Math.min(left,distance),k=distance?travel/distance:1;
     const target={x:p.x+(next.x-p.x)*k,y:p.y+(next.y-p.y)*k,z:p.z+(next.z-p.z)*k};

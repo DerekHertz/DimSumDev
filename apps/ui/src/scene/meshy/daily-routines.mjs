@@ -16,10 +16,10 @@ export function gardenRoutineSpots(garden){
  ];
 }
 
-export const ROUTINE_POLICY=Object.freeze({maxOutings:3,maxLocalLength:60,walkSpeed:3,returnSpeed:4,activityMin:45,activityMax:90,cooldownMin:120,cooldownMax:240,yieldSeconds:2});
+export const ROUTINE_POLICY=Object.freeze({maxOutings:3,maxLocalLength:60,walkSpeed:3.6,returnSpeed:4.8,activityMin:45,activityMax:90,cooldownMin:120,cooldownMax:240,yieldSeconds:2});
 const distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 export const routeLength=(from,path)=>path.reduce((sum,p,i)=>sum+distance(i?path[i-1]:from,p),0);
-export function routeSeconds(actor,path){let p=actor.panda.model.position,yaw=actor.yaw??actor.baseYaw,total=0;for(const q of path){const d=distance(p,q),facing=q.yaw??(d<1e-6?yaw:Math.atan2(q.x-p.x,q.z-p.z));total+=d/3;if(q.mount==null)total+=Math.abs(Math.atan2(Math.sin(facing-yaw),Math.cos(facing-yaw)))/3.5;p=q;yaw=facing;}return total;}
+export function routeSeconds(actor,path){let p=actor.panda.model.position,yaw=actor.yaw??actor.baseYaw,total=0;for(const q of path){const d=distance(p,q),facing=q.yaw??(d<1e-6?yaw:Math.atan2(q.x-p.x,q.z-p.z));total+=d/ROUTINE_POLICY.walkSpeed;if(q.mount==null)total+=Math.abs(Math.atan2(Math.sin(facing-yaw),Math.cos(facing-yaw)))/3.5;p=q;yaw=facing;}return total;}
 
 // Presentation owns no execution timers. Every journey has a leased destination,
 // and every failed plan stays at the last physically valid position.
@@ -88,7 +88,7 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
   }
  }
  function step(a,dt,reduced){
-  const r=a.outing,p=a.panda.model.position;let remaining=(a.live?4:3)*dt;
+  const r=a.outing,p=a.panda.model.position;let remaining=(a.live?ROUTINE_POLICY.returnSpeed:ROUTINE_POLICY.walkSpeed)*dt;
   if(reduced)remaining=Infinity;
   while(a.path?.length&&remaining>0){
    const n=a.path[0],d=distance(p,n),travel=Math.min(d,remaining),fraction=d?travel/d:1;

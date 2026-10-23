@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import * as T from 'three';
 import { RESIDENTS } from '../../shell/resident-inventory.mjs';
 import { activeResidents, workDocks, OFFICE_PLOT, leisurePlaces } from './approved-plan.mjs';
-import { createDailyRoutines } from './daily-routines.mjs';
+import { routeLength, routeSeconds, createDailyRoutines } from './daily-routines.mjs';
 import { createRoofPreference } from './roof-preference.mjs';
 
 test('55-B/K: 22 unique team docks plus two staged executive homes; legacy authority remains in inventory',()=>{
@@ -29,13 +29,15 @@ function fixture({blocked=false,random=()=>0}={}){
 }
 const tick=(f,seconds,reduced=false)=>{for(let t=0;t<Math.round(seconds*10);t++)f.routines.update(.1,reduced,null);};
 
-test('55-C/F: reserve before departure, one local destination, 3 units/sec, settled 45s then owned home',()=>{
+test('55-C/F: reserve before departure, one local destination, 3.6 units/sec, settled 45s then owned home',()=>{
  const f=fixture();tick(f,2.1);const a=[...f.actors.values()].find(a=>a.outing);assert.ok(a);
  assert.ok(a.outing.spot);assert.equal(f.routines.reservations.get(a.outing.spot.id),a.id);
- const at=a.panda.model.position.clone();tick(f,1);assert.ok(Math.abs(at.distanceTo(a.panda.model.position)-3)<.05);
+ const at=a.panda.model.position.clone();tick(f,1);assert.ok(Math.abs(at.distanceTo(a.panda.model.position)-3.6)<.05);
  tick(f,3);assert.equal(a.outing.stage,'visit');assert.equal(a.moved,0);
- tick(f,46);assert.ok(!a.outing||a.outing.stage==='return');tick(f,20);assert.equal(a.outing,null);assert.deepEqual(a.panda.model.position,a.home);
- assert.ok(a.nextOuting>=f.routines.time+100);f.routines.dispose();assert.equal(f.routines.reservations.size,0);
+ assert.equal(a.outing.duration,45);
+ for(let i=0;i<460&&a.outing?.stage==='visit';i++)tick(f,.1);assert.equal(a.outing.stage,'return');
+ for(let i=0;i<200&&a.outing;i++)tick(f,.1);assert.equal(a.outing,null);assert.deepEqual(a.panda.model.position,a.home);
+ assert.ok(Math.abs(a.nextOuting-f.routines.time-120)<1e-9);f.routines.dispose();assert.equal(f.routines.reservations.size,0);
 });
 
 test('55-C/F/M: unavailable or over-60-unit destination leaves resident at home',()=>{
@@ -45,7 +47,7 @@ test('55-C/F/M: unavailable or over-60-unit destination leaves resident at home'
 
 test('55-G: work preempts a settled activity immediately and returns without teleporting',()=>{
  const f=fixture();tick(f,6);const a=[...f.actors.values()].find(a=>a.outing);assert.ok(a);a.live={state:'working'};
- const slot=a.outing.spot.id,at=a.panda.model.position.clone();tick(f,.1);assert.equal(a.outing.stage,'return');assert.ok(at.distanceTo(a.panda.model.position)<=.401);assert.notEqual(f.routines.reservations.get(slot),a.id);
+ const slot=a.outing.spot.id,at=a.panda.model.position.clone();tick(f,.1);assert.equal(a.outing.stage,'return');assert.ok(at.distanceTo(a.panda.model.position)<=.481);assert.notEqual(f.routines.reservations.get(slot),a.id);
  tick(f,8);assert.equal(a.outing,null);assert.deepEqual(a.panda.model.position,a.home);tick(f,300);assert.equal(a.outing,null);f.routines.dispose();
 });
 
@@ -79,4 +81,33 @@ test('55-F/G: obstruction yields, replans once, and blocked return holds the las
  const f=fixture();tick(f,3);const a=[...f.actors.values()].find(a=>a.outing),at=a.panda.model.position.clone();for(const b of f.actors.values())if(b!==a)b.stationary=true;let plans=0;
  f.den.routineClear=()=>false;f.den.routineRoute=()=>{plans++;return [];};a.live={state:'working'};tick(f,20);
  assert.equal(a.outing.stage,'return');assert.deepEqual(a.panda.model.position,at);assert.equal(a.moved,0);assert.ok(plans<=2);f.routines.dispose();
+});
+
+test('55 pace: live work return covers 4.8 units in one second without teleporting',()=>{
+ const f=fixture();tick(f,5);const a=f.actors.get('a0');assert.equal(a.outing.stage,'visit');
+ a.live={state:'working'};const at=a.panda.model.position.clone();tick(f,1);
+ assert.ok(Math.abs(at.distanceTo(a.panda.model.position)-4.8)<.001);assert.equal(a.outing.stage,'return');f.routines.dispose();
+});
+
+test('55 pace: planner uses 3.6 units/sec and still charges turning time',()=>{
+ const f=fixture(),a=f.actors.get('a0');a.baseYaw=0;
+ assert.equal(routeSeconds(a,[{x:0,z:36}]),10);
+ assert.ok(Math.abs(routeSeconds(a,[{x:0,z:36,yaw:Math.PI}])-(10+Math.PI/3.5))<1e-9);f.routines.dispose();
+});
+
+test('55 pace: both game partners keep the independent 20-second cap even below 60 units',()=>{
+ const f=fixture();f.den.garden={approved:true};for(const a of f.actors.values()){a.teamId='pantry';a.baseYaw=0;}for(const id of ['a2','a3'])f.actors.get(id).stationary=true;
+ const spots=[0,1].map(i=>({id:'games:'+i,kind:'games',group:'games',position:new T.Vector3(i*7,.36,50),face:new T.Vector3(i*7,.36,55)}));f.den.routineSpots=spots;
+ f.den.routineRoute=(a,_from,to)=>a.id==='a0'?[{...to}]:Array.from({length:10},(_,i)=>({x:7,y:.36,z:(i+1)*5,yaw:i%2?0:Math.PI}));
+ const a=f.actors.get('a0'),b=f.actors.get('a1');assert.ok(routeSeconds(a,f.den.routineRoute(a,a.home,spots[0].position))<20);
+ const partnerPath=f.den.routineRoute(b,b.home,spots[1].position);assert.equal(routeLength(b.home,partnerPath),50);
+ assert.ok(routeSeconds(b,partnerPath)>20);tick(f,2.1);
+ assert.ok([...f.actors.values()].every(a=>!a.outing));assert.equal(f.routines.reservations.size,0);f.routines.dispose();
+});
+
+
+test('55 pace: at most three outings and the 90-second activity and 240-second cooldown remain bounded',()=>{
+ const f=fixture({random:()=>1});f.den.routineSpots=Array.from({length:4},(_,i)=>({id:'tea:'+i,kind:'tea',group:'tea',position:new T.Vector3(i*7,.36,9),face:new T.Vector3(i*7,.36,6)}));
+ tick(f,15);const active=[...f.actors.values()].filter(a=>a.outing);assert.equal(active.length,3);assert.ok(active.every(a=>a.outing.stage==='visit'&&a.outing.duration===90));
+ const a=active[0];for(let i=0;i<1000&&a.outing;i++)tick(f,.1);assert.equal(a.outing,null);assert.ok(Math.abs(a.nextOuting-f.routines.time-240)<1e-9);f.routines.dispose();
 });

@@ -23,3 +23,11 @@ test('55-H/M: busy specialist keeps working at home while a separately owned gue
  const guest=f.meeting.seatModels().get('qa');assert.ok(guest);assert.notEqual(guest,f.a.panda.model);assert.deepEqual(f.a.panda.model.position,home);
  f.meeting.apply({...f.m,state:'closed'});tick(f,10);assert.equal(f.den.guestActors.size,0);assert.equal([...f.places.values()].filter(p=>p.owner&&p.kind!=='work').length,0);f.meeting.dispose();f.places.dispose();
 });
+
+test('55 pace: physical meeting travel covers 3.6 units per second and live return 4.8',()=>{
+ const f=fixture();f.meeting.apply(f.m);const start=f.a.panda.model.position.clone();tick(f,1);
+ assert.ok(Math.abs(start.distanceTo(f.a.panda.model.position)-3.6)<.001);
+ tick(f,10);f.meeting.apply({...f.m,state:'closed'});f.a.live={ref:'new-work'};
+ const seated=f.a.panda.model.position.clone();tick(f,1);assert.ok(Math.abs(seated.distanceTo(f.a.panda.model.position)-4.8)<.001);
+ f.meeting.dispose();f.places.dispose();
+});

@@ -27,7 +27,7 @@ test('55-E/F: both assembled mahjong players reserve prepared supported approach
  }finally{f.dispose();}
 });
 
-test('55-F: an assembled partner route under 60 units but over 20 seconds cannot start a game',()=>{
+test('55-F pace: the historical QA/designer partner route now fits the unchanged 20-second cap',t=>{
  const f=approvedFixture();try{
   const [primary,partner]=gamePair(f,['qa','designer']);
   f.den.routineSpots=f.den.routineSpots.filter(s=>['leisure:games:0','leisure:games:1'].includes(s.id));
@@ -35,13 +35,14 @@ test('55-F: an assembled partner route under 60 units but over 20 seconds cannot
   const first=prepare(primary,f.den.routineSpots[0]),second=prepare(partner,f.den.routineSpots[1]);
   const primaryPath=f.den.routineRoute(primary,primary.home,first.position),partnerPath=f.den.routineRoute(partner,partner.home,second.position);
   assert.ok(primaryPath.length&&routeSeconds(primary,primaryPath)<20);
-  assert.ok(partnerPath.length&&routeLength(partner.home,partnerPath)<60&&routeSeconds(partner,partnerPath)>20);
+  t.diagnostic(JSON.stringify({partnerLength:routeLength(partner.home,partnerPath),partnerSeconds:routeSeconds(partner,partnerPath)}));
+  assert.ok(partnerPath.length&&routeLength(partner.home,partnerPath)<60&&routeSeconds(partner,partnerPath)<20);
   // Restrict each resident to that measured seat; keep the real support and route planners.
   f.den.routinePlace=(a,s)=>(a===primary?s.id===first.id:s.id===second.id)?prepare(a,s):null;
   f.tick(2.1);
-  assert.ok([primary,partner].every(a=>!a.outing));
-  assert.equal(f.actors.routines.reservations.size,0);
-  assert.equal([...f.actors.places.values()].filter(p=>p.owner&&p.kind==='leisure').length,0);
+  assert.ok([primary,partner].every(a=>a.outing?.stage==='outbound'));
+  assert.equal(f.actors.routines.reservations.size,2);
+  for(const a of [primary,partner])assert.equal(f.actors.places.get('approach:'+a.outing.spot.id).owner,a.identity);
  }finally{f.dispose();}
 });
 

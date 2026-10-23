@@ -47,6 +47,6 @@ export function bindCameraControls({canvas,host,store,view,enabled,doc=document,
   listen(canvas,'pointercancel',clear);listen(canvas,'lostpointercapture',e=>{if(pointers.has(e.pointerId))clear();});
   listen(canvas,'wheel',e=>{if(!enabled())return;e.preventDefault();store.setZoom(wheelZoom(store.getZoom(),e.deltaY));},{passive:false});
   listen(canvas,'contextmenu',e=>{if(enabled())e.preventDefault();});listen(host,'keydown',key);
-  listen(win,'blur',clear);listen(doc,'focusin',clear);listen(doc,'visibilitychange',()=>{if(doc.hidden)clear();});
+  listen(win,'blur',clear);listen(doc,'focusin',e=>{if(e.target!==host&&e.target!==canvas)clear();});listen(doc,'visibilitychange',()=>{if(doc.hidden)clear();});
   return()=>{clear();listeners.forEach(off=>off());};
 }

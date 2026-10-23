@@ -41,3 +41,21 @@ test('real overview bindings orbit on drag/arrows, pan explicitly, pinch/zoom an
   down(1,0,0);enabled=false;move(1,10,10);enabled=true;const stopped=store.getOrbit();move(1,100,100);assert.deepEqual(store.getOrbit(),stopped);
   dispose();assert.equal(canvas.count()+host.count()+doc.count()+win.count(),0);assert.equal(captures.size,0);
 });
+
+
+test('first native drag survives pointerdown then scene focus; outside controls still cancel',async()=>{
+ const {bindCameraControls}=await import('./camera-controls.mjs');
+ const canvas=target(),host=target(),doc=target(),win=target(),store=createDenCameraStore(createCameraStore());
+ const dispose=bindCameraControls({canvas,host,doc,win,store,enabled:()=>true,view:()=>({width:1440,height:900,zoom:store.getZoom(),orbit:store.getOrbit()})});
+ const pointer={pointerId:1,clientX:0,clientY:0,button:0};
+ for(const focusTarget of [host,canvas]){
+  doc.emit('focusin',{target:{tagName:'BUTTON'}});canvas.emit('pointerdown',pointer);doc.emit('focusin',{target:focusTarget});
+  const before=store.getOrbit();canvas.emit('pointermove',{...pointer,clientX:40,clientY:-20});assert.notDeepEqual(store.getOrbit(),before);
+  canvas.emit('pointerup',pointer);
+ }
+ for(const tagName of ['BUTTON','INPUT','DIALOG','ASIDE']){
+  canvas.emit('pointerdown',pointer);doc.emit('focusin',{target:{tagName}});const before=store.getOrbit();
+  canvas.emit('pointermove',{...pointer,clientX:40,clientY:-20});assert.deepEqual(store.getOrbit(),before);
+ }
+ dispose();
+});
