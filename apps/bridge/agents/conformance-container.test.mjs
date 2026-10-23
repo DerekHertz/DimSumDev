@@ -39,7 +39,9 @@ const worker = JSON.parse(readFileSync(path.join(here, "limits.json"), "utf8")).
 
 // ADR 0031, "The seven wall questions": yes, yes, yes, yes, yes, yes ("absent, or read-only"), partly.
 const ADR_ANSWERS = { q1: "yes", q2: "yes", q3: "yes", q4: "yes", q5: "yes", q6: "yes", q7: "partly" };
-const TURN_IDS = ["bash-in", "bash-outside", "bash-ro", "bash-mainconfig", "write-in", "write-outside", "read-ro", "edit-ro", "write-home", "read-outside", "read-host-creds", "write-denied", "bash-fail", "net-granted", "net-blocked", "git-commit"];
+const TURN_IDS = ["bash-in", "bash-outside", "bash-ro", "bash-mainconfig", "bash-governed", "write-in", "write-outside", "read-ro", "edit-ro", "write-home", "read-outside", "read-host-creds", "write-denied", "bash-fail", "net-granted", "net-blocked", "git-commit"];
+// The recorded live run (fixtures/) predates the bash-governed probe (security M1); the user's next live `--spike Container` re-records it.
+const RECORDED_TURN_IDS = TURN_IDS.filter((id) => id !== "bash-governed");
 
 // ---- the option ---------------------------------------------------------------------------------
 
@@ -85,7 +87,7 @@ test("--help names the Container spike", () => {
 
 // ---- the plan -----------------------------------------------------------------------------------
 
-test("the plan: the harness's sixteen probes, one named call each, a granted and an ungranted host", () => {
+test("the plan: the harness's seventeen probes, one named call each, a granted and an ungranted host", () => {
   const p = api.makeContainerRepo({ model: "haiku" });
   try {
     const plan = api.containerTurns(p);
@@ -97,6 +99,8 @@ test("the plan: the harness's sixteen probes, one named call each, a granted and
     // The .git probe is in the plan, and the commit that proves the narrow rw mounts are enough.
     assert.match(plan.find((t) => t.id === "bash-mainconfig").text, /\.git/);
     assert.match(plan.find((t) => t.id === "git-commit").text, /git .*commit/);
+    // Security M1: a Bash redirect into the worktree's .claude/, which the container mounts read-only.
+    assert.match(plan.find((t) => t.id === "bash-governed").text, /^Bash: echo .*> .*\/\.claude\//);
   } finally {
     p.cleanup();
   }
@@ -180,6 +184,7 @@ test("containerRunArgs: mounts are the worktree rw and the main .git ro with onl
       { src: path.join(gd, "objects"), dst: path.join(gd, "objects"), mode: "rw" },
       { src: path.join(gd, "logs"), dst: path.join(gd, "logs"), mode: "rw" },
       { src: path.join(gd, "refs", "heads", "den"), dst: path.join(gd, "refs", "heads", "den"), mode: "rw" },
+      { src: path.join(p.worktree, ".claude"), dst: path.join(p.worktree, ".claude"), mode: "ro" }, // security M1, as the launcher mounts it
     ];
     const key = (m) => `${m.src}|${m.dst}|${m.mode}`;
     assert.deepEqual(mountsOf(argv).map(key).sort(), want.map(key).sort(), "exactly these mounts, nothing else");
@@ -217,7 +222,7 @@ test("containerRunArgs: the image, then claude, then the CLI argv as given (the 
 
 test("containerRunArgs: the spike runs the bridge's own builder, so it checks the container the den starts", () => {
   withRepo((p) => {
-    const want = productionRunArgs({ ...baseOpts, worktree: p.worktree, mainGit: path.join(p.dir, ".git"), refsNamespace: "den", limits: worker });
+    const want = productionRunArgs({ ...baseOpts, worktree: p.worktree, mainGit: path.join(p.dir, ".git"), refsNamespace: "den", readOnly: [path.join(p.worktree, ".claude")], limits: worker });
     assert.deepEqual(api.containerRunArgs(p, baseOpts), want);
   });
 });
@@ -309,6 +314,7 @@ test("q1: the CLI must start with permissionMode default, and a host deny must t
 test("q2: a file on the host disk, or a changed read-only mount, or a written .git, is a no", () => {
   for (const [what, fn] of [
     ["outside file written by Bash", (o) => { o.disk.outsideBash = true; }],
+    ["a governed path in the worktree written by Bash", (o) => { o.disk.governed = true; }],
     ["outside file written by Write", (o) => { o.disk.outsideWrite = true; }],
     ["file written in the home directory", (o) => { o.disk.home = true; }],
     ["read-only mount edited", (o) => { o.disk.roContent = "EDITED\n"; }],
@@ -416,7 +422,7 @@ test("fixtures/container-results.json records ADR 0031's answers, and replaying 
   // The recorded limits are the worker class's: the run measured what limits.json says.
   assert.equal(rec.obs.limits.memoryMax, worker.memoryMiB * 1024 ** 2);
   assert.equal(rec.obs.limits.pidsMax, worker.tasks);
-  assert.deepEqual(Object.keys(rec.obs.turns).sort(), [...TURN_IDS].sort());
+  assert.deepEqual(Object.keys(rec.obs.turns).sort(), [...RECORDED_TURN_IDS].sort());
 });
 
 test("fixtures/container.jsonl is a scrubbed stream from the container: init, permission requests, tool results, results", () => {
@@ -425,7 +431,7 @@ test("fixtures/container.jsonl is a scrubbed stream from the container: init, pe
   assert.ok(objs.some((o) => o.type === "system" && o.subtype === "init"));
   assert.ok(objs.some((o) => o.type === "control_request" && o.request?.subtype === "can_use_tool"));
   assert.ok(objs.some((o) => o.type === "user" && Array.isArray(o.message?.content) && o.message.content.some((b) => b.type === "tool_result")));
-  assert.equal(objs.filter((o) => o.type === "result").length, TURN_IDS.length, "one result line per probe turn");
+  assert.equal(objs.filter((o) => o.type === "result").length, RECORDED_TURN_IDS.length, "one result line per probe turn");
 });
 
 test("the recorded files hold no login and no owner path", () => {

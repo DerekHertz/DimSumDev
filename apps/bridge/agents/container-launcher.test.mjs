@@ -68,3 +68,27 @@ test("exhausted() names memory once docker reports the container OOM-killed (rea
   await new Promise((r) => setImmediate(r));
   assert.equal(group.exhausted(), "memory");
 });
+
+test("governed paths go in read-only: an existing one is mounted, a missing one gets a placeholder that is swept on exit", async () => {
+  const { mkdtemp, mkdir, lstat, rm, realpath } = await import("node:fs/promises");
+  const { tmpdir } = await import("node:os");
+  const pathMod = await import("node:path");
+  const wt = pathMod.join(await realpath(await mkdtemp(pathMod.join(tmpdir(), "den-gov-"))), "w1");
+  await mkdir(pathMod.join(wt, ".claude"), { recursive: true });
+  try {
+    const denyWrite = [`${wt}/.claude`, `${wt}/.github/workflows`, "/h/repo/.git/refs"];
+    const { launcher, spawned } = setup();
+    const { child } = await launcher.launch({ ...run, cwd: wt, args: ["-p", "--settings", JSON.stringify({ permissions: {}, sandbox: { filesystem: { denyWrite } } })] });
+    const ro = spawned[0].argv.filter((a) => a.endsWith(":ro"));
+    assert.ok(ro.includes(`${wt}/.claude:${wt}/.claude:ro`));
+    assert.ok(ro.includes(`${wt}/.github/workflows:${wt}/.github/workflows:ro`));
+    assert.ok(!ro.some((a) => a.startsWith("/h/repo/.git/refs")), "a path under no rw mount is already read-only or absent");
+    const ph = await lstat(`${wt}/.github/workflows`);
+    assert.ok(ph.isFile() && ph.size === 0 && (ph.mode & 0o222) === 0, "the placeholder is an empty read-only file");
+    child.emit("exit", 0);
+    await new Promise((r) => setTimeout(r, 20));
+    assert.equal(await lstat(`${wt}/.github`).then(() => true, () => false), false, "the placeholder and the dir made for it are gone");
+  } finally {
+    await rm(pathMod.dirname(wt), { recursive: true, force: true });
+  }
+});

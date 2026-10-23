@@ -80,3 +80,19 @@ test("the CLI's own sandbox block is dropped inside the container, and Bash is a
 test("host-side git in an agent worktree runs with fsmonitor and hooks switched off", () => {
   assert.deepEqual([...SAFE_GIT], ["-c", "core.fsmonitor=", "-c", "core.hooksPath=/dev/null"]);
 });
+
+// hardening/10 fix round (security M1): the CLI sandbox's write denies (guardrail and CI paths) are dropped in the container, so
+// they are mounted read-only over the rw worktree and grants instead: a Bash redirect into .claude/ then fails with EROFS.
+test("readOnly paths are mounted ro after every rw mount, and only plain absolute paths are taken", () => {
+  const ro = ["/h/repo/.claude/worktrees/w1/.claude", "/h/repo/.claude/worktrees/w1/.github/workflows"];
+  const v = pairs(containerRunArgs({ ...base, grants: ["/h/notes"], readOnly: ro }), "-v");
+  assert.deepEqual(v.slice(-2), ro.map((p) => `${p}:${p}:ro`));
+  assert.throws(() => containerRunArgs({ ...base, readOnly: ["/h/a:/etc"] }), TypeError);
+});
+
+test("governedWrites: the sandbox's denyWrite paths under a rw mount, and nothing else", async () => {
+  const { governedWrites } = await import("./container.mjs");
+  const wt = base.worktree;
+  const settings = { permissions: {}, sandbox: { filesystem: { denyWrite: [`${wt}/.claude`, `${wt}/.github/workflows`, "/h/notes/x", "/h/repo/.git/refs", ".claude"] } } };
+  assert.deepEqual(governedWrites(["-p", "--settings", JSON.stringify(settings)], [wt, "/h/notes"]), [`${wt}/.claude`, `${wt}/.github/workflows`, "/h/notes/x"]);
+});

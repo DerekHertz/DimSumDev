@@ -2,6 +2,8 @@
 // Pure: no docker call, no disk. The mounts are the boundary; a path not mounted is absent. Every mount is at its host path,
 // so paths in the stream and the handoff stay true on the host.
 import { spawn as spawnChild } from "node:child_process";
+import { lstat, mkdir, rmdir, unlink, writeFile } from "node:fs/promises";
+import path from "node:path";
 import { isWorktreePath } from "./claude-adapter.mjs";
 import { agentProxyEnv } from "../proxy/container.mjs";
 import { EnforcementError, LIMITS } from "./resource-group.mjs";
@@ -25,7 +27,7 @@ const plainPath = (p, what) => need(isWorktreePath(p), `${what} must be a plain 
  * The argv (no binary name) of `docker run` for one agent. limits: a limits.json class. refsNamespace: the one branch namespace
  * under refs/heads that a branch-holding agent may write (the bridge's agents are detached and need none). grants: absolute write paths.
  */
-export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace, ticketFile, grants = [], limits, env = {}, cliArgs, network = AGENT_NETWORK }) {
+export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace, ticketFile, grants = [], readOnly = [], limits, env = {}, cliArgs, network = AGENT_NETWORK }) {
   need(typeof image === "string" && IMAGE_RE.test(image), "image must be a plain image reference");
   need(typeof name === "string" && NAME_RE.test(name), "name must be a plain lower-case name");
   need(typeof network === "string" && NAME_RE.test(network), "network must be a plain lower-case name");
@@ -34,6 +36,8 @@ export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace
   if (ticketFile !== undefined) plainPath(ticketFile, "ticketFile");
   need(Array.isArray(grants) && grants.length <= 6, "grants must be a short list");
   for (const g of grants) plainPath(g, "a grant");
+  need(Array.isArray(readOnly) && readOnly.length <= 64, "readOnly must be a short list");
+  for (const r of readOnly) plainPath(r, "a read-only path");
   need(refsNamespace === undefined || (typeof refsNamespace === "string" && REF_PART_RE.test(refsNamespace) && !/^\.+$/.test(refsNamespace)), "refsNamespace must be one plain name");
   need(limits && int(limits.memoryMiB, 16, 1024 * 1024) && int(limits.cpuPercent, 5, 6400) && int(limits.tasks, 8, 65536), "limits must be a limits.json class");
   need(Array.isArray(cliArgs) && cliArgs.every((a) => typeof a === "string"), "cliArgs must be strings");
@@ -50,6 +54,7 @@ export function containerRunArgs({ image, name, worktree, mainGit, refsNamespace
     ...(refsNamespace === undefined ? [] : mount(`${mainGit}/refs/heads/${refsNamespace}`, "rw")),
     ...(ticketFile === undefined ? [] : mount(ticketFile, "ro")),
     ...grants.flatMap((g) => mount(g, "rw")),
+    ...readOnly.flatMap((r) => mount(r, "ro")), // docker mounts a deeper target after its parent, so these sit over the rw mounts
     "-w", worktree, image, "claude", ...cliArgs,
   ];
 }
@@ -66,6 +71,44 @@ export function containerCliArgs(args) {
   const allow = settings.permissions?.allow ?? [];
   settings.permissions = { ...settings.permissions, allow: allow.includes("Bash") ? allow : [...allow, "Bash"] };
   return args.map((a, j) => (j === i + 1 ? JSON.stringify(settings) : a));
+}
+
+const under = (p, dir) => p === dir || p.startsWith(`${dir}/`);
+/**
+ * Security M1: the CLI sandbox's shell-write denies (the guardrail and CI paths of the worktree, and those a grant reaches, CI lift
+ * for ciGrantRoles included) that fall under one of the rw mounts `rw`. The container mounts them read-only in place of the sandbox.
+ */
+export function governedWrites(args, rw) {
+  const i = args.indexOf("--settings");
+  const listed = i >= 0 ? JSON.parse(args[i + 1]).sandbox?.filesystem?.denyWrite : undefined;
+  return [...new Set((Array.isArray(listed) ? listed : []).filter((p) => typeof p === "string" && isWorktreePath(p) && rw.some((d) => under(p, d))))];
+}
+
+/**
+ * Each governed path ready to be mounted read-only: an existing one as is; a missing one gets an empty read-only placeholder file
+ * (the CLI sandbox does the same), with any parent dirs it needs. -> { paths, sweep }: sweep removes the placeholders still empty
+ * and read-only, and the dirs made for them. Never throws from sweep.
+ */
+async function placeGoverned(paths) {
+  const made = [];
+  const dirs = [];
+  for (const p of paths) {
+    if (await lstat(p).then(() => true, () => false)) continue;
+    for (let d = path.dirname(p); !(await lstat(d).then(() => true, () => false)); d = path.dirname(d)) dirs.unshift(d);
+    await mkdir(path.dirname(p), { recursive: true });
+    await writeFile(p, "", { mode: 0o444, flag: "wx" });
+    made.push(p);
+  }
+  const sweep = async () => {
+    for (const p of made) {
+      try {
+        const info = await lstat(p);
+        if (info.isFile() && info.size === 0 && (info.mode & 0o222) === 0) await unlink(p);
+      } catch { /* gone */ }
+    }
+    for (const d of [...new Set(dirs)].reverse()) await rmdir(d).catch(() => {});
+  };
+  return { paths, sweep };
 }
 
 const DOCKER = "/usr/bin/docker"; // ADR 0031 decision 1: never the first `docker` on PATH, which can be Docker Desktop's
@@ -98,8 +141,9 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
       if (!ready.ok) throw new EnforcementError(ready.reason);
       const { secret } = await proxy.mintRunSecret({ role: container.role });
       const name = containerName(id);
+      const governed = await placeGoverned(governedWrites(args, [cwd, ...(container.grants ?? [])]));
       const argv = containerRunArgs({
-        image, name, worktree: cwd, mainGit: container.mainGit, ticketFile: container.ticketFile, grants: container.grants, limits: limit, cliArgs: containerCliArgs(args),
+        image, name, worktree: cwd, mainGit: container.mainGit, ticketFile: container.ticketFile, grants: container.grants, readOnly: governed.paths, limits: limit, cliArgs: containerCliArgs(args),
         env: { HOME: "/root", ...agentProxyEnv({ role: container.role, session: container.sessionId, ports: proxy.ports, secret }), CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" },
       });
       const host = env.DOCKER_HOST || `unix://${env.XDG_RUNTIME_DIR || `/run/user/${process.getuid()}`}/docker.sock`;
@@ -107,7 +151,7 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
       let stderr = "";
       child.stderr?.on?.("data", (c) => { if (stderr.length < 2048) stderr += String(c); });
       let gone = false;
-      child.once("exit", () => (gone = true));
+      child.once("exit", () => { gone = true; governed.sweep(); });
       child.on("error", () => {});
       let hit = null;
       let reading = null;
@@ -127,6 +171,7 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
       };
       for (const until = Date.now() + startWaitMs; Date.now() < until && !gone; await sleep(50)) if (await up(name)) return { child, group };
       group.kill();
+      await governed.sweep();
       try { if (child.pid > 1) process.kill(-child.pid, "SIGKILL"); } catch { /* already gone */ }
       throw new EnforcementError(`the container ${name} did not start: ${stderr.trim().slice(-300) || "no output"}`);
     },

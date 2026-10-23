@@ -80,6 +80,8 @@ export function containerTurns(p) {
     // write under .git, which hid the answer. Read-only bind mounts are proven by bash-mainconfig, edit-ro and the exec writes.
     { id: "bash-ro", text: `Bash: echo RO >> /usr/den-ro-probe.txt` },
     { id: "bash-mainconfig", text: `Bash: git config --file ${path.join(gd, "config")} core.hooksPath /tmp/evil` },
+    // Security M1: the CLI sandbox's write denies are gone in the container, so the guardrail paths are mounted read-only.
+    { id: "bash-governed", text: `Bash: echo GOV > ${w(".claude/den-governed-probe.txt")}` },
     { id: "write-in", text: `Write: file_path ${w("in-write.txt")}, content IN-WRITE` },
     { id: "write-outside", text: `Write: file_path ${path.join(p.outside, "write.txt")}, content OUT-WRITE` },
     { id: "read-ro", text: `Read: file_path ${p.roFile}` },
@@ -99,7 +101,7 @@ export function containerTurns(p) {
 
 /** The `docker run` argv: the bridge's own builder (container.mjs), so the spike checks the container the den starts. limits: a limits.json class, default the worker's. */
 export function containerRunArgs(p, { image, name, cliArgs, env, limits = WORKER, network = NETWORK }) {
-  return productionRunArgs({ image, name, worktree: p.worktree, mainGit: path.join(p.dir, ".git"), refsNamespace: "den", limits, env, cliArgs, network });
+  return productionRunArgs({ image, name, worktree: p.worktree, mainGit: path.join(p.dir, ".git"), refsNamespace: "den", readOnly: [path.join(p.worktree, ".claude")], limits, env, cliArgs, network });
 }
 
 // ---- the evaluator: the seven answers and the three checks ------------------------------------
@@ -128,13 +130,13 @@ export function evaluateContainer(obs, { limits = WORKER } = {}) {
   };
 
   const romount = disk.roContent?.trim() === "read only";
-  const nothingWritten = !disk.outsideBash && !disk.outsideWrite && !disk.home && !disk.mainConfigHooks;
+  const nothingWritten = !disk.governed && !disk.outsideBash && !disk.outsideWrite && !disk.home && !disk.mainConfigHooks;
   const innerRefused = [inspect.mainConfigWrite, inspect.mainRefsWrite, inspect.rootfsWrite].every(refused);
   a.q2 = {
     answer: nothingWritten && romount && innerRefused ? "yes" : "no",
     evidence: [
       `bash-outside: ${res("bash-outside")}`, `bash-ro: ${res("bash-ro")}`, `edit-ro: ${res("edit-ro")}`, `write-home: ${res("write-home")}`,
-      `on disk: outside Bash ${disk.outsideBash ? "WRITTEN" : "absent"}, outside Write ${disk.outsideWrite ? "WRITTEN" : "absent"}, home file ${disk.home ? "WRITTEN" : "absent"}, read-only mount ${romount ? "unchanged" : "CHANGED"}, host .git/config hooksPath ${disk.mainConfigHooks ?? "unset"}`,
+      `on disk: a governed path by Bash ${disk.governed ? "WRITTEN" : "absent"}, outside Bash ${disk.outsideBash ? "WRITTEN" : "absent"}, outside Write ${disk.outsideWrite ? "WRITTEN" : "absent"}, home file ${disk.home ? "WRITTEN" : "absent"}, read-only mount ${romount ? "unchanged" : "CHANGED"}, host .git/config hooksPath ${disk.mainConfigHooks ?? "unset"}`,
       `from inside: .git/config write ${inspect.mainConfigWrite?.trim() || "SUCCEEDED"}; .git refs write ${inspect.mainRefsWrite?.trim() || "SUCCEEDED"}; root filesystem write ${inspect.rootfsWrite?.trim() || "SUCCEEDED"}`,
     ],
   };
@@ -322,6 +324,7 @@ export async function runContainer(ctx) {
     const gitHost = (...args) => { try { return execFileSync("git", ["-C", p.dir, ...args], { encoding: "utf8", stdio: "pipe" }).trim(); } catch { return null; } };
     const disk = {
       inBash: existsSync(path.join(p.worktree, "in-bash.txt")), inWrite: existsSync(path.join(p.worktree, "in-write.txt")), denied: existsSync(path.join(p.worktree, "denied.txt")),
+      governed: existsSync(path.join(p.worktree, ".claude", "den-governed-probe.txt")),
       home: existsSync(p.homeProbe), outsideBash: existsSync(path.join(p.outside, "bash.txt")), outsideWrite: existsSync(path.join(p.outside, "write.txt")),
       roContent: readOr(p.roFile), mainConfigHooks: gitHost("config", "--local", "core.hooksPath"), branchLog: gitHost("log", "--oneline", "den/probe"),
     };
