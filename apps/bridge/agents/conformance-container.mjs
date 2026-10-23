@@ -18,6 +18,7 @@ import { scrubLive } from "./conformance-live.mjs";
 import { credentialsFileStore, TOKEN_FILE_NAME, writeAtomic } from "../proxy/token.mjs";
 import { agentProxyEnv, ensureProxy } from "../proxy/container.mjs";
 import { createDocker } from "../service/agent-image.mjs";
+import { containerRunArgs as productionRunArgs } from "./container.mjs";
 
 export const CONTAINER_ROLE = "scout"; // a known role: the bridge's argv template accepts nothing else
 export const CONTAINER_HOST = "example.com"; // the one host the proxy grants
@@ -96,21 +97,9 @@ export function containerTurns(p) {
   ];
 }
 
-/** The `docker run` argv (ADR 0031 decisions 2 and 3). limits: a limits.json class, default the worker's. */
+/** The `docker run` argv: the bridge's own builder (container.mjs), so the spike checks the container the den starts. limits: a limits.json class, default the worker's. */
 export function containerRunArgs(p, { image, name, cliArgs, env, limits = WORKER, network = NETWORK }) {
-  const gd = path.join(p.dir, ".git");
-  const v = (src, mode = "rw") => ["-v", `${src}:${src}:${mode}`];
-  const mounts = [
-    ...v(p.worktree), ...v(gd, "ro"), ...v(path.join(gd, "worktrees", path.basename(p.worktree))), ...v(path.join(gd, "objects")),
-    ...v(path.join(gd, "logs")), ...v(path.join(gd, "refs", "heads", "den")),
-  ];
-  return [
-    "run", "--rm", "-i", "--name", name, "--network", network, "--read-only", "--tmpfs", "/tmp:rw,exec,size=512m", "--tmpfs", "/root:rw,size=256m",
-    "--user", "0:0", "--cap-drop", "ALL", "--security-opt", "no-new-privileges",
-    "--memory", `${limits.memoryMiB}m`, "--memory-swap", `${limits.memoryMiB}m`, "--cpus", String(limits.cpuPercent / 100), "--pids-limit", String(limits.tasks),
-    ...Object.entries(env).flatMap(([k, val]) => ["-e", `${k}=${val}`]),
-    ...mounts, "-w", p.worktree, image, "claude", ...cliArgs,
-  ];
+  return productionRunArgs({ image, name, worktree: p.worktree, mainGit: path.join(p.dir, ".git"), refsNamespace: "den", limits, env, cliArgs, network });
 }
 
 // ---- the evaluator: the seven answers and the three checks ------------------------------------

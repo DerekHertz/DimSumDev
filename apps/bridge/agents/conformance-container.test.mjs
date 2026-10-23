@@ -18,6 +18,7 @@ import { execFileSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseCli, planText, SPIKES } from "./conformance.mjs";
+import { containerRunArgs as productionRunArgs } from "./container.mjs";
 
 // The module under test does not exist until the ticket lands; load it lazily so each test fails on its own, for that reason.
 // Fake tokens are built at runtime so the root secret scan stays clean.
@@ -211,6 +212,13 @@ test("containerRunArgs: the image, then claude, then the CLI argv as given (the 
     assert.deepEqual(argv.slice(-cliArgs.length), cliArgs);
     assert.equal(argv.at(-cliArgs.length - 1), "claude");
     assert.equal(argv.at(-cliArgs.length - 2), "den-agent:test");
+  });
+});
+
+test("containerRunArgs: the spike runs the bridge's own builder, so it checks the container the den starts", () => {
+  withRepo((p) => {
+    const want = productionRunArgs({ ...baseOpts, worktree: p.worktree, mainGit: path.join(p.dir, ".git"), refsNamespace: "den", limits: worker });
+    assert.deepEqual(api.containerRunArgs(p, baseOpts), want);
   });
 });
 
