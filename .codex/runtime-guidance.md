@@ -8,4 +8,4 @@ Included in generated `AGENTS.md`. It grants no push, PR, merge, deployment, dep
 - **Verification:** run only the covering tests, with bounds: `timeout 300 node --test --test-concurrency=2 <files>`, plus syntax checks. Never `npm test` or a folder glob in a den agent; full suites and browser files belong to the den's checks and CI. Never weaken an assertion to get green.
 - **Stopping:** stop when the done-when checks pass. Allow at most one fix round for nonblocking findings, and honor every explicit one-attempt or stop instruction. Stop for an environment or approval issue, a scope question, a required human verdict or a publication gate.
 - **Acting as a role:** when asked to act as an agent, read its definition `.codex/agents/<role>.toml` first and follow it.
-- **Handoff:** the outcome, the candidate SHA, changed files, the commands run with exit codes, and the smallest remaining decision.
+- **Handoff:** commands run, with exit codes.
