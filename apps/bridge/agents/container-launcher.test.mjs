@@ -9,11 +9,12 @@ const run = { slotClass: "worker", id: "run-1", bin: "claude", cwd: "/h/repo/.cl
   args: ["-p", "--settings", JSON.stringify({ permissions: {}, sandbox: { enabled: true } })],
   container: { role: "developer", sessionId: "7f1f6f0e-0000-4000-8000-000000000001", mainGit: "/h/repo/.git" } };
 
-function setup({ proxyUp = true, running = true } = {}) {
+function setup({ proxyUp = true, running = true, oom = { killed: false } } = {}) {
   const calls = [];
   const spawned = [];
   const docker = async (args) => {
     calls.push(args);
+    if (args[0] === "inspect" && args.includes("{{.State.OOMKilled}}")) return { ok: true, out: String(oom.killed), err: "" };
     if (args[0] === "inspect" && args.at(-1) === "den-proxy") return { ok: proxyUp, out: proxyUp ? "true" : "", err: proxyUp ? "" : "No such object" };
     if (args[0] === "inspect") return { ok: running, out: running ? "true" : "", err: running ? "" : "No such object" };
     return { ok: true, out: "", err: "" };
@@ -52,4 +53,18 @@ test("the run is refused, and no secret minted, when the proxy is not up", async
 test("the run is refused when the container never comes up", async () => {
   const { launcher } = setup({ running: false });
   await assert.rejects(launcher.launch(run), /did not start/);
+});
+
+test("exhausted() names memory once docker reports the container OOM-killed (read in the background, so it stays synchronous)", async () => {
+  const oom = { killed: false };
+  const { launcher } = setup({ oom });
+  const { group } = await launcher.launch(run);
+  assert.equal(group.exhausted(), null);
+  await new Promise((r) => setImmediate(r));
+  assert.equal(group.exhausted(), null);
+  oom.killed = true;
+  await new Promise((r) => setImmediate(r));
+  group.exhausted();
+  await new Promise((r) => setImmediate(r));
+  assert.equal(group.exhausted(), "memory");
 });

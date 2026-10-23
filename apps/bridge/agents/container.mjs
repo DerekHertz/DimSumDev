@@ -109,10 +109,17 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
       let gone = false;
       child.once("exit", () => (gone = true));
       child.on("error", () => {});
+      let hit = null;
+      let reading = null;
       const group = {
         unit: name, dir: null,
         kill: () => { docker(["kill", name]); },
-        exhausted: () => null, // Docker enforces the limits; naming the one a run hit is not built yet
+        // Docker sets State.OOMKilled while the container runs; the runtime polls this synchronously, so each call reads the cached
+        // answer and starts the next read. A full --pids-limit only fails fork() and docker records nothing, so "processes" is never named.
+        exhausted() {
+          reading ??= docker(["inspect", "-f", "{{.State.OOMKilled}}", name]).then((r) => { if (r.ok && r.out.trim() === "true") hit = "memory"; }, () => {}).finally(() => (reading = null));
+          return hit;
+        },
         async settled(ms) {
           for (const until = Date.now() + ms; Date.now() < until; await sleep(50)) if (!(await up(name))) return true;
           return false;
