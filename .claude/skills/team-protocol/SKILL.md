@@ -17,7 +17,7 @@ Your final report to the orchestrator stays under about 300 words: the verdict, 
 - If you run in a worktree, the main checkout is at `$DEN_ROOT`. If that is unset, it is the path `git worktree list` prints first. Always read and write the board there, never in your worktree's copy.
 - Scope added in a ticket's `## Comments` (for example "Scope added (user, ...)") counts as acceptance criteria, just like the checkboxes. qa maps every scope item to a test, and the developer covers each one.
 - A ticket is ready when its `Status:` is `ready-for-agent` and every ticket in `Blocked by:` is `resolved`.
-- Every role files discovered work as a new ticket instead of chasing it. Work you find outside your ticket becomes `.scratch/<feature>/issues/<NN>-<slug>.md` in the main checkout (next number, the format in `docs/agents/issue-tracker.md`, a one-line Why, `Status: ready-for-human`); name it in your handoff and carry on with your own ticket.
+- Every role files discovered work as a new ticket instead of chasing it. Work you find outside your ticket becomes `.scratch/<feature>/issues/<NN>-<slug>.md` in the main checkout (next number, the format in `docs/agents/issue-tracker.md`, a one-line Why, `Status: ready-for-agent`); name it in your handoff and carry on with your own ticket.
 
 ## Claiming a ticket (exactly one agent per ticket)
 
@@ -53,7 +53,7 @@ State the action, why, and what changes. Wait for an explicit yes.
 - 5-hour usage at 90% or more
 - a merge that is red, conflicted or diverged
 
-Moving on to the next ticket on the frontier needs a yes, unless the user has approved a queue.
+**Pickup (user, 2026-10-22):** asking for a ticket is approval. To pick work, propose the top ready ticket ("Can I work on <ref>?", with why and estimate) and start on yes; there is no approve-into-Ready step. A user-approved queue skips the ask.
 
 **Batches (user, 2026-09-30):** the orchestrator may run several small tickets in the same area as one batch: one relay, one branch, one PR (orchestrator role definition, "Batches"). An agent dispatched on a batch claims every ticket in it, publishes its handoff on each, and releases each. qa specify writes tests for every ticket and maps each criterion to its ticket. One bounce on any ticket bounces the whole batch and counts toward fails-twice for each of its tickets. The two-agent limit counts a batch as one agent.
 
