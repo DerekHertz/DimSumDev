@@ -123,8 +123,10 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
   const containerName = (id) => `den-agent-${id}`;
   const up = async (name) => (await docker(["inspect", "-f", "{{.State.Running}}", name])).out.trim() === "true";
   async function preflight() {
-    const net = await docker(["network", "inspect", AGENT_NETWORK]);
+    const net = await docker(["network", "inspect", "-f", "{{.Internal}}", AGENT_NETWORK]);
     if (!net.ok) return { ok: false, reason: `the ${AGENT_NETWORK} network is not there: ${net.err}` };
+    // Security M2: a network recreated without --internal gives agents direct egress around the proxy.
+    if (net.out.trim() !== "true") return { ok: false, reason: `the ${AGENT_NETWORK} network is not internal, so an agent could reach the internet around the proxy` };
     if (!(await up(proxyName))) return { ok: false, reason: "the credential proxy is not running, so an agent could not reach the API" };
     return { ok: true };
   }

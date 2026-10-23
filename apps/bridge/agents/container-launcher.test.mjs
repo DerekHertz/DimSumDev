@@ -9,11 +9,12 @@ const run = { slotClass: "worker", id: "run-1", bin: "claude", cwd: "/h/repo/.cl
   args: ["-p", "--settings", JSON.stringify({ permissions: {}, sandbox: { enabled: true } })],
   container: { role: "developer", sessionId: "7f1f6f0e-0000-4000-8000-000000000001", mainGit: "/h/repo/.git" } };
 
-function setup({ proxyUp = true, running = true, oom = { killed: false } } = {}) {
+function setup({ proxyUp = true, running = true, oom = { killed: false }, internal = "true" } = {}) {
   const calls = [];
   const spawned = [];
   const docker = async (args) => {
     calls.push(args);
+    if (args[0] === "network" && args[1] === "inspect") return { ok: true, out: args.includes("{{.Internal}}") ? internal : "[]", err: "" };
     if (args[0] === "inspect" && args.includes("{{.State.OOMKilled}}")) return { ok: true, out: String(oom.killed), err: "" };
     if (args[0] === "inspect" && args.at(-1) === "den-proxy") return { ok: proxyUp, out: proxyUp ? "true" : "", err: proxyUp ? "" : "No such object" };
     if (args[0] === "inspect") return { ok: running, out: running ? "true" : "", err: running ? "" : "No such object" };
@@ -90,5 +91,14 @@ test("governed paths go in read-only: an existing one is mounted, a missing one 
     assert.equal(await lstat(`${wt}/.github`).then(() => true, () => false), false, "the placeholder and the dir made for it are gone");
   } finally {
     await rm(pathMod.dirname(wt), { recursive: true, force: true });
+  }
+});
+
+test("the run is refused, and no secret minted, when den-agents is not an --internal network (security M2)", async () => {
+  for (const internal of ["false", ""]) {
+    const { launcher, minted, spawned } = setup({ internal });
+    await assert.rejects(launcher.launch(run), (err) => err instanceof EnforcementError && /internal/.test(err.message));
+    assert.deepEqual(minted, []);
+    assert.deepEqual(spawned, []);
   }
 });
