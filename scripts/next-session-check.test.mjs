@@ -67,7 +67,7 @@ describe("next-session runs the end-of-session check", () => {
     const rp = readyRepo();
     const r = run(rp.root);
     assert.equal(r.status, 0, r.out);
-    assert.match(r.stdout, /claude --agent orchestrator /);
+    assert.match(r.stdout, /claude --agent chief-of-staff /);
     assert.ok(r.stdout.includes(HANDOFF), r.stdout);
   });
 

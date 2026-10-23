@@ -25,7 +25,7 @@ The den's list of onboarded projects: a slug, a plain path, a board kind and the
 _Avoid_: Project config, workspace list
 
 **Team**:
-A group of roles that owns one SDLC outcome, drawn as a place on Bao: the Pass (orchestrator, product, architect, release manager), Steamers (developer, scout, runner), Tea & Pantry (code reviewer, qa, security, SRE), Front of House (designer, technical writer, herald), Service, Meter, Recipe book, Order rail. See the table in `design-brief.md` §4.2.
+A group of roles that owns one SDLC outcome, drawn as a place on Bao: the Pass (chief of staff, product, architect, release manager), Steamers (developer, runner), Tea & Pantry (code reviewer, qa, security, SRE), Front of House (designer, technical writer); the orchestrator, scout and herald are retired (team-and-den-ux/57), replaced by the chief of staff, the runner and the technical writer. Service, Meter, Recipe book, Order rail. See the table in `design-brief.md` §4.2.
 _Avoid_: Station and organ (the old names, ADR 0028 and organism-infra/53), department, squad
 
 **Role**:
@@ -54,7 +54,7 @@ _Avoid_: Ops, on-call
 
 **Technical writer**:
 The role that keeps the docs true to the code, sweeps for docs drift, and drafts public posts for the user to publish. It takes over herald's drafts.
-_Avoid_: Docs-writer (the scenery panda's old name), herald (retiring)
+_Avoid_: Docs-writer (the scenery panda's old name), herald (retired, team-and-den-ux/57)
 
 **Agent**:
 One running instance of a role, working one ticket, usually in its own git worktree.
@@ -262,7 +262,7 @@ A group of tool errors that share one normalized signature (paths, numbers, hash
 _Avoid_: Error bucket, error type
 
 **Savings proposal**:
-A suggested change that cuts token use at a telemetry hotspot, such as an index, a helper script, or delegating to scout. It becomes a ticket only after the user approves it.
+A suggested change that cuts token use at a telemetry hotspot, such as an index, a helper script, or delegating to the runner. It becomes a ticket only after the user approves it.
 _Avoid_: Optimization, recommendation
 
 ## Communication
@@ -306,7 +306,7 @@ The chair's artifact: the question, two or three options with one recommended, t
 _Avoid_: Report, summary (the summary is kept after 24 hours)
 
 **Chair**:
-The agent that writes a meeting's decision brief from the takes: Bao (the orchestrator), on Bao's own slot. An architect chair for design questions is in ADR 0017 and is not built.
+The agent that writes a meeting's decision brief from the takes: Bao (the chief of staff; once the orchestrator, retired in team-and-den-ux/57), on Bao's own slot. An architect chair for design questions is in ADR 0017 and is not built.
 _Avoid_: Host, moderator
 
 ## UI names

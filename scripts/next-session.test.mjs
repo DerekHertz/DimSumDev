@@ -5,11 +5,11 @@
 //     session handoffs live in <root>/.scratch/_handoffs/ and are named
 //     `YYYY-MM-DD-orchestrator[-cloud]-N.md`.
 //   - Latest = highest date, then highest N (numeric: 10 beats 9). Not mtime.
-//   - Without `--run`: prints `claude --agent orchestrator "<prompt>"` and exits 0.
+//   - Without `--run`: prints `claude --agent chief-of-staff "<prompt>"` and exits 0.
 //     It never starts claude.
 //   - With `--run`: spawns `claude` (found on PATH) with argv
-//     ["--agent", "orchestrator", "<prompt>"], inheriting stdio.
-//   - No handoff: exits non-zero, stderr says there is no orchestrator handoff.
+//     ["--agent", "chief-of-staff", "<prompt>"], inheriting stdio.
+//   - No handoff: exits non-zero, stderr says there is no chief-of-staff handoff.
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
 import {
@@ -86,7 +86,7 @@ describe("next-session: package script", () => {
 });
 
 describe("next-session: print mode", () => {
-  it("prints a claude --agent orchestrator command naming the latest handoff, exit 0", () => {
+  it("prints a claude --agent chief-of-staff command naming the latest handoff, exit 0", () => {
     const root = fakeRoot([
       "2026-10-01-orchestrator-18.md",
       "2026-10-02-orchestrator-19.md",
@@ -94,7 +94,7 @@ describe("next-session: print mode", () => {
     ]);
     const r = run(["--root", root]);
     assert.equal(r.status, 0, r.stderr);
-    assert.match(r.stdout, /claude --agent orchestrator /);
+    assert.match(r.stdout, /claude --agent chief-of-staff /);
     assert.ok(r.stdout.includes("2026-10-02-orchestrator-20.md"), r.stdout);
     assert.ok(!r.stdout.includes("orchestrator-19.md"), "older handoff must not be named");
   });
@@ -119,6 +119,14 @@ describe("next-session: print mode", () => {
     const r = run(["--root", root]);
     assert.equal(r.status, 0, r.stderr);
     assert.ok(r.stdout.includes("2026-10-02-orchestrator-27.md"), r.stdout);
+  });
+
+  it("team-and-den-ux/57: a chief-of-staff handoff is found beside the older orchestrator names", () => {
+    const root = fakeRoot(["2026-10-02-orchestrator-20.md", "2026-10-03-chief-of-staff-1.md"]);
+    const r = run(["--root", root]);
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /claude --agent chief-of-staff /);
+    assert.ok(r.stdout.includes("2026-10-03-chief-of-staff-1.md"), r.stdout);
   });
 
   it("ignores files that are not orchestrator session handoffs", () => {
@@ -181,7 +189,7 @@ describe("next-session: prompt content", () => {
 });
 
 describe("next-session: --run with a stubbed claude", () => {
-  it("spawns claude with --agent orchestrator and the prompt as the last argument", () => {
+  it("spawns claude with --agent chief-of-staff and the prompt as the last argument", () => {
     const root = fakeRoot(["2026-10-02-orchestrator-26.md", "2026-10-02-orchestrator-27.md"]);
     const { bin, out } = stubClaude();
     const r = run(["--root", root, "--run"], {
@@ -190,7 +198,7 @@ describe("next-session: --run with a stubbed claude", () => {
     assert.equal(r.status, 0, r.stderr);
     assert.ok(existsSync(out), "stub claude was not invoked");
     const argv = JSON.parse(readFileSync(out, "utf8"));
-    assert.deepEqual(argv.slice(0, 2), ["--agent", "orchestrator"]);
+    assert.deepEqual(argv.slice(0, 2), ["--agent", "chief-of-staff"]);
     assert.equal(argv.length, 3, `expected exactly one prompt argument, got ${JSON.stringify(argv)}`);
     assert.match(argv[2], /2026-10-02-orchestrator-27\.md/);
     assert.ok(!argv[2].includes("orchestrator-26.md"));
@@ -218,7 +226,7 @@ describe("next-session: --run with a stubbed claude", () => {
       env: { PATH: `${bin}${path.delimiter}${process.env.PATH}`, STUB_OUT: out },
     });
     assert.notEqual(r.status, 0);
-    assert.match(r.stderr, /no orchestrator handoff/i);
+    assert.match(r.stderr, /no chief-of-staff handoff/i);
     assert.equal(existsSync(out), false, "claude must not start without a handoff");
   });
 });
@@ -228,7 +236,7 @@ describe("next-session: no handoff", () => {
     const root = fakeRoot(["2026-10-02-design.md", "notes.txt"]);
     const r = run(["--root", root]);
     assert.notEqual(r.status, 0);
-    assert.match(r.stderr, /no orchestrator handoff/i);
+    assert.match(r.stderr, /no chief-of-staff handoff/i);
     assert.equal(r.stdout.includes("claude --agent"), false, "must not print a command");
   });
 
@@ -236,6 +244,6 @@ describe("next-session: no handoff", () => {
     const root = tmp("next-session-empty");
     const r = run(["--root", root]);
     assert.notEqual(r.status, 0);
-    assert.match(r.stderr, /no orchestrator handoff/i);
+    assert.match(r.stderr, /no chief-of-staff handoff/i);
   });
 });

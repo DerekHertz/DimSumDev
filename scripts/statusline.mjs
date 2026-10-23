@@ -14,10 +14,10 @@ import { readStdinJson, boardRoot, runUsage, usageWindow, defaultUsageScript } f
 import { saveContextTokens } from "./context-state.mjs";
 import { readRequestRows, foldRequests } from "../apps/bridge/requests-log.mjs";
 import { readNorthStar } from "./north-star.mjs";
-import { budgetFor } from "./context-budget.mjs";
+import { CHIEF_OF_STAFF, budgetFor } from "./context-budget.mjs";
 
 // organism-infra/220: the line shows the orchestrator budget; the numbers come from scripts/context-budget.json.
-const { warn: CTX_YELLOW, stop: CTX_LIMIT } = budgetFor("orchestrator");
+const { warn: CTX_YELLOW, stop: CTX_LIMIT } = budgetFor(CHIEF_OF_STAFF);
 const PCT_YELLOW = 80;
 const PCT_RED = 90;
 const CACHE_TTL_MS = 60_000;

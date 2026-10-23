@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // PreToolUse hook (organism-infra/162): enforces the agent context budget (organism-infra/119) with code.
 // Reads the hook JSON on stdin. Applies only to agent sessions (subagent calls: the input has agent_id);
-// the orchestrator main session is never gated here (it has its own gate in agent-start).
+// the chief-of-staff main session is never gated here (it has its own gate in agent-start).
 // Thresholds come from scripts/context-budget.json by the call's agent_type (organism-infra/145):
 //   under warn           -> allow, silent
 //   warn to under stop   -> allow, inject a checkpoint warning once per agent (hookSpecificOutput.additionalContext)
@@ -14,7 +14,7 @@ import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { budgetFor } from "../context-budget.mjs";
+import { budgetFor, isChiefOfStaff } from "../context-budget.mjs";
 
 const SESSION_ID = /^[\w.-]+$/;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
@@ -28,7 +28,7 @@ const WRAP_UP_BASH = [
 ];
 
 export function isAgentSession(input) {
-  return Boolean(input?.agent_id) && input.agent_type !== "orchestrator";
+  return Boolean(input?.agent_id) && !isChiefOfStaff(input.agent_type);
 }
 
 // One simple command only: no chaining, pipes, redirects, substitution or newlines. Quoted text may

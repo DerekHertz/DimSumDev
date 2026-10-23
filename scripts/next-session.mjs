@@ -1,10 +1,10 @@
-// organism-infra/122: launcher for a fresh orchestrator session.
+// organism-infra/122: launcher for a fresh chief-of-staff session (team-and-den-ux/57; once the orchestrator).
 //
 //   node scripts/next-session.mjs [--root <dir>] [--run]
 //
-// Finds the latest orchestrator session handoff in <root>/.scratch/_handoffs/
-// (files named YYYY-MM-DD-orchestrator[-cloud]-N.md), then prints
-// `claude --agent orchestrator "<prompt>"`. With --run it starts claude instead.
+// Finds the latest chief-of-staff session handoff in <root>/.scratch/_handoffs/
+// (files named YYYY-MM-DD-chief-of-staff[-cloud]-N.md, or the older -orchestrator- name), then prints
+// `claude --agent chief-of-staff "<prompt>"`. With --run it starts claude instead.
 // Root is --root, else $DEN_ROOT, else the cwd. It first runs the
 // end-of-session check (scripts/session-check.mjs, organism-infra/158) and
 // refuses, printing each problem and its fix command, instead of launching.
@@ -12,8 +12,9 @@ import { spawnSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import path from "node:path";
 import { formatProblems, sessionCheck } from "./session-check.mjs";
+import { CHIEF_OF_STAFF } from "./context-budget.mjs";
 
-const HANDOFF = /^(\d{4}-\d{2}-\d{2})-orchestrator(?:-cloud)?-(\d+)\.md$/;
+const HANDOFF = /^(\d{4}-\d{2}-\d{2})-(?:chief-of-staff|orchestrator)(?:-cloud)?-(\d+)\.md$/;
 
 function fail(msg) {
   process.stderr.write(`next-session: ${msg}\n`);
@@ -73,14 +74,14 @@ function main() {
     process.exit(1);
   }
   const name = latestHandoff(root);
-  if (!name) fail(`no orchestrator handoff found in ${path.join(root, ".scratch", "_handoffs")}`);
+  if (!name) fail(`no chief-of-staff handoff found in ${path.join(root, ".scratch", "_handoffs")}`);
   const prompt = buildPrompt(root, name);
   if (opts.run) {
-    const r = spawnSync("claude", ["--agent", "orchestrator", prompt], { stdio: "inherit" });
+    const r = spawnSync("claude", ["--agent", CHIEF_OF_STAFF, prompt], { stdio: "inherit" });
     if (r.error) fail(`could not start claude: ${r.error.message}`);
     process.exit(r.status ?? 1);
   }
-  process.stdout.write(`claude --agent orchestrator ${shellQuote(prompt)}\n`);
+  process.stdout.write(`claude --agent ${CHIEF_OF_STAFF} ${shellQuote(prompt)}\n`);
 }
 
 import { fileURLToPath } from "node:url";

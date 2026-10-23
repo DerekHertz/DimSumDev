@@ -394,7 +394,7 @@ describe("Bao's desk: talking to Bao with no ticket", () => {
     assert.equal(res.body.resumed, true);
     const rec = t.fake.spawns.at(-1);
     assert.deepEqual([rec.args.role, rec.args.ref], ["orchestrator", "den/00-bao"]);
-    assert.match(rec.args.prompt, /You are Bao, the orchestrator, at your desk/);
+    assert.match(rec.args.prompt, /You are Bao, the chief of staff, at your desk/);
     assert.match(rec.args.prompt, /change no file/);
     assert.doesNotMatch(rec.args.prompt, /red on CI/, "no client string reaches the prompt");
     assert.deepEqual(rec.sent.map((m) => m.text), ["What is red on CI right now?"]);

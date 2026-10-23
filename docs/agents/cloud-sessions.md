@@ -1,6 +1,6 @@
 # Running the org in a cloud session
 
-A living log of what works and what costs too much when the orchestrator runs in a claude.ai/code cloud container. Update it at the end of each cloud session. Numbers come from `.scratch/usage.jsonl`.
+A living log of what works and what costs too much when the chief of staff runs in a claude.ai/code cloud container. Update it at the end of each cloud session. Numbers come from `.scratch/usage.jsonl`.
 
 ## What works
 
@@ -28,7 +28,7 @@ A living log of what works and what costs too much when the orchestrator runs in
 - **Jev behind the proxy:** Node's built-in fetch ignores `HTTPS_PROXY`, so `jev.mjs` gets a 403 and falls back. Run it with `NODE_USE_ENV_PROXY=1` (or set that in the environment).
 - **gitleaks is not installed:** security falls back to a pattern grep; CI still runs gitleaks. Install it in the environment's setup script to fix.
 - **Stale local `main`:** the cloud clone's local `main` can lag, so run `node scripts/risk-check.mjs origin/main...HEAD` rather than the `main...HEAD` default.
-- **Board commits from agents:** the worktree guard blocks an agent from running `git` in the main checkout, so agents can't commit board files there. The orchestrator commits what they leave behind. Until that's fixed, the stop hook flags the uncommitted files while an agent is running.
+- **Board commits from agents:** the worktree guard blocks an agent from running `git` in the main checkout, so agents can't commit board files there. The chief of staff commits what they leave behind. Until that's fixed, the stop hook flags the uncommitted files while an agent is running.
 - **board CLI:** `claim <ref> <role>` takes the role as a positional argument, not a flag. Every item in a handoff's `pending` list must be `{item, owner}`, or `release` refuses the handoff. qa hit the same State-block check (it was missing `mode`) and had to publish its handoff as `-2`.
 - **Resuming a finished agent loses its worktree:** after an agent returns, its worktree is cleaned up, so a resumed agent (SendMessage) runs in the main checkout and `agent-start` refuses. Re-dispatch a fresh agent instead of resuming.
 
@@ -68,6 +68,6 @@ The user requested cheaper Codex agents after inherited-model dispatch exhausted
 `sleep-guard` is our first mod: a project-scope plugin (`mods/sleep-guard`, marketplace `.claude-plugin/marketplace.json`) whose Bash hook blocks `sleep N; cmd` chains and poll loops. Spec: `.scratch/mods-trial/spec.md`.
 
 - **Install once per machine** (the committed `.claude/settings.json` then carries only `enabledPlugins`): `claude plugin marketplace add <main checkout path> && claude plugin install sleep-guard@dimsumden-mods --scope project`. Remove with `claude plugin uninstall sleep-guard@dimsumden-mods --scope project`.
-- **Warning:** an orchestrator session prints one install line from `scripts/session-start.mjs` when the mod is not enabled. Other session types get no warning.
+- **Warning:** a chief-of-staff session prints one install line from `scripts/session-start.mjs` when the mod is not enabled. Other session types get no warning.
 - **Cloud and headless:** hooks run in subagents, `claude -p` and cloud sessions only if the plugin is installed there; a cloud container needs the same two commands in its setup script. Nothing draws there. The mod draws nothing anyway (hook only).
 - **WSL desktop** (Code tab) loads no plugins, so the guard does not run there; use terminal `claude`.

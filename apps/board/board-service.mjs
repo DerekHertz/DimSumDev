@@ -727,6 +727,8 @@ export function modeAllowed(role, mode) {
 // team-and-den-ux/19: the chief of staff (Bao, Jiao) resolves tickets. "orchestrator" stays accepted for one release, as a stub.
 const RESOLVER = "chief-of-staff";
 const RESOLVERS = new Set([RESOLVER, "orchestrator"]);
+// "orchestrator" and "scout" are stubs, retired in team-and-den-ux/57: kept for one release so claims,
+// comments and locks written under the old names still parse. Remove with the RESOLVERS stub above.
 const KNOWN_ROLES = new Set([
   "product", "architect", "chief-of-staff", "orchestrator", "developer", "scout",
   "qa", "security", "designer",

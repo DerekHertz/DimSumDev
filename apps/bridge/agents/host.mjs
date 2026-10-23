@@ -759,7 +759,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const recipeOf = (a) => path.join(root, a.runtimeId === "codex" ? ".codex" : ".claude", "agents", `${definitionOf(a.role)}.${a.runtimeId === "codex" ? "toml" : "md"}`);
   const promptFor = (a) =>
     a.ref === DESK_REF
-      ? `You are Bao, the orchestrator, at your desk in the den. Read ${recipeOf(a)} for who you are. ` +
+      ? `You are ${a.runtimeId === "codex" ? "Jiao" : "Bao"}, the chief of staff, at your desk in the den. Read ${recipeOf(a)} for who you are. ` +
         "Here the user talks with you with no ticket: answer their messages about the repo, the board and CI, reading what you need. " +
         "For pull requests, checks and CI logs use the GitHub connection's tools (mcp__github__*): `gh` has no login here. " +
         "Run no board command and change no file: the board is read-only to your shell. Act on the board through the den's tools " +

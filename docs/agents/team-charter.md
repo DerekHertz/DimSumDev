@@ -25,9 +25,9 @@ Every role's contract: what it takes in, what it hands back, what it may do on i
 | SRE | **new** | Tea & Pantry | manager, Haiku; scheduled | health, logs, resource use, delivery and update records | health reports, tickets, proposed fixes | observes and proposes only; changes nothing | the owner; the user for fixes |
 | Technical writer | **new** | Front of House | manager, Sonnet; scheduled | docs-affecting tickets; the repo, for drift; a topic for a post | doc updates on the ticket's branch; drift tickets; post drafts | edits docs; never publishes a post | the code reviewer or owner; the user publishes |
 | Runner | existing, changed | Steamers | leaf, Haiku (or a model the manager picks) | one scoped subtask from a manager | result, evidence, failures | starts no agent; read-only when asked to search | its manager |
-| Orchestrator | retiring (team-and-den-ux/19) | the Pass | executive | as today | as today | as today; its duties move to Bao and Jiao, its release steps to the release manager | |
-| Herald | retiring (team-and-den-ux/19) | Front of House | manager | as today | as today | as today; the technical writer takes its posts | |
-| Scout | retiring (team-and-den-ux/19) | Steamers | leaf | as today | as today | as today; becomes the runner's read-only mode | |
+| Orchestrator | retired (team-and-den-ux/57); replaced by the chief of staff | the Pass | executive | none | none | its duties are Bao and Jiao's, its release steps the release manager's | |
+| Herald | retired (team-and-den-ux/57); replaced by the technical writer | Front of House | manager | none | none | the technical writer drafts its posts | |
+| Scout | retired (team-and-den-ux/57); replaced by the runner | Steamers | leaf | none | none | the runner's read-only mode does its work | |
 
 ## Which roles a task calls
 
