@@ -3,6 +3,10 @@ name: usage-watch
 description: "Check plan usage before a dispatch or merge decision and wind work down before the limit. At 90% or more of the 5-hour window, wrap up."
 ---
 
+## Codex sessions
+
+Codex sessions skip 5-hour quota checks. Do not read or ask for a 5-hour reading, ask for a 5-hour waiver, or pause Codex work because a 5-hour reading is missing or high. Weekly usage guidance, Claude's usage rules and handling of real rate-limit errors still apply.
+
 Select the provider from the active session, never from installed CLIs, credential files, or the chosen model. Use `node scripts/usage.mjs --provider codex` in Codex and `node scripts/usage.mjs --provider claude` in Claude. A legacy invocation without `--provider` still selects Claude; it must not be used to read Codex usage.
 
 For Claude, `mcp__ccd_session_mgmt__get_usage` (main session only; the `5-hour limit` window's `percentUsed`) is also supported when available. The Claude CLI adapter reads the OAuth token from `~/.claude/.credentials.json` (WSL, Linux) or, on macOS, from the Keychain item `Claude Code-credentials`; native Windows is not supported and exits 1. It keeps the cloud estimate behavior. A weighted-token estimate is a trend estimate, never a live account quota reading.
