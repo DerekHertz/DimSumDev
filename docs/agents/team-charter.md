@@ -19,7 +19,7 @@ Every role's contract: what it takes in, what it hands back, what it may do on i
 | Designer | existing | Front of House | manager, Sonnet | UI tickets | a detailed spec and low-cost mockups; the user does visual critique | interactive, never auto-advanced | the owner, the engineer |
 | Engineer (`developer`) | existing, changed | Steamers | manager, Sonnet | a ticket with criteria | a candidate commit: failing tests first, then the change; each criterion's test listed | commits in its own worktree; reviews nothing of its own | the code reviewer and qa |
 | Code reviewer | **new** | Tea & Pantry | manager, Sonnet | the candidate commit and the ticket | `VERDICT: pass\|bounce` with findings, for that commit | reviews the diff: standards, design, simplicity, spec fit; writes no code | the bridge (the owner) |
-| qa | existing, changed | Tea & Pantry | manager, Sonnet | the candidate commit and the ticket | `VERDICT` with a per-criterion map to a test that fails without the change, and test-guard verdicts | runs the app and the tests; writes no product code; `specify` retires with team-and-den-ux/19 | the bridge (the owner) |
+| qa | existing, changed | Tea & Pantry | manager, Sonnet | the candidate commit and the ticket | `VERDICT` with a per-criterion map to a test that fails without the change, and test-guard verdicts | runs the app and the tests; writes no product code; has no `specify` mode (the engineer writes the failing tests first) | the bridge (the owner) |
 | Security | existing | Tea & Pantry | manager, Sonnet | a candidate with a `risk-check` hit or a user-merge-list path | `VERDICT` with findings | gates secrets, dependencies and CI | the bridge (the owner) |
 | Release manager | **new** | the Pass | bridge steps, plus a Sonnet agent for judgment | a reviewed candidate; merged PRs; CI results | push, PR and merge-on-green (bridge steps under its name); diagnoses, tags, release notes, den update proposals (agent) | never merges a user-merge-list change; never pushes CI config; holds no git login | the user (proposals), the owner |
 | SRE | **new** | Tea & Pantry | manager, Haiku; scheduled | health, logs, resource use, delivery and update records | health reports, tickets, proposed fixes | observes and proposes only; changes nothing | the owner; the user for fixes |
@@ -38,7 +38,7 @@ No ceremony: a task calls only the roles it needs. The planner's rules name the 
 - **Plain docs:** the writer and the owner's review.
 - **Research or design:** the owner's review, and the user's verdict where the ticket asks for one.
 
-A code ticket today (after team-and-den-ux/02): (qa `specify` on a risk-path ticket, until 19) → engineer → code reviewer, then qa, at the same commit (in parallel from 18) → one fix round with both findings → `risk-check`, security on a hit → the release manager's steps: push, PR, merge on green. The user merges a user-merge-list change. Every PR body, whoever opens it, follows the `pr-writing` skill: What changes, System map, Risk, Evidence.
+A code ticket today (after team-and-den-ux/19): engineer (failing tests first) → code reviewer, then qa, at the same commit (in parallel from 18) → one fix round with both findings → `risk-check`, security on a hit → the release manager's steps: push, PR, merge on green. The user merges a user-merge-list change. Every PR body, whoever opens it, follows the `pr-writing` skill: What changes, System map, Risk, Evidence.
 
 ## Independent review
 
