@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {approvedFixture} from './approved.test-fixture.mjs';
 import {routeLength,routeSeconds} from './daily-routines.mjs';
+import {turnTeaTray,TABLE} from './meeting-table.mjs';
 
 function gamePair(f,ids=['designer','technical-writer']){
  for(const a of f.actors.actors.values())a.stationary=!ids.includes(a.id);
@@ -117,10 +118,17 @@ test('55-H/M: actual snapshots keep six busy workers independent of meeting gues
   const homes=new Map(roles.map(role=>[role,f.actors.actors.get(role).home.clone()]));
   const meeting={id:'actual-six',ref:'meeting/55',state:'running',seats:roles.map(role=>({role}))};
   f.actors.applyMeeting(meeting);assert.equal(f.den.guestActors.size,6,'six separate guests, never borrowed workers');
-  f.tick(40);assert.equal(f.actors.seatModels().size,6,'six actual guest bodies reach seats');
+  f.tick(40);assert.deepEqual([...f.actors.seatModels().keys()].sort(),[...roles,'orchestrator'].sort(),'six actual guest bodies plus the Bao chair reach seats');
   assert.equal(f.actors.actors.get('orchestrator').meetingTrip?.stage,'seated','Bao attends as chair');
   for(const role of roles){const a=f.actors.actors.get(role);assert.deepEqual(a.panda.model.position,homes.get(role));assert.equal(a.live.ref,'work/'+role);}
-  const models=[...f.actors.seatModels().values()];assert.equal(new Set(models).size,6);
+  const models=roles.map(role=>f.actors.seatModels().get(role));assert.equal(new Set(models).size,6);
+  const tray=f.den.garden.root.getObjectByName('Lazy susan');
+  for(const role of roles){
+   const guest=f.actors.seatModels().get(role);assert.notEqual(guest,f.actors.actors.get(role).panda.model,'a speaking guest never borrows its working resident');
+   for(let i=0;i<100;i++)turnTeaTray(tray,{...meeting,live:{role}},.1,false);
+   const target=Math.atan2(guest.position.x-TABLE.x,guest.position.z-TABLE.z);
+   assert.ok(Math.abs(Math.atan2(Math.sin(tray.rotation.y-target),Math.cos(tray.rotation.y-target)))<.001,'tea faces the actual speaking guest seat');
+  }
   f.actors.applyMeeting({...meeting,state:'paused'});f.tick(1);assert.equal(f.den.guestActors.size,6);
   f.actors.applyMeeting({...meeting,state:'briefed'});f.tick(1);assert.equal(f.den.guestActors.size,6,'closing the sheet leaves snapshot ownership intact');
   f.actors.applyMeeting({...meeting,state:'closed'});f.tick(40);assert.equal(f.den.guestActors.size,0);

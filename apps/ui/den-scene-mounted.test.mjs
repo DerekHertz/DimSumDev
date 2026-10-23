@@ -175,7 +175,8 @@ test("the native approved garden loads Bao, Jiao and the active cast assets with
       const plaza=world.getObjectByName('Central meeting plaza');let bounds;
       plaza?.traverse(n=>{if(!n.isMesh)return;n.geometry.computeBoundingBox();const b=n.geometry.boundingBox.clone().applyMatrix4(n.matrixWorld);if(bounds)bounds.union(b);else bounds=b;});
       const plazaSize=bounds?.max.clone().sub(bounds.min).toArray();
-      return {roles:roles.map(n=>n.userData.roleId),actorKeys,tools,claudeTools,coordinatorTools,skeletons:skeletons.size,places:layout?.structurePositions,workspaceRecords:layout?.roleWorkspaces,plazaSize,susan:!!world.getObjectByName('Lazy susan')};
+      const susan=world.getObjectByName('Lazy susan');let teaTriangles=0;susan?.traverse(n=>{if(n.isMesh)teaTriangles+=(n.geometry.index?.count??n.geometry.attributes.position.count)/3;});
+      return {roles:roles.map(n=>n.userData.roleId),actorKeys,tools,claudeTools,coordinatorTools,skeletons:skeletons.size,places:layout?.structurePositions,workspaceRecords:layout?.roleWorkspaces,plazaSize,susan:!!susan,teaTriangles};
     });
     assert.equal(new Set(scene.roles).size,12,'the garden presents the 12 active roles');
     assert.equal(new Set(scene.actorKeys).size,24,'the garden contains the 24 active residents, with one key per resident');
@@ -190,7 +191,8 @@ test("the native approved garden loads Bao, Jiao and the active cast assets with
     assert.equal(scene.workspaceRecords.length,24,'the mounted approved world publishes all 24 real workstation records');
     assert.ok(scene.places.some(place=>place.id==='office')&&scene.places.some(place=>place.id==='pond'),'the mounted structure positions come from the approved garden');
     assert.ok(scene.plazaSize[0]>=4&&scene.plazaSize[1]>=1&&scene.plazaSize[2]>=2.3,'the approved central meeting plaza geometry remains visible');
-    assert.equal(scene.susan,true,'the tea tray still turns toward the meeting speaker');
+    assert.equal(scene.susan,true,'the speaker-facing tea tray is mounted in the native garden');
+    assert.ok(scene.teaTriangles>100,'the independently rotating tray retains real pot and cup geometry after batching');
     for (const response of modelResponses) assert.equal(response.status(), 200, response.url());
     const bytes = await modelResponses.find(response => new URL(response.url()).pathname === assets['characters.bao'].url).body();
     assert.equal(bytes.subarray(0, 4).toString('ascii'), 'glTF', 'Chromium exposes the real decoded GLB model bytes');

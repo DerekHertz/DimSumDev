@@ -220,6 +220,7 @@ async function main() {
       return `${Object.keys(p.signs).length} signs inside ${Math.round(p.width)}x${Math.round(p.height)}`;
     });
 
+    let defaultFrame;
     await check("camera zoom: wheel zoom scales the sign spacing by 1/d (exponential) and stays within the range", async () => {
       await page.setViewportSize({ width: 1440, height: 900 });
       // The signs follow a resize a few frames late (longer under load): the first probe can still show the
@@ -228,6 +229,7 @@ async function main() {
       // their midpoint therefore projects six scene units right of the target.
       const centred = (p) => p.signs["Steamers"] && p.signs["Tea & Pantry"] && Math.abs((p.signs["Steamers"].x + p.signs["Tea & Pantry"].x) / 2 - p.width / 2 - (p.signs["Tea & Pantry"].x-p.signs["Steamers"].x)*6/61) < 2;
       const base = await settle((p) => centred(p) && fits(p), "default frame before zoom");
+      defaultFrame=base;
       // Projected positions remain measurable when close zoom clips the outer signs.
       const gap = (p) => p.projected["Tea & Pantry"].x - p.projected["Steamers"].x;
       const box = await page.locator('.forest-canvas canvas').boundingBox();
@@ -244,7 +246,9 @@ async function main() {
     await check("camera controls: Shift-drag pans, primary drag orbits both axes, and Den resets the framing", async () => {
       await page.setViewportSize({ width: 1440, height: 900 });
       await page.locator('[data-rail="reset"]').click();
-      const defaults = await settle((p) => fits(p), "default framing before camera gestures");
+      const defaults = await settle((p) => fits(p)&&Object.entries(defaultFrame.projected).every(([name,a])=>{
+        const b=p.projected[name];return b&&Math.abs(a.x-b.x)<3&&Math.abs(a.y-b.y)<3;
+      }), "default framing before camera gestures");
       const wheelBox=await page.locator('.forest-canvas canvas').boundingBox();
       await page.mouse.move(wheelBox.x+wheelBox.width*.85,wheelBox.y+wheelBox.height*.15);
       await page.mouse.wheel(0, -780.1586); // factor 1.2 -> .55: keep both flanking signs visible while panning

@@ -5,7 +5,7 @@ import {createMeshyWorld} from './world.mjs';
 import {createMeshyActors} from './actors.mjs';
 import {liveActorsFromSnapshot} from '../../review/live-actors.mjs';
 import {agentFor,cardFor,pickedCard} from '../../overlay/proximity-card.mjs';
-import {TABLE,seatSpots,seated,tableMeeting} from './meeting-table.mjs';
+import {TABLE,tableMeeting,turnTeaTray} from './meeting-table.mjs';
 import {sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 
 // Native R3F scene. App remains the sole owner of live state, actions and panels.
@@ -50,8 +50,7 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
   const anchors=stage.meetingAnchors??(stage.meetingAnchors=new Map());anchors.clear();
   if(l.meeting)for(const [role,model]of l.agents.seatModels())anchors.set(role,labelAt(model));
   // The lazy susan turns toward whoever is speaking; with reduced motion it stays put.
-  const speaker=seated(l.meeting)?l.meeting.seats.findIndex(s=>s.role===l.meeting.live?.role):-1;
-  if(l.susan&&!l.media.matches&&speaker>=0){const spot=seatSpots(l.meeting.seats.length)[speaker],target=Math.atan2(spot.x-TABLE.x,spot.z-TABLE.z);let d=target-l.susan.rotation.y;d=Math.atan2(Math.sin(d),Math.cos(d));l.susan.rotation.y+=d*Math.min(1,dt*1.5);}
+  turnTeaTray(l.susan,l.meeting,dt,l.media.matches);
   l.glow.visible=l.meeting?.state==='briefed'||l.meeting?.state==='paused';
   l.proximity+=dt;if(l.proximity<.1)return;l.proximity=0;
   inputs.current.onScenePresentations?.(l.agents.presentationRows());

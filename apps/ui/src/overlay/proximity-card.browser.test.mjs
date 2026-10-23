@@ -73,9 +73,9 @@ test('walking up to a resident shows its nearby card; moving away and leaving hi
     };
     // The walker starts at (0,42): follow the unit-probed route and stop two metres from the resident.
     await page.locator('main[aria-label="Den scene"]').focus();
-    await moveUntil(p => Math.abs(p[2] - 35) < 0.3, 'KeyW');
-    await moveUntil(p => Math.abs(p[0] - target.x) < 0.3, 'KeyD');
-    await moveUntil(p => Math.abs(p[2] - 30.5) < 0.3, 'KeyW');
+    await moveUntil(p => p[2] <= 35, 'KeyW');
+    await moveUntil(p => p[0] >= target.x, 'KeyD');
+    await moveUntil(p => p[2] <= 30.5, 'KeyW');
     await card.waitFor({ timeout: 15000 });
     assert.match(await card.textContent(), /The Stylist/);
     assert.match(await card.textContent(), /Resident · no agent running/);

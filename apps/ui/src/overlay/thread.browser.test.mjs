@@ -102,9 +102,9 @@ test('the thread: opened from Needs you, it reads as a conversation, takes a mes
     const { page } = t;
     await page.locator('[data-rail=needs]').click();
     await page.locator('[data-overlay=needs-you] .needs-thread').click();
-    const thread = page.getByRole('dialog', { name: 'Conversation with The Maker' });
+    const thread = page.getByRole('dialog', { name: 'Conversation with Developer' });
     await thread.waitFor();
-    assert.match(await thread.locator('.transcript-head').innerText(), /conversation\s+The Maker · 02-maker[\s\S]*Needs your answer/i);
+    assert.match(await thread.locator('.transcript-head').innerText(), /conversation\s+Developer · 02-maker[\s\S]*Needs your answer/i);
 
     // The earlier run is above the live one, and more can be asked for.
     await thread.getByText('Yesterday I mapped the test folders.').waitFor();
@@ -121,7 +121,7 @@ test('the thread: opened from Needs you, it reads as a conversation, takes a mes
     assert.deepEqual(t.reads, ['?limit=100&runtime=claude', '?before=40&limit=100&runtime=claude']);
 
     // A message goes to this run, by name.
-    await thread.getByRole('textbox', { name: 'Message The Maker' }).fill('Skip the slow suite.');
+    await thread.getByRole('textbox', { name: 'Message Developer' }).fill('Skip the slow suite.');
     await page.keyboard.press('Enter');
     await page.waitForFunction(() => document.querySelector('.thread-box')?.value === '');
     assert.deepEqual(t.posts, [{ path: '/conversations/developer/message', body: { text: 'Skip the slow suite.', runId: RUN } }]);

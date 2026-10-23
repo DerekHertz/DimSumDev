@@ -143,8 +143,8 @@ test('conversation close preserves Panda camera, selection and walk mode; each o
       assert.equal(await opener.evaluate(el => el === document.activeElement), true);
     }
     await rail(page, 'team').click();
-    await page.getByRole('button', { name: /^The Scout, scout, Claude/ }).click();
-    const talk = page.getByRole('button', { name: 'Talk to Scout', exact: true });
+    await page.getByRole('button', { name: /^The Maker, developer, Claude/ }).click();
+    const talk = page.getByRole('button', { name: 'Talk to Maker', exact: true });
     await talk.click(); await side(page).waitFor(); await page.keyboard.press('Escape');
     assert.equal(await talk.evaluate(el => el === document.activeElement), true);
     await page.keyboard.press('Escape');

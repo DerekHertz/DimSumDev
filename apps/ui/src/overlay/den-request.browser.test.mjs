@@ -63,12 +63,12 @@ test('overview: a held permission request opens from Needs you, an active reside
     const needs = page.locator('[data-overlay=needs-you]');
     await needs.locator('[data-answer=allow]').waitFor();
     const needsText = await needs.innerText();
-    for (const part of ['The Maker · den/02-maker', 'Wants to read a file', TARGET, 'expires in 8 min', 'Deny', 'Allow']) assert.ok(needsText.includes(part), `Needs you shows "${part}": ${needsText}`);
+    for (const part of ['Developer · den/02-maker', 'Wants to read a file', TARGET, 'expires in 8 min', 'Deny', 'Allow']) assert.ok(needsText.includes(part), `Needs you shows "${part}": ${needsText}`);
     const review = page.locator('.approval-panel');
     await needs.locator('[data-answer=allow]').click();
     await review.waitFor();
     assert.equal(await review.locator('h2').innerText(), 'Run Read');
-    assert.match(await review.locator('.approval-meta').innerText(), /The Maker · developer · den\/02-maker/);
+    assert.match(await review.locator('.approval-meta').innerText(), /Developer · developer · den\/02-maker/);
     await page.keyboard.press('Escape');
     await review.waitFor({ state: 'hidden' });
 

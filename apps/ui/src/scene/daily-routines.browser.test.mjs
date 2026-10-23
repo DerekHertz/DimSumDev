@@ -52,10 +52,24 @@ test('the approved garden keeps 24 owned residents, runs their routines, holds s
   await page.getByRole('button',{name:'Close panda card'}).click();await card.waitFor({state:'hidden'});
   await page.waitForFunction(({id,held})=>window.routineProbe.residents[id].getObjectByName('Spine').scale.toArray().some((v,j)=>Math.abs(v-held[j])>.001),{id:key,held});
   await page.emulateMedia({reducedMotion:'reduce'});
-  await page.waitForFunction(()=>Object.values(window.routineProbe.residents).every(model=>model.position.distanceTo(model.userData.home)<.02),null,{timeout:10000});
+  await page.waitForFunction(()=>{
+   const current=Object.values(window.routineProbe.residents).map(model=>[...model.position.toArray(),...model.getObjectByName('Spine').scale.toArray()]);
+   const stable=JSON.stringify(current)===JSON.stringify(window.routineProbe.previousReduced);window.routineProbe.previousReduced=current;return stable;
+  },null,{timeout:10000});
+  const safe=await page.evaluate(async()=>{
+   const [{createApprovedGarden},{createApprovedNavigation},{CAST_PROFILES},{castCharacterId},{BAO_PRODUCTION}]=await Promise.all([
+    import('/src/scene/meshy/approved-garden.mjs'),import('/src/scene/meshy/approved-navigation.mjs'),import('/src/scene/meshy/cast-profiles.mjs'),import('/src/scene/meshy/cast.mjs'),import('/src/scene/meshy/bao-profile.mjs')]);
+   const garden=createApprovedGarden(),navigation=createApprovedNavigation(garden);
+   try{return Object.entries(window.routineProbe.residents).map(([id,model])=>{
+    const profile=id==='orchestrator'?BAO_PRODUCTION:CAST_PROFILES[castCharacterId(model.userData.roleId,model.userData.runtime)];
+    return {id,supported:navigation.supported({panda:{model,rig:{profile}}},model.position,model.rotation.y),home:model.userData.home.toArray()};
+   });}finally{garden.dispose();}
+  });
+  assert.ok(safe.every(row=>row.supported),'every reduced-motion body remains supported at home or its last safe position');
+  assert.deepEqual(Object.fromEntries(safe.map(row=>[row.id,row.home])),initial.homes,'safe freeze retains every owned home even when a return is obstructed');
   const paused=await page.evaluate(()=>({fishBatches:window.routineProbe.fishBatches,residents:Object.values(window.routineProbe.residents).map(model=>[...model.position.toArray(),...model.getObjectByName('Spine').scale.toArray()])}));
   await page.waitForTimeout(350);
-  assert.deepEqual(await page.evaluate(()=>({fishBatches:window.routineProbe.fishBatches,residents:Object.values(window.routineProbe.residents).map(model=>[...model.position.toArray(),...model.getObjectByName('Spine').scale.toArray()])})),paused,'reduced motion settles residents at owned homes and leaves signed pond figures static');
+  assert.deepEqual(await page.evaluate(()=>({fishBatches:window.routineProbe.fishBatches,residents:Object.values(window.routineProbe.residents).map(model=>[...model.position.toArray(),...model.getObjectByName('Spine').scale.toArray()])})),paused,'reduced motion holds supported residents without gait or idle sway and leaves signed pond figures static');
   await page.emulateMedia({reducedMotion:'no-preference'});
   assert.deepEqual(errors,[]);assert.deepEqual(writes,[]);
  }finally{await browser?.close();await server?.close();}

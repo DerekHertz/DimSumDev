@@ -54,7 +54,8 @@ test('native meeting seating clears the actual assembled table with every specia
    const group=specialists.slice(offset,offset+6),meeting={id:'native-'+offset,ref:'meeting/native',state:'running',seats:group.map(a=>({role:a.role}))};
    f.actors.applyMeeting(meeting);f.tick(60);
    const participants=[f.actors.actors.get('orchestrator'),...group];
-   assert.equal(f.actors.seatModels().size,group.length,'all selected bodies actually arrive: '+JSON.stringify(group.map(a=>({role:a.role,stage:a.meetingTrip?.stage,position:a.panda.model.position.toArray(),trip:a.meetingTrip}))));
+   assert.ok(f.actors.seatModels().get('orchestrator')===participants[0].panda.model,'the actual seated Bao chair publishes its label anchor');
+   assert.equal(f.actors.seatModels().size,group.length+1,'all selected bodies and chair actually arrive: '+JSON.stringify(group.map(a=>({role:a.role,stage:a.meetingTrip?.stage,position:a.panda.model.position.toArray(),trip:a.meetingTrip}))));
    const owned=new Set();
    for(const actor of participants){
     assert.equal(actor.meetingTrip?.stage,'seated',actor.role+' arrived');

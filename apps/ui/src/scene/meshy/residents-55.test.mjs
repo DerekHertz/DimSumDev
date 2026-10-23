@@ -29,6 +29,30 @@ function fixture({blocked=false,random=()=>0}={}){
 }
 const tick=(f,seconds,reduced=false)=>{for(let t=0;t<Math.round(seconds*10);t++)f.routines.update(.1,reduced,null);};
 
+test('55-M: reduced motion safely returns active outings and schedules no new departures or catch-up',()=>{
+ const f=fixture();try{
+  tick(f,3);const a=[...f.actors.values()].find(a=>a.outing);assert.ok(a);
+  assert.ok(a.panda.model.position.distanceTo(a.home)>.1);
+  tick(f,.1,true);assert.deepEqual(a.panda.model.position,a.home);assert.equal(a.outing,null);
+  const clock=f.routines.time,positions=[...f.actors.values()].map(a=>a.panda.model.position.toArray());
+  tick(f,300,true);assert.equal(f.routines.time,clock);
+  assert.deepEqual([...f.actors.values()].map(a=>a.panda.model.position.toArray()),positions);
+  assert.ok([...f.actors.values()].every(a=>!a.outing&&a.moved===0));
+  tick(f,.1);assert.equal(f.routines.time,clock+.1);
+ }finally{f.routines.dispose();}
+});
+
+test('55-M: an obstructed reduced-motion return retains the last safe position and truthful return ownership',()=>{
+ const f=fixture();try{
+  tick(f,3);const a=[...f.actors.values()].find(a=>a.outing),at=a.panda.model.position.clone();
+  f.den.routineClear=()=>false;
+  tick(f,.1,true);assert.deepEqual(a.panda.model.position,at);assert.equal(a.outing.stage,'return');
+  tick(f,10,true);assert.deepEqual(a.panda.model.position,at);
+  assert.equal(a.moved,0);assert.deepEqual([...f.actors.values()].filter(b=>b.outing).map(b=>b.id),[a.id]);
+  f.den.routineClear=()=>true;tick(f,.1,true);assert.deepEqual(a.panda.model.position,a.home);assert.equal(a.outing,null);
+ }finally{f.routines.dispose();}
+});
+
 test('55-C/F: reserve before departure, one local destination, 3.6 units/sec, settled 45s then owned home',()=>{
  const f=fixture();tick(f,2.1);const a=[...f.actors.values()].find(a=>a.outing);assert.ok(a);
  assert.ok(a.outing.spot);assert.equal(f.routines.reservations.get(a.outing.spot.id),a.id);

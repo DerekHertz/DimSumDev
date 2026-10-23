@@ -116,17 +116,17 @@ export function createDailyRoutines(den,actors,{random=Math.random}={}){
  }
  function update(dt,reduced=false){
   for(const a of actors.values()){a.moved=0;a.mount=null;}
-  if(disposed||hidden)return;dt=Math.max(0,Math.min(dt,.1));time+=dt;
+  if(disposed||hidden)return;dt=Math.max(0,Math.min(dt,.1));if(!reduced)time+=dt;
   for(const a of [...actors.values()].sort((a,b)=>(b.live?1:0)-(a.live?1:0)||a.id.localeCompare(b.id))){
    const r=a.outing;if(!r)continue;
-   if((a.live||a.meetingOwned||r.host&&(r.host.live||r.host.meetingOwned||!r.host.panda.model.visible))&&r.stage!=='return')returnHome(a);
+   if((reduced||a.live||a.meetingOwned||r.host&&(r.host.live||r.host.meetingOwned||!r.host.panda.model.visible))&&r.stage!=='return')returnHome(a);
    if(a.outing.stage==='visit'){
     const spot=a.outing.spot,p=a.panda.model.position;a.yaw=Math.atan2(spot.face.x-p.x,spot.face.z-p.z);
     if(a.outing.host){const h=a.outing.host,q=h.panda.model.position;h.yaw=Math.atan2(p.x-q.x,p.z-q.z);}
     a.outing.elapsed+=dt;if(a.outing.elapsed>=a.outing.duration)returnHome(a);
    }else step(a,dt,reduced);
   }
-  if(time>=nextDeparture){nextDeparture=time+4;depart();}
+  if(!reduced&&time>=nextDeparture){nextDeparture=time+4;depart();}
  }
  return {update,reservations,get time(){return time;},cancel(a){if(a.outing)returnHome(a);},transfer(a){const group=a.outing?.group;release(a);if(a.approachPlace)registry?.release(a.approachPlace,a.identity);a.approachPlace=null;a.outing=null;a.path=null;if(group)for(const b of actors.values())if(b.outing?.group===group)returnHome(b);},setHidden(value){if(hidden&&!value)for(const a of actors.values())if(a.outing)returnHome(a);hidden=!!value;},dispose(){if(disposed)return;disposed=true;for(const a of actors.values()){release(a);if(a.approachPlace)registry?.release(a.approachPlace,a.identity);a.approachPlace=null;a.outing=null;a.path=null;a.hosting=null;}reservations.clear();}};
 }

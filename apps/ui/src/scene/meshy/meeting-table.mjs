@@ -31,6 +31,15 @@ export function seatSpots(n) {
   });
 }
 
+export function turnTeaTray(tray,meeting,dt,reducedMotion){
+ const speaker=seated(meeting)?meeting.seats.findIndex(s=>s.role===meeting.live?.role):-1;
+ if(!tray||reducedMotion||speaker<0)return;
+ const spot=seatSpots(meeting.seats.length)[speaker];if(!spot)return;
+ const target=Math.atan2(spot.x-TABLE.x,spot.z-TABLE.z);
+ const difference=Math.atan2(Math.sin(target-tray.rotation.y),Math.cos(target-tray.rotation.y));
+ tray.rotation.y+=difference*Math.min(1,dt*1.5);
+}
+
 const SEAT_LABELS = {
   waiting: { text: "Waiting to speak", kind: "waiting" },
   taken: { text: "Said its piece", kind: "done" },
