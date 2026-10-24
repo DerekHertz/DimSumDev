@@ -11,9 +11,7 @@ import {createDenScene,GROUND} from '../../src/scene/meshy/plush/assembly.mjs';
 import {residentHomes} from '../../src/scene/meshy/resident-homes.mjs';
 import {createGardenNavigation} from '../../src/scene/meshy/garden-navigation.mjs';
 import {gardenRoute} from '../../src/scene/meshy/garden-route.mjs';
-import {seatSpots,TABLE} from '../../src/scene/meshy/meeting-table.mjs';
-
-const historicalSeatSpots=count=>seatSpots(count).map(spot=>({...spot,x:spot.x-TABLE.x,z:spot.z-TABLE.z+3.15}));
+import {historicalSeatSpots} from './historical-seats.mjs';
 
 globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};
 const publicRoot=new URL('../../public',import.meta.url),manifest=JSON.parse(fs.readFileSync(new URL('./den/manifest.json',publicRoot+'/')));

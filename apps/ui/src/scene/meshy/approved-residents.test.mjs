@@ -11,6 +11,19 @@ function gamePair(f,ids=['designer','technical-writer']){
  return ids.map(id=>f.actors.actors.get(id));
 }
 
+test('reduced motion plants Product across the pavilion floor seams when its return is obstructed',()=>{
+ const f=approvedFixture();try{
+  f.tick(8);const a=f.actors.actors.get('product'),home=a.home.clone(),at=a.panda.model.position.clone();
+  assert.equal(a.outing?.stage,'outbound');assert.ok(at.distanceTo(home)>1);
+  f.den.routineRoute=()=>[];f.den.routineRouteSteps=function*(){return [];};
+  f.tick(1,true);
+  assert.equal(a.outing.stage,'return');assert.equal(a.panda.model.position.x,at.x);assert.equal(a.panda.model.position.z,at.z);
+  assert.ok(f.den.walkWorld.supported(a,a.panda.model.position,a.yaw??a.baseYaw),'every foot contact is supported without relaxing the height tolerances');
+  assert.deepEqual(a.home,home);assert.equal(f.actors.places.get(a.homePlace).owner,a.identity);
+  const frozen=a.panda.model.position.clone();f.tick(1,true);assert.deepEqual(a.panda.model.position,frozen);assert.equal(a.moved,0);
+ }finally{f.dispose();}
+});
+
 test('55-E/F: both assembled mahjong players reserve prepared supported approaches before departing and settle',()=>{
  const f=approvedFixture();try{
   const pair=gamePair(f);f.tick(2.1);

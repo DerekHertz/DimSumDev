@@ -795,7 +795,58 @@
       ],
       "roleId": "runner",
       "characterId": "golden-monkey"
+    },
+    "teahouse.chair": {
+      "url": "/den/models/teahouse/chair.glb.gz",
+      "kind": "prop",
+      "sourceFilename": "low-wooden-chair.glb",
+      "triangles": 5007,
+      "bytes": 245452,
+      "sha256": "129b6d25262a157e40cad654a57409e1845046bc9e698eac17838f96e110bccf",
+      "compression": "gzip",
+      "decodedBytes": 332708,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ]
+    },
+    "teahouse.lantern": {
+      "url": "/den/models/teahouse/lantern.glb.gz",
+      "kind": "prop",
+      "sourceFilename": "stone-garden-lantern.glb",
+      "triangles": 3004,
+      "bytes": 190068,
+      "sha256": "f13083f0a06e9a23ab4d0d9d7da8b427b65cc86bb0a47b3d6845d2a05fe4f94e",
+      "compression": "gzip",
+      "decodedBytes": 267636,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ]
+    },
+    "teahouse.tree": {
+      "url": "/den/models/teahouse/tree.glb.gz",
+      "kind": "prop",
+      "sourceFilename": "ornamental-evergreen.glb",
+      "triangles": 8005,
+      "bytes": 419657,
+      "sha256": "aa4696f42ab95e4607a5a5429e3f52971471c8758013ea38e31d31811244dde1",
+      "compression": "gzip",
+      "decodedBytes": 734592,
+      "textures": [
+        {
+          "width": 512,
+          "height": 512,
+          "mimeType": "image/webp"
+        }
+      ]
     }
   },
-  "bytes": 30377949
+  "bytes": 31233126
 }

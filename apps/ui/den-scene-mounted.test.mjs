@@ -154,12 +154,14 @@ test("the native approved garden loads Bao, Jiao and the active cast assets with
     assert.ok(!loaded.includes('/src/scene/procedural/RestaurantDen.jsx'), 'old procedural scene is not mounted');
     assert.equal(await page.locator('iframe').count(), 0, 'no embedded preview server');
     assert.equal(await page.locator('.forest-canvas canvas').count(), 1);
-    assert.equal(Object.keys(assets).length, 35, 'only retained character, prop, wardrobe and vegetation models are shipped (team-and-den-ux/23 adds two species, 24 adds Bao, 35 adds nine species and Jiao)');
-    assert.deepEqual(Object.keys(assets).filter(key => key.startsWith('scenery.')), [], 'buildings and furniture use procedural geometry');
+    assert.equal(Object.keys(assets).length, 38, 'the retained models and three approved teahouse props are shipped');
+    assert.deepEqual(Object.keys(assets).filter(key => key.startsWith('scenery.')), [], 'buildings use procedural geometry');
     assert.equal(loaded.some(path => path.startsWith('/den/models/scenery/')), false, 'no removed scenery download');
     const castAssets=['characters.bao','characters.jiao','characters.developer','characters.technical-writer'];
     assert.deepEqual(castAssets.filter(id=>!loaded.includes(assets[id].url)), [], 'the updated executives and approved cast load locally');
-    assert.equal(modelResponses.length, 13, 'the active scene loads only the 13 signed character models');
+    const expectedModels=Object.entries(assets).filter(([id])=>id.startsWith('characters.')||id.startsWith('teahouse.')).map(([,asset])=>asset.url);
+    assert.equal(expectedModels.length,16,'13 signed characters and three approved teahouse props');
+    assert.deepEqual(modelResponses.map(response=>new URL(response.url()).pathname).sort(),expectedModels.sort(),'the active scene loads exactly the approved characters and teahouse props');
     const scene = await page.evaluate(async()=>{
       const url=performance.getEntriesByType('resource').find(e=>e.name.includes('react-three_fiber.js')).name;
       const {_roots}=await import(url);
@@ -172,7 +174,7 @@ test("the native approved garden loads Bao, Jiao and the active cast assets with
         if(n.userData.actorKey==='orchestrator'||n.userData.actorKey==='codex:orchestrator'){const carried=[];n.traverse(child=>{if(child.userData.tool)carried.push(child.userData.tool);});coordinatorTools[n.userData.actorKey]=carried;}
       });
       const layout=world.userData.presentationLayout;
-      const plaza=world.getObjectByName('Central meeting plaza');let bounds;
+      const plaza=world.getObjectByName('Round table teahouse');let bounds;
       plaza?.traverse(n=>{if(!n.isMesh)return;n.geometry.computeBoundingBox();const b=n.geometry.boundingBox.clone().applyMatrix4(n.matrixWorld);if(bounds)bounds.union(b);else bounds=b;});
       const plazaSize=bounds?.max.clone().sub(bounds.min).toArray();
       const susan=world.getObjectByName('Lazy susan');let teaTriangles=0;susan?.traverse(n=>{if(n.isMesh)teaTriangles+=(n.geometry.index?.count??n.geometry.attributes.position.count)/3;});
@@ -191,8 +193,8 @@ test("the native approved garden loads Bao, Jiao and the active cast assets with
     assert.equal(scene.workspaceRecords.length,24,'the mounted approved world publishes all 24 real workstation records');
     assert.ok(scene.places.some(place=>place.id==='office')&&scene.places.some(place=>place.id==='pond'),'the mounted structure positions come from the approved garden');
     assert.ok(scene.plazaSize[0]>=4&&scene.plazaSize[1]>=1&&scene.plazaSize[2]>=2.3,'the approved central meeting plaza geometry remains visible');
-    assert.equal(scene.susan,true,'the speaker-facing tea tray is mounted in the native garden');
-    assert.ok(scene.teaTriangles>100,'the independently rotating tray retains real pot and cup geometry after batching');
+    assert.equal(scene.susan,true,'the stationary tea tray is mounted in the native garden');
+    assert.ok(scene.teaTriangles>100,'the tea tray retains real pot and cup geometry after batching');
     for (const response of modelResponses) assert.equal(response.status(), 200, response.url());
     const bytes = await modelResponses.find(response => new URL(response.url()).pathname === assets['characters.bao'].url).body();
     assert.equal(bytes.subarray(0, 4).toString('ascii'), 'glTF', 'Chromium exposes the real decoded GLB model bytes');

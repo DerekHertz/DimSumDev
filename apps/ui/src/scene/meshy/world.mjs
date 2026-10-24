@@ -20,7 +20,7 @@ export async function createMeshyWorld(renderer,{signal,onProgress=()=>{}}={}){
   den.assets=await loadManifest(signal);active(signal);
   onProgress('Opening the teahouse garden…');
   const props={};
-  for(const id of ['chair','lantern','tree']){const source=await loadModel('/den/models/teahouse/'+id+'.glb.gz');resources.add(source);active(signal);props[id]=source;}
+  for(const id of ['chair','lantern','tree']){const source=await loadModel(den.assets['teahouse.'+id].url);resources.add(source);active(signal);props[id]=source;}
   garden=createApprovedGarden({props});resources.clear();den.garden=garden;den.world.add(garden.root,residents,den.roleTools,den.vegetation);den.world.name='Dim Sum Dev · plush bamboo garden';
   onProgress('Loading the approved residents…');
   const characters={};den.characterLoad={loaded:[],failed:[]};

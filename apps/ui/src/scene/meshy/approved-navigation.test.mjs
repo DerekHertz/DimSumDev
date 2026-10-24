@@ -2,6 +2,22 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createApprovedNavigation} from './approved-navigation.mjs';
 
+test('footprint grounding spans shallow floor seams but refuses missing support and obstructed bodies',()=>{
+ const garden={inside:()=>true,assets:{},docks:[],surfaces:[
+  {min:[-2,0,-2],max:[0,.245,2],supportTop:.245},
+  {min:[0,0,-2],max:[2,.315,2],supportTop:.315}
+ ],obstacles:[]};
+ const actor={panda:{model:{scale:{x:1}},rig:{profile:{foot:{x:.4,z:0}}}},envelope:{radius:.6,height:2}};
+ const world=createApprovedNavigation(garden),p={x:0,y:.36,z:0};
+ assert.equal(world.supported(actor,p,0),false);
+ const grounded=world.groundedPosition(actor,p,0);
+ assert.ok(grounded);assert.equal(grounded.x,p.x);assert.equal(grounded.z,p.z);assert.ok(world.supported(actor,grounded,0));
+ const blocked=createApprovedNavigation({...garden,obstacles:[{min:[-.6,.25,-.6],max:[.6,1,.6]}]});
+ assert.equal(blocked.groundedPosition(actor,p,0),null);
+ const cliff=createApprovedNavigation({...garden,inside:x=>x>=0});
+ assert.equal(cliff.groundedPosition(actor,p,0),null);
+});
+
 test('a sliced body is constructed once per fit, rather than once per nearby obstacle',()=>{
  let reads=0;
  const slices=Array.from({length:16},(_,i)=>({get min(){reads++;return [-.5,i*.1,-.5];},get max(){reads++;return [.5,(i+1)*.1,.5];}}));

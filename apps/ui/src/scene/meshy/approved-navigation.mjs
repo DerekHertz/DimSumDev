@@ -64,13 +64,19 @@ export function createApprovedNavigation(garden){
   }
   return top;
  }
- function supported(actor,p,yaw){
+ function footHeights(actor,p,yaw){
   const foot=actor.panda.rig.profile.foot,scale=actor.panda.model.scale.x;
-  return [-1,1].every(side=>[-.1,.1].every(dx=>[-.1,.1].every(dz=>{
+  return [-1,1].flatMap(side=>[-.1,.1].flatMap(dx=>[-.1,.1].map(dz=>{
    const x=(side*foot.x+dx)*scale,z=(foot.z+dz)*scale;
-   const height=supportAt(p.x+x*Math.cos(yaw)+z*Math.sin(yaw),p.z-x*Math.sin(yaw)+z*Math.cos(yaw));
-   return height!==null&&p.y>=height-.025&&p.y-height<.075;
+   return supportAt(p.x+x*Math.cos(yaw)+z*Math.sin(yaw),p.z-x*Math.sin(yaw)+z*Math.cos(yaw));
   })));
+ }
+ function supported(actor,p,yaw){return footHeights(actor,p,yaw).every(height=>height!==null&&p.y>=height-.025&&p.y-height<.075);}
+ function groundedPosition(actor,p,yaw){
+  if(supported(actor,p,yaw))return {...p};
+  const heights=footHeights(actor,p,yaw);if(heights.includes(null))return null;
+  const y=Math.max(Math.min(...heights)+.045,Math.max(...heights)-.024),at={x:p.x,y,z:p.z};
+  return supported(actor,at,yaw)&&fits(at,actor.envelope,yaw)?at:null;
  }
  function turn(p,from,to,envelope){
   const delta=Math.atan2(Math.sin(to-from),Math.cos(to-from)),steps=Math.max(1,Math.ceil(Math.abs(delta)/.06));
@@ -236,7 +242,7 @@ export function createApprovedNavigation(garden){
  }
  return {setBodies(provider){bodies=provider;},setReservations(provider){reservations=provider;},floorRadius:85,floorCenter:{x:0,z:-4},eyeHeight:1.82,obstacles:[],fitsPlace,fits,segment,route,routeSteps,place,approach,
   meetingApproach(actor,spot){return approachAt(actor,{id:'meeting-chair',kind:'meeting',position:new T.Vector3(spot.x,spot.y,spot.z),face:new T.Vector3(0,spot.y,-4)});},
-  supported,supportAt,nodes,edges,physicalObstacles:obstacles,navigation:{groundAt(x,z,previous=.36,radius=.26,height=2.04){const y=supportAt(x,z);if(y===null)return null;const position={x,y:y+.045,z};return fits(position,{radius,height})?position.y:null;}}};
+  supported,groundedPosition,supportAt,nodes,edges,physicalObstacles:obstacles,navigation:{groundAt(x,z,previous=.36,radius=.26,height=2.04){const y=supportAt(x,z);if(y===null)return null;const position={x,y:y+.045,z};return fits(position,{radius,height})?position.y:null;}}};
 }
 
 export function bindResidentNavigation(den,actors){

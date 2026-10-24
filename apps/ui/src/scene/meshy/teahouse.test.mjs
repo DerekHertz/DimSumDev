@@ -60,12 +60,16 @@ test('physical chair support never extends onto an invisible overhanging platfor
 
 test('the local approved package retains audited geometry and shares resources until teardown',()=>{
  const manifest=JSON.parse(readFileSync(new URL('../../../public/den/teahouse.json',import.meta.url))),props=teahouseProps(),resources=new Map();
+ const packaged=JSON.parse(readFileSync(new URL('../../../public/den/manifest.json',import.meta.url)));
  for(const asset of manifest.assets){
+  const {id,stages,packingAudit,...metadata}=asset;
+  assert.deepEqual(packaged.assets['teahouse.'+id],metadata,'the runtime manifest includes the approved audited prop metadata');
   const bytes=readFileSync(new URL('../../../public'+asset.url,import.meta.url));
   assert.equal(createHash('sha256').update(bytes).digest('hex'),asset.sha256);
   let triangles=0;props[asset.id].traverse(n=>{if(n.isMesh){triangles+=(n.geometry.index?.count??n.geometry.attributes.position.count)/3;for(const resource of [n.geometry,n.material,n.material.map].filter(Boolean))resources.set(resource,0);}});
   assert.equal(triangles,asset.triangles,'the approved source geometry survives integration');
  }
+ assert.equal(packaged.bytes,Object.values(packaged.assets).reduce((sum,asset)=>sum+asset.bytes,0));
  for(const resource of resources.keys())resource.addEventListener('dispose',()=>resources.set(resource,resources.get(resource)+1));
  const garden=createApprovedGarden({props});garden.dispose();
  for(const count of resources.values())assert.equal(count,1,'each shared prop resource is released once');
