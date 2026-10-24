@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {approvedFixture} from './approved.test-fixture.mjs';
 import {routeLength,routeSeconds} from './daily-routines.mjs';
-import {turnTeaTray,TABLE} from './meeting-table.mjs';
+import {createMeetingPresentation} from './meeting-presentation.mjs';
 
 function gamePair(f,ids=['designer','technical-writer']){
  for(const a of f.actors.actors.values())a.stationary=!ids.includes(a.id);
@@ -112,7 +112,7 @@ test('55-E: each actual species has supported approach/exit candidates at the ap
 });
 
 test('55-H/M: actual snapshots keep six busy workers independent of meeting guests and clean up only at real end',()=>{
- const f=approvedFixture();try{
+ const f=approvedFixture(),presentation=createMeetingPresentation();try{
   const roles=['product','architect','developer','code-reviewer','qa','security'];
   f.actors.applyLive(roles.map(role=>({role,runtime:'claude',ref:'work/'+role,agentId:role,state:'working'})));
   const homes=new Map(roles.map(role=>[role,f.actors.actors.get(role).home.clone()]));
@@ -123,18 +123,21 @@ test('55-H/M: actual snapshots keep six busy workers independent of meeting gues
   for(const role of roles){const a=f.actors.actors.get(role);assert.deepEqual(a.panda.model.position,homes.get(role));assert.equal(a.live.ref,'work/'+role);}
   const models=roles.map(role=>f.actors.seatModels().get(role));assert.equal(new Set(models).size,6);
   const tray=f.den.garden.root.getObjectByName('Lazy susan');
+  const teaRotation=tray.rotation.toArray();
   for(const role of roles){
    const guest=f.actors.seatModels().get(role);assert.notEqual(guest,f.actors.actors.get(role).panda.model,'a speaking guest never borrows its working resident');
-   for(let i=0;i<100;i++)turnTeaTray(tray,{...meeting,live:{role}},.1,false);
-   const target=Math.atan2(guest.position.x-TABLE.x,guest.position.z-TABLE.z);
-   assert.ok(Math.abs(Math.atan2(Math.sin(tray.rotation.y-target),Math.cos(tray.rotation.y-target)))<.001,'tea faces the actual speaking guest seat');
+   presentation.update({...meeting,live:{role}},f.actors.seatModels());
+   assert.equal(presentation.activePlace.visible,true);
+   assert.equal(presentation.activePlace.position.x,guest.position.x);
+   assert.equal(presentation.activePlace.position.z,guest.position.z,'the cue follows the actual speaking guest seat');
+   assert.deepEqual(tray.rotation.toArray(),teaRotation,'tea remains still while the speaking guest changes');
   }
   f.actors.applyMeeting({...meeting,state:'paused'});f.tick(1);assert.equal(f.den.guestActors.size,6);
   f.actors.applyMeeting({...meeting,state:'briefed'});f.tick(1);assert.equal(f.den.guestActors.size,6,'closing the sheet leaves snapshot ownership intact');
   f.actors.applyMeeting({...meeting,state:'closed'});f.tick(40);assert.equal(f.den.guestActors.size,0);
   assert.equal(f.actors.actors.get('orchestrator').meetingTrip,null,'Bao returns to his owned home');
   assert.equal([...f.actors.places.values()].filter(p=>p.id.includes('actual-six')&&p.owner).length,0,'only the ended meeting leases are released');
- }finally{f.dispose();}
+ }finally{presentation.dispose();f.dispose();}
 });
 
 test('55-D/M: actual friend visitor and turned host face each other, hidden presentation freezes and disposal clears ownership',()=>{
