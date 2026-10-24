@@ -164,7 +164,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const out = {};
     for (const kind of WALL_KINDS) {
       const k = a.wall[kind];
-      if (k && k.count > 0) out[kind === "host" ? "hosts" : "writes"] = { count: k.count, latest: k.targets.at(-1) ?? null, paused: k.paused === true };
+      if (k && k.count > 0) out[kind === "host" ? "hosts" : "writes"] = { count: k.count, latest: a.meeting ? null : k.targets.at(-1) ?? null, paused: k.paused === true };
     }
     return Object.keys(out).length === 0 ? null : out;
   }
@@ -198,7 +198,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     });
     if (k.count >= WALL_PAUSE_AT) {
       k.paused = true;
-      const requestId = approvals.holdWall(agent.id, { kind: mark.kind, targets: k.targets.slice(0, WALL_PAUSE_AT) });
+      const requestId = approvals.holdWall(agent.id, { kind: mark.kind, targets: k.targets.slice(0, WALL_PAUSE_AT), privateContext: !!agent.meeting });
       record(agent, { kind: "wall", wallKind: mark.kind, paused: true, approvalId: requestId, text: `Paused after ${WALL_PAUSE_AT} refused ${noun}s. Waiting on you.` });
     }
     publish(agent);
@@ -227,6 +227,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const ALLOWED_CALLS_MAX = 20;
   const canContinue = (a) => adapterOf(a)?.capabilities?.resume === true && validRuntimeSession(a.runtimeSessionId) && typeof a.sessionId === "string" && UUID_RE.test(a.sessionId) && typeof a.worktree === "string";
   const publish = (a) => onChange({ type: "agent", agent: view(a) });
+  const publicApproval = (approval) => approval.privateContext ? {
+    id: approval.id, agentId: approval.agentId, tool: "Private meeting request", summary: "Private meeting permission request",
+    inputLength: approval.inputLength, ts: approval.ts, expiresAt: approval.expiresAt, state: approval.state,
+    ...(approval.answeredAt ? { answeredAt: approval.answeredAt } : {}),
+  } : approval;
   // Held permission requests (organism-infra/141). The store knows no process; these callbacks are its only way out.
   const approvals = createApprovalStore({
     ttlMs: Math.min(policy.approvalTtlMs ?? APPROVAL_TTL_MS, APPROVAL_TTL_MS),
@@ -241,7 +246,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       if (a && tool.startsWith("mcp__den__")) a.allowedCalls = [...(a.allowedCalls ?? []), { tool, input }].slice(-ALLOWED_CALLS_MAX);
     },
     onChange: (approval) => {
-      onChange({ type: "approval", approval });
+      onChange({ type: "approval", approval: publicApproval(approval) });
       notePermission(agents.get(approval.agentId), approval);
       syncWaiting(agents.get(approval.agentId));
     },
@@ -984,7 +989,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         Promise.resolve(agent.proc.decide(event.requestId, { allow: false, reason: `Refused before asking the user: ${unfit}` })).catch(() => {});
         return touch(agent);
       }
-      approvals.hold(agent.id, event, { accepting: !agent.stopRequested && !shuttingDown, says: agent.said ?? null });
+      approvals.hold(agent.id, event, { accepting: !agent.stopRequested && !shuttingDown, says: agent.said ?? null, privateContext: !!agent.meeting });
       return;
     } else if (event.type === "state") {
       if (!LIVE_STATES.includes(event.state) || agent.stopRequested) return;
@@ -1367,7 +1372,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     drain: (text) => void (draining = text || null), // den-mvp/86: the update's refusal text for a new run, or null to admit again
     admission,
     capacity: capacityNow, // (lockedRefs) -> the capacity key the hub puts in the snapshot
-    approvals: () => approvals.list(),
+    approvals: () => approvals.list().map(publicApproval),
     transcripts: transcriptView,
     approval: (id) => approvals.read(id),
     decide: async (id, body) => {

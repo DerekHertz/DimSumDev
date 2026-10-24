@@ -159,6 +159,7 @@ export function createApprovalReview({ client, now = Date.now, hooks = {} }) {
         return;
       }
       s.input = input;
+      if (res.privateContext === true) s.card.tool = res.tool;
       s.inputCount = JSON.stringify(input).length;
       s.inputText = escapeUnsafe(JSON.stringify(input, null, 2), true);
       s.inputView = inputViewOf(res?.tool ?? s.card.approval?.tool, input);
