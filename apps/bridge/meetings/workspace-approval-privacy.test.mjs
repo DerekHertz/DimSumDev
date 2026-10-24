@@ -91,3 +91,47 @@ test('meeting wall targets are private in approvals and agent state frames', asy
   absent(await b.state());
   absent(stream.frames);
 });
+
+test('authenticated private question review requires and sends distinct answers', async t => {
+  const b = await makeBridge();
+  t.after(() => b.close());
+  await b.post('/meetings', { topic: 'Private questions', roles: ['architect'], budget: 3 });
+  const run = await until(() => b.fake.spawns[0]);
+  const questions = [
+    { question: `${PRIVATE} path?`, header: 'Path', options: [{ label: 'A' }, { label: 'B' }] },
+    { question: `${PRIVATE} checks?`, header: 'Checks', options: [{ label: 'Unit' }, { label: 'Browser' }], multiSelect: true },
+    { question: `${PRIVATE} alternative?`, header: 'Alternative', options: [{ label: 'Default' }] },
+  ];
+  run.emit({ type: 'permission-request', requestId: 'distinct-questions', tool: 'AskUserQuestion', input: { questions } });
+  const pending = await until(async () => (await b.state()).approvals?.find(a => a.state === 'pending'));
+  absent(pending);
+  const sent = [];
+  const review = createApprovalReview({ client: {
+    getApproval: async id => (await send(b.bridge, { path: `/approvals/${id}`, headers: b.headers })).body,
+    decide: async (id, body) => {
+      sent.push(body);
+      const response = await b.post(`/approvals/${id}`, body);
+      assert.equal(response.status, 200, response.text);
+      return response.body;
+    },
+  } });
+  review.open({ approval: pending, actions: { E: { enabled: true }, Q: { enabled: true } } });
+  await until(() => review.getState().phase === 'ready');
+  assert.equal(review.getState().questions?.length, 3);
+  assert.equal(review.getState().allowEnabled, false);
+  await review.press('allow');
+  assert.equal(sent.length, 0);
+  review.pickAnswer(0, 'B');
+  review.pickAnswer(1, 'Unit');
+  review.pickAnswer(1, 'Browser');
+  review.pickAnswer(2, null);
+  assert.equal(review.getState().allowEnabled, false);
+  review.writeAnswer(2, 'Another approach');
+  assert.equal(review.getState().allowEnabled, true);
+  await review.press('allow');
+  assert.deepEqual(sent, [{ decision: 'allow', answers: ['B', ['Unit', 'Browser'], 'Another approach'] }]);
+  const detail = await send(b.bridge, { path: `/approvals/${pending.id}`, headers: b.headers });
+  assert.equal(detail.body.state, 'allowed');
+  assert.equal(detail.body.note, 'Path: B · Checks: Unit, Browser · Alternative: Another approach');
+  absent(await b.state());
+});
