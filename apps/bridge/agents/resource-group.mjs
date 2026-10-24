@@ -92,7 +92,7 @@ export function buildScopeArgv({ unit, slice, limit, fileBytes, bin, args, wrapp
   // namespace with its own /proc keeps /proc/<pid>/root of the host's processes (which see the unwrapped mounts) out of reach.
   const wrap = [wrapper, "--dev-bind", "/", "/", "--unshare-pid", "--proc", "/proc", "--ro-bind", CGROUP_ROOT, CGROUP_ROOT, ...hide.flatMap((d) => ["--tmpfs", d]), ...hideSockets.flatMap((f) => ["--ro-bind", "/dev/null", f]), "--die-with-parent", "--"];
   return [
-    "--user", "--scope", "--quiet", "--collect", "--unit", unit, "--slice", `${slice}.slice`,
+    "--user", "--scope", "--quiet", "--collect", "--unit", unit, "--slice", `${slice}.slice`, "--expand-environment=no",
     ...[...groupProperties(limit), "OOMPolicy=continue"].flatMap((p) => ["-p", p]),
     "--", "env", "-u", "XDG_RUNTIME_DIR", "-u", "DBUS_SESSION_BUS_ADDRESS",
     "prlimit", `--fsize=${fileBytes}:${fileBytes}`, "--", "/bin/sh", "-c", START_GATE, "den-gate", ...wrap, bin, ...args,
@@ -166,9 +166,9 @@ else echo "busctl not tested: it is not installed" >&2; fi
 [ $bad = 0 ] && echo contained; exit $bad`;
 
 /** The probe's verdict from its exit code and what it printed: null when contained, else the reason. */
-export function judgeProbe(code, out) {
+export function judgeProbe(code, out, stderr = "") {
   if (code === 0 && /^contained$/m.test(out)) return null;
-  return `a run could loosen its own limits or reach the service manager: ${oneLine(out) || `the probe ended with ${code === null ? "no answer" : `code ${code}`}`}`;
+  return `a run could loosen its own limits or reach the service manager: ${oneLine(out) || `the probe ended with ${code === null ? "no answer" : `code ${code}`}`}${stderr ? `: ${oneLine(stderr)}` : ""}`;
 }
 
 /**
@@ -350,15 +350,15 @@ export function createResourceLauncher({ env = process.env, limits = LIMITS, sli
       const { sockets } = busPlaces(env);
       const { child, group } = await start({ slotClass: "worker", id: `${process.pid}-${(probes += 1)}`, bin: "/bin/sh", args: ["-c", PROBE_SCRIPT, "den-probe", ...sockets], cwd: "/", env: { PATH: env?.PATH ?? process.env.PATH }, prefix: "den-probe" });
       child.stdin.on("error", () => {});
-      let out = "";
+      let out = "", stderr = "";
       child.stdout.on("data", (c) => out.length < 4096 && (out += c));
-      child.stderr.resume();
+      child.stderr.on("data", (c) => stderr.length < 4096 && (stderr += c));
       const code = await new Promise((resolve) => {
         const timer = setTimeout(() => resolve(null), SCOPE_WAIT_MS);
         child.once("exit", (c) => (clearTimeout(timer), resolve(c)));
       });
       group.kill();
-      const verdict = judgeProbe(code, out);
+      const verdict = judgeProbe(code, out, stderr);
       if (verdict !== null) return { ok: false, reason: verdict };
       if (!(await group.settled(KILL_SETTLE_MS))) return { ok: false, reason: `the probe's processes outlived a kill of ${group.unit}` };
       passed = Date.now();

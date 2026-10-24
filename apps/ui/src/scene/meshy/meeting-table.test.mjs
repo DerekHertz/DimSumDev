@@ -9,7 +9,7 @@
 //   claimOf(takeText) -> the take's Claim line, cut to CLAIM_MAX characters with an ellipsis
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { TABLE, PLAZA_RING, FAREWELL_MS, CLAIM_MAX, tableMeeting, seatSpots, seatLabel, baoLabel, seated, routeTo, claimOf } from "./meeting-table.mjs";
+import { TABLE, PLAZA_RING, FAREWELL_MS, CLAIM_MAX, tableMeeting, seatSpots, seatLabel, seatName, baoLabel, seated, routeTo, claimOf } from "./meeting-table.mjs";
 
 test('selected meeting owns the scene even when a newer meeting exists; ended records never gather participants', () => {
   const first = { id: 'first', state: 'running', seats: [{ role: 'architect' }], startedAt: '2026-10-20T00:00:00Z' };
@@ -27,6 +27,11 @@ const meeting = (over = {}) => ({
 });
 const NOW = Date.parse("2026-10-16T23:20:00Z");
 
+test('occupied places identify residents even without any live agents',()=>{
+ assert.equal(seatName('product'),'The Planner');assert.equal(seatName('developer'),'The Maker');
+ assert.equal(seatName('technical-writer'),'The Technical Writer');assert.equal(seatName('future-role'),'future role');
+});
+
 test("the table shows the newest live meeting, and nothing once it is decided, closed or retired", () => {
   assert.equal(tableMeeting([], NOW), null);
   assert.equal(tableMeeting(undefined, NOW), null);
@@ -43,7 +48,8 @@ test("the table shows the newest live meeting, and nothing once it is decided, c
   assert.equal(tableMeeting([justDecided, older], NOW).id, "m-old", "a live meeting beats a farewell");
 });
 
-test("seats sit around the table facing it, symmetric for three, and never inside the table", () => {
+test("participants use permanent chair places facing the table and never inside it", () => {
+  const permanent=seatSpots(6);
   for (const n of [1, 2, 3, 4, 5, 6]) {
     const spots = seatSpots(n);
     assert.equal(spots.length, n);
@@ -52,10 +58,11 @@ test("seats sit around the table facing it, symmetric for three, and never insid
       assert.ok((dx / 2.5) ** 2 + (dz / 1.55) ** 2 > 1.3, `seat (${s.x}, ${s.z}) clears the table top`);
       const facing = { x: Math.sin(s.yaw), z: Math.cos(s.yaw) };
       assert.ok(facing.x * -dx + facing.z * -dz > 0, "faces the table");
+      assert.ok(permanent.some(p=>Math.hypot(p.x-s.x,p.z-s.z)<1e-9),'a partial meeting uses existing chairs');
     }
   }
   const [left, front, right] = seatSpots(3);
-  assert.ok(left.x < TABLE.x && right.x > TABLE.x && Math.abs(front.x - TABLE.x) < 1e-9);
+  assert.ok(left.x < TABLE.x && right.x > TABLE.x);
   assert.ok(Math.abs(left.x + right.x - 2 * TABLE.x) < 1e-9, "left and right mirror each other");
   assert.ok(front.z > TABLE.z, "the front seat is on the camera side, away from Bao");
 });

@@ -277,7 +277,8 @@ export function createRig(source, profile) {
     model.updateMatrixWorld(true);skeleton.update();return {feet};
   }
   /** Seated at a table: hips lowered by the profile's drop, thighs forward, shins hanging. */
-  function poseSit(time, { reducedMotion = false } = {}) {
+  let seatedFloor;
+  function poseSit(time, { reducedMotion = false, grounded = false } = {}) {
     if (!profile.sit) throw Error(profile.label + ' has no seated pose');
     resetPose();
     const { drop, hip, knee, splay = 0 } = profile.sit, breath = reducedMotion ? 0 : (1 - Math.cos(time / IDLE.duration * Math.PI * 2)) / 2;
@@ -294,6 +295,13 @@ export function createRig(source, profile) {
     bones.Chest.scale.set(1 + .008 * breath, 1 + .004 * breath, 1 + .012 * breath);
     profile.animate?.(bones, { kind: 'sit', phase: time / IDLE.duration * Math.PI * 2, breath, reducedMotion, drop });
     model.updateMatrixWorld(true); skeleton.update();
+    if(grounded){
+      if(seatedFloor===undefined){
+        seatedFloor=Infinity;const point=new T.Vector3(),inverse=model.matrixWorld.clone().invert();
+        model.traverse(mesh=>{if(!mesh.isMesh)return;for(let i=0;i<mesh.geometry.attributes.position.count;i++){mesh.getVertexPosition(i,point);point.applyMatrix4(mesh.matrixWorld).applyMatrix4(inverse);seatedFloor=Math.min(seatedFloor,point.y);}});
+      }
+      travelRoot.position.y-=seatedFloor;model.updateMatrixWorld(true);skeleton.update();
+    }
     return { breath };
   }
   function addOutfit(outfit) {

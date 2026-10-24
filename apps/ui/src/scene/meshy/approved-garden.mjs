@@ -7,9 +7,11 @@ import {buildStructure} from './approved/approved-structures.mjs';
 import {buildLandscape} from './approved/approved-landscape.mjs';
 import {workDocks,activeResidents,OFFICE_PLOT} from './approved-plan.mjs';
 import {RESIDENTS} from '../../shell/resident-inventory.mjs';
+import {buildTeahouse,propObstacles} from './teahouse.mjs';
+import {buildTeahouseGarden} from './teahouse-garden.mjs';
 import {batchStaticAssemblies} from './static-batches.mjs';
 
-export function createApprovedGarden(){
+export function createApprovedGarden({props={}}={}){
  // Navigation keeps the actual furniture bounding volumes before batching.
  function capture(object,roof){
   object.updateWorldMatrix(true,true);
@@ -128,13 +130,7 @@ for(const [id,horizontal,longitudinal,yaw,width,depth,title] of facilityDefiniti
 const office=buildStructure('office',[],{occupants:false});
 office.root.userData.cutawayDepth=-8;
 addStructure(office,'office',OFFICE_PLOT.x,OFFICE_PLOT.z,0,OFFICE_PLOT.width,OFFICE_PLOT.depth);
-const commons=group('Central meeting plaza');
-cyl(commons,10,.07,[0,.34,-4],'cream');cyl(commons,8.5,.045,[0,.39,-4],'jadeLight');
-const meetingTable=cyl(commons,1,.18,[0,1.32,-4],'paleWood');meetingTable.scale.set(2,1,1.18);
-const teaTray=land.teaSet(land.root,[0,1.42,-4],1);teaTray.name='Lazy susan';
-for(let index=0;index<6;index++){
- const angle=index*Math.PI/3;const cushion=cyl(commons,.62,.1,[Math.sin(angle)*4,.46,-4+Math.cos(angle)*3.5],'cream');cushion.scale.z=.8;
-}
+const teahouse=buildTeahouse(land,{props}),{root:commons,teaTray,lantern:meetingLantern}=teahouse;
 landmark('Meeting · exact center',0,-4,2.2);
 walk([[0,-23.5],[0,-17]],8,'main');walk([[0,9],[0,19.95]],8,'main');
 walk([[-35,-17],[35,-17]],8,'main');walk([[-35,9],[35,9]],8,'main');
@@ -149,7 +145,9 @@ walk([[0,-17],[0,-14],[-10,-14],[-10,6],[0,6],[0,9]],6);
 walk([[0,-14],[10,-14],[10,6],[0,6]],6);
 box(land.root,[26,.1,17],[0,.16,24],'jadeLight',.5);
 const library=createLibrary();library.root.position.set(0,.02,24);root.add(library.root);assets.library=library;capture(library.root,library.roof);landmark('Library + reading garden',0,24,6.8);
-batchStaticAssemblies(library.root);
+const libraryInterior=new Three.Group();libraryInterior.name='Fixed library interior';
+for(const child of [...library.root.children])if(child!==library.roof)libraryInterior.add(child);
+library.root.add(libraryInterior);batchStaticAssemblies(library.root);
 footprints.push({id:'library',x:0,z:24,yaw:0,width:10.1,depth:8.1});
 const festival=createFestival();festival.root.position.set(-65,0,-4);festival.root.rotation.y=Math.PI/2;root.add(festival.root);assets.festival=festival;capture(festival.root,festival.roof);landmark('Keynote stage',-65,-4,6);
 footprints.push({id:'festival',x:-65,z:-4,yaw:Math.PI/2,width:13.2,depth:9});
@@ -159,11 +157,27 @@ for(const horizontal of [-17,17])box(land.root,[13.2,.08,9],[horizontal,.10,39.8
 const landscape=buildLandscape('A',{footprints,paths,inside,capture});
 landscape.root.traverse(node=>{if(node.isMesh)node.castShadow=false;});
 root.add(landscape.root);
+const gardenAccents=buildTeahouseGarden(land,{props});capture(gardenAccents.root,null);
 sign(land.root,'WELCOME TO THE DEN',[0,3.2,44],7);for(const horizontal of [-5.1,5.1])beam(land.root,[horizontal,.1,44],[horizontal,4.1,44],.13,'timber');
 // Bake only the land-owned assemblies; building kits retain independent roof materials.
-capture(pathGroup,null);capture(commons,null);land.finish([pathGroup,commons,teaTray]);
+capture(pathGroup,null);capture(teahouse.floor,null);obstacles.push(...propObstacles(teahouse.table));capture(teahouse.lanternFrame,null);
+for(const chair of teahouse.chairs){
+ obstacles.push(...propObstacles(chair.root));
+ for(const {halfX,minZ,maxZ}of chair.supportRegions){
+  const vertices=[[-halfX,minZ],[-halfX,maxZ],[halfX,minZ],[halfX,maxZ]].map(([x,z])=>chair.root.localToWorld(new Three.Vector3(x,0,z)).toArray()).map(p=>[p[0],p[2]]);
+  const bounds=new Three.Box3().setFromObject(chair.root);
+  surfaces.push({name:chair.root.name,min:bounds.min.toArray(),max:bounds.max.toArray(),vertices,supportTop:chair.supportTop});
+ }
+}
+const chairFrames=[];
+if(!props.chair)for(const chair of teahouse.chairs){
+ const frame=group('Fixed chair frame',chair.root);
+ for(const child of [...chair.root.children])if(child!==frame&&child.name!=='Fitted sage seat pad')frame.add(child);
+ chairFrames.push(frame);
+}
+land.finish([pathGroup,teahouse.floor,teahouse.table,teaTray,...chairFrames,gardenAccents.fountain,...gardenAccents.lotus]);
 const teaBounds=new Three.Box3().setFromObject(teaTray),teaRadius=Math.hypot(Math.max(Math.abs(teaBounds.min.x),Math.abs(teaBounds.max.x)),Math.max(Math.abs(teaBounds.min.z+4),Math.abs(teaBounds.max.z+4)));
-obstacles.push({name:'Rotating meeting tea tray',min:[-teaRadius,teaBounds.min.y,-4-teaRadius],max:[teaRadius,teaBounds.max.y,-4+teaRadius]});
+obstacles.push({name:'Stationary meeting tea tray',min:[-teaRadius,teaBounds.min.y,-4-teaRadius],max:[teaRadius,teaBounds.max.y,-4+teaRadius]});
 
  const roofMaterials=[];
  for(const asset of [library,festival])asset.roof?.traverse(node=>{if(node.isMesh){node.material=node.material.clone();roofMaterials.push({material:node.material,root:asset.root});}});
@@ -174,7 +188,7 @@ obstacles.push({name:'Rotating meeting tea tray',min:[-teaRadius,teaBounds.min.y
   for(const {material,root:buildingRoot} of roofMaterials){buildingRoot.updateMatrixWorld(true);material.clippingPlanes=mode==='full'?[]:[new Three.Plane(new Three.Vector3(0,0,-1),-1).applyMatrix4(buildingRoot.matrixWorld)];material.needsUpdate=true;}
  }
  root.updateMatrixWorld(true);
- return {approved:true,root,assets,places:footprints.map(p=>({...p,w:p.width,d:p.depth,name:p.id,rotation:p.yaw})),paths,footprints,obstacles,surfaces,inside,officePlot:OFFICE_PLOT,landscape,
+ return {approved:true,root,assets,teahouse,gardenAccents,meetingLantern,welcome:commons,places:footprints.map(p=>({...p,w:p.width,d:p.depth,name:p.id,rotation:p.yaw})),paths,footprints,obstacles,surfaces,inside,officePlot:OFFICE_PLOT,landscape,
   docks:workDocks(activeResidents(RESIDENTS),{office:true}),get roofMode(){return roofMode;},setRoofMode,setRoofs:visible=>setRoofMode(visible?'full':'cutaway'),
   worldPoint(id,point){return assets[id].root.localToWorld(new Three.Vector3(...point));},
   dispose(){for(const asset of Object.values(assets))asset.kit?.dispose?.();library.dispose();festival.dispose();landscape.dispose();land.dispose();root.removeFromParent();}};

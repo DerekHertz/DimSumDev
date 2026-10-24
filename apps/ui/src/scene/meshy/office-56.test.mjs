@@ -74,7 +74,8 @@ test('56-C/M: both office visitors settle independently, preserve executive thro
    assert.equal(f.actors.places.reserve(extra.id,'extra',a.envelope),null,'full place refuses another body');
   }
   for(const a of [bao,jiao]){
-   const to={x:0,y:.46,z:-11},path=f.den.routineRoute(a,a.home,to);
+   const to={x:0,y:.36,z:-16},path=f.den.routineRoute(a,a.home,to);
+   assert.ok(f.den.walkWorld.fits(to,a.envelope,0),'the through-lane probe stays outside the permanent meeting chairs');
    assert.ok(path.length,a.name+' has a swept through-lane with both visitors occupied');
    assert.ok(f.den.routineRoute(a,to,a.home).length,a.name+' can return with both visitors occupied');
   }
@@ -93,7 +94,7 @@ test('56-D: executive desk routes reach the existing meeting system and return t
  const f=approvedFixture();try{
   for(const a of f.actors.actors.values())if(a.role!=='orchestrator')a.stationary=true;
   const bao=f.actors.actors.get('orchestrator'),jiao=f.actors.actors.get('codex:orchestrator');
-  const destination={x:0,y:.46,z:-11};
+  const destination={x:0,y:.36,z:-16};
   for(const a of [bao,jiao]){
    const path=f.den.routineRoute(a,a.home,destination);assert.ok(path.length,a.name+' desk-to-meeting route');
    const back=f.den.routineRoute(a,destination,a.home);assert.ok(back.length,a.name+' meeting-to-desk route');

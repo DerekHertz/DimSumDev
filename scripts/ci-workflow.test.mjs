@@ -10,6 +10,21 @@ import { fileURLToPath } from "node:url";
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../", import.meta.url)));
 const workflow = fs.readFileSync(path.join(REPO_ROOT, ".github/workflows/ci.yml"), "utf8");
 
+test("the sandbox job uses the supported Ubuntu host and requires real resource enforcement", () => {
+  const job=workflow.split(/^  test:/m)[1]?.split(/^  test-browser:/m)[0];
+  assert.match(job,/runs-on: ubuntu-24\.04/);
+  const preflight=job.indexOf('createResourceLauncher');
+  assert.ok(preflight>=0&&preflight<job.indexOf('npm run test:rest'));
+  const setup=job.indexOf('apt-get install');
+  assert.ok(setup>=0&&setup<preflight,'sandbox prerequisites must be installed before enforcement is probed');
+  assert.match(job,/apt-get install[^\n]*bubblewrap[^\n]*dbus-user-session/);
+  assert.match(job,/systemctl start "user@\$\(id -u\)\.service"/);
+  assert.match(job,/profile bwrap \/usr\/bin\/bwrap flags=\(unconfined\)\s*\{\s*userns,\s*\}/);
+  assert.match(job,/apparmor_parser -r \/etc\/apparmor\.d\/bwrap/);
+  assert.ok(!/sysctl[^\n]*apparmor_restrict_unprivileged_userns\s*=\s*0/.test(job),'the global user-namespace restriction stays enabled');
+  assert.match(job,/if\s*\(!\w+\.ok\)\s*throw new Error/);
+});
+
 // Split the "test" job's steps into blocks, one per "- name:" entry.
 function testJobSteps() {
   const job = workflow.split(/^  test-browser:/m)[1]?.split(/^  security:/m)[0];

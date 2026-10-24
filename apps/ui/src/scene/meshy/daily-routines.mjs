@@ -148,6 +148,10 @@ export function createDailyRoutines(den,actors,{random=Math.random,work=null}={}
     if(a.outing.host){const h=a.outing.host,q=h.panda.model.position;h.yaw=Math.atan2(p.x-q.x,p.z-q.z);}
     a.outing.elapsed+=dt;if(a.outing.elapsed>=a.outing.duration)returnHome(a);
    }else step(a,dt,reduced);
+   if(reduced&&distance(a.panda.model.position,a.home)>.02){
+    const p=a.panda.model.position,at=den.walkWorld.groundedPosition?.(a,p,a.yaw??a.baseYaw);
+    if(at&&at.y!==p.y&&clear(a,p,at))p.set(at.x,at.y,at.z);
+   }
   }
   if(!reduced){if(work)depart();else if(time>=nextDeparture){nextDeparture=time+4;depart();}}
  }

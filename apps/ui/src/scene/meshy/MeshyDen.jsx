@@ -5,7 +5,8 @@ import {createMeshyWorld} from './world.mjs';
 import {prepareDenScene} from './prepare-scene.mjs';
 import {liveActorsFromSnapshot} from '../../review/live-actors.mjs';
 import {agentFor,cardFor,pickedCard} from '../../overlay/proximity-card.mjs';
-import {TABLE,tableMeeting,turnTeaTray} from './meeting-table.mjs';
+import {tableMeeting} from './meeting-table.mjs';
+import {createMeetingPresentation} from './meeting-presentation.mjs';
 import {sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 
 // Native R3F scene. App remains the sole owner of live state, actions and panels.
@@ -19,16 +20,14 @@ export function MeshyDen({selectedMeetingId=null,snapshot,placements,frontier,ta
   createMeshyWorld(gl,{signal:abort.signal,onProgress:message=>inputs.current.onLoadState?.({status:'loading',message})}).then(async d=>{
    world=d;if(!mounted){d.dispose();return;}
    const media=matchMedia('(prefers-reduced-motion: reduce)');
-   // den-mvp/64: a gold ring round the table while a meeting's brief waits on the user.
-   const glow=new THREE.Mesh(new THREE.TorusGeometry(2.8,.06,8,72),new THREE.MeshBasicMaterial({color:'#f8bd40',transparent:true,opacity:.9}));
-   glow.name='Brief waiting';glow.rotation.x=Math.PI/2;glow.scale.set(1,.68,1);glow.position.set(TABLE.x,.35,TABLE.z);glow.visible=false;d.world.add(glow);
+   const meetingPresentation=createMeetingPresentation({lantern:d.garden.meetingLantern});d.world.add(meetingPresentation.root);
    inputs.current.onLoadState?.({status:'loading',message:'Preparing the garden…'});
    preparing=true;let agents;
    try{agents=await prepareDenScene(d,gl,camera,scene,size.height,abort.signal);}finally{preparing=false;if(!mounted)d.dispose();}
-   live.current={den:d,agents,media,anchored:new Set(),proximity:0,meeting:null,susan:d.world.getObjectByName('Lazy susan'),glow};setDen(d);stage.tallyAnchor=d.tallyAnchor;onReady(d);
+   live.current={den:d,agents,media,anchored:new Set(),proximity:0,meeting:null,meetingPresentation};setDen(d);stage.tallyAnchor=d.tallyAnchor;onReady(d);
    inputs.current.onLoadState?.({status:'ready',message:'The forest garden is ready.'});
   }).catch(error=>{world?.dispose();if(mounted&&error.name!=='AbortError'){console.error('Den scene',error);inputs.current.onLoadState?.({status:'error',message:'The garden models could not load. Reload to retry.'});}});
-  return()=>{mounted=false;abort.abort();onReady(null);inputs.current.onScenePresentations?.([]);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current=null;if(!preparing)world?.dispose();stage.anchors.clear();};
+  return()=>{mounted=false;abort.abort();onReady(null);inputs.current.onScenePresentations?.([]);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current?.meetingPresentation.dispose();live.current=null;if(!preparing)world?.dispose();stage.anchors.clear();};
  },[gl,stage,onReady]);
  useEffect(()=>{const previous={background:scene.background,fog:scene.fog},media=matchMedia('(prefers-color-scheme: dark)');const apply=()=>{const color=media.matches?'#171b20':'#f8f3e8';scene.background=new THREE.Color(color);scene.fog=new THREE.Fog(color,180,300);};apply();media.addEventListener('change',apply);return()=>{media.removeEventListener('change',apply);scene.background=previous.background;scene.fog=previous.fog;};},[scene]);
  useEffect(()=>{if(!den)return;den.setFrontier(frontier||[]);den.setTally(tally?.rods);},[den,frontier,tally]);
@@ -51,10 +50,9 @@ export function MeshyDen({selectedMeetingId=null,snapshot,placements,frontier,ta
   for(const [key,at]of anchorsNow){stage.anchors.set(key,at);l.anchored.add(key);}
   for(const [ref,basket]of l.den.frontier)stage.anchors.set(ref,basket.localToWorld(new THREE.Vector3(0,.6,0)));
   const anchors=stage.meetingAnchors??(stage.meetingAnchors=new Map());anchors.clear();
-  if(l.meeting)for(const [role,model]of l.agents.seatModels())anchors.set(role,labelAt(model));
-  // The lazy susan turns toward whoever is speaking; with reduced motion it stays put.
-  turnTeaTray(l.susan,l.meeting,dt,l.media.matches);
-  l.glow.visible=l.meeting?.state==='briefed'||l.meeting?.state==='paused';
+  const meetingSeats=l.agents.seatModels();
+  if(l.meeting)for(const [role,model]of meetingSeats)anchors.set(role,labelAt(model));
+  l.meetingPresentation.update(l.meeting,meetingSeats);
   l.proximity+=dt;if(l.proximity<.1)return;l.proximity=0;
   inputs.current.onScenePresentations?.(l.agents.presentationRows());
   let card=null;const walking=!!stage.explorer?.active,pick=walking?null:inputs.current.picked;

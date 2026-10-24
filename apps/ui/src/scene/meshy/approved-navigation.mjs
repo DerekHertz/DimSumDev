@@ -26,7 +26,6 @@ const touches=(box,area)=>box.max[0]>=area.minX&&box.min[0]<=area.maxX&&box.max[
 export function createApprovedNavigation(garden){
  let bodies=()=>[],reservations=()=>[];
  const obstacles=garden.obstacles.map(o=>({...o,vertices:o.vertices?.map(v=>Array.isArray(v)?{x:v[0],z:v[1]}:v)||[{x:o.min[0],z:o.min[2]},{x:o.min[0],z:o.max[2]},{x:o.max[0],z:o.min[2]},{x:o.max[0],z:o.max[2]}]}));
- obstacles.push({min:[-2,0,-5.18],max:[2,1.5,-2.82],vertices:[{x:-2,z:-5.18},{x:-2,z:-2.82},{x:2,z:-5.18},{x:2,z:-2.82}],name:'Meeting table'});
  const cells=new Map();for(const o of obstacles)for(let x=Math.floor(o.min[0]/4);x<=Math.floor(o.max[0]/4);x++)for(let z=Math.floor(o.min[2]/4);z<=Math.floor(o.max[2]/4);z++){const key=x+':'+z;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(o);}
  let routeFits=null;
  function fits(position,envelope,yaw=0,trace=null){
@@ -65,13 +64,19 @@ export function createApprovedNavigation(garden){
   }
   return top;
  }
- function supported(actor,p,yaw){
+ function footHeights(actor,p,yaw){
   const foot=actor.panda.rig.profile.foot,scale=actor.panda.model.scale.x;
-  return [-1,1].every(side=>[-.1,.1].every(dx=>[-.1,.1].every(dz=>{
+  return [-1,1].flatMap(side=>[-.1,.1].flatMap(dx=>[-.1,.1].map(dz=>{
    const x=(side*foot.x+dx)*scale,z=(foot.z+dz)*scale;
-   const height=supportAt(p.x+x*Math.cos(yaw)+z*Math.sin(yaw),p.z-x*Math.sin(yaw)+z*Math.cos(yaw));
-   return height!==null&&p.y>=height-.025&&p.y-height<.075;
+   return supportAt(p.x+x*Math.cos(yaw)+z*Math.sin(yaw),p.z-x*Math.sin(yaw)+z*Math.cos(yaw));
   })));
+ }
+ function supported(actor,p,yaw){return footHeights(actor,p,yaw).every(height=>height!==null&&p.y>=height-.025&&p.y-height<.075);}
+ function groundedPosition(actor,p,yaw){
+  if(supported(actor,p,yaw))return {...p};
+  const heights=footHeights(actor,p,yaw);if(heights.includes(null))return null;
+  const y=Math.max(Math.min(...heights)+.045,Math.max(...heights)-.024),at={x:p.x,y,z:p.z};
+  return supported(actor,at,yaw)&&fits(at,actor.envelope,yaw)?at:null;
  }
  function turn(p,from,to,envelope){
   const delta=Math.atan2(Math.sin(to-from),Math.cos(to-from)),steps=Math.max(1,Math.ceil(Math.abs(delta)/.06));
@@ -93,18 +98,23 @@ export function createApprovedNavigation(garden){
   if(spot.kind==='rest')for(const [dx,dz]of [[0,3.8],[-3.8,0],[3.8,0],[0,-3.8]])candidates.push({x:to.x+dx,y:.36,z:to.z+dz});
   else{
    const dx=to.x-spot.face.x,dz=to.z-spot.face.z,length=Math.hypot(dx,dz);
-   candidates.push({x:to.x+dx/length*3,y:.36,z:to.z+dz/length*3},spot.approach);
+   candidates.push({x:to.x+dx/length*3,y:.36,z:to.z+dz/length*3});if(spot.approach)candidates.push(spot.approach);
   }
-  if(spot.kind!=='rest')for(const radius of [2.5,2,3.5])for(let i=0;i<16;i++){const angle=i*Math.PI/8;candidates.push({x:to.x+Math.sin(angle)*radius,y:.36,z:to.z+Math.cos(angle)*radius});}
+  if(spot.kind==='meeting'){
+   candidates.length=0;
+   const outward=Math.atan2(to.x,to.z+4),offsets=[0,...Array.from({length:8},(_,i)=>[(i+1)*Math.PI/16,-(i+1)*Math.PI/16]).flat()];
+   for(const radius of [7,6.5,6,5.5,5])for(const offset of offsets){const angle=outward+offset;candidates.push({x:to.x+Math.sin(angle)*radius,y:.36,z:to.z+Math.cos(angle)*radius});}
+  }else if(spot.kind!=='rest')for(const radius of [2.5,2,3.5])for(let i=0;i<16;i++){const angle=i*Math.PI/8;candidates.push({x:to.x+Math.sin(angle)*radius,y:.36,z:to.z+Math.cos(angle)*radius});}
   for(const from of candidates){
+   if(spot.kind==='meeting'){const floor=supportAt(from.x,from.z);if(floor===null||floor>.5)continue;from.y=floor+.045;}
    const yaw=Math.atan2(to.x-from.x,to.z-from.z),length=distance(from,to);
-   if(length>4.1||!supported(actor,from,yaw)||!supported(actor,to,finalYaw))continue;
+   if(length>(spot.kind==='meeting'?7.1:4.1)||!supported(actor,from,yaw)||!supported(actor,to,finalYaw))continue;
    const steps=Math.ceil(length/.05),points=[];
    // A short supported mount: both feet leave the floor, tuck during the
    // flight and plant on the measured cushion/mattress before the final turn.
    // Furniture stays solid throughout the actual full-body sweep.
    for(let i=0;i<=steps;i++){
-    const k=i/steps,blend=T.MathUtils.smoothstep(k,.25,.8),delta=Math.atan2(Math.sin(finalYaw-yaw),Math.cos(finalYaw-yaw)),p={x:from.x+(to.x-from.x)*k,y:from.y+(to.y-from.y)*k+Math.sin(Math.PI*k)*1.1,z:from.z+(to.z-from.z)*k,yaw:yaw+delta*blend,airborne:i>0&&i<steps,mount:k};
+    const k=i/steps,blend=T.MathUtils.smoothstep(k,.25,.8),delta=Math.atan2(Math.sin(finalYaw-yaw),Math.cos(finalYaw-yaw)),p={x:from.x+(to.x-from.x)*k,y:from.y+(to.y-from.y)*k+Math.sin(Math.PI*k)*(spot.kind==='meeting'?2.1:1.1),z:from.z+(to.z-from.z)*k,yaw:yaw+delta*blend,airborne:i>0&&i<steps,mount:k};
     points.push(p);
    }
    if(!points.every(p=>fits(p,actor.envelope,p.yaw)))continue;
@@ -205,7 +215,7 @@ export function createApprovedNavigation(garden){
   if(goal){const path=approach(actor,goal);if(!path)return [];end=path[0];suffix=path;}
   const endPoint={x:end.x,y:end.y,z:end.z};
   const finalTurn=Number.isFinite(to.yaw)?[{x:end.x,y:end.y,z:end.z,yaw:to.yaw}]:[];
-  function* validTurns(path){let p=from,yaw=actor.yaw??actor.baseYaw;for(const q of path){const facing=q.yaw??(distance(p,q)<1e-6?yaw:Math.atan2(q.x-p.x,q.z-p.z));if(!routeTurn(p,yaw,facing)||!visible(p,q,facing))return false;p=q;yaw=facing;yield;}return true;}
+  function* validTurns(path){let p=from,yaw=from.yaw??actor.yaw??actor.baseYaw;for(const q of path){const facing=q.yaw??(distance(p,q)<1e-6?yaw:Math.atan2(q.x-p.x,q.z-p.z));if(!routeTurn(p,yaw,facing)||!visible(p,q,facing))return false;p=q;yaw=facing;yield;}return true;}
   const direct=[...prefix,endPoint,...finalTurn,...suffix];if(visible(start,end)&&(yield* validTurns(direct)))return direct;
   const costs=new Map(),parents=new Map(),queue=[];
   for(let i=0;i<nodes.length;i++){yield;const p=nodes[i];if(distance(start,p)<16&&visible(start,p)&&(yield* validTurns([...prefix,p]))){costs.set(i,distance(start,p));queue.push(i);}}
@@ -230,7 +240,9 @@ export function createApprovedNavigation(garden){
   if(bodies.some(b=>b.owner!==owner&&overlap(own,rectangle(b.position,b.envelope,b.envelope.yaw||0))))return false;
   return ![...places.values()].some(p=>p.id!==ignore&&p.owner&&p.owner!==owner&&overlap(own,rectangle(p.position,p.envelope,p.envelope.yaw||0)));
  }
- return {setBodies(provider){bodies=provider;},setReservations(provider){reservations=provider;},floorRadius:85,floorCenter:{x:0,z:-4},eyeHeight:1.82,obstacles:[],fitsPlace,fits,segment,route,routeSteps,place,approach,supported,supportAt,nodes,edges,physicalObstacles:obstacles,navigation:{groundAt(x,z,previous=.36,radius=.26,height=2.04){const y=supportAt(x,z);if(y===null)return null;const position={x,y:y+.045,z};return fits(position,{radius,height})?position.y:null;}}};
+ return {setBodies(provider){bodies=provider;},setReservations(provider){reservations=provider;},floorRadius:85,floorCenter:{x:0,z:-4},eyeHeight:1.82,obstacles:[],fitsPlace,fits,segment,route,routeSteps,place,approach,
+  meetingApproach(actor,spot){return approachAt(actor,{id:'meeting-chair',kind:'meeting',position:new T.Vector3(spot.x,spot.y,spot.z),face:new T.Vector3(0,spot.y,-4)});},
+  supported,groundedPosition,supportAt,nodes,edges,physicalObstacles:obstacles,navigation:{groundAt(x,z,previous=.36,radius=.26,height=2.04){const y=supportAt(x,z);if(y===null)return null;const position={x,y:y+.045,z};return fits(position,{radius,height})?position.y:null;}}};
 }
 
 export function bindResidentNavigation(den,actors){
