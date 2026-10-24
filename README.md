@@ -144,6 +144,8 @@ The **Den** camera button restores the original target, tilt and zoom. First-per
 
 Beside the camera controls, **Roof visibility** offers **Full roofs** and **Cutaway**. Full roofs is the first-use default; the choice is saved in this browser, with Full roofs as the fallback when storage is invalid or unavailable. Cutaway retains the rear roof section and frame to reveal interiors ([controls](apps/ui/src/App.jsx), [preference and tests](apps/ui/src/scene/meshy/residents-55.test.mjs), [roof construction](apps/ui/src/scene/meshy/approved/approved-structures.mjs)).
 
+**Frame rate** beside those controls offers 30, 60, and 120 FPS targets, saved in this browser. The default is 30 FPS, including when storage is unavailable or invalid. Higher targets depend on display refresh rate and available rendering time. Badge visibility uses grouped obstacle bounds to avoid scanning the whole garden for each panda. The garden prepares full-roof and cutaway shaders before reporting ready; resident and meeting route searches share a 2 ms frame budget rather than blocking a departure frame.
+
 In **Team**, selecting a resident opens its profile with role, runtime, real work state and any scene note. Use the keyboard-operable **Talk**, **View work** and active-tool inspection buttons; unavailable actions show a reason. Codex Talk/tasks remain disabled until runtime support is enabled ([Team actions](apps/ui/src/shell/Residents.jsx), [runtime availability](apps/ui/src/shell/resident-inventory.mjs)).
 
 ## How it works

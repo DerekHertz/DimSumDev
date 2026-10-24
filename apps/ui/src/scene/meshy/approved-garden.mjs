@@ -9,6 +9,7 @@ import {workDocks,activeResidents,OFFICE_PLOT} from './approved-plan.mjs';
 import {RESIDENTS} from '../../shell/resident-inventory.mjs';
 import {buildTeahouse,propObstacles} from './teahouse.mjs';
 import {buildTeahouseGarden} from './teahouse-garden.mjs';
+import {batchStaticAssemblies} from './static-batches.mjs';
 
 export function createApprovedGarden({props={}}={}){
  // Navigation keeps the actual furniture bounding volumes before batching.
@@ -144,8 +145,10 @@ walk([[0,-17],[0,-14],[-10,-14],[-10,6],[0,6],[0,9]],6);
 walk([[0,-14],[10,-14],[10,6],[0,6]],6);
 box(land.root,[26,.1,17],[0,.16,24],'jadeLight',.5);
 const library=createLibrary();library.root.position.set(0,.02,24);root.add(library.root);assets.library=library;capture(library.root,library.roof);landmark('Library + reading garden',0,24,6.8);
+const libraryInterior=new Three.Group();libraryInterior.name='Fixed library interior';
+for(const child of [...library.root.children])if(child!==library.roof)libraryInterior.add(child);
+library.root.add(libraryInterior);batchStaticAssemblies(library.root);
 footprints.push({id:'library',x:0,z:24,yaw:0,width:10.1,depth:8.1});
-const libraryRoofMaterials=[];library.roof.traverse(node=>{if(node.isMesh){node.material=node.material.clone();libraryRoofMaterials.push(node.material);}});
 const festival=createFestival();festival.root.position.set(-65,0,-4);festival.root.rotation.y=Math.PI/2;root.add(festival.root);assets.festival=festival;capture(festival.root,festival.roof);landmark('Keynote stage',-65,-4,6);
 footprints.push({id:'festival',x:-65,z:-4,yaw:Math.PI/2,width:13.2,depth:9});
 box(land.root,[8,.055,16],[-56.5,.21,-4],'jadeLight',.3);
@@ -166,7 +169,13 @@ for(const chair of teahouse.chairs){
   surfaces.push({name:chair.root.name,min:bounds.min.toArray(),max:bounds.max.toArray(),vertices,supportTop:chair.supportTop});
  }
 }
-land.finish([pathGroup,teahouse.floor,teahouse.table,teaTray]);
+const chairFrames=[];
+if(!props.chair)for(const chair of teahouse.chairs){
+ const frame=group('Fixed chair frame',chair.root);
+ for(const child of [...chair.root.children])if(child!==frame&&child.name!=='Fitted sage seat pad')frame.add(child);
+ chairFrames.push(frame);
+}
+land.finish([pathGroup,teahouse.floor,teahouse.table,teaTray,...chairFrames,gardenAccents.fountain,...gardenAccents.lotus]);
 const teaBounds=new Three.Box3().setFromObject(teaTray),teaRadius=Math.hypot(Math.max(Math.abs(teaBounds.min.x),Math.abs(teaBounds.max.x)),Math.max(Math.abs(teaBounds.min.z+4),Math.abs(teaBounds.max.z+4)));
 obstacles.push({name:'Stationary meeting tea tray',min:[-teaRadius,teaBounds.min.y,-4-teaRadius],max:[teaRadius,teaBounds.max.y,-4+teaRadius]});
 

@@ -8,8 +8,8 @@ export const FAREWELL_MS = 6000; // how long Bao says what you chose before the 
 export const CLAIM_MAX = 80;
 export const GLIDE_SPEED = 1.5; // world units a second, about 8–10 s from the farthest team
 
-const SEATED = new Set(["running", "paused", "briefed"]);
-const ENDED = new Set(["decided", "closed"]);
+const SEATED = new Set(["running", "paused", "briefed", 'pausing', 'waiting-budget', 'waiting-decision', 'ready-for-review']);
+const ENDED = new Set(["decided", "closed", 'ended']);
 const deg = Math.PI / 180;
 // Seat angles around the table, 0 = front (the camera side), -90 = left. Order is the meeting's role order.
 const LAYOUTS = [[], [2], [1,4], [1,2,4], [0,1,4,5], [0,1,2,4,5], [0,1,2,3,4,5]];
@@ -19,8 +19,12 @@ const RX = 5.6, RZ = 5.6;
 
 export const seated = (m) => !!m && SEATED.has(m.state) && !m.retired;
 
-export function tableMeeting(meetings, now = Date.now()) {
-  const list = Array.isArray(meetings) ? meetings : [];
+export function tableMeeting(meetings, now = Date.now(), selectedId = null) {
+  const list = Array.isArray(meetings) ? meetings.map(m => ({ ...m, seats: m.seats?.filter(s => s.active !== false) ?? [] })) : [];
+  if (selectedId) {
+    const selected = list.find(m => m.id === selectedId);
+    return selected && seated(selected) ? { ...selected, seats: selected.seats.filter(s => s.active !== false) } : null;
+  }
   const newest = (rows) => rows.reduce((best, m) => (!best || Date.parse(m.startedAt) > Date.parse(best.startedAt) ? m : best), null);
   const live = newest(list.filter(seated));
   if (live) return live;
@@ -48,6 +52,7 @@ export function seatLabel(seat, m) {
 }
 
 export function baoLabel(m) {
+  if (['waiting-decision', 'waiting-budget', 'ready-for-review', 'pausing', 'ended'].includes(m.state)) return { text: ({ 'waiting-decision': 'Your decision', 'waiting-budget': 'Budget approval needed', 'ready-for-review': 'Ready for review', pausing: 'Pausing…', ended: 'Ended' })[m.state], kind: 'brief' };
   if (m.state === "briefed") return { text: "Brief ready · your choice", kind: "brief" };
   if (m.state === "paused") return { text: "Waiting on you", kind: "brief" };
   if (ENDED.has(m.state)) {

@@ -5,12 +5,14 @@ import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
 import { baoLabel, seatLabel, seatName, seated, tableMeeting } from "./meshy/meeting-table.mjs";
 import { stackChips } from "./chip-model.mjs";
+import { meetingPillLabel, recentActivity } from '../overlay/meeting-model.mjs';
 
 export const CLAIM_SHOW_MS = 6000;
 const GLYPH = { waiting: "…", thinking: "☁", done: "✓", declined: "–", failed: "!", brief: "◆" };
 const ticketNumber = (m) => /\/(\d+)-/.exec(m.ref)?.[1] ?? m.title;
 
 export function pillText(m) {
+  if (m.schema === 2) return meetingPillLabel(m);
   const n = ticketNumber(m);
   if (m.state === "briefed" || m.state === "paused") return `Meeting on ${n} · Needs you`;
   if (!seated(m)) return `Meeting on ${n} · ${baoLabel(m).text}`;
@@ -19,18 +21,20 @@ export function pillText(m) {
   return `Meeting on ${n} · ${spoken} of ${m.seats.length} have spoken`;
 }
 
-export function MeetingLayer({ snapshot, stage, claims = {}, onOpen }) {
+export function MeetingLayer({ snapshot, stage, claims = {}, onOpen, onOpenAgent, onOpenWork, selectedMeetingId = null }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
-  const m = tableMeeting(snapshot?.meetings, now);
+  const m = tableMeeting(snapshot?.meetings, now, selectedMeetingId);
   const nodes = useRef(new Map());
   const landed = useRef(new Map()); // role -> when its claim was first shown, for the claim bubble
   const said = useRef(new Map()); // role -> label text last announced
   const [announce, setAnnounce] = useState("");
+  const [showActivity, setShowActivity] = useState(false);
+  const activity = recentActivity(snapshot);
 
   const labels = [];
   if (m && seated(m)) for (const s of m.seats) labels.push({ key: s.role, role: s.role, name:seatName(s.role), ...seatLabel(s, m) });
-  if (m) labels.push({ key: "orchestrator", role: null, name: "Bao", ...baoLabel(m) });
+  if (m) labels.push({ key: "orchestrator", role: null, name: m.moderator === 'jiao' ? 'Jiao' : 'Bao', ...baoLabel(m) });
 
   useEffect(() => {
     if (!m) { landed.current.clear(); said.current.clear(); return; }
@@ -75,12 +79,15 @@ export function MeetingLayer({ snapshot, stage, claims = {}, onOpen }) {
     return () => cancelAnimationFrame(raf);
   }, [stage]);
 
-  if (!m) return <p className="visually-hidden" role="status" aria-live="polite">{announce}</p>;
   return (
     <div className="meeting-layer">
-      <button type="button" className="meeting-pill" data-meeting-pill={m.state} onClick={() => onOpen?.(m.id, null)}>
+      {m ? <button type="button" className="meeting-pill" data-meeting-pill={m.state} onClick={() => onOpen?.(m.id, null)}>
         <span aria-hidden="true">{GLYPH[m.state === "briefed" || m.state === "paused" ? "brief" : "thinking"]}</span> {pillText(m)}
-      </button>
+      </button> : null}
+      <aside className="meeting-feed glass" aria-label="Recent activity">
+        <button type="button" aria-expanded={showActivity} onClick={() => setShowActivity(value => !value)}>Recent activity {showActivity ? '−' : '+'}</button>
+        {showActivity ? <ul>{activity.map(entry => <li key={entry.key}><button type="button" onClick={() => entry.kind === 'meeting' ? onOpen?.(entry.target, entry.actor) : entry.kind === 'agent' ? onOpenAgent?.(entry.target) : onOpenWork?.(entry.target)}>{entry.text}</button></li>)}{!activity.length ? <li>No recent activity.</li> : null}</ul> : null}
+      </aside>
       {labels.map((l) => {
         const at = l.role ? landed.current.get(l.role) : null;
         const claim = l.role && at && Date.now() - at < CLAIM_SHOW_MS ? claims[l.role] : null;

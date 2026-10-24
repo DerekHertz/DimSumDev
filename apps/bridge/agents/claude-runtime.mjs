@@ -88,7 +88,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
     // first message an id, and a message-applied event with that id follows once the child takes it.
     // den-mvp outcome 4: `connections` are the catalog's targets for this role; a list the adapter cannot write refuses the spawn.
     // den-mvp/38: `runCredential` ({ url, token }) is what a "run" connection's script is given to call the bridge back.
-    async spawn({ role, cwd, prompt, sessionId, model, ticketFile, grants, root, mainGit, resume, runId, promptId, connections, runCredential, project } = {}) {
+    async spawn({ role, cwd, prompt, sessionId, model, effort, ticketFile, grants, root, mainGit, resume, runId, promptId, connections, runCredential, project } = {}) {
       if (typeof cwd !== "string" || cwd === "") throw new TypeError("claude runtime: cwd must be a path");
       if (typeof prompt !== "string") throw new TypeError("claude runtime: prompt must be a string");
       // den-mvp/49: fail closed. A spawn with no project handle is the den's own, so its cwd must be inside the control checkout;
@@ -144,7 +144,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       const removeConfig = () => {
         if (mcpConfigFile !== undefined) rmSync(mcpConfigFile, { force: true });
       };
-      const args = buildClaudeArgs({ sessionId, ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
+      const args = buildClaudeArgs({ sessionId, ...(effort === undefined ? {} : { effort }), ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
       // den-mvp/48: for every project the bridge passes in its CLAUDE.md or AGENTS.md as committed at HEAD of the main checkout.
       const guide = project === undefined ? null : readProjectGuide(project.root);
       const guideText = guide === null ? "" : `Project guide (${guide.file}, committed at HEAD):\n\n${guide.text}`;

@@ -2,7 +2,7 @@ import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState,
 import { Canvas, events as defaultEvents } from "@react-three/fiber";
 import { CameraRig } from "./scene/procedural/CameraRig.jsx";
 import { MeshyDen } from "./scene/meshy/MeshyDen.jsx";
-import { FrameCap } from "./scene/frame-cap.mjs";
+import { FrameCap, FPS_OPTIONS, createFramePreference } from "./scene/frame-cap.mjs";
 import { PandaCard } from "./scene/procedural/PandaCard.jsx";
 import { ProximityCard } from "./overlay/ProximityCard.jsx";
 import { TranscriptPanel, useTranscript } from "./overlay/TranscriptPanel.jsx";
@@ -103,6 +103,8 @@ export function App() {
   const [den,setDen]=useState(null);
   const [roofs]=useState(()=>{let storage;try{storage=window.localStorage;}catch{}return createRoofPreference(storage);});
   const [roofMode,setRoofMode]=useState(roofs.mode);
+  const [framePreference]=useState(()=>{let storage;try{storage=window.localStorage;}catch{}return createFramePreference(storage);});
+  const [fps,setFps]=useState(framePreference.fps);
   useEffect(()=>{den?.garden?.setRoofMode(roofMode);},[den,roofMode]);
   const [gardenLoad, setGardenLoad] = useState({ status: 'loading', message: 'Opening the garden…' });
   const [exploring,setExploring]=useState(false);
@@ -116,8 +118,10 @@ export function App() {
   const [picked, setPicked] = useState(null);
   const engaged = exploring || picked != null;
   const now = useNow();
+  const [meetingId, setMeetingId] = useState(() => new URLSearchParams(location.search).get('meeting'));
+  const [selectedMeetingId, setSelectedMeetingId] = useState(meetingId);
   const previousBindings = useRef(new Map());
-  const bindings = useMemo(() => actorBindings(liveActorsFromSnapshot(snapshot, { toolActivity: inDemo ? {} : live.toolActivity, connection }), previousBindings.current, {meeting: tableMeeting(snapshot?.meetings, now)}), [snapshot, live.toolActivity, inDemo, connection, now]);
+  const bindings = useMemo(() => actorBindings(liveActorsFromSnapshot(snapshot, { toolActivity: inDemo ? {} : live.toolActivity, connection }), previousBindings.current, {meeting: tableMeeting(snapshot?.meetings, now, selectedMeetingId)}), [snapshot, live.toolActivity, inDemo, connection, now, selectedMeetingId]);
   useEffect(() => { previousBindings.current = bindings; }, [bindings]);
   const requests = useMemo(() => needsYouModel(snapshot, now).requests, [snapshot, now]);
   const onNearby = useCallback(card => setNearby(previous => JSON.stringify(previous) === JSON.stringify(card) ? previous : card), []);
@@ -128,7 +132,6 @@ export function App() {
   // Hierarchy audit replay: ?replay=<id> opens that run's replay sheet over the scene.
   const [replayId] = useState(() => (typeof location === "undefined" ? null : replayParam(location.search)));
   const [topic, setTopic] = useState(() => (replayId ? "replay" : null));
-  const [meetingId, setMeetingId] = useState(null);
   const [meetingRole, setMeetingRole] = useState(null);
   const [left, setLeft] = useState(() => new Set());
   const opened = useRef({ topic: 0, side: 0 });
@@ -214,6 +217,7 @@ export function App() {
     if (transcript.panel.agentId) transcriptClose.current?.();
     stamp('side', from);
     setMeetingId(meeting);
+    setSelectedMeetingId(meeting);
     setMeetingRole(role ?? null);
     setLeft((s) => (s.has(meeting) ? new Set([...s].filter((id) => id !== meeting)) : s));
   }, [transcript.panel.agentId, releaseCursor]);
@@ -286,7 +290,7 @@ export function App() {
   // Bao's crown always holds the Pass: an idle stand-in when no orchestrator work is active.
   const scenePlacements = useMemo(() => withPassPlacement(placements), [placements]);
   // den-mvp/64: a meeting's runs wear the meeting's own labels at the table, so their generic chips are left out.
-  const tableRef = tableMeeting(snapshot?.meetings, now)?.ref ?? null;
+  const tableRef = tableMeeting(snapshot?.meetings, now, selectedMeetingId)?.ref ?? null;
   const sceneChips=useMemo(()=>[...placements.filter(c=>c.ref!==tableRef),...frontier.map(ref=>({ref,role:'queued',pose:'idle'}))],[placements,frontier,tableRef]);
   const handoffs = useHandoffs(snapshot);
   const { metrics, failed: metricsFailed, retry: retryMetrics } = useMetrics(metricsRevision);
@@ -304,7 +308,7 @@ export function App() {
   const zoneView = useMemo(() => viewFromBridge({
     snapshot, actors: liveActorsFromSnapshot(snapshot, { now }), library: archiveLibrary, connection: { phase: zonePhase }, selectedRef: selected, now,
   }), [snapshot, archiveLibrary, zonePhase, selected, now]);
-  const atTable = tableMeeting(snapshot?.meetings, now);
+  const atTable = tableMeeting(snapshot?.meetings, now, selectedMeetingId);
   const claimKey = atTable ? `${atTable.id}:${atTable.seats.map(s => `${s.status}${s.takes ?? 0}`).join(',')}` : '';
   const [claims, setClaims] = useState({});
   useEffect(() => {
@@ -398,6 +402,11 @@ export function App() {
           <div role="group" aria-label="Roof visibility" className="den-roof-controls">
             {['full','cutaway'].map(mode=><button key={mode} type="button" className="btn btn-outline" aria-pressed={roofMode===mode} onClick={()=>{roofs.set(mode);setRoofMode(mode);}}>{mode==='full'?'Full roofs':'Cutaway'}</button>)}
           </div>
+          <label className="den-fps-control">Frame rate
+            <select aria-label="Frame rate" value={fps} onChange={event=>{framePreference.set(Number(event.target.value));setFps(framePreference.fps);}}>
+              {FPS_OPTIONS.map(value=><option key={value} value={value}>{value} FPS</option>)}
+            </select>
+          </label>
         </div>
         <main aria-label="Den scene" aria-describedby="den-navigation-hint" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown + -" tabIndex={0} className="scene forest-garden">
           <div className="forest-canvas">
@@ -405,17 +414,17 @@ export function App() {
               <Canvas aria-hidden="true" orthographic shadows dpr={[1,1.5]} frameloop="demand"
                 camera={{ manual: true, zoom: 1, near: 0.1, far: 160 }}
                 gl={{antialias:true,powerPreference:'high-performance'}} events={sceneEvents} onPointerMissed={() => { setSelected(null); unpick(); }}>
-                <FrameCap />
+                <FrameCap fps={fps} />
                 <CameraRig store={camera} stage={stage} den={den} onModeChange={onExploreChange} onHint={setExploreHint} onCursorChange={setCursorFree} onLocationChange={setWalkPlace} />
                 <Suspense fallback={null}>
-                  <MeshyDen snapshot={snapshot} bindings={bindings} onScenePresentations={onScenePresentations} onLoadState={setGardenLoad} placements={scenePlacements} frontier={frontier} tally={tally} onOpenTally={openTally}
+                  <MeshyDen selectedMeetingId={selectedMeetingId} snapshot={snapshot} bindings={bindings} onScenePresentations={onScenePresentations} onLoadState={setGardenLoad} placements={scenePlacements} frontier={frontier} tally={tally} onOpenTally={openTally}
                     selected={selected} onSelect={selectTicket} stage={stage} onReady={onDenReady} onNearby={onNearby} picked={picked} onPick={pickPanda} zoneView={zoneView} onZoneClick={zoneClick} onOpenMeeting={(meeting, role) => openMeeting(meeting, role)} />
                 </Suspense>
               </Canvas>
             </SceneBoundary>
             <ChipLayer placements={sceneChips} labelsOverride={MESHY_TEAM_LABELS} hearts={hearts} tally={tally} tallyOpen={topic === 'tally'} tickets={snapshot?.tickets} selected={selected} onSelect={selectTicket} stage={stage} />
             <ToolBubbleLayer bindings={bindings} stage={stage} onInspect={inspectTools} picked={picked} selected={selected} />
-            <MeetingLayer snapshot={snapshot} stage={stage} claims={claims} onOpen={(meeting, role) => openMeeting(meeting, role)} />
+            <MeetingLayer selectedMeetingId={selectedMeetingId} snapshot={snapshot} stage={stage} claims={claims} onOpen={(meeting, role) => openMeeting(meeting, role)} onOpenAgent={openConversation} onOpenWork={() => openTopic('work')} />
             <div className="den-crosshair" aria-hidden="true" hidden={!exploring || cursorFree}>+</div>
             {exploring ? <p className="den-location" role="status" aria-label="Current location">{walkPlace}</p> : null}
             {!den ? <p className="forest-loading" role={gardenLoad.status === 'error' ? 'alert' : 'status'}>{gardenLoad.message}<span>{gardenLoad.status === 'error' ? 'Your board controls are still available on the rail.' : 'Preparing Bao, the workspaces and their props.'}</span></p> : null}

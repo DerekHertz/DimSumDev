@@ -111,7 +111,7 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -129,7 +129,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const controlHandle = { slug: "den", root, control: root, workspaces };
   const projects = projectsOption ?? { active: async () => "den", get: async (slug) => (slug === "den" ? controlHandle : null) };
   // A run's project, fixed when it starts: a desk, meeting or orchestrator run is the den's; any other takes the active project.
-  const isControl = (a) => a.role === "orchestrator" || a.ref === DESK_REF || Boolean(a.meeting);
+  const isControl = (a) => a.role === "orchestrator" || a.ref === DESK_REF;
   const workspacesOf = async (slug) => (slug === undefined || slug === "den" ? workspaces : (await projects.get(slug))?.workspaces ?? null);
   const agents = new Map(); // id -> record; insertion order is snapshot order
   const liveByRef = new Map(); // project/ref -> record, for every reserved or running agent
@@ -149,9 +149,9 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
 
   const view = (a) => ({
     id: a.id, ref: a.ref, role: a.role, mode: a.mode, runtime: a.runtimeId, sessionId: a.sessionId, runtimeSessionId: a.runtimeSessionId ?? null, state: a.state,
-    startedAt: a.startedAt, lastEventAt: a.lastEventAt, tool: a.tool, tokens: a.tokens, capabilities: a.capabilities,
+    startedAt: a.startedAt, lastEventAt: a.lastEventAt, tool: a.meeting ? null : a.tool, tokens: a.tokens, capabilities: a.capabilities,
     resume: a.resume, reason: a.reason, project: a.project ?? "den", worktree: a.worktree ?? null, branch: a.branch ?? null,
-    model: a.model ?? null, usage: a.usage ?? null, costUsd: a.costUsd ?? null, reply: a.reply ?? null, durationMs: a.durationMs ?? null,
+    model: a.model ?? null, usage: a.usage ?? null, costUsd: a.costUsd ?? null, reply: a.meeting ? null : a.reply ?? null, durationMs: a.durationMs ?? null,
     resumeOf: a.resumeOf ?? null, followUp: canContinue(a) && END_STATES.includes(a.state),
     parent: a.parent ?? null, wall: wallView(a),
   });
@@ -164,7 +164,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const out = {};
     for (const kind of WALL_KINDS) {
       const k = a.wall[kind];
-      if (k && k.count > 0) out[kind === "host" ? "hosts" : "writes"] = { count: k.count, latest: k.targets.at(-1) ?? null, paused: k.paused === true };
+      if (k && k.count > 0) out[kind === "host" ? "hosts" : "writes"] = { count: k.count, latest: a.meeting ? null : k.targets.at(-1) ?? null, paused: k.paused === true };
     }
     return Object.keys(out).length === 0 ? null : out;
   }
@@ -198,7 +198,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     });
     if (k.count >= WALL_PAUSE_AT) {
       k.paused = true;
-      const requestId = approvals.holdWall(agent.id, { kind: mark.kind, targets: k.targets.slice(0, WALL_PAUSE_AT) });
+      const requestId = approvals.holdWall(agent.id, { kind: mark.kind, targets: k.targets.slice(0, WALL_PAUSE_AT), privateContext: !!agent.meeting });
       record(agent, { kind: "wall", wallKind: mark.kind, paused: true, approvalId: requestId, text: `Paused after ${WALL_PAUSE_AT} refused ${noun}s. Waiting on you.` });
     }
     publish(agent);
@@ -227,6 +227,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const ALLOWED_CALLS_MAX = 20;
   const canContinue = (a) => adapterOf(a)?.capabilities?.resume === true && validRuntimeSession(a.runtimeSessionId) && typeof a.sessionId === "string" && UUID_RE.test(a.sessionId) && typeof a.worktree === "string";
   const publish = (a) => onChange({ type: "agent", agent: view(a) });
+  const publicApproval = (approval) => approval.privateContext ? {
+    id: approval.id, agentId: approval.agentId, tool: "Private meeting request", summary: "Private meeting permission request",
+    inputLength: approval.inputLength, ts: approval.ts, expiresAt: approval.expiresAt, state: approval.state,
+    ...(approval.answeredAt ? { answeredAt: approval.answeredAt } : {}),
+  } : approval;
   // Held permission requests (organism-infra/141). The store knows no process; these callbacks are its only way out.
   const approvals = createApprovalStore({
     ttlMs: Math.min(policy.approvalTtlMs ?? APPROVAL_TTL_MS, APPROVAL_TTL_MS),
@@ -241,7 +246,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       if (a && tool.startsWith("mcp__den__")) a.allowedCalls = [...(a.allowedCalls ?? []), { tool, input }].slice(-ALLOWED_CALLS_MAX);
     },
     onChange: (approval) => {
-      onChange({ type: "approval", approval });
+      onChange({ type: "approval", approval: publicApproval(approval) });
       notePermission(agents.get(approval.agentId), approval);
       syncWaiting(agents.get(approval.agentId));
     },
@@ -273,7 +278,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       buffer.entries.shift();
       buffer.dropped += 1;
     }
-    onChange({ type: "transcript", agentId: agent.id, entry: full });
+    if (!agent.meeting) onChange({ type: "transcript", agentId: agent.id, entry: full });
     keep(agent, full);
     return full.id;
   }
@@ -286,7 +291,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // without reinserting the evicted row into the snapshot's bounded transcript.
     const full = { ...(at < 0 ? original : buffer.entries[at]), ...patch, id, source: sourceOf(agent, id) };
     if (at >= 0) buffer.entries[at] = full;
-    onChange({ type: "transcript", agentId: agent.id, entry: full });
+    if (!agent.meeting) onChange({ type: "transcript", agentId: agent.id, entry: full });
   }
   const sourceOf = (agent, entryId) => ({ project: agent.project, runtime: agent.runtimeId, role: agent.role, runId: agent.id, entryId });
   // Correlation is run-local and explicit. The replay filter outlives ledger eviction;
@@ -313,7 +318,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     }
   }
   const transcriptView = () =>
-    Object.fromEntries([...transcripts].map(([id, b]) => [id, { entries: b.entries.slice(), dropped: b.dropped }]));
+    Object.fromEntries([...transcripts].filter(([id]) => !agents.get(id)?.meeting).map(([id, b]) => [id, { entries: b.entries.slice(), dropped: b.dropped }]));
   // An agent with a pending approval waits on the user; once none is pending it shows the state its runtime reported.
   function syncWaiting(agent) {
     if (!agent || agent.exited || agent.stopRequested || !agent.proc) return;
@@ -415,7 +420,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   async function select(input, { execute = true } = {}) {
     const selectedRuntime = runtimeId(input?.runtime);
     if (!selectedRuntime) return refuse(400, "unknown runtime");
-    const control = input.role === "orchestrator" || input.ref === DESK_REF || Boolean(input.meeting);
+    const control = input.role === "orchestrator" || input.ref === DESK_REF;
     if (input.project !== undefined && !validProject(input.project)) return refuse(400, "invalid project");
     const active = await projects.active();
     const project = input.project ?? (control ? "den" : active);
@@ -423,7 +428,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (control && project !== "den") return refuse(409, "this run belongs to the den project");
     const handle = await projects.get(project).catch(() => null);
     if (!handle) return refuse(409, "the project is not onboarded");
-    if (execute && !control && project !== active) return refuse(409, "the project is not active");
+    if (execute && !control && !input.meeting && project !== active) return refuse(409, "the project is not active");
     if (execute && input.delivery && project !== "den") return refuse(409, "Deliver runs on the den project only, for now");
     return { runtime: selectedRuntime, project };
   }
@@ -435,6 +440,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const { ref, role } = input;
     const selected = captured ?? await select(input);
     if (selected.ok === false) return selected;
+    const heldByMeeting = input.meeting ? null : meetingHold(ref, selected.project);
+    if (heldByMeeting) return refuse(409, `Meeting ${heldByMeeting} holds this task while its response is running`);
     const runtime = adapters[selected.runtime];
     const mode = entry === "direct" ? DIRECT_MODE : input.mode ?? null;
     // A delivery step is the internal entry's alone: no route reads these fields.
@@ -447,9 +454,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // So is a meeting run. Its note is the bridge's own text: the topic and the takes are quoted in it as data.
     let meeting = null;
     if (entry === "start" && input.meeting !== undefined) {
-      const { part, file } = input.meeting ?? {};
+      const { part, file, effort = 'medium', moderator = 'bao', standalone = false, taskRef = null } = input.meeting ?? {};
       if (step || !MEETING_PARTS.includes(part) || typeof file !== "string" || file.length > MEETING_FILE_MAX) return refuse(400, "a meeting run needs its part and its note");
-      meeting = { part, file };
+      if (!['medium', 'high'].includes(effort) || !['bao', 'jiao'].includes(moderator) || typeof standalone !== 'boolean') return refuse(400, 'invalid meeting settings');
+      if (taskRef !== null && !REF_RE.test(taskRef)) return refuse(400, 'invalid meeting task');
+      meeting = { part, file, effort, moderator, standalone, taskRef };
     }
     const notUp = down(runtime, { step: Boolean(step || meeting) });
     if (notUp) return notUp;
@@ -660,7 +669,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (agent.meeting) {
       try {
         await workspaces.brief(workspace, agent.meeting.file, "meeting.md");
-        agent.meeting = { part: agent.meeting.part }; // the note is in the worktree now; the run's record does not carry it
+        const { file, ...settings } = agent.meeting;
+        agent.meeting = settings;
       } catch (err) {
         await workspaces.remove(workspace);
         drop(agent);
@@ -682,6 +692,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const args = {
       role: agent.role, ...(agent.mode ? { mode: agent.mode } : {}), ref: agent.ref, cwd: workspace.dir, sessionId: agent.sessionId, runId: agent.id, ...(agent.runtimeSessionId ? { runtimeSessionId: agent.runtimeSessionId } : {}),
       prompt: agent.followUp ? agent.followUp.text : promptFor(agent), ticketFile: ticketFile(agent.ref, project.root), mainGit,
+      ...(agent.meeting ? { effort: agent.meeting.effort } : {}),
       // den-mvp/49: derived here, from the bridge's own root and the run's project; never from a request. The runtime refuses a spawn without it outside the control checkout.
       project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent) },
       ...(agent.resumeOf ? { resume: true, runId: agent.id, promptId: agent.followUp.messageId } : {}),
@@ -771,7 +782,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         "ready-for-agent ticket the user asked you to start). The last two ask the user first. release_propose drafts the next release for the user to approve in the den; you cannot tag or publish. " +
         "Start only what the user asked for; propose anything else in words. The user's message follows."
       : a.meeting
-      ? meetingPrompt({ role: a.role, part: a.meeting.part, ref: a.ref, ticketFile: ticketFile(a.ref, a.projectRoot), recipeFile: recipeOf(a) })
+      ? meetingPrompt({ role: a.role, ...a.meeting, ref: a.meeting.taskRef ?? a.ref, ticketFile: ticketFile(a.meeting.taskRef ?? a.ref, a.projectRoot), recipeFile: recipeOf(a) })
       : a.delivery
       ? deliveryPrompt({ role: a.role, mode: a.mode, ref: a.ref, ticketFile: ticketFile(a.ref, a.projectRoot), since: a.delivery.since, fix: a.delivery.findings !== undefined, note: a.delivery.note !== undefined, guard: a.delivery.guard !== undefined, author: a.delivery.author === true, recipeFile: recipeOf(a) })
       : a.mode === DIRECT_MODE
@@ -849,7 +860,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // What the bridge itself saw of the run (den-mvp outcome 3): where it started, where it ended, its last words.
     // Not awaited: what follows a run (the next step of a delivery, a wait on the git host) is not part of its end.
     Promise.resolve()
-      .then(() => onEnd({ ...run, startSha: agent.startSha ?? null, sha: agent.sha ?? null, branch: agent.branch ?? null, report: agent.report ?? null }))
+      .then(() => onEnd({ ...run, startSha: agent.startSha ?? null, sha: agent.sha ?? null, branch: agent.branch ?? null, report: agent.report ?? null, ...(agent.meeting ? { tools: (transcripts.get(agent.id)?.entries ?? []).filter(e => e.kind === 'tool').map(e => `${e.name}: ${e.summary ?? ''} [${e.status}]`) } : {}) }))
       .catch((err) => console.error(`bridge: the end hook failed for ${agent.id}: ${err?.stack ?? err}`));
   }
 
@@ -978,7 +989,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         Promise.resolve(agent.proc.decide(event.requestId, { allow: false, reason: `Refused before asking the user: ${unfit}` })).catch(() => {});
         return touch(agent);
       }
-      approvals.hold(agent.id, event, { accepting: !agent.stopRequested && !shuttingDown, says: agent.said ?? null });
+      approvals.hold(agent.id, event, { accepting: !agent.stopRequested && !shuttingDown, says: agent.said ?? null, privateContext: !!agent.meeting });
       return;
     } else if (event.type === "state") {
       if (!LIVE_STATES.includes(event.state) || agent.stopRequested) return;
@@ -1361,7 +1372,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     drain: (text) => void (draining = text || null), // den-mvp/86: the update's refusal text for a new run, or null to admit again
     admission,
     capacity: capacityNow, // (lockedRefs) -> the capacity key the hub puts in the snapshot
-    approvals: () => approvals.list(),
+    approvals: () => approvals.list().map(publicApproval),
     transcripts: transcriptView,
     approval: (id) => approvals.read(id),
     decide: async (id, body) => {
@@ -1380,7 +1391,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     runAgent(token) {
       if (typeof token !== "string" || !/^[A-Za-z0-9_-]{20,255}$/.test(token)) return null;
       const a = agents.get(runTokens.get(tokenHash(token)));
-      return a && a.proc && !a.exited && !a.stopRequested ? { id: a.id, role: a.role, ref: a.ref } : null;
+      return a && a.proc && !a.exited && !a.stopRequested ? { id: a.id, role: a.role, ref: a.ref, project: a.project } : null;
     },
     // den-mvp/38: uses up one allow the user gave this run for `tool` whose input `matches`; false when there is none.
     takeAllowed(agentId, tool, matches) {

@@ -74,7 +74,7 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
     },
     stillRunning: (id) => (typeof launcher.active === "function" ? launcher.active(id) : Promise.resolve(false)),
     resumeCommand: () => null,
-    async spawn({ role, cwd, prompt, sessionId, runId, model, ticketFile, mainGit, project, resume } = {}) {
+    async spawn({ role, cwd, prompt, sessionId, runId, model, effort, ticketFile, mainGit, project, resume } = {}) {
       if (!isWorktreePath(cwd) || typeof prompt !== "string" || prompt.trim() === "") throw new TypeError("codex runtime: a worktree and a prompt are required");
       if (resume === true) throw new TypeError("codex runtime: resume is not supported");
       if (typeof sessionId !== "string" || !/^[0-9a-f-]{36}$/.test(sessionId)) throw new TypeError("codex runtime: sessionId must be the bridge UUID");
@@ -85,6 +85,10 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
       const recipeFile = `${control}/.codex/agents/${role}.toml`;
       if (!existsSync(recipeFile)) throw new EnforcementError(`the ${role} role has no Codex recipe`);
       const recipe = readRecipe(recipeFile);
+      if (effort !== undefined) {
+        if (!['medium', 'high'].includes(effort)) throw new TypeError('Invalid meeting effort');
+        recipe.effort = effort;
+      }
       if (model !== undefined && model !== recipe.model) throw new TypeError("codex runtime: the model differs from the role's recipe");
       const { codexBin, nativeHelper } = binaries();
       const writes = ceilingOf(role)?.takesGrants === true;

@@ -69,6 +69,14 @@ const away=a=>a.panda.model.position.distanceTo(a.home)>1e-9;
 const frames=(f,seconds,each=()=>{},reduced=false)=>{for(let t=0;t<seconds;t+=.1){f.actors.update(.1,reduced);each(t);}};
 const rowText=(f,ref)=>f.actors.presentationRows().find(p=>p.ref===ref)?.presentation;
 const everyone=f=>[...f.actors.actors.values()];
+test('leisure props exist before the first visit so their materials can be prepared at load time',()=>{
+ const f=fixture();try{
+  for(const actor of everyone(f).filter(a=>!a.stationary)){
+   assert.ok(actor.gesture,'leisure gesture is prepared with its resident');
+   assert.equal(actor.gesture.cup.visible,false);
+  }
+ }finally{f.dispose();}
+});
 // Home -> away transitions, in seconds, plus the spots each resident visits on each roam (a roam ends at home).
 function watch(f,seconds,{reduced=false,each=()=>{}}={}){
  const was=new Map(),departures=[],roams=[],open=new Map();

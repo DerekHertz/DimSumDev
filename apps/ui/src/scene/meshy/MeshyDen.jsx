@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {useFrame,useThree} from '@react-three/fiber';
 import * as THREE from 'three';
 import {createMeshyWorld} from './world.mjs';
-import {createMeshyActors} from './actors.mjs';
+import {prepareDenScene} from './prepare-scene.mjs';
 import {liveActorsFromSnapshot} from '../../review/live-actors.mjs';
 import {agentFor,cardFor,pickedCard} from '../../overlay/proximity-card.mjs';
 import {tableMeeting} from './meeting-table.mjs';
@@ -10,31 +10,34 @@ import {createMeetingPresentation} from './meeting-presentation.mjs';
 import {sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 
 // Native R3F scene. App remains the sole owner of live state, actions and panels.
-export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,stage,onReady,onNearby,onScenePresentations,picked=null,onPick,zoneView=null,onZoneClick=null,onLoadState,bindings=null,onOpenMeeting=null}){
+export function MeshyDen({selectedMeetingId=null,snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,stage,onReady,onNearby,onScenePresentations,picked=null,onPick,zoneView=null,onZoneClick=null,onLoadState,bindings=null,onOpenMeeting=null}){
  const [den,setDen]=useState(null);
- const live=useRef(null),inputs=useRef({});inputs.current={snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,onNearby,onScenePresentations,picked,onPick,zoneView,onZoneClick,onLoadState,bindings,onOpenMeeting};
+ const live=useRef(null),inputs=useRef({});inputs.current={selectedMeetingId,snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,onNearby,onScenePresentations,picked,onPick,zoneView,onZoneClick,onLoadState,bindings,onOpenMeeting};
  const {scene,gl,camera,size}=useThree();
  useEffect(()=>{
-  const abort=new AbortController();let mounted=true,world=null;
+  const abort=new AbortController();let mounted=true,world=null,preparing=false;
   inputs.current.onLoadState?.({status:'loading',message:'Opening the forest garden…'});
-  createMeshyWorld(gl,{signal:abort.signal,onProgress:message=>inputs.current.onLoadState?.({status:'loading',message})}).then(d=>{
+  createMeshyWorld(gl,{signal:abort.signal,onProgress:message=>inputs.current.onLoadState?.({status:'loading',message})}).then(async d=>{
    world=d;if(!mounted){d.dispose();return;}
-   const agents=createMeshyActors(d),media=matchMedia('(prefers-reduced-motion: reduce)');
+   const media=matchMedia('(prefers-reduced-motion: reduce)');
    const meetingPresentation=createMeetingPresentation({lantern:d.garden.meetingLantern});d.world.add(meetingPresentation.root);
+   inputs.current.onLoadState?.({status:'loading',message:'Preparing the garden…'});
+   preparing=true;let agents;
+   try{agents=await prepareDenScene(d,gl,camera,scene,size.height,abort.signal);}finally{preparing=false;if(!mounted)d.dispose();}
    live.current={den:d,agents,media,anchored:new Set(),proximity:0,meeting:null,meetingPresentation};setDen(d);stage.tallyAnchor=d.tallyAnchor;onReady(d);
    inputs.current.onLoadState?.({status:'ready',message:'The forest garden is ready.'});
-  }).catch(error=>{if(mounted&&error.name!=='AbortError'){console.error('Den scene',error);inputs.current.onLoadState?.({status:'error',message:'The garden models could not load. Reload to retry.'});}});
-  return()=>{mounted=false;abort.abort();onReady(null);inputs.current.onScenePresentations?.([]);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current?.meetingPresentation.dispose();live.current=null;world?.dispose();stage.anchors.clear();};
+  }).catch(error=>{world?.dispose();if(mounted&&error.name!=='AbortError'){console.error('Den scene',error);inputs.current.onLoadState?.({status:'error',message:'The garden models could not load. Reload to retry.'});}});
+  return()=>{mounted=false;abort.abort();onReady(null);inputs.current.onScenePresentations?.([]);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current?.meetingPresentation.dispose();live.current=null;if(!preparing)world?.dispose();stage.anchors.clear();};
  },[gl,stage,onReady]);
  useEffect(()=>{const previous={background:scene.background,fog:scene.fog},media=matchMedia('(prefers-color-scheme: dark)');const apply=()=>{const color=media.matches?'#171b20':'#f8f3e8';scene.background=new THREE.Color(color);scene.fog=new THREE.Fog(color,180,300);};apply();media.addEventListener('change',apply);return()=>{media.removeEventListener('change',apply);scene.background=previous.background;scene.fog=previous.fog;};},[scene]);
  useEffect(()=>{if(!den)return;den.setFrontier(frontier||[]);den.setTally(tally?.rods);},[den,frontier,tally]);
  useEffect(()=>{
   const agents=live.current?.agents;if(!agents)return;
   // den-mvp/64: the table's meeting is re-read every second too, so a farewell clears on time.
-  const bind=()=>{agents.applyLive(liveActorsFromSnapshot(snapshot,{now:Date.now()}),inputs.current.bindings);const m=tableMeeting(snapshot?.meetings,Date.now());agents.applyMeeting(m);if(live.current)live.current.meeting=m;};bind();const timer=setInterval(bind,1000);return()=>clearInterval(timer);
- },[den,snapshot,bindings]);
+  const bind=()=>{agents.applyLive(liveActorsFromSnapshot(snapshot,{now:Date.now()}),inputs.current.bindings);const m=tableMeeting(snapshot?.meetings,Date.now(),selectedMeetingId);agents.applyMeeting(m);if(live.current)live.current.meeting=m;};bind();const timer=setInterval(bind,1000);return()=>clearInterval(timer);
+ },[den,snapshot,bindings,selectedMeetingId]);
  useEffect(()=>{live.current?.agents.setSelected(selected??null);},[den,selected]);
- useEffect(()=>{const visibility=()=>{const agents=live.current?.agents;if(!agents)return;if(!document.hidden){agents.applyLive(liveActorsFromSnapshot(inputs.current.snapshot,{now:Date.now()}),inputs.current.bindings);agents.applyMeeting(tableMeeting(inputs.current.snapshot?.meetings,Date.now()));}agents.setHidden(document.hidden);};document.addEventListener('visibilitychange',visibility);visibility();return()=>document.removeEventListener('visibilitychange',visibility);},[den]);
+ useEffect(()=>{const visibility=()=>{const agents=live.current?.agents;if(!agents)return;if(!document.hidden){agents.applyLive(liveActorsFromSnapshot(inputs.current.snapshot,{now:Date.now()}),inputs.current.bindings);agents.applyMeeting(tableMeeting(inputs.current.snapshot?.meetings,Date.now(),inputs.current.selectedMeetingId));}agents.setHidden(document.hidden);};document.addEventListener('visibilitychange',visibility);visibility();return()=>document.removeEventListener('visibilitychange',visibility);},[den]);
  useFrame((_,delta)=>{
   const l=live.current;if(!l)return;const dt=Math.min(delta,.1);l.agents.update(dt,l.media.matches);l.elapsed=(l.elapsed||0)+(l.media.matches?0:dt);l.den.ornaments?.update(camera,size.height);l.den.world.updateMatrixWorld(true);
   // Labels float .4 above the head: Bao's crown is 3; a species publishes its own head top (antlers included).

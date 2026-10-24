@@ -6,26 +6,46 @@ const EPS=.025,distance=(a,b)=>Math.hypot(a.x-b.x,a.z-b.z);
 const point=(x,z,y=.36)=>({x,y,z});
 function rectangle(position,envelope,yaw){
  const box=envelope.bounds||{min:[-envelope.radius,0,-envelope.radius],max:[envelope.radius,envelope.height,envelope.radius]};
- const vertices=[];for(const x of [box.min[0],box.max[0]])for(const z of [box.min[2],box.max[2]])vertices.push({x:position.x+x*Math.cos(yaw)+z*Math.sin(yaw),z:position.z-x*Math.sin(yaw)+z*Math.cos(yaw)});
+ const vertices=[],cos=Math.cos(yaw),sin=Math.sin(yaw);for(const x of [box.min[0],box.max[0]])for(const z of [box.min[2],box.max[2]])vertices.push({x:position.x+x*cos+z*sin,z:position.z-x*sin+z*cos});
  return vertices;
 }
 const overlap=(a,b)=>{
- for(const polygon of [a,b])for(const [i,j]of [[0,1],[0,2]]){
-  const axis={x:polygon[j].z-polygon[i].z,z:polygon[i].x-polygon[j].x},pa=a.map(p=>p.x*axis.x+p.z*axis.z),pb=b.map(p=>p.x*axis.x+p.z*axis.z);
-  if(Math.max(...pa)<=Math.min(...pb)+EPS||Math.max(...pb)<=Math.min(...pa)+EPS)return false;
+ for(let side=0;side<2;side++)for(let edge=1;edge<=2;edge++){
+  const polygon=side?a:b,x=polygon[edge].z-polygon[0].z,z=polygon[0].x-polygon[edge].x;
+  let minA=Infinity,maxA=-Infinity,minB=Infinity,maxB=-Infinity;
+  for(let i=0;i<4;i++){const pa=a[i].x*x+a[i].z*z,pb=b[i].x*x+b[i].z*z;minA=Math.min(minA,pa);maxA=Math.max(maxA,pa);minB=Math.min(minB,pb);maxB=Math.max(maxB,pb);}
+  if(maxA<=minB+EPS||maxB<=minA+EPS)return false;
  }return true;
 };
+function bounds(vertices){
+ let minX=Infinity,maxX=-Infinity,minZ=Infinity,maxZ=-Infinity;
+ for(const p of vertices){minX=Math.min(minX,p.x);maxX=Math.max(maxX,p.x);minZ=Math.min(minZ,p.z);maxZ=Math.max(maxZ,p.z);}
+ return {minX,maxX,minZ,maxZ};
+}
+const touches=(box,area)=>box.max[0]>=area.minX&&box.min[0]<=area.maxX&&box.max[2]>=area.minZ&&box.min[2]<=area.maxZ;
 export function createApprovedNavigation(garden){
  let bodies=()=>[],reservations=()=>[];
  const obstacles=garden.obstacles.map(o=>({...o,vertices:o.vertices?.map(v=>Array.isArray(v)?{x:v[0],z:v[1]}:v)||[{x:o.min[0],z:o.min[2]},{x:o.min[0],z:o.max[2]},{x:o.max[0],z:o.min[2]},{x:o.max[0],z:o.max[2]}]}));
  const cells=new Map();for(const o of obstacles)for(let x=Math.floor(o.min[0]/4);x<=Math.floor(o.max[0]/4);x++)for(let z=Math.floor(o.min[2]/4);z<=Math.floor(o.max[2]/4);z++){const key=x+':'+z;if(!cells.has(key))cells.set(key,[]);cells.get(key).push(o);}
+ let routeFits=null;
  function fits(position,envelope,yaw=0,trace=null){
+  if(!routeFits||trace)return fitsAt(position,envelope,yaw,trace);
+  let cache=routeFits.get(envelope);if(!cache){cache=new Map();routeFits.set(envelope,cache);}
+  const key=position.x+':'+position.y+':'+position.z+':'+yaw,cached=cache.get(key);
+  if(cached!==undefined)return cached;
+  const result=fitsAt(position,envelope,yaw);cache.set(key,result);return result;
+ }
+ function fitsAt(position,envelope,yaw,trace=null){
   const vertices=rectangle(position,envelope,yaw);if(vertices.some(p=>!garden.inside(p.x,p.z)))return false;
-  const nearby=new Set();for(let x=Math.floor(Math.min(...vertices.map(p=>p.x))/4);x<=Math.floor(Math.max(...vertices.map(p=>p.x))/4);x++)for(let z=Math.floor(Math.min(...vertices.map(p=>p.z))/4);z<=Math.floor(Math.max(...vertices.map(p=>p.z))/4);z++)for(const o of cells.get(x+':'+z)||[])nearby.add(o);
-  const blocked=[...nearby].find(o=>o.max[1]>position.y+.1&&o.min[1]<position.y+envelope.height&&(envelope.slices?
-   envelope.slices.some(slice=>o.max[1]>position.y+Math.max(.1,slice.min[1])&&o.min[1]<position.y+slice.max[1]&&overlap(rectangle(position,{bounds:slice},yaw),o.vertices)):
-   overlap(vertices,o.vertices)));
-  if(blocked&&trace)trace.push(blocked);return !blocked;
+  const area=bounds(vertices),nearby=new Set();let slices;
+  for(let x=Math.floor(area.minX/4);x<=Math.floor(area.maxX/4);x++)for(let z=Math.floor(area.minZ/4);z<=Math.floor(area.maxZ/4);z++)for(const o of cells.get(x+':'+z)||[])nearby.add(o);
+  for(const o of nearby){
+   if(o.max[1]<=position.y+.1||o.min[1]>=position.y+envelope.height||!touches(o,area))continue;
+   if(envelope.slices&&!slices)slices=envelope.slices.map(slice=>{const vertices=rectangle(position,{bounds:slice},yaw);return {vertices,area:bounds(vertices),minY:position.y+Math.max(.1,slice.min[1]),maxY:position.y+slice.max[1]};});
+   const blocked=slices?slices.some(slice=>o.max[1]>slice.minY&&o.min[1]<slice.maxY&&touches(o,slice.area)&&overlap(slice.vertices,o.vertices)):overlap(vertices,o.vertices);
+   if(blocked){trace?.push(o);return false;}
+  }
+  return true;
  }
  function segment(a,b,envelope,yaw=null){
   const d=distance(a,b),facing=yaw??Math.atan2(b.x-a.x,b.z-a.z),steps=Math.max(1,Math.ceil(d/.25));
@@ -36,12 +56,13 @@ export function createApprovedNavigation(garden){
  const surfaceCells=new Map();for(const s of surfaces)for(let x=Math.floor(s.min[0]/4);x<=Math.floor(s.max[0]/4);x++)for(let z=Math.floor(s.min[2]/4);z<=Math.floor(s.max[2]/4);z++){const key=x+':'+z;if(!surfaceCells.has(key))surfaceCells.set(key,[]);surfaceCells.get(key).push(s);}
  function supportAt(x,z){
   if(!garden.inside(x,z))return null;
-  const contains=o=>[[0,1],[0,2]].every(([i,j])=>{
-   const a=o.vertices[i],b=o.vertices[j],dx=b.x-a.x,dz=b.z-a.z,length=Math.hypot(dx,dz);
-   if(!length)return false;const coordinate=((x-a.x)*dx+(z-a.z)*dz)/length;
-   return coordinate>=-.005&&coordinate<=length+.005;
-  });
-  return Math.max(.165,...(surfaceCells.get(Math.floor(x/4)+':'+Math.floor(z/4))||[]).filter(contains).map(o=>o.supportTop));
+  let top=.165;
+  for(const o of surfaceCells.get(Math.floor(x/4)+':'+Math.floor(z/4))||[]){
+   let contains=true;
+   for(let edge=1;edge<=2;edge++){const a=o.vertices[0],b=o.vertices[edge],dx=b.x-a.x,dz=b.z-a.z,length=Math.hypot(dx,dz),coordinate=((x-a.x)*dx+(z-a.z)*dz)/length;if(!length||coordinate<-.005||coordinate>length+.005){contains=false;break;}}
+   if(contains)top=Math.max(top,o.supportTop);
+  }
+  return top;
  }
  function supported(actor,p,yaw){
   const foot=actor.panda.rig.profile.foot,scale=actor.panda.model.scale.x;
@@ -53,7 +74,17 @@ export function createApprovedNavigation(garden){
  }
  function turn(p,from,to,envelope){
   const delta=Math.atan2(Math.sin(to-from),Math.cos(to-from)),steps=Math.max(1,Math.ceil(Math.abs(delta)/.06));
-  return Array.from({length:steps+1},(_,i)=>({...p,yaw:from+delta*i/steps})).every(q=>fits(q,envelope,q.yaw));
+  const box=envelope.bounds;let radius=box?Math.hypot(Math.max(Math.abs(box.min[0]),Math.abs(box.max[0])),Math.max(Math.abs(box.min[2]),Math.abs(box.max[2]))):Math.SQRT2*envelope.radius;
+  for(const slice of envelope.slices||[])radius=Math.max(radius,Math.hypot(Math.max(Math.abs(slice.min[0]),Math.abs(slice.max[0])),Math.max(Math.abs(slice.min[2]),Math.abs(slice.max[2]))));
+  const area={minX:p.x-radius,maxX:p.x+radius,minZ:p.z-radius,maxZ:p.z+radius},nearby=new Set();
+  for(let x=Math.floor(area.minX/4);x<=Math.floor(area.maxX/4);x++)for(let z=Math.floor(area.minZ/4);z<=Math.floor(area.maxZ/4);z++)for(const o of cells.get(x+':'+z)||[])nearby.add(o);
+  const empty=![...nearby].some(o=>o.max[1]>p.y+.1&&o.min[1]<p.y+envelope.height&&touches(o,area));
+  if(empty){
+   for(let i=0;i<=steps;i++)if(rectangle(p,envelope,from+delta*i/steps).some(v=>!garden.inside(v.x,v.z)))return false;
+   return true;
+  }
+  for(let i=0;i<=steps;i++)if(!fits(p,envelope,from+delta*i/steps))return false;
+  return true;
  }
  function approachAt(actor,spot){
   const to=spot.position,finalYaw=Math.atan2(spot.face.x-to.x,spot.face.z-to.z),candidates=[];
@@ -128,12 +159,21 @@ export function createApprovedNavigation(garden){
  }
  const edgeCache=new Map();
  function route(actor,from,to){
-  const envelope=actor.envelope,signature=JSON.stringify([envelope.radius,envelope.height,envelope.bounds]);
+  const work=routeSteps(actor,from,to);let result;
+  do{result=work.next();}while(!result.done);return result.value;
+ }
+ function routeSteps(actor,from,to){
+  const cache=new WeakMap(),iterator=planRoute(actor,from,to);
+  const invoke=(method,value)=>{const previous=routeFits;routeFits=cache;try{return iterator[method](value);}finally{routeFits=previous;}};
+  return {[Symbol.iterator](){return this;},next:value=>invoke('next',value),return:value=>invoke('return',value)};
+ }
+ function* planRoute(actor,from,to){
+  const envelope=actor.envelope,signature=JSON.stringify([envelope.radius,envelope.height,envelope.bounds,envelope.slices]);
   const bodySnapshot=[
    ...bodies().filter(other=>other!==actor&&other.panda.model.visible).map(other=>({position:other.panda.model.position.clone(),envelope:other.envelope,yaw:other.yaw??other.baseYaw})),
    ...reservations().filter(place=>place.owner&&place.owner!==actor.identity).map(place=>({position:place.position,envelope:place.envelope,yaw:place.envelope.yaw??0}))
   ].map(other=>({...other,radius:other.envelope.radius,vertices:rectangle(other.position,other.envelope,other.yaw)}));
-  const routeTurn=(p,fromYaw,toYaw)=>{
+  const canTurn=(p,fromYaw,toYaw)=>{
    if(!turn(p,fromYaw,toYaw,envelope))return false;
    if(!Number.isFinite(to.yaw))return true;
    const nearby=bodySnapshot.filter(other=>distance(p,other.position)<envelope.radius+other.radius+.1);
@@ -142,7 +182,7 @@ export function createApprovedNavigation(garden){
    for(let i=0;i<=steps;i++)if(nearby.some(other=>overlap(rectangle(p,envelope,fromYaw+delta*i/steps),other.vertices)))return false;
    return true;
   };
-  const visible=(a,b,yaw=null)=>{
+  const canSee=(a,b,yaw=null)=>{
    const facing=yaw??Math.atan2(b.x-a.x,b.z-a.z);if(!segment(a,b,envelope,facing))return false;
    const dx=b.x-a.x,dz=b.z-a.z,squared=dx*dx+dz*dz;
    const nearby=bodySnapshot.filter(other=>{const k=squared?Math.max(0,Math.min(1,((other.position.x-a.x)*dx+(other.position.z-a.z)*dz)/squared)):0;return Math.hypot(other.position.x-a.x-dx*k,other.position.z-a.z-dz*k)<envelope.radius+other.radius;});
@@ -153,31 +193,39 @@ export function createApprovedNavigation(garden){
     if(nearby.some(other=>overlap(own,other.vertices)))return false;
    }return true;
   };
+  const turns=new Map(),segments=new Map();
+  const routeTurn=(p,fromYaw,toYaw)=>{const key=p.x+':'+p.y+':'+p.z+':'+fromYaw+':'+toYaw;let result=turns.get(key);if(result===undefined){result=canTurn(p,fromYaw,toYaw);turns.set(key,result);}return result;};
+  const visible=(a,b,yaw=null)=>{const facing=yaw??Math.atan2(b.x-a.x,b.z-a.z),key=[a.x,a.y,a.z,a.mount,b.x,b.y,b.z,b.mount,facing].join(':');let result=segments.get(key);if(result===undefined){result=canSee(a,b,facing);segments.set(key,result);}return result;};
   const home=actor.home,dock=actor.dock,departing=distance(from,home)<.05,arriving=distance(to,home)<.05;
- const leisure=[...leisurePlaces(),...(garden.assets.office?officeVisitors():[])].map(s=>place(actor,s)).filter(Boolean),goal=leisure.find(s=>distance(s.position,to)<.01),origin=leisure.find(s=>distance(s.position,from)<.01);
+ // Placement offsets are at most .83 units; unrelated destinations cannot match this trip.
+ const leisure=[];
+ for(const s of [...leisurePlaces(),...(garden.assets.office?officeVisitors():[])])if(distance(s.position,to)<1||distance(s.position,from)<1){const candidate=place(actor,s);if(candidate)leisure.push(candidate);yield;}
+ const goal=leisure.find(s=>distance(s.position,to)<.01),origin=leisure.find(s=>distance(s.position,from)<.01);
   const throat=dock?.approach?.at(-1),throatPoint=throat?point(throat[0],throat[2],throat[1]):null;
   let start=from,end=to,prefix=[],suffix=[];
-  if(departing&&throatPoint){let p=from;for(const xyz of [...dock.approach].reverse()){const q=point(xyz[0],xyz[2],xyz[1]);if(!visible(p,q,actor.baseYaw))return [];prefix.push({...q,yaw:actor.baseYaw});p=q;}start=p;}
-  if(arriving&&throatPoint){let p=point(dock.approach[0][0],dock.approach[0][2],dock.approach[0][1]);end=p;for(const xyz of [...dock.approach.slice(1),[to.x,to.y,to.z]]){const q=point(xyz[0],xyz[2],xyz[1]);if(!visible(p,q,actor.baseYaw))return [];suffix.push({...q,yaw:actor.baseYaw});p=q;}}
+  if(departing&&throatPoint){let p=from;for(const xyz of [...dock.approach].reverse()){const q=point(xyz[0],xyz[2],xyz[1]);if(!visible(p,q,actor.baseYaw))return [];prefix.push({...q,yaw:actor.baseYaw});p=q;yield;}start=p;}
+  if(arriving&&throatPoint){let p=point(dock.approach[0][0],dock.approach[0][2],dock.approach[0][1]);end=p;for(const xyz of [...dock.approach.slice(1),[to.x,to.y,to.z]]){const q=point(xyz[0],xyz[2],xyz[1]);if(!visible(p,q,actor.baseYaw))return [];suffix.push({...q,yaw:actor.baseYaw});p=q;yield;}}
   if(origin){const path=approach(actor,origin,{reverse:true});if(!path)return [];start=path.at(-1);prefix=path;}
   if(goal){const path=approach(actor,goal);if(!path)return [];end=path[0];suffix=path;}
   const endPoint={x:end.x,y:end.y,z:end.z};
   const finalTurn=Number.isFinite(to.yaw)?[{x:end.x,y:end.y,z:end.z,yaw:to.yaw}]:[];
-  const validTurns=path=>{let p=from,yaw=from.yaw??actor.yaw??actor.baseYaw;for(const q of path){const facing=q.yaw??(distance(p,q)<1e-6?yaw:Math.atan2(q.x-p.x,q.z-p.z));if(!routeTurn(p,yaw,facing)||!visible(p,q,facing))return false;p=q;yaw=facing;}return true;};
-  const direct=[...prefix,endPoint,...finalTurn,...suffix];if(visible(start,end)&&validTurns(direct))return direct;
+  function* validTurns(path){let p=from,yaw=from.yaw??actor.yaw??actor.baseYaw;for(const q of path){const facing=q.yaw??(distance(p,q)<1e-6?yaw:Math.atan2(q.x-p.x,q.z-p.z));if(!routeTurn(p,yaw,facing)||!visible(p,q,facing))return false;p=q;yaw=facing;yield;}return true;}
+  const direct=[...prefix,endPoint,...finalTurn,...suffix];if(visible(start,end)&&(yield* validTurns(direct)))return direct;
   const costs=new Map(),parents=new Map(),queue=[];
-  nodes.forEach((p,i)=>{if(distance(start,p)<16&&visible(start,p)&&validTurns([...prefix,p])){costs.set(i,distance(start,p));queue.push(i);}});
+  for(let i=0;i<nodes.length;i++){yield;const p=nodes[i];if(distance(start,p)<16&&visible(start,p)&&(yield* validTurns([...prefix,p]))){costs.set(i,distance(start,p));queue.push(i);}}
   let winner=null,total=Infinity;
-  while(queue.length){queue.sort((a,b)=>costs.get(a)-costs.get(b));const id=queue.shift(),p=nodes[id],cost=costs.get(id);if(cost>total)break;
+  while(queue.length){queue.sort((a,b)=>costs.get(a)+distance(nodes[a],end)-costs.get(b)-distance(nodes[b],end));const id=queue.shift(),p=nodes[id],cost=costs.get(id);if(cost+distance(p,end)>total)break;
    const prior=parents.has(id)?nodes[parents.get(id)]:start,incoming=Math.atan2(p.x-prior.x,p.z-prior.z);
    if(distance(p,end)<16&&visible(p,end)&&cost+distance(p,end)<total&&routeTurn(p,incoming,Math.atan2(end.x-p.x,end.z-p.z))&&routeTurn(end,Math.atan2(end.x-p.x,end.z-p.z),to.yaw??suffix[0]?.yaw??Math.atan2(end.x-p.x,end.z-p.z))){winner=id;total=cost+distance(p,end);}
+   yield;
    for(const next of edges[id]){
+    yield;
     const ekey=signature+':'+id+':'+next;let valid=edgeCache.get(ekey);if(valid===undefined){valid=segment(p,nodes[next],envelope);edgeCache.set(ekey,valid);}if(!valid||!visible(p,nodes[next]))continue;
     if(!routeTurn(p,incoming,Math.atan2(nodes[next].x-p.x,nodes[next].z-p.z)))continue;
     const ncost=cost+distance(p,nodes[next]);if(ncost>=(costs.get(next)??Infinity))continue;costs.set(next,ncost);parents.set(next,id);queue.push(next);
    }
   }
-  if(winner===null)return [];const path=[];for(let id=winner;id!==undefined;id=parents.get(id))path.push({...nodes[id]});path.reverse();const result=[...prefix,...path,endPoint,...finalTurn,...suffix];return validTurns(result)?result:[];
+  if(winner===null)return [];const path=[];for(let id=winner;id!==undefined;id=parents.get(id))path.push({...nodes[id]});path.reverse();const result=[...prefix,...path,endPoint,...finalTurn,...suffix];return (yield* validTurns(result))?result:[];
  }
  function fitsPlace(position,envelope,owner,ignore,places,bodies){
   const spot=[...placements.values()].find(s=>s&&distance(s.position,position)<.01)||leisurePlaces().find(s=>distance(s.position,position)<.01),dock=garden.docks.find(d=>distance(point(d.position[0],d.position[2]),position)<.01);
@@ -186,7 +234,7 @@ export function createApprovedNavigation(garden){
   if(bodies.some(b=>b.owner!==owner&&overlap(own,rectangle(b.position,b.envelope,b.envelope.yaw||0))))return false;
   return ![...places.values()].some(p=>p.id!==ignore&&p.owner&&p.owner!==owner&&overlap(own,rectangle(p.position,p.envelope,p.envelope.yaw||0)));
  }
- return {setBodies(provider){bodies=provider;},setReservations(provider){reservations=provider;},floorRadius:85,floorCenter:{x:0,z:-4},eyeHeight:1.82,obstacles:[],fitsPlace,fits,segment,route,place,approach,
+ return {setBodies(provider){bodies=provider;},setReservations(provider){reservations=provider;},floorRadius:85,floorCenter:{x:0,z:-4},eyeHeight:1.82,obstacles:[],fitsPlace,fits,segment,route,routeSteps,place,approach,
   meetingApproach(actor,spot){return approachAt(actor,{id:'meeting-chair',kind:'meeting',position:new T.Vector3(spot.x,spot.y,spot.z),face:new T.Vector3(0,spot.y,-4)});},
   supported,supportAt,nodes,edges,physicalObstacles:obstacles,navigation:{groundAt(x,z,previous=.36,radius=.26,height=2.04){const y=supportAt(x,z);if(y===null)return null;const position={x,y:y+.045,z};return fits(position,{radius,height})?position.y:null;}}};
 }
@@ -196,6 +244,7 @@ export function bindResidentNavigation(den,actors){
  den.walkWorld.setReservations(()=>[...den.placeRegistry.values()].filter(place=>place.kind==='meeting'));
  den.routinePlace=(actor,spot)=>den.walkWorld.place(actor,spot);
  den.routineRoute=(actor,from,to)=>den.walkWorld.route(actor,from,to);
+ den.routineRouteSteps=(actor,from,to)=>den.walkWorld.routeSteps(actor,from,to);
  den.routineClear=(actor,from,to)=>{
   const yaw=actor.path?.[0]?.yaw??(distance(from,to)<1e-6?(actor.yaw??actor.baseYaw):Math.atan2(to.x-from.x,to.z-from.z)),world=den.walkWorld;
   if(!world.segment(from,to,actor.envelope,yaw))return false;

@@ -11,6 +11,14 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { TABLE, PLAZA_RING, FAREWELL_MS, CLAIM_MAX, tableMeeting, seatSpots, seatLabel, seatName, baoLabel, seated, routeTo, claimOf } from "./meeting-table.mjs";
 
+test('selected meeting owns the scene even when a newer meeting exists; ended records never gather participants', () => {
+  const first = { id: 'first', state: 'running', seats: [{ role: 'architect' }], startedAt: '2026-10-20T00:00:00Z' };
+  const second = { id: 'second', state: 'running', seats: [{ role: 'qa' }], startedAt: '2026-10-21T00:00:00Z' };
+  assert.deepEqual(tableMeeting([first, second], Date.now(), 'first').seats.map(s => s.role), ['architect']);
+  assert.deepEqual(tableMeeting([first, second], Date.now(), 'second').seats.map(s => s.role), ['qa']);
+  assert.equal(tableMeeting([{ ...first, state: 'ended' }, second], Date.now(), 'first'), null);
+});
+
 const meeting = (over = {}) => ({
   id: "m-1", ref: "den-mvp/57-routing", title: "57: Routing", state: "running", retired: false, live: null, brief: null, decisions: [],
   startedAt: "2026-10-16T23:13:49.081Z", updatedAt: "2026-10-16T23:13:49.083Z",

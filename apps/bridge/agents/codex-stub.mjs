@@ -46,7 +46,7 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   const reply = (result) => out({ id: message.id, result });
   const p = message.params;
   if (message.method === "initialize") return reply({ userAgent: "codex-stub/0" });
-  if (message.method === "model/list") return reply({ data: [{ id: MODEL, model: MODEL, supportedReasoningEfforts: [{ reasoningEffort: "high" }] }], nextCursor: null });
+  if (message.method === "model/list") return reply({ data: [{ id: MODEL, model: MODEL, supportedReasoningEfforts: [{ reasoningEffort: "high" }, { reasoningEffort: 'medium' }] }], nextCursor: null });
   if (message.method === "thread/start") {
     thread = { id: "thread-1", cwd: p.cwd };
     return reply({ thread: { id: thread.id }, model: p.model, cwd: p.cwd, activePermissionProfile: { id: p.permissions } });

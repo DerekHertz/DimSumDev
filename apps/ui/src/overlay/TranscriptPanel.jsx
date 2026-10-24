@@ -4,6 +4,7 @@ import { initialTranscriptState, transcriptKey, transcriptToggle, closeTranscrip
 import { AgentMarkdown } from "./agent-markdown.mjs";
 import { threadEntries, threadView, footModel, stopModel, emptyPicks, pickOption, setOther, questionAnswers } from "./thread-model.mjs";
 import { TranscriptSummary } from "./TranscriptSummary.jsx";
+import { QuestionFields } from './QuestionFields.jsx';
 
 const DESK_HINT = "Ask Bao about the repo, the board or CI. Bao proposes work; you start it from the den.";
 
@@ -141,23 +142,8 @@ function QuestionRow({ row, who, client, disabled, ...locator }) {
   const off = disabled || busy || !row.answerable || !client;
   return <li {...locator} className="transcript-row transcript-permission transcript-asking transcript-question" role="group" aria-label={`${who} is asking you`}>
     <p className="transcript-waiting"><span className="transcript-glyph transcript-glyph-needs-you" aria-hidden="true" />{row.head}</p>
-    {row.questions.map((q, qi) => <fieldset key={qi} className="question-set" disabled={off}>
-      <legend>{q.header ? <span className="question-header">{q.header}</span> : null}{q.question}{q.multiSelect ? <span className="question-hint"> Pick any.</span> : null}</legend>
-      <div className="question-options">
-        {q.options.map((o) => {
-          const on = picks[qi].labels.includes(o.label);
-          return <button key={o.label} type="button" className="question-option" aria-pressed={on} onClick={() => setPicks(pickOption(row.questions, picks, qi, o.label))}>
-            <span className="question-label">{o.label}</span>
-            {o.description ? <span className="question-description">{o.description}</span> : null}
-          </button>;
-        })}
-        <button type="button" className="question-option" aria-pressed={picks[qi].other !== null} onClick={() => setPicks(pickOption(row.questions, picks, qi, null))}>
-          <span className="question-label">Other</span>
-        </button>
-        {picks[qi].other !== null ? <input type="text" className="question-other" aria-label={`Your answer to: ${q.question}`} maxLength={500} autoFocus
-          value={picks[qi].other} onChange={(e) => setPicks(setOther(picks, qi, e.target.value))} /> : null}
-      </div>
-    </fieldset>)}
+    <QuestionFields questions={row.questions} picks={picks} disabled={off}
+      onPick={(qi, label) => setPicks(pickOption(row.questions, picks, qi, label))} onOther={(qi, text) => setPicks(setOther(picks, qi, text))} />
     {error ? <p className="approval-banner" role="alert">{error}</p> : null}
     <div className="transcript-answer">
       <button type="button" className="approval-deny" disabled={off} onClick={() => send("deny")}>Dismiss</button>

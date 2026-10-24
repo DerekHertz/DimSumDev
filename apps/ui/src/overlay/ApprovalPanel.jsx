@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useSyncExternalStore } from "react";
 import { createApprovalReview, NOTE_MAX } from "./approval-review.mjs";
 import { AgentMarkdown } from "./agent-markdown.mjs";
+import { QuestionFields } from './QuestionFields.jsx';
 
 // den-v1/06: the permission review. The controller (approval-review.mjs) owns every rule; this file renders its
 // state and forwards keys, clicks and each new snapshot. Refusal text is inserted as plain text.
@@ -72,9 +73,11 @@ export function ApprovalPanel({ review, state }) {
         </div>
       </header>
       <div className="approval-body">
-        <p className="approval-label"><span>Tool input</span><span>{state.countLabel}</span></p>
+        <p className="approval-label"><span>{state.questions ? 'Questions' : 'Tool input'}</span><span>{state.countLabel}</span></p>
         <div className="approval-well" tabIndex={0} role="region" aria-label="Tool input">
-          {state.inputView?.kind === "tickets" ? <TicketsInput view={state.inputView} raw={state.inputText} />
+          {state.questions ? <QuestionFields questions={state.questions} picks={state.picks} disabled={state.noteReadOnly}
+            onPick={review.pickAnswer} onOther={review.writeAnswer} />
+            : state.inputView?.kind === "tickets" ? <TicketsInput view={state.inputView} raw={state.inputText} />
             : state.inputText !== null ? <pre className="approval-input">{state.inputText}</pre>
             : state.phase === "loading" ? <div className="approval-skeleton" aria-hidden="true"><i /><i /><i /></div> : null}
         </div>
@@ -89,10 +92,10 @@ export function ApprovalPanel({ review, state }) {
       </div>
       <footer className="approval-foot">
         <button type="button" className="approval-deny" ref={refs.deny} disabled={!state.denyEnabled} onClick={() => review.press("deny")}>
-          {busy("deny") ? <><span className="approval-spinner" aria-hidden="true" />Sending</> : <>Deny <kbd>Q</kbd></>}
+          {busy("deny") ? <><span className="approval-spinner" aria-hidden="true" />Sending</> : state.questions ? <>Dismiss <kbd>Q</kbd></> : <>Deny <kbd>Q</kbd></>}
         </button>
         <button type="button" className="approval-allow" ref={refs.allow} disabled={!state.allowEnabled} onClick={() => review.press("allow")}>
-          {busy("allow") ? <><span className="approval-spinner" aria-hidden="true" />Sending</> : <>Allow <kbd>E</kbd></>}
+          {busy("allow") ? <><span className="approval-spinner" aria-hidden="true" />Sending</> : state.questions ? <>Send answers <kbd>E</kbd></> : <>Allow <kbd>E</kbd></>}
         </button>
       </footer>
     </aside>

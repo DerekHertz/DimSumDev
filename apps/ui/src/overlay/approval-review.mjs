@@ -1,6 +1,8 @@
 // den-v1/06: the permission review controller. Pure and DOM-free: the client, the clock and the open hook are
 // injected, so every state in the design spec is testable without a browser. React renders getState() and forwards
 // keys, clicks and each new snapshot (ApprovalPanel.jsx).
+import { emptyPicks, pickOption, setOther, questionAnswers } from './thread-model.mjs';
+
 export const NOTE_MAX = 200;
 export const KEY_GUARD_MS = 400;
 const WARN_MS = 60000;
@@ -100,7 +102,9 @@ export function createApprovalReview({ client, now = Date.now, hooks = {} }) {
       countLabel,
       inputText: !s.final && loaded ? s.inputText : null,
       inputView: !s.final && loaded ? s.inputView : null,
-      allowEnabled: !s.final && !s.sending && ok,
+      questions: !s.final && loaded ? s.questions : null,
+      picks: s.picks,
+      allowEnabled: !s.final && !s.sending && ok && (!s.questions || !!questionAnswers(s.questions, s.picks)),
       denyEnabled: !s.final && !s.sending,
       sending: s.sending,
       noteReadOnly: !!s.sending || !!s.final,
@@ -159,6 +163,9 @@ export function createApprovalReview({ client, now = Date.now, hooks = {} }) {
         return;
       }
       s.input = input;
+      if (res.privateContext === true) s.card.tool = res.tool;
+      s.questions = Array.isArray(res.questions) && res.questions.length ? res.questions : null;
+      s.picks = s.questions ? emptyPicks(s.questions) : [];
       s.inputCount = JSON.stringify(input).length;
       s.inputText = escapeUnsafe(JSON.stringify(input, null, 2), true);
       s.inputView = inputViewOf(res?.tool ?? s.card.approval?.tool, input);
@@ -191,6 +198,7 @@ export function createApprovalReview({ client, now = Date.now, hooks = {} }) {
         expiresAt: Number.isFinite(expires) ? expires : null,
       },
       loadStatus: "loading", loadError: null, input: null, inputText: null, inputView: null, inputCount: 0,
+      questions: null, picks: [],
       sending: null, refusal: null, final: null, note: "", focus: "deny", focusReturn: null, announcement: null, warned: false,
     };
     focusSeq += 1;
@@ -216,6 +224,7 @@ export function createApprovalReview({ client, now = Date.now, hooks = {} }) {
     const seq = s.seq;
     const { approvalId, tool, name } = s.card;
     const body = { decision };
+    if (decision === 'allow' && s.questions) body.answers = questionAnswers(s.questions, s.picks);
     const note = s.note.trim().slice(0, NOTE_MAX);
     if (note) body.note = note;
     s.sending = decision;
@@ -308,9 +317,18 @@ export function createApprovalReview({ client, now = Date.now, hooks = {} }) {
     return { handled: false, walk: true };
   }
 
+  const pickAnswer = (index, label) => {
+    if (!s.open || !s.questions || s.final || s.sending) return;
+    s.picks = pickOption(s.questions, s.picks, index, label); emit();
+  };
+  const writeAnswer = (index, text) => {
+    if (!s.open || !s.questions || s.final || s.sending) return;
+    s.picks = setOther(s.picks, index, text); emit();
+  };
+
   return {
     getState,
     subscribe: (fn) => { listeners.add(fn); return () => listeners.delete(fn); },
-    open, key, press, setNote, retryLoad, close, sync, tick,
+    open, key, press, setNote, retryLoad, close, sync, tick, pickAnswer, writeAnswer,
   };
 }
