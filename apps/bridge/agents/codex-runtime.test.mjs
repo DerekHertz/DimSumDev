@@ -1,7 +1,7 @@
 // den-revival/03 slice 1b: the Codex runtime on the host launch path, over the stub app-server (no Codex binary, login or account call).
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -105,6 +105,40 @@ test("a login the run refreshed is written back to the user's file, whole and pr
   assert.deepEqual(readdirSync(path.dirname(user)), ["auth.json"]);
 });
 
+test("the write-back replaces the user's file by rename, so a reader never sees it half-written", async () => {
+  const t = setup();
+  const user = `${t.home}/.codex/auth.json`;
+  const proc = await t.spawn();
+  const before = statSync(user).ino;
+  writeFileSync(`${t.store()}/auth.json`, JSON.stringify({ token: SECRET, refresh: "rotated" }));
+  await ended(proc);
+  assert.notEqual(statSync(user).ino, before);
+  assert.equal(JSON.parse(readFileSync(user, "utf8")).refresh, "rotated");
+});
+
+test("the session credential folder is private while the run lives and gone after it exits", async () => {
+  const t = setup();
+  const session = path.dirname(t.store());
+  mkdirSync(session, { recursive: true, mode: 0o755 });
+  chmodSync(session, 0o755);
+  const proc = await t.spawn();
+  assert.equal(statSync(session).mode & 0o777, 0o700);
+  assert.equal(statSync(t.store()).mode & 0o777, 0o700);
+  await ended(proc);
+  assert.equal(existsSync(session), false);
+});
+
+test("a read root that is or contains the home or the credentials folder is refused before any file is made", async () => {
+  for (const prefix of [(h) => h, (h) => `${h}/.local`, (h) => `${h}/.local/state/den/credentials`, (h) => `${h}/.codex`, (h) => path.dirname(h)]) {
+    const t = setup();
+    const refusing = createCodexRuntime({ env: { HOME: t.home, PATH: process.env.PATH }, launcher: unconfinedLauncher(), controlRoot: t.control,
+      native: { codexBin: process.execPath, nativeHelper: STUB }, codexArgs: [STUB, "ok"], nodePrefix: prefix(t.home) });
+    mkdirSync(prefix(t.home), { recursive: true });
+    await assert.rejects(refusing.spawn({ role: "developer", cwd: t.cwd, prompt: "x", ...t.ids }), (err) => err.name === "EnforcementError" && /read root/.test(err.message), prefix(t.home));
+    assert.equal(existsSync(path.dirname(t.store())), false);
+  }
+});
+
 test("a login cut off half-written is not copied over the user's file", async () => {
   const t = setup();
   const proc = await t.spawn();
@@ -169,7 +203,7 @@ test("a flood of events is drained at once, so a slow consumer never closes the 
   const proc = await t.spawn({ prompt: "ignored" });
   await new Promise((resolve) => setTimeout(resolve, 400));
   const events = await collect(proc);
-  assert.equal(events.filter((e) => e.type === "text").length, 400);
+  assert.equal(events.filter((e) => e.type === "tool-start").length, 400);
   assert.equal(events.at(-1).ok, true);
 });
 

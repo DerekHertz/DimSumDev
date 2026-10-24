@@ -51,7 +51,7 @@ const privateDir =(dir) => {
   return dir;
 };
 
-export function createCodexRuntime({ env = process.env, launcher = createResourceLauncher({ env, slice: "den-codex" }), controlRoot = MODULE_CONTROL_ROOT, native, codexArgs = ["app-server", "--stdio"], killGraceMs } = {}) {
+export function createCodexRuntime({ env = process.env, launcher = createResourceLauncher({ env, slice: "den-codex" }), controlRoot = MODULE_CONTROL_ROOT, nodePrefix = realpathSync(path.dirname(path.dirname(process.execPath))), native, codexArgs = ["app-server", "--stdio"], killGraceMs } = {}) {
   const control = realpathSync(controlRoot);
   const home = typeof env.HOME === "string" ? env.HOME : undefined;
   const authSource = home && `${home}/.codex/auth.json`;
@@ -88,6 +88,11 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
       if (model !== undefined && model !== recipe.model) throw new TypeError("codex runtime: the model differs from the role's recipe");
       const { codexBin, nativeHelper } = binaries();
       const writes = ceilingOf(role)?.takesGrants === true;
+      const readRoots = [...new Set([nodePrefix, nativeHelper, ...(writes ? [] : [cwd]), recipeFile, ...(isWorktreePath(ticketFile) ? [ticketFile] : []), ...(isWorktreePath(mainGit) ? [mainGit] : [])])];
+      const realHome = realpathSync(home);
+      const secrets = [realHome, `${realHome}/.codex`, `${realHome}/.local/state/den/credentials`];
+      const exposed = readRoots.find((root) => secrets.some((dir) => dir === root || dir.startsWith(root.replace(/\/?$/, "/"))));
+      if (exposed) throw new EnforcementError(`the read root ${exposed} is or contains the home or a credentials folder`);
       const session = privateDir(`${stateRoot}/${sessionId}`);
       let original;
       const cleanup = () => {
@@ -97,12 +102,11 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
       try {
         const nativeStore = privateDir(`${session}/native`);
         const tmp = privateDir(`${session}/tmp`);
-        const nodePrefix = realpathSync(path.dirname(path.dirname(process.execPath)));
         const compiled = compileCodexPermissions({
           profileId: `den-${role}`, worktree: cwd, nativeStore,
           policy: {
             version: 1,
-            readRoots: [...new Set([nodePrefix, nativeHelper, ...(writes ? [] : [cwd]), recipeFile, ...(isWorktreePath(ticketFile) ? [ticketFile] : []), ...(isWorktreePath(mainGit) ? [mainGit] : [])])],
+            readRoots,
             writeRoots: writes ? [cwd, tmp] : [],
             readOnlyPaths: writes ? GOVERNED_BASES.map((p) => `${cwd}/${p}`) : [],
             denyPaths: [], denyCommands: [], hosts: [],

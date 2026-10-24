@@ -260,11 +260,11 @@ test("only identical terminal duplicates are ignored", async () => {
 test("UTF-8 frames split across chunks keep their text", async () => {
   const fx = fixture();
   await started(fx);
-  const frame = Buffer.from(JSON.stringify({ method: "item/agentMessage/delta", params: { threadId: "thread-1", turnId: "turn-1", itemId: "item-1", delta: "餃" } }) + "\n");
+  const frame = Buffer.from(JSON.stringify({ method: "item/completed", params: { threadId: "thread-1", turnId: "turn-1", item: { id: "item-1", type: "agentMessage", text: "餃" } } }) + "\n");
   const split = frame.indexOf(Buffer.from("餃")) + 1;
   fx.protocol.feed(frame.subarray(0, split));
   fx.protocol.feed(frame.subarray(split));
-  assert.ok((await drain(fx.protocol)).some((event) => event.type === "text" && event.text === "餃"));
+  assert.ok((await drain(fx.protocol)).some((event) => event.type === "reply" && event.text === "餃"));
 });
 
 test("duplicate server request IDs and a full event queue close the transport", async () => {
@@ -275,7 +275,7 @@ test("duplicate server request IDs and a full event queue close the transport", 
   assert.equal(duplicates.closed, 1);
   const fx = fixture({ limits: { events: 2 } });
   await started(fx);
-  for (const itemId of ["a", "b"]) fx.notify("item/agentMessage/delta", { threadId: "thread-1", turnId: "turn-1", itemId, delta: "bounded" });
+  for (const id of ["a", "b"]) fx.notify("item/started", { threadId: "thread-1", turnId: "turn-1", item: { id, type: "commandExecution", command: "true" } });
   assert.equal(fx.closed, 1);
 });
 
@@ -315,11 +315,30 @@ test("config from the execution seam cannot widen the sandbox: only display keys
   fx.protocol.close();
 });
 
-test("agent text, replies, commands and command output are masked before they become events", async () => {
+test("a secret split across streamed text deltas never reaches an event: deltas are not emitted, only the masked completed reply", async () => {
   const KEY = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4";
   const fx = fixture();
   await started(fx);
-  fx.notify("item/agentMessage/delta", { threadId: "thread-1", turnId: "turn-1", itemId: "msg-1", delta: `token is ${KEY} ok` });
+  for (const delta of [KEY.slice(0, 9), KEY.slice(9, 20), KEY.slice(20)]) fx.notify("item/agentMessage/delta", { threadId: "thread-1", turnId: "turn-1", itemId: "msg-1", delta });
+  fx.notify("item/completed", { threadId: "thread-1", turnId: "turn-1", item: { id: "msg-1", type: "agentMessage", text: KEY } });
+  fx.notify("turn/completed", { threadId: "thread-1", turn: { id: "turn-1", status: "completed" } });
+  const received = await drain(fx.protocol);
+  assert.ok(!received.some((e) => e.type === "text"), JSON.stringify(received));
+  assert.ok(!JSON.stringify(received).includes(KEY.slice(4, 14)), JSON.stringify(received));
+  assert.equal(received.find((e) => e.type === "reply").text, "[masked: possible secret]");
+});
+
+test("a malformed text delta still closes the protocol", async () => {
+  const fx = fixture();
+  await started(fx);
+  fx.notify("item/agentMessage/delta", { threadId: "thread-1", turnId: "turn-1", itemId: "msg-1", delta: 5 });
+  assert.equal(fx.closed, 1);
+});
+
+test("agent replies, commands and command output are masked before they become events", async () => {
+  const KEY = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4";
+  const fx = fixture();
+  await started(fx);
   fx.notify("item/started", { threadId: "thread-1", turnId: "turn-1", item: { id: "tool-1", type: "commandExecution", command: `curl -H "Authorization: Bearer ${KEY}0000" https://x` } });
   fx.notify("item/completed", { threadId: "thread-1", turnId: "turn-1", item: { id: "tool-1", type: "commandExecution", status: "completed", aggregatedOutput: `GITHUB_TOKEN=${KEY}\nrest` } });
   fx.notify("item/completed", { threadId: "thread-1", turnId: "turn-1", item: { id: "reply-1", type: "agentMessage", text: `found ${KEY}` } });
@@ -327,7 +346,6 @@ test("agent text, replies, commands and command output are masked before they be
   const received = await drain(fx.protocol);
   const shown = JSON.stringify(received);
   assert.ok(!shown.includes(KEY.slice(4)), shown);
-  assert.equal(received.find((e) => e.type === "text").text, "token is [masked: possible secret] ok");
   assert.match(received.find((e) => e.type === "tool-start").summary, /\[masked: possible secret\]/);
   assert.match(received.find((e) => e.type === "tool-result").text, /^\[masked: possible secret\]\nrest$/);
   assert.equal(received.find((e) => e.type === "reply").text, "found [masked: possible secret]");

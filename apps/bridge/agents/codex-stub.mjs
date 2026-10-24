@@ -2,7 +2,7 @@
 // expects over stdio. On turn/start it runs the turn's input text as a real shell command and reports the
 // result the way app-server does: a commandExecution item whose aggregatedOutput holds the command's output.
 // argv[2] picks the mode: "ok" (default) | "crash" (exit 3 once the turn is acknowledged) | "deaf" (ignores SIGTERM)
-// | "flood" (400 text deltas, then done, ignoring the input).
+// | "flood" (400 command starts, then done, ignoring the input).
 import { spawnSync } from "node:child_process";
 import readline from "node:readline";
 
@@ -15,7 +15,7 @@ let thread = null;
 
 function flood() {
   notify("turn/started", { threadId: thread.id, turn: { id: "turn-1", status: "inProgress" } });
-  for (let i = 0; i < 400; i += 1) notify("item/agentMessage/delta", { threadId: thread.id, turnId: "turn-1", itemId: "msg-1", delta: "x" });
+  for (let i = 0; i < 400; i += 1) notify("item/started", { threadId: thread.id, turnId: "turn-1", item: { id: `cmd-${i}`, type: "commandExecution", command: "x" } });
   notify("turn/completed", { threadId: thread.id, turn: { id: "turn-1", status: "completed" } });
 }
 

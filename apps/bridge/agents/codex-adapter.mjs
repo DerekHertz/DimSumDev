@@ -170,8 +170,8 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       return;
     }
     if (method === "item/agentMessage/delta") {
+      // Not emitted: a secret split across deltas would escape per-fragment masking. The completed agentMessage item carries the whole text as `reply`.
       if (!nativeId(params.itemId) || typeof params.delta !== "string") return fail("invalid text event");
-      emit({ type: "text", ...clipped(params.delta) });
       return;
     }
     const item = params.item;
