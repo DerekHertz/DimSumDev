@@ -43,6 +43,15 @@ const collect = async (proc, until = "done") => {
   return got;
 };
 
+test('meeting Medium effort overrides the recipe and starts a native thread with that private config', async () => {
+  const t = setup();
+  const proc = await t.spawn({ effort: 'medium' });
+  assert.match(readFileSync(`${t.store()}/config.toml`, 'utf8'), /model_reasoning_effort = "medium"/);
+  const events = await collect(proc);
+  assert.equal(events.find(e => e.type === 'done')?.ok, true);
+  await assert.rejects(() => t.spawn({ effort: 'unbounded' }), /effort/i);
+});
+
 test("a direct run returns the shell output and the acknowledged thread, with the model from the role file", async () => {
   const t = setup();
   const proc = await t.spawn();

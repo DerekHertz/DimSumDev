@@ -180,9 +180,12 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   // den-mvp/49: the den and the projects onboarded beside it. The registry is the user's (den:project); the active project is ours.
   const projects = createProjects({ control: root, denState: denState ?? stateDir ?? path.join(root, ".scratch", "_run") });
   const hub = createHub(root, {
-    agents: () => host.snapshot(), approvals: () => host.approvals(), transcripts: () => host.transcripts(), capacity: async (lockedRefs) => host.capacity(lockedRefs, await projects.active()),
+    agents: () => host.snapshot(), approvals: () => host.approvals(), transcripts: () => host.transcripts(), capacity: async (lockedRefs) => {
+      const project = await projects.active();
+      return host.capacity(lockedRefs.filter(ref => !meetings?.snapshot().some(m => m.held && m.ref === ref && m.project === project)), project);
+    },
     deliveries: () => delivery?.snapshot() ?? [],
-    meetings: () => meetings?.snapshot() ?? [],
+    meetings: () => meetings?.publicSnapshot() ?? [],
     ci: () => ciWatch.snapshot(),
     checks: () => checksView(),
     build: () => readBuild_(),
@@ -205,6 +208,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     bridgeUrl: () => `http://127.0.0.1:${actualPort}`,
     policy,
     library,
+    meetingHold: (ref, project) => meetings?.snapshot().find(m => m.held && m.ref === ref && m.project === project)?.id ?? null,
     onChange: (change) => hub.publish(change),
     recordRun: createLedger(root).record,
     onEnd: (run) => Promise.all([delivery.onEnd(run), meetings.onEnd(run)]),
@@ -236,7 +240,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       await board.handoff(agent.ref, { role: agent.role, mode: boardMode(agent), runId: agent.id, sha: "", report: `The run did not start: ${reason}.`, committed: false, source: "den run", status: "ready-for-agent" }).catch(() => board.drop(agent.ref, { status: "ready-for-agent", reason: `${agent.role} run did not start: ${reason}` }));
       await runClaims.remove(agent.id);
     },
-    lockedRefs: async ({ project }) => (await buildSnapshot((await projects.get(project)).root, 0)).tickets.filter((t) => t.holder).map((t) => t.ref),
+    lockedRefs: async ({ project }) => (await buildSnapshot((await projects.get(project)).root, 0)).tickets.filter((t) => t.holder && !meetings?.snapshot().some(m => m.held && m.ref === t.ref && m.project === project && t.holder.role === 'chief-of-staff' && t.holder.since === m.holdSince)).map((t) => t.ref),
     openDesk: () => ensureDesk(root),
     // F34: a batch the bridge would refuse is denied when it asks, with the reason, so the user is not asked for it.
     checkCall: (tool, input) => (tool === "mcp__den__board_file" ? checkFileBatch(input).error ?? null : null),
@@ -266,15 +270,31 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   meetings = createMeetings({
     host: { start: host.start, stop: host.stop, retire: host.retire },
     store: createMeetingStore(root),
+    readProject: async project => Boolean(await projects.get(project).catch(() => null)),
+    recordUrl: m => `http://127.0.0.1:${actualPort}/?meeting=${m.id}&project=${m.project}`,
     log: createMeetingLog(stateDir ?? path.join(root, ".scratch", "_run")),
     onChange: (change) => hub.publish(change),
     readUsage: async () => (await hub.snapshot()).usage?.fiveHour ?? null,
     readTicket: async (ref, { project = "den" } = {}) => {
       const ticket = (await buildSnapshot((await projects.get(project)).root, 0)).tickets.find((t) => t.ref === ref);
-      return ticket ? { title: ticket.title } : null;
+      return ticket ? { title: ticket.title, status: ticket.status, owner: host.admission.ownerOf(ref).owner, project } : null;
     },
     // The work a chosen option proposes: a ticket at ready-for-human, so it is in no queue until the user approves it.
-    proposeTicket: ({ title, text }) => createTicket(root, { feature: DEN_FEATURE, slug: "proposed", title, text, source: "den meeting", status: "ready-for-human" }),
+    proposeTicket: async ({ title, text, project }) => createTicket((await projects.get(project)).root, { feature: DEN_FEATURE, slug: "proposed", title, text, source: "den meeting", status: "ready-for-human" }),
+    claimTicket: async m => {
+      const target = (await projects.get(m.project)).root;
+      const before = (await buildSnapshot(target)).tickets.find(t => t.ref === m.ref);
+      await createDeliveryBoard(target).claim(m.ref, { role: 'chief-of-staff' });
+      m.holdSince = (await buildSnapshot(target)).tickets.find(t => t.ref === m.ref)?.holder?.since;
+      m.ticketStatus = before?.status ?? m.ticketStatus;
+    },
+    releaseTicket: async m => {
+      const target = (await projects.get(m.project)).root;
+      const holder = (await buildSnapshot(target)).tickets.find(t => t.ref === m.ref)?.holder;
+      if (!holder) return;
+      if (holder.role !== 'chief-of-staff' || holder.since !== m.holdSince) return;
+      await createDeliveryBoard(target).drop(m.ref, { status: m.ticketStatus ?? 'ready-for-agent', reason: 'Meeting stopped starting work' });
+    },
   });
   await meetings.ready;
   await ciWatch.ready;
@@ -441,6 +461,14 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     "POST /deliveries/:id/stop": (req, res) => steerDelivery(req, res, "stop"),
     "POST /deliveries/:id/close": (req, res) => steerDelivery(req, res, "close"),
     "POST /meetings": (req, res) => postMeeting(req, res),
+    "GET /meetings": async (req, res) => reply(res, 200, { meetings: meetings.snapshot().map(({ events, preview, chain, ...record }) => record) }),
+    "GET /run/meetings/:id": async (req, res) => {
+      const agent = host.runAgent(bearerOf(req));
+      const id = new URL(req.url, 'http://x').pathname.split('/')[3];
+      const result = await meetings.read(id);
+      if (!result.ok || result.meeting.project !== agent.project || !(['chief-of-staff', 'orchestrator'].includes(agent.role) || result.meeting.seats.some(s => s.role === agent.role && s.active))) return reply(res, 404, { error: 'No accessible meeting' });
+      reply(res, 200, result);
+    },
     "GET /meetings/:id": async (req, res) => {
       const { ok, status, error, ...body } = await meetings.read(new URL(req.url, "http://x").pathname.split("/")[2]);
       reply(res, status, ok ? body : { error });
@@ -450,6 +478,12 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     "POST /meetings/:id/close": (req, res) => steerMeeting(req, res, "close"),
     "POST /meetings/:id/decide": (req, res) => steerMeeting(req, res, "decide"),
     "POST /meetings/:id/ask": (req, res) => steerMeeting(req, res, "ask"),
+    "POST /meetings/:id/budget": (req, res) => steerMeeting(req, res, "approveBudget"),
+    "POST /meetings/:id/retry": (req, res) => steerMeeting(req, res, "retry"),
+    "POST /meetings/:id/participants": (req, res) => steerMeeting(req, res, "participants"),
+    "POST /meetings/:id/preview": (req, res) => steerMeeting(req, res, "preview"),
+    "POST /meetings/:id/publish": (req, res) => steerMeeting(req, res, "publish"),
+    "POST /meetings/:id/continue": (req, res) => steerMeeting(req, res, "continueMeeting"),
     "POST /update/now": async (req, res) => {
       if (!(await readJsonObject(req, res))) return;
       if (!updater) return reply(res, 409, { error: "the den runs from the checkout: there is nothing to update" });
@@ -839,6 +873,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       if (tool === "start_delivery") {
         const ref = fullRef(body.ref);
         if (!allowed((input) => input.ref === cleanText(body.ref))) return refused(403, "the user has not allowed starting this delivery");
+        const holding = meetings.snapshot().find(m => m.held && m.ref === ref && m.project === 'den');
+        if (holding) return refused(409, `Meeting ${holding.id} holds this task while its response is running`);
         const result = await delivery.start({ ref, ...(body.roles === undefined ? {} : { roles: body.roles }) });
         if (!result.ok) return refused(result.status, result.error);
         return done(`started the delivery of ${ref} (${result.delivery.id})`);
@@ -876,6 +912,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       }
       ticket = { ticket: { ref } };
     }
+    const holding = meetings.snapshot().find(m => m.held && m.ref === ref && m.project === 'den');
+    if (holding) return reply(res, 409, { error: `Meeting ${holding.id} holds this task while its response is running` });
     const result = await delivery.start({ ref, ...(body.from === undefined ? {} : { from: body.from }), ...(body.roles === undefined ? {} : { roles: body.roles }) });
     if (!result.ok) return reply(res, result.status, { error: result.error, ...ticket });
     reply(res, result.status, { delivery: result.delivery, ...ticket });
@@ -906,7 +944,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     const title = `Meeting: ${topic.split(/[\n\r\u0085\u2028\u2029]/)[0].replace(/[\u0000-\u001f\u007f-\u009f\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, " ").trim().slice(0, 90)}`;
     const result = await meetings.start({
       ...(body.ref === undefined ? {} : { ref: body.ref }), topic, roles: body.roles,
-      createTicket: async () => ({ title, ref: (await createTicket(root, { feature: DEN_FEATURE, slug: "meeting", title, text: topic, source: "den meeting", type: "discussion", status: "ready-for-human" })).ref }),
+      project: body.project, moderator: body.moderator, depth: body.depth, budget: body.budget, continuedFrom: body.continuedFrom,
+      suggestOnly: body.suggestOnly,
     });
     if (!result.ok) return reply(res, result.status, { error: result.error });
     reply(res, result.status, { meeting: result.meeting, ticket: result.ticket });
@@ -917,9 +956,10 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     if (!body) return;
     const id = new URL(req.url, "http://x").pathname.split("/")[2];
     if (action === "ask" && typeof body.text === "string" && hasSecret(body.text)) return reply(res, 400, { error: "text looks like it holds a secret; nothing was written" });
-    const result = action === "decide" ? await meetings.decide(id, { option: body.option }) : action === "ask" ? await meetings.ask(id, { text: body.text, ...(body.reask === undefined ? {} : { reask: body.reask }) }) : await meetings[action](id);
+    const result = await meetings[action](id, body);
     if (!result.ok) return reply(res, result.status, { error: result.error });
-    reply(res, result.status, { meeting: result.meeting, ...(result.ticket ? { ticket: result.ticket } : {}) });
+    const { ok, status, ...data } = result;
+    reply(res, status, data);
   }
   const sendOwn = (res, type, body) => {
     res.writeHead(200, { "Content-Type": type, "Cache-Control": "no-store", "Content-Security-Policy": CSP, "X-Content-Type-Options": "nosniff" });

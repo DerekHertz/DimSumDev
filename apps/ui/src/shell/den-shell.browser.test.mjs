@@ -45,7 +45,7 @@ async function open({ width = 1440, inventory = false } = {}) {
   const page = await context.newPage(), posts = [], errors = [];
   page.setDefaultTimeout(10000);
   page.on('pageerror', e => errors.push(e.message));
-  const meeting = { id: MEETING, ref: 'den/09-meeting', title: 'Meeting: shell review', state: 'running', chair: 'orchestrator', seats: [{ role: 'product', status: 'waiting', takes: 0 }], round: 'takes', brief: null, decisions: [], live: null, thread: 0, runs: 0 };
+  const meeting = { schema: 2, project: 'den', moderator: 'bao', depth: 'quick', budget: 2, spent: 0, estimatedSpent: 0, questions: [], proposals: [], summary: '', events: [], id: MEETING, ref: 'den/09-meeting', title: 'Meeting: shell review', state: 'running', chair: 'orchestrator', seats: [{ role: 'product', status: 'waiting', takes: 0 }], round: 'takes', brief: null, decisions: [], live: null, thread: 0, runs: 0 };
   const snapshot = { schema: 1, seq: 1, frontier: [], tickets: [], usage: null, requests: [], meetings: [meeting], deliveries: [], approvals: [], agents: [{ id: RUN, role: 'developer', runtime: 'claude', state: 'working', capabilities: { send: true, stop: true } }] };
   if (inventory) {
     const ticket = (ref, title, extra = {}) => ({ ref, feature: 'den', title, type: 'feature', status: 'ready-for-agent', ready: true, priority: 'P2', effectivePriority: 'P2', blockedBy: [], holder: null, gate: null, ...extra });
@@ -64,12 +64,13 @@ async function open({ width = 1440, inventory = false } = {}) {
   await page.route('**/library', r => r.fulfill({ json: { entries: [] } }));
   await page.route('**/conversations/**', r => r.fulfill({ json: { entries: [], more: false } }));
   await page.route(url => url.pathname.startsWith('/meetings/'), async r => {
-    if (r.request().method() === 'GET') return r.fulfill({ json: { meeting, takes: [], thread: [] } });
+    if (r.request().method() === 'GET') return r.fulfill({ json: { meeting, events: [], takes: [], thread: [] } });
     const action = new URL(r.request().url()).pathname.split('/').at(-1);
     posts.push(action);
     if (action === 'stop') { meeting.state = 'paused'; meeting.pause = { kind: 'user', reason: 'Paused by you' }; }
     if (action === 'resume') meeting.state = 'running';
-    if (action === 'close') meeting.state = 'closed';
+    if (action === 'close') meeting.state = 'ended';
+    meeting.updatedAt = new Date(Math.max(Date.now(), (Date.parse(meeting.updatedAt) || 0) + 1)).toISOString();
     snapshot.seq++;
     await r.fulfill({ status: 202, json: { meeting } });
     // Deliver the same state change the live bridge publishes.
@@ -164,8 +165,8 @@ test('Escape takes one layer: confirm, latest sheet, other sheet, selection, cur
   try {
     await pick(page);
     await rail(page, 'meetings').click();
-    await page.locator('[data-meeting=running]').getByRole('button', { name: 'Open', exact: true }).click();
-    await side(page).getByRole('button', { name: /^End the meeting/ }).click();
+    await page.locator('[data-meeting=running]').getByRole('button', { name: 'Open meeting', exact: true }).click();
+    await side(page).getByRole('button', { name: 'End meeting…', exact: true }).click();
     await page.keyboard.press('Escape'); assert.equal(await page.locator('[data-confirm]').count(), 0); assert.equal(await side(page).count(), 1);
     await page.keyboard.press('Escape'); assert.equal(await side(page).count(), 0); assert.equal(await page.locator('[data-sheet=topic]').count(), 1);
     await page.keyboard.press('Escape'); assert.equal(await page.locator('[data-sheet]').count(), 0); assert.equal(await page.locator('.den-picked').count(), 1);
@@ -203,25 +204,23 @@ test('a topic sheet frees the walking cursor; closing it preserves the walk and 
   } finally { await t.close(); }
 });
 
-test('meeting hide and Leave send no end; Pause, Resume and confirmed End send their own actions', { timeout: 120000 }, async () => {
+test('meeting hide preserves state; Pause, Resume and confirmed End send separate actions', { timeout: 120000 }, async () => {
   const t = await open(); const { page } = t;
   try {
     await rail(page, 'meetings').click();
     const row = page.locator('[data-meeting]');
-    await row.getByRole('button', { name: 'Open', exact: true }).click();
+    await row.getByRole('button', { name: 'Open meeting', exact: true }).click();
     await page.getByRole('button', { name: 'Close panel (the meeting keeps running)', exact: true }).click();
-    assert.deepEqual(t.posts, []); assert.equal(await rail(page, 'meetings').locator('.den-rail-dot').count(), 1);
-    await row.getByRole('button', { name: 'Open', exact: true }).click();
-    await side(page).getByRole('button', { name: 'Leave meeting', exact: true }).click();
-    assert.deepEqual(t.posts, []); await row.getByRole('button', { name: 'Rejoin', exact: true }).waitFor();
-    await row.getByRole('button', { name: /^Pause the meeting/ }).click();
-    await row.getByRole('button', { name: 'Resume', exact: true }).click();
-    await row.getByRole('button', { name: 'Rejoin', exact: true }).click();
-    await side(page).getByRole('button', { name: /^End the meeting/ }).click();
+    assert.deepEqual(t.posts, []);
+    await row.getByRole('button', { name: 'Open meeting', exact: true }).click();
+    await side(page).getByRole('button', { name: 'Ⅱ Pause', exact: true }).click();
+    await side(page).getByRole('button', { name: 'Resume', exact: true }).click();
+    await side(page).getByRole('button', { name: 'End meeting…', exact: true }).click();
     assert.deepEqual(t.posts, ['stop', 'resume']);
-    await side(page).getByRole('button', { name: 'End meeting', exact: true }).click();
+    await side(page).getByRole('button', { name: 'End & save summary', exact: true }).click();
     await page.waitForFunction(() => !document.querySelector('[data-confirm]'));
-    assert.deepEqual(t.posts, ['stop', 'resume', 'stop', 'close']);
+    assert.deepEqual(t.posts, ['stop', 'resume', 'close']);
+    assert.deepEqual(t.errors, []);
   } finally { await t.close(); }
 });
 
@@ -286,7 +285,7 @@ test('opening or closing the other sheet preserves topic scroll, profile and con
     assert.equal(await draft.inputValue(), 'Keep this draft while I check the board.');
     await pick(page);
     await rail(page, 'meetings').click();
-    await page.locator('[data-meeting=running]').getByRole('button', { name: 'Open', exact: true }).click();
+    await page.locator('[data-meeting=running]').getByRole('button', { name: 'Open meeting', exact: true }).click();
     await page.locator('.proximity-card [data-key=R]:enabled').waitFor({ state: 'attached' });
     await page.keyboard.press('KeyR');
     await page.getByRole('dialog', { name: /Conversation with/ }).waitFor();

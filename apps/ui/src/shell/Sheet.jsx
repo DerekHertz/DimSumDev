@@ -4,16 +4,16 @@
 import { useEffect, useRef } from "react";
 import { InSheet } from "../overlay/Card.jsx";
 
-export function Sheet({ id, slot, eyebrow, title, closeLabel, onClose, wide = false, focusKey, children }) {
+export function Sheet({ id, slot, eyebrow, title, closeLabel, onClose, wide = false, meeting = false, focusKey, children }) {
   const heading = useRef(null);
   // A new topic swaps the content in place: focus moves to the new title (spec section 4).
   useEffect(() => { heading.current?.focus({ preventScroll: true }); }, [focusKey]);
   return (
-    <section id={id} className={`den-sheet den-sheet-${slot}${wide ? " den-sheet-wide" : ""}`} role="dialog" aria-modal="false" aria-labelledby={`${id}-title`} data-sheet={slot}>
+    <section id={id} className={`den-sheet den-sheet-${slot}${wide ? " den-sheet-wide" : ""}${meeting ? ' den-meeting-sheet' : ''}`} role="dialog" aria-modal="false" aria-labelledby={`${id}-title`} data-sheet={slot}>
       <header className="den-sheet-head">
         <div>
           <p className="den-sheet-eyebrow">{eyebrow}</p>
-          <h2 id={`${id}-title`} ref={heading} tabIndex={-1}>{title}</h2>
+          <h2 className={meeting ? 'visually-hidden' : undefined} id={`${id}-title`} ref={heading} tabIndex={-1}>{title}</h2>
         </div>
         <button type="button" className="den-sheet-close" aria-label={closeLabel} onClick={onClose}>
           <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 3l10 10M13 3L3 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" fill="none" /></svg>

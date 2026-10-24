@@ -1,383 +1,265 @@
-// den-mvp outcome 4 (spec section 6, ADR 0017): the meeting runner. A meeting is a bounded consultation about one
-// ticket: up to six specialists give one take each, one after another, then Bao chairs and writes a decision brief of
-// two or three options with a recommendation. The user decides. The plan (plan.mjs) says what is next; this module
-// does it, records it, and stops at the first thing that is the user's. Every run is started through the host's
-// internal entry, so usage, enforcement, room and the wall apply to it as to any run: a take holds a worker slot, the
-// chair holds Bao's. It holds no timer and polls nothing: it moves when a run ends or on the user's click.
-//
-// A brief authorizes nothing. Choosing an option writes a ticket at ready-for-human: proposed work, which is built
-// only after the user approves it on the board. A take or a brief is an agent's text and is only ever shown and saved.
-//
-//   createMeetings({ host, store, log, readTicket, readUsage, proposeTicket, onChange, now }) -> {
-//     ready, start({ ref | createTicket, title?, topic, roles }), resume(id), stop(id), close(id),
-//     decide(id, { option }), ask(id, { text, reask? }), read(id), onEnd(run), shutdown(), snapshot()
-//   }
-// The route answers are { ok: true, status, meeting, ... } or { ok: false, status, error }.
-import { randomBytes } from "node:crypto";
-import { hasSecret } from "../../../scripts/exposure.mjs";
-import { REF_RE, USAGE_REFUSE_AT } from "../agents/policy.mjs";
-import { MEETING_ID_RE } from "./log.mjs";
-import { nextStep, optionText, parseBrief, readDecline } from "./plan.mjs";
-import { meetingNote } from "./prompts.mjs";
-import { CHAIR, REJOIN_MS, SEATS_MAX, SPECIALISTS, TOPIC_MAX_BYTES } from "./types.mjs";
+import { randomBytes } from 'node:crypto';
+import { hasSecret } from '../../../scripts/exposure.mjs';
+import { REF_RE } from '../agents/policy.mjs';
+import { SPECIALISTS, SEATS_MAX, TOPIC_MAX_BYTES } from './types.mjs';
+import { parseBrief, optionText, readDecline } from './plan.mjs';
+import { meetingNote } from './prompts.mjs';
+import { validProject } from '../agents/identity.mjs';
 
-const KEPT = 30; // meetings kept in the snapshot
-const NOTE_THREAD = 6; // follow-up entries the chair is given; older ones stay on the board
 const refuse = (status, error) => ({ ok: false, status, error });
-const CONTROL_RE = /[\u0000-\u001f\u007f-\u009f‎‏‪-‮⁦-⁩]+/g;
-const errorText = (err) => {
-  const text = String(err?.message || err).replace(CONTROL_RE, " ").trim().slice(0, 300);
-  return hasSecret(text) ? "[masked: possible secret]" : text;
-};
-// An agent's text as the den shows it: a possible secret is not sent to the page.
-const shown = (text) => (typeof text !== "string" ? null : hasSecret(text) ? "[masked: possible secret]" : text);
-
-export function createMeetings({ host, store, log, readTicket, readUsage = async () => null, proposeTicket, onChange = () => {}, now = () => Date.now() }) {
-  const meetings = new Map(); // id -> meeting; insertion order is snapshot order
+const textOf = value => typeof value === 'string' && value.trim() && Buffer.byteLength(value) <= TOPIC_MAX_BYTES && !hasSecret(value) ? value.trim() : null;
+const token = () => randomBytes(8).toString('hex');
+const rolesOK = roles => Array.isArray(roles) && roles.length > 0 && roles.length <= SEATS_MAX && new Set(roles).size === roles.length && roles.every(r => SPECIALISTS.includes(r));
+export const estimateWork = (depth = 'quick', effort = 'medium') => (depth === 'dig-in' ? 0.9 : 0.4) * (effort === 'high' ? 2 : 1);
+export const estimateSetup = (roles, depth) => ({ low: (roles.length + 1) * (depth === 'dig-in' ? 0.2 : 0.08), high: (roles.length + 1) * estimateWork(depth), label: 'Planning estimate for opening takes and one moderation pass; follow-ups add work. Actual billing may differ.' });
+export function createMeetings({ host, log, store, readTicket, readProject = async project => project === 'den', proposeTicket, recordUrl = m => `/?meeting=${m.id}&project=${m.project}`, claimTicket = async () => {}, releaseTicket = async () => {}, onChange = () => {}, now = () => Date.now() }) {
+  const meetings = new Map();
   let closing = false;
-
-  const resting = (m) => m.state === "briefed" || m.state === "decided" || m.state === "closed";
-  const live = (m) => m.state === "running" || m.state === "paused";
-  const rejoinUntil = (m) => (!m.retired && (m.state === "decided" || m.state === "closed") && m.restedAt ? new Date(Date.parse(m.restedAt) + REJOIN_MS).toISOString() : null);
-  const view = (m) => ({
-    id: m.id, ref: m.ref, dir: m.dir, title: m.title, state: m.state, pause: m.pause, chair: m.chair,
-    seats: m.seats.map((s) => ({ role: s.role, status: s.status, takes: s.takes, reason: s.reason ?? null })),
-    round: m.round, brief: m.brief ? { version: m.brief.version, options: m.brief.options.map((o) => ({ ...o })), recommended: m.brief.recommended } : null,
-    decisions: m.decisions.map((d) => ({ ...d })), thread: m.thread, live: m.live ? { ...m.live } : null, runs: m.runs.length,
-    retired: m.retired, rejoinUntil: rejoinUntil(m), startedAt: m.startedAt, updatedAt: m.updatedAt,
-  });
-  async function save(m) {
-    m.updatedAt = new Date(now()).toISOString();
-    onChange({ type: "meeting", meeting: view(m) });
-    await log.save(m).catch((err) => console.error(`bridge: could not write the meetings log: ${err?.message ?? err}`));
-    if (!m.retired) await store.writeMeeting(m).catch((err) => console.error(`bridge: could not write meeting.md for ${m.id}: ${err?.message ?? err}`));
-  }
-  function trim() {
-    for (const [id, m] of meetings) {
-      if (meetings.size <= KEPT) return;
-      if (m.retired || m.state === "closed") meetings.delete(id);
-    }
-  }
-  // One thing at a time per meeting: an end, a resume and the plan never interleave.
-  const enqueue = (m, fn) => {
-    const run = (m.chain ?? Promise.resolve()).then(fn).catch((err) => {
-      console.error(`bridge: meeting ${m.id} failed: ${err?.stack ?? err}`);
-      return pause(m, "environment", `the bridge hit an error: ${errorText(err)}`, "Resume to try again.");
-    });
-    m.chain = run.catch(() => {});
-    return run;
+  const stamp = () => new Date(now()).toISOString();
+  const view = m => structuredClone(Object.fromEntries(Object.entries(m).filter(([key]) => key !== 'chain')));
+  const metadata = m => ({ schema: 2, id: m.id, ref: m.ref, project: m.project, title: 'Private meeting', moderator: m.moderator, chair: m.chair, state: m.state, seats: m.seats.map(s => ({ role: s.role, status: s.status, active: s.active, takes: s.takes })), round: m.round, live: m.live ? { runId: m.live.runId, role: m.live.role, part: m.live.part, estimate: m.live.estimate } : null, budget: m.budget, spent: m.spent, estimatedSpent: m.estimatedSpent, activity: m.events.filter(e => ['message', 'failure', 'status', 'effort', 'participants', 'decision-answer', 'ticket-created'].includes(e.kind)).slice(-8).map(e => ({ id: e.id, at: e.at, kind: e.kind, actor: e.actor, round: e.round, state: e.state })), startedAt: m.startedAt, updatedAt: m.updatedAt });
+  const event = (m, kind, actor, more = {}) => {
+    const e = { id: `e-${token()}`, at: stamp(), round: m.round, version: m.events.length + 1, kind, actor, ...more };
+    m.events.push(e); return e;
   };
-  async function pause(m, kind, reason, next) {
-    if (m.state !== "running") return;
-    m.state = "paused";
-    m.pause = { kind, reason, next };
-    await save(m);
-  }
-
-  // 24 hours past a decision or a close, only the decision and a summary are kept (ADR 0017 decision 11).
-  const summaryOf = (m) =>
-    [
-      `# Summary: ${m.title.replace(/^Meeting:\s*/, "")}`, "",
-      `Meeting ${m.dir} about ${m.ref}, started ${m.startedAt}. Written by the den's bridge when the meeting was 24 hours past its end; the takes and the follow-ups were deleted then.`, "",
-      "## The topic (the user's words)", "", ...m.topic.replace(CONTROL_RE, " ").split("\n").map((l) => `> ${l}`.trimEnd()), "",
-      "## Who answered", "", ...m.seats.map((s) => `- ${s.role}: ${s.status === "taken" ? "gave a take" : s.status === "declined" ? `declined (${s.reason ?? "no reason given"})` : "gave no take"}`), "",
-      "## What was decided", "",
-      ...(m.decisions.length > 0 ? m.decisions.map((d) => `- ${d.at}: option ${d.option}, "${d.title}" (brief version ${d.brief}). Proposed work: ${d.ticket}.`) : ["Nothing: the meeting was closed without a choice."]), "",
-      `The user asked ${m.thread === 0 ? "no follow-up" : `${Math.ceil(m.thread / 2)} follow-up(s)`}. The brief${m.briefs > 1 ? "s are" : " is"} kept beside this file.`, "",
-    ].join("\n");
-  const stale = (m) => (m.state === "decided" || m.state === "closed") && m.restedAt && now() - Date.parse(m.restedAt) > REJOIN_MS;
-  async function retire() {
-    for (const m of meetings.values()) {
-      if (m.retired || !stale(m) || m.live) continue;
-      try {
-        await store.retire(m, summaryOf(m));
-        m.retired = true;
-        await save(m);
-      } catch (err) {
-        console.error(`bridge: could not retire meeting ${m.id}: ${err?.message ?? err}`);
-      }
-    }
-  }
-
-  // After a restart nothing runs by itself: a meeting that was under way waits for the user's Resume.
+  const save = async m => { m.updatedAt = new Date(Math.max(now(), (Date.parse(m.updatedAt) || 0) + 1)).toISOString(); await log.save(view(m)); if (m.held && !m.live && !m.pendingWork && !['running', 'pausing'].includes(m.state)) { await releaseTicket(m); m.held = false; await log.save(view(m)); } onChange({ type: 'meeting', meeting: metadata(m) }); };
+  const status = (m, state, reason = '') => { m.state = state; event(m, 'status', m.moderator, { state, text: reason }); };
+  const enqueue = (m, fn) => {
+    const next = (m.chain ?? Promise.resolve()).then(fn).catch(async err => { if (m.state !== 'ended') status(m, 'paused', 'Storage or runtime failed. No further work starts.'); await save(m).catch(() => {}); return refuse(503, 'Meeting operation could not be durably completed. Review the private record before retrying.'); });
+    m.chain = next; return next;
+  };
   const ready = (async () => {
-    for (const m of await log.replay()) {
-      m.live = null; // its run ended with the bridge; the seat is still waiting, so Resume asks again
-      if (m.state === "running" || (m.state === "paused" && m.pause.kind === "no-room")) {
-        m.state = "paused";
-        m.pause = { kind: "bridge-restart", reason: "the bridge restarted", next: "Resume to go on with the next take." };
+    for (let m of await log.replay()) {
+      if (m.schema !== 2) {
+        const legacy = structuredClone(m);
+        const events = await store?.history(m) ?? [];
+        m = { ...m, schema: 2, moderator: 'bao', project: m.project ?? 'den', state: ['closed', 'decided'].includes(m.state) ? 'ended' : 'paused', depth: 'quick', budget: 2, spent: 0, estimatedSpent: 0, queue: [], round: Math.max(1, m.briefs), seats: m.seats.map(s => ({ ...s, active: true })), events, questions: [], proposals: [], decisions: m.decisions.map(d => ({ text: d.title, sourceId: null, legacyTicket: d.ticket })), summary: (await store?.read(m))?.summary ?? '', legacy };
+        event(m, 'status', 'bao', { state: m.state, text: 'Imported legacy record. No automatic expiry; opening never resumes discussion.' }); await save(m);
       }
+      if (m.pendingWork && !m.live) {
+        m.estimatedSpent += m.pendingWork.estimate;
+        event(m, 'failure', m.pendingWork.part === 'chair' ? m.moderator : m.pendingWork.role, { text: 'Bridge restarted during launch. Work and billing are uncertain; the reserved allowance still counts.', estimate: m.pendingWork.estimate, cost: null });
+        m.pendingWork = null;
+        if (m.state !== 'ended') status(m, 'paused', 'Review the interrupted launch before explicitly resuming.');
+        await save(m);
+      }
+      if (m.live) {
+        const lost = m.live;
+        m.estimatedSpent += lost.estimate ?? 0;
+        event(m, 'failure', lost.part === 'chair' ? m.moderator : lost.role, { runId: lost.runId, sourceId: lost.sourceId ?? null, cost: null, estimate: lost.estimate ?? null, text: 'Bridge restarted before the response finished. Billing is unknown; its allowance still counts.' });
+        const seat = m.seats.find(s => s.role === lost.role); if (seat) seat.status = 'failed';
+        if (m.state !== 'ended') m.queue.unshift({ role: lost.role, part: lost.part, effort: lost.effort ?? 'medium', sourceId: lost.sourceId ?? null, context: true });
+        m.live = null;
+        if (m.state !== 'ended') status(m, 'paused', 'Bridge restarted. Resume explicitly after reconciling the interrupted attempt.');
+        await save(m);
+      } else if (['running', 'pausing'].includes(m.state)) { status(m, 'paused', 'Bridge restarted. Resume explicitly to continue.'); await save(m); }
       meetings.set(m.id, m);
     }
-    trim();
-    await retire();
-  })().catch((err) => console.error(`bridge: meeting replay failed: ${err?.stack ?? err}`));
-
-  const topicOf = (value) => {
-    const topic = typeof value === "string" ? value.trim() : "";
-    return topic && Buffer.byteLength(topic) <= TOPIC_MAX_BYTES ? topic : null;
-  };
-
-  async function start(input) {
-    const { ref: givenRef, createTicket, roles } = input && typeof input === "object" ? input : {};
-    const topic = topicOf(input?.topic);
-    if (!topic) return refuse(400, `topic must be text of at most ${TOPIC_MAX_BYTES} bytes`);
-    if (!Array.isArray(roles) || roles.length < 1 || roles.length > SEATS_MAX || new Set(roles).size !== roles.length || !roles.every((r) => SPECIALISTS.includes(r))) {
-      return refuse(400, `roles must be 1 to ${SEATS_MAX} of: ${SPECIALISTS.join(", ")}`);
-    }
-    if (givenRef !== undefined && (typeof givenRef !== "string" || !REF_RE.test(givenRef))) return refuse(400, "ref must look like <feature>/<NN>-<slug>");
-    await ready;
-    if (closing) return refuse(503, "the bridge is shutting down");
-    const usage = await readUsage();
-    if (typeof usage === "number" && usage >= USAGE_REFUSE_AT) return refuse(429, `five-hour usage is ${usage}% (limit ${USAGE_REFUSE_AT}%)`);
-    let ref = givenRef;
-    let title = "";
-    if (ref !== undefined) {
-      const ticket = await readTicket(ref);
-      if (!ticket) return refuse(404, "no such ticket");
-      title = ticket.title ?? "";
-      if ([...meetings.values()].some((m) => m.ref === ref && live(m))) return refuse(409, "this ticket already has a meeting under way");
-    } else {
-      // A topic with no ticket: a discussion ticket is written for it first. It is not work for an agent.
-      try {
-        ({ ref, title } = await createTicket());
-      } catch (err) {
-        console.error(`bridge: could not write a ticket for a meeting: ${err?.message ?? err}`);
-        return refuse(500, "could not write the meeting's ticket");
-      }
-    }
-    const m = {
-      id: `m-${randomBytes(8).toString("hex")}`, ref, dir: null, title: String(title).slice(0, 120), topic, state: "running", pause: null, chair: CHAIR,
-      seats: roles.map((role) => ({ role, status: "waiting", takes: 0, reason: null })), round: "brief", brief: null, briefs: 0, thread: 0, decisions: [],
-      live: null, runs: [], restedAt: null, retired: false, startedAt: new Date(now()).toISOString(), updatedAt: null,
-    };
-    try {
-      m.dir = await store.create(m);
-    } catch (err) {
-      console.error(`bridge: could not make a meeting's directory: ${err?.message ?? err}`);
-      return refuse(500, "could not write the meeting on the board");
-    }
-    meetings.set(m.id, m);
-    trim();
-    await save(m);
-    enqueue(m, () => advance(m));
-    return { ok: true, status: 201, meeting: view(m), ticket: { ref } };
+  })();
+  const used = m => m.spent + m.estimatedSpent;
+  const recordLink = recordUrl;
+  const answer = m => ({ ok: true, status: 202, meeting: view(m) });
+  const mutate = async (id, fn) => { await ready; const m = meetings.get(id); if (!m) return refuse(404, 'No such meeting'); return enqueue(m, async () => { const result = await fn(m); return result ?? answer(m); }); };
+  function nextWork(m) {
+    if (m.queue.length) return m.queue[0];
+    const role = m.seats.find(s => s.active !== false && s.status === 'waiting')?.role;
+    return { role: role ?? 'chief-of-staff', part: role ? 'take' : 'chair', effort: 'medium' };
   }
-
   async function advance(m) {
-    if (m.state !== "running" || m.live || closing) return;
-    const next = nextStep(m);
-    if (next.kind === "pause") return pause(m, next.pause, next.reason, next.next);
-    if (next.kind === "rest") {
-      m.state = m.decisions.some((d) => d.brief === m.brief?.version) ? "decided" : "briefed";
-      m.restedAt = new Date(now()).toISOString();
-      return save(m);
+    if (closing || m.state !== 'running' || m.live) return;
+    if (m.ref && !m.held) { try { await claimTicket(m); m.held = true; } catch { status(m, 'paused', 'Task is held elsewhere'); return save(m); } }
+    if (m.pendingRoles) {
+      for (const seat of m.seats) { if (!seat.active && m.pendingRoles.includes(seat.role)) { seat.status = 'waiting'; seat.joined = true; } seat.active = m.pendingRoles.includes(seat.role); }
+      for (const role of m.pendingRoles) if (!m.seats.some(s => s.role === role)) m.seats.push({ role, active: true, status: 'waiting', takes: 0, joined: true });
+      m.queue = m.queue.filter(w => m.pendingRoles.includes(w.role)); m.pendingRoles = null;
+      event(m, 'participants-applied', 'user');
     }
-    // A take reads the topic alone, and a role asked again reads the follow-up it is asked for. The chair reads what is
-    // saved on the board: every take, the brief, the follow-ups.
-    const saved = next.part === "take" && m.round !== "answer" ? {} : await store.read(m);
-    const file = next.part === "take"
-      ? meetingNote({ part: "take", ref: m.ref, topic: m.topic, followUp: saved.thread?.findLast((e) => e.from === "user")?.text ?? null })
-      : meetingNote({
-        part: next.part, ref: m.ref, topic: m.topic, takes: saved.takes, brief: saved.brief, thread: saved.thread?.slice(-NOTE_THREAD),
-        absent: m.seats.filter((s) => s.status === "declined" || s.status === "failed").map((s) => ({ role: s.role, ...(s.status === "declined" ? { declined: s.reason ?? "no reason given" } : {}) })),
-      });
-    const started = await host.start({ ref: m.ref, role: next.role, meeting: { part: next.part, file } });
-    if (!started.ok) {
-      const kind = started.status === 429 ? (/usage/.test(started.error) ? "usage" : "no-room") : started.status === 409 ? "busy" : "environment";
-      return pause(m, kind, started.error, kind === "no-room" ? "It starts by itself when a run ends, or on Resume." : "Resume once that has changed.");
-    }
-    m.live = { runId: started.agent.id, role: next.role, part: next.part };
-    await save(m);
-    if (m.state !== "running") await host.stop(m.live.runId); // stopped while the agent was starting
+    for (const e of m.events.filter(e => e.appliesNext && !m.events.some(applied => applied.kind === 'redirect-applied' && applied.sourceId === e.id))) event(m, 'redirect-applied', m.moderator, { sourceId: e.id });
+    const work = nextWork(m);
+    const { role, part, effort } = work;
+    const estimate = estimateWork(m.depth, effort);
+    if (used(m) + estimate > m.budget + 1e-9) { m.budgetRequest = { estimate, role, effort, remaining: Math.max(0, m.budget - used(m)) }; status(m, 'waiting-budget', 'Approve a larger budget before the next run.'); return save(m); }
+    const allDiscussion = m.events.filter(e => ['message', 'redirect', 'decision-answer'].includes(e.kind));
+    const discussion = allDiscussion.filter((e, i) => i >= allDiscussion.length - 12 || e.id === work.sourceId);
+    const takes = part === 'chair' || m.round > 1 || work.sourceId || m.seats.find(s => s.role === role)?.takes || m.seats.find(s => s.role === role)?.joined || work.context ? discussion.map(e => ({ role: `${e.actor} [${e.id}]`, text: e.text })) : [];
+    const absent = m.seats.filter(s => s.active && ['failed', 'declined'].includes(s.status)).map(s => ({ role: s.role, ...(s.status === 'declined' ? { declined: s.reason } : {}) }));
+    const file = meetingNote({ part: part === 'chair' || takes.length ? 'chair' : 'take', ref: m.ref ?? '(standalone)', topic: m.topic, takes, absent, followUp: work.instruction }) + `\n## Meeting settings\nDepth: ${m.depth}. ${m.depth === 'dig-in' ? 'Investigate relevant code and docs; cite evidence.' : 'Concise independent views; read code when needed.'}\nEffort: ${effort}.\nCurrent summary (quoted):\n> ${m.summary.replaceAll('\n', '\n> ')}\nReply source: ${work.sourceId ?? 'none'}\nUser redirects (latest six, quoted):\n` + m.events.filter(e => e.kind === 'redirect').slice(-6).map(e => `> ${e.text.replaceAll('\n', '\n> ')}`).join('\n') + `\nRequest (quoted):\n> ${(work.instruction ?? 'Opening take or moderation').replaceAll('\n', '\n> ')}\nEarlier history remains in the permanent private record.\n`;
+    m.pendingWork = { role, part, effort, estimate }; await save(m);
+    const started = await host.start({ ref: `meetings/00-${m.id}`, project: m.project, runtime: m.moderator === 'jiao' ? 'codex' : 'claude', role, meeting: { part, file, effort, moderator: m.moderator, standalone: !m.ref, taskRef: m.ref } });
+    m.pendingWork = null;
+    if (!started.ok) { status(m, 'paused', started.error); return save(m); }
+    if (m.queue[0] === work) m.queue.shift();
+    m.live = { runId: started.agent.id, ...work, estimate };
+    event(m, 'work-started', role, { runId: started.agent.id, estimate, effort, sourceId: work.sourceId ?? null }); await save(m);
   }
-
-  /** The host's end hook: the run's state and its last message, as the bridge itself recorded them. */
-  function onEnd(run) {
-    const m = [...meetings.values()].find((x) => x.live?.runId === run?.agentId);
-    const done = m ? enqueue(m, () => ended(m, run)) : Promise.resolve();
-    // A run ended, so a slot may be free: a meeting that waited for room tries again. Old meetings are tidied here too.
-    return done.then(() => Promise.all([...meetings.values()].filter((x) => x.state === "paused" && x.pause.kind === "no-room").map((x) => resume(x.id)))).then(retire);
+  async function start(input = {}) {
+    await ready;
+    const topic = textOf(input.topic);
+    if (!topic || !rolesOK(input.roles)) return refuse(400, 'A topic and one to six distinct specialists are required.');
+    if (input.ref !== undefined && !REF_RE.test(input.ref)) return refuse(400, 'Invalid task reference');
+    const project = input.project ?? 'den';
+    if (!validProject(project) || !await readProject(project)) return refuse(400, 'Choose an onboarded project');
+    const ticket = input.ref ? await readTicket(input.ref, { project }) : null;
+    if (input.ref && !ticket) return refuse(404, 'No such task');
+    const heldBy = input.ref && [...meetings.values()].find(m => m.ref === input.ref && m.project === project && (m.held || m.live || ['running', 'pausing'].includes(m.state)));
+    if (heldBy) return refuse(409, `Meeting ${heldBy.id} holds this task while its response is running`);
+    const moderator = input.moderator ?? ticket?.owner ?? 'bao';
+    if (!['bao', 'jiao'].includes(moderator)) return refuse(400, 'Choose Bao or Jiao');
+    const budget = input.budget ?? 2;
+    if (!Number.isFinite(budget) || budget < 0) return refuse(400, 'Budget must be a nonnegative dollar amount');
+    if (input.depth !== undefined && !['quick', 'dig-in'].includes(input.depth)) return refuse(400, 'Choose Quick takes or Dig in');
+    const original = input.continuedFrom ? meetings.get(input.continuedFrom) : null;
+    if (input.continuedFrom && (!original || original.state !== 'ended' || original.project !== project)) return refuse(409, 'Continuation needs an ended meeting in this project');
+    const carry = rows => rows.map(row => ({ ...structuredClone(row), sourceMeetingId: row.sourceMeetingId ?? original.id }));
+    const m = { schema: 2, id: `m-${token()}`, ref: input.ref ?? null, project, topic, title: ticket?.title ?? topic.split('\n')[0].slice(0, 120), moderator, chair: 'chief-of-staff', depth: input.depth ?? 'quick', budget, spent: 0, estimatedSpent: 0, estimate: estimateSetup(input.roles, input.depth), queue: [], state: 'running', round: 1, seats: input.roles.map(role => ({ role, active: true, status: 'waiting', takes: 0 })), events: [], decisions: original ? carry(original.decisions) : [], questions: original ? carry(original.questions) : [], proposals: [], summary: original?.summary ?? '', continuedFrom: original?.id ?? null, live: null, startedAt: stamp(), updatedAt: stamp() };
+    if (m.ref) { try { await claimTicket(m); m.held = true; m.ticketStatus = ticket.status; } catch { return refuse(409, 'The task is held by another run or meeting'); } }
+    if (input.suggestOnly === true) { m.suggestOnly = true; m.seats = []; m.queue.push({ role: 'chief-of-staff', part: 'chair', effort: 'medium', instruction: 'Suggest up to six specialists with a reason each. Do not discuss yet.' }); }
+    event(m, 'created', 'user'); meetings.set(m.id, m); await save(m); enqueue(m, () => advance(m));
+    return { ok: true, status: 201, meeting: view(m) };
   }
-  async function ended(m, run) {
-    const { runId, role, part } = m.live;
-    m.live = null;
-    m.runs.push({ runId, role, part, state: run.state });
-    // Stopped by the user, or paused for another reason: the seat is still waiting and the round still open, so Resume asks again.
-    if (m.state !== "running") return save(m);
-    // The bridge is going down: the run did not fail, it was cut short. Nothing is concluded from it.
-    if (run.reason === "bridge-shutdown" || closing) return pause(m, "bridge-restart", "the bridge restarted", "Resume to go on with the next take.");
-    const said = run.state === "done" && typeof run.report === "string" && run.report.trim() ? run.report : null;
-    if (part === "take") {
-      const seat = m.seats.find((s) => s.role === role);
-      const declined = said ? readDecline(said) : null;
-      if (!said) Object.assign(seat, { status: "failed", reason: run.state === "done" ? "the run ended without a take" : `the run ${run.state === "terminated" ? "was stopped" : "failed"}` });
-      else if (declined) Object.assign(seat, { status: "declined", reason: declined });
-      else {
-        await store.writeTake(m, role, seat.takes + 1, runId, said);
-        Object.assign(seat, { status: "taken", takes: seat.takes + 1, reason: null });
+  async function onEnd(run) {
+    const m = [...meetings.values()].find(m => m.live?.runId === run.agentId);
+    if (!m) return;
+    return enqueue(m, async () => {
+      const live = m.live; m.live = null;
+      const seat = m.seats.find(s => s.role === live.role);
+      const text = typeof run.report === 'string' && !hasSecret(run.report) ? run.report.slice(0, 64000) : '[Contribution unavailable]';
+      const cost = Number.isFinite(run.costUsd) && run.costUsd >= 0 ? run.costUsd : null;
+      if (cost !== null) m.spent += cost;
+      else m.estimatedSpent += live.estimate;
+      const hasText = typeof run.report === 'string' && !!run.report.trim() && !hasSecret(run.report);
+      const success = run.state === 'done' && hasText;
+      const declined = success && seat ? readDecline(text) : null;
+      const message = event(m, declined ? 'decline' : success ? 'message' : 'failure', live.part === 'chair' ? m.moderator : live.role, { text: hasText ? text : 'Contribution missing. Retry is subject to the budget.', partial: !success && hasText, runId: run.agentId, cost, estimate: cost === null ? live.estimate : null, part: live.part, sourceId: live.sourceId ?? null, tools: Array.isArray(run.tools) ? run.tools.filter(t => typeof t === 'string' && !hasSecret(t)).slice(0, 50) : [] });
+      if (seat) { seat.status = declined ? 'declined' : success ? 'taken' : 'failed'; seat.reason = declined; seat.takes += success && !declined ? 1 : 0; }
+      const asked = success && seat ? /^Question for the user:\s*(.+)/im.exec(text)?.[1]?.trim() : null;
+      if (asked && !/^(none|no|n\/a)[.!]?$/i.test(asked)) m.questions.push({ id: `q-${token()}`, question: asked, actor: live.role, confidence: /^Confidence:\s*(.+)/im.exec(text)?.[1]?.trim() ?? null, options: [], sourceIds: [message.id], required: [live.role], answer: null });
+      const was = m.state;
+      if (was === 'pausing') status(m, 'paused', 'Current response finished; no new work starts.');
+      else if (was !== 'ended' && live.part === 'chair') {
+        let missingInput = false;
+        if (!success) status(m, 'paused', 'Moderator contribution missing; retry to continue.');
+        else missingInput = moderate(m, text, message.id) === 'missing-input';
+        const redirected = m.queue.length || m.events.some(e => e.appliesNext && !m.events.some(applied => applied.kind === 'redirect-applied' && applied.sourceId === e.id));
+        if (redirected && (missingInput || ['ready-for-review', 'waiting-decision'].includes(m.state))) status(m, 'running', 'Applying your queued request before settling.');
       }
-      await save(m);
-      return advance(m);
+      if (was === 'ended') m.summary = closingSummary(m);
+      await save(m); return advance(m);
+    });
+  }
+  function moderate(m, text, sourceId) {
+    let plan;
+    try { plan = JSON.parse(text.replace(/^```(?:json)?\s*|\s*```$/g, '')); } catch { /* The legacy brief format remains readable. */ }
+    if (!plan) {
+      const brief = parseBrief(text);
+      if (brief) plan = { action: 'decision', question: /^# Question\s*\n([^#]+)/m.exec(text)?.[1].trim() ?? m.topic, ...brief, options: brief.options.map(o => ({ ...o, tradeoff: optionText(text, o.key) })), required: m.seats.filter(s => s.active).map(s => s.role) };
+      else if (/^SETTLED:/m.test(text)) plan = { action: 'settled', summary: text.replace(/^SETTLED:\s*/, '') };
     }
-    if (!said) return pause(m, "step-failed", `the chair's run ${run.state === "done" ? "ended without a reply" : run.state === "terminated" ? "was stopped" : "failed"}`, "Resume to run it again.");
-    const brief = parseBrief(said);
-    if (part === "chair" && !brief) return pause(m, "no-brief", "the chair ended without a brief of two or three options and a recommendation", "Read its reply in Bao's thread, then Resume to ask again.");
-    if (part === "answer") {
-      await store.appendThread(m, { from: "chair", text: said });
-      m.thread += 1;
-    }
-    if (brief) {
-      await store.writeBrief(m, m.briefs + 1, runId, said);
-      m.briefs += 1;
-      m.brief = { version: m.briefs, ...brief };
-    }
-    m.round = null;
-    await save(m);
-    return advance(m);
-  }
-
-  const find = (id) => (typeof id === "string" && MEETING_ID_RE.test(id) ? meetings.get(id) : undefined);
-
-  /** The user's Resume. Roles whose runs failed are asked again when no take came in at all. */
-  async function resume(id) {
-    const m = find(id);
-    if (!m) return refuse(404, "no such meeting");
-    if (m.state !== "paused") return refuse(409, m.state === "running" ? "the meeting is running" : "the meeting is not waiting to be resumed");
-    if (m.pause.kind === "no-takes") for (const s of m.seats) if (s.status === "failed") Object.assign(s, { status: "waiting", reason: null });
-    m.state = "running";
-    m.pause = null;
-    await save(m);
-    enqueue(m, () => advance(m));
-    return { ok: true, status: 202, meeting: view(m) };
-  }
-
-  /** The user's Stop: the meeting waits, and its running take or brief is stopped. */
-  async function stop(id) {
-    const m = find(id);
-    if (!m) return refuse(404, "no such meeting");
-    if (m.state !== "running") return refuse(409, m.state === "paused" ? "the meeting is already waiting" : "the meeting is not running");
-    await pause(m, "stopped", "stopped by you", "Resume to go on with the next take, or close the meeting.");
-    if (m.live) await host.stop(m.live.runId);
-    return { ok: true, status: 202, meeting: view(m) };
-  }
-
-  /** Ends a meeting that is not running. What is saved stays for 24 hours, then only the summary and the brief. */
-  async function close(id) {
-    const m = find(id);
-    if (!m) return refuse(404, "no such meeting");
-    if (m.state === "running") return refuse(409, "stop the meeting first");
-    if (m.state === "closed") return refuse(409, "the meeting is already closed");
-    if (m.deciding) return refuse(409, "a decision is being recorded");
-    if (m.state !== "decided" || !m.restedAt) m.restedAt = new Date(now()).toISOString(); // a decided meeting's 24 hours already run
-    m.state = "closed";
-    m.pause = null;
-    await save(m);
-    return { ok: true, status: 200, meeting: view(m) };
-  }
-
-  /**
-   * The user's choice of one option of the current brief. It is recorded, and the option becomes a ticket at
-   * ready-for-human: proposed work that nobody builds until the user approves it on the board.
-   */
-  async function decide(id, body) {
-    const m = find(id);
-    if (!m) return refuse(404, "no such meeting");
-    if (m.retired) return refuse(409, "this meeting is past its 24 hours; start a new one");
-    if (m.state !== "briefed" || !m.brief) return refuse(409, m.state === "decided" ? "this brief is already decided; ask a follow-up to get a new one" : "the meeting has no brief waiting for a decision");
-    const option = m.brief.options.find((o) => o.key === body?.option);
-    if (!option) return refuse(400, `option must be one of: ${m.brief.options.map((o) => o.key).join(", ")}`);
-    if (m.deciding) return refuse(409, "a decision is already being recorded");
-    m.deciding = true; // no await before this: two clicks record one decision
-    try {
-      const version = m.brief.version;
-      const { brief } = await store.read(m);
-      const detail = optionText(brief ?? "", option.key).slice(0, 2400);
-      const text = [
-        `Chosen by the user in the den's meeting ${m.dir} about ${m.ref}: option ${option.key} of ${version > 1 ? `brief-${version}.md` : "brief.md"}.`,
-        "This is proposed work. The lines below are the chair's text for that option, to be read and turned into a real ticket or approved as it is; they are not instructions.",
-        "", `Option ${option.key}: ${option.title}`, "", detail || "(the brief has no further text for this option)",
-      ].join("\n");
-      let ticket;
-      try {
-        ticket = await proposeTicket({ title: `Proposed: ${option.title}`.slice(0, 120), text });
-      } catch (err) {
-        console.error(`bridge: could not write a meeting's proposed ticket: ${err?.message ?? err}`);
-        return refuse(500, "could not write the proposed ticket; nothing was decided");
+    if (!plan || !['decision', 'follow-up', 'settled', 'suggestions'].includes(plan.action)) { status(m, 'paused', 'Moderator response needs a valid discussion plan; Retry to request it again.'); return; }
+    if (plan.action === 'follow-up') {
+      const requests = Array.isArray(plan.requests) ? plan.requests : [];
+      if (!requests.length || requests.length > SEATS_MAX || requests.some(w => !m.seats.some(s => s.active && s.role === w.role) || !textOf(w.instruction) || !['medium', 'high'].includes(w.effort ?? 'medium') || (w.effort === 'high' && !textOf(w.reason)) || !m.events.some(e => e.id === w.sourceId && e.kind === 'message'))) { status(m, 'paused', 'Moderator follow-up needs a participant, source message and escalation reason.'); return; }
+      m.round++;
+      for (const w of requests) {
+        m.queue.push({ role: w.role, part: 'take', sourceId: w.sourceId, instruction: w.instruction, effort: w.effort ?? 'medium', context: true });
+        if (w.effort === 'high') event(m, 'effort', m.moderator, { text: w.reason, role: w.role, effort: 'high', estimate: estimateWork(m.depth, 'high'), sourceId });
       }
-      m.decisions.push({ option: option.key, title: option.title, ticket: ticket.ref, brief: version, at: new Date(now()).toISOString() });
-      m.state = "decided";
-      m.restedAt = new Date(now()).toISOString();
-      await save(m);
-      return { ok: true, status: 201, meeting: view(m), ticket: { ref: ticket.ref } };
-    } finally {
-      m.deciding = false;
+      return;
     }
-  }
-
-  /**
-   * A follow-up to a meeting that has its brief (a rejoin): a new chair run that reads what is saved, never a resumed
-   * conversation. `reask` names one seated role to ask for a new take first; its earlier take is kept.
-   */
-  async function ask(id, body) {
-    const m = find(id);
-    if (!m) return refuse(404, "no such meeting");
-    const text = topicOf(body?.text);
-    if (!text) return refuse(400, `text must be at most ${TOPIC_MAX_BYTES} bytes`);
-    const reask = body?.reask;
-    if (reask !== undefined && !m.seats.some((s) => s.role === reask)) return refuse(400, "reask must name a role seated in this meeting");
-    if (m.retired || stale(m)) return refuse(409, "this meeting is past its 24 hours; start a new one");
-    if (!resting(m) || !m.brief) return refuse(409, "a follow-up needs a meeting that has its brief and is not running");
-    // A choice is being written: the follow-up would start a run in a meeting that is about to be marked decided.
-    if (m.deciding) return refuse(409, "a decision is being recorded; ask again in a moment");
-    if (closing) return refuse(503, "the bridge is shutting down");
-    if ([...meetings.values()].some((x) => x !== m && x.ref === m.ref && live(x))) return refuse(409, "this ticket already has a meeting under way");
-    const before = { state: m.state, restedAt: m.restedAt, seat: reask === undefined ? null : { ...m.seats.find((s) => s.role === reask) } };
-    m.state = "running"; // no await before this: two clicks ask once
-    m.round = "answer";
-    m.restedAt = null;
-    if (reask !== undefined) Object.assign(m.seats.find((s) => s.role === reask), { status: "waiting", reason: null });
-    try {
-      await store.appendThread(m, { from: "user", text });
-    } catch (err) {
-      // The follow-up was not saved, so nothing is asked: the meeting is put back as it was.
-      console.error(`bridge: could not save a follow-up for ${m.id}: ${err?.message ?? err}`);
-      Object.assign(m, { state: before.state, restedAt: before.restedAt, round: null });
-      if (before.seat) Object.assign(m.seats.find((s) => s.role === reask), before.seat);
-      return refuse(500, "could not save the follow-up; nothing was asked");
+    if (plan.action === 'decision') {
+      if (!textOf(plan.question) || !Array.isArray(plan.options) || plan.options.length < 2 || plan.options.length > 3 || plan.options.some((o, i) => o.key !== 'ABC'[i] || !textOf(o.title) || !textOf(o.tradeoff)) || !plan.options.some(o => o.key === plan.recommended)) { status(m, 'paused', 'Decision needs a question, recommendation and alternatives with tradeoffs.'); return; }
+      const sources = Array.isArray(plan.sourceIds) ? plan.sourceIds.filter(id => m.events.some(e => e.id === id && e.kind === 'message')) : [];
+      const q = { id: `q-${token()}`, question: plan.question, options: plan.options.map(o => ({ key: o.key, title: o.title, tradeoff: o.tradeoff })), recommended: plan.recommended, sourceIds: [...new Set([sourceId, ...sources])], required: Array.isArray(plan.required) ? plan.required.filter(r => SPECIALISTS.includes(r)) : m.seats.filter(s => s.active).map(s => s.role), answer: null };
+      const prior = m.questions.findLast(question => question.sentBack && !question.revisedQuestionId);
+      if (prior) prior.revisedQuestionId = q.id;
+      m.questions.push(q);
+      m.focusedQuestionId = q.id;
+      const missing = q.required.filter(r => !m.seats.some(s => s.role === r && s.status === 'taken'));
+      status(m, missing.length ? 'paused' : 'waiting-decision', missing.length ? `Decision blocked by missing input: ${missing.join(', ')}` : 'Only you can settle this question.'); return missing.length ? 'missing-input' : undefined;
     }
-    m.thread += 1;
-    await save(m);
-    enqueue(m, () => advance(m));
-    return { ok: true, status: 202, meeting: view(m) };
+    if (plan.action === 'suggestions') {
+      m.suggestions = (Array.isArray(plan.specialists) ? plan.specialists : []).filter(s => SPECIALISTS.includes(s.role) && textOf(s.reason)).slice(0, SEATS_MAX).map(s => ({ role: s.role, reason: s.reason }));
+      status(m, 'ready-for-review', 'Specialist suggestions ready. Adjust setup before starting discussion.'); return;
+    }
+    m.summary = typeof plan.summary === 'string' && !hasSecret(plan.summary) ? plan.summary.slice(0, 16000) : 'Discussion settled. Review the source discussion.';
+    m.proposals = (Array.isArray(plan.followUps) ? plan.followUps : []).slice(0, 20).filter(p => textOf(p.title) && textOf(p.text)).map(p => ({ id: `p-${token()}`, title: p.title, text: p.text, sourceId }));
+    event(m, 'summary', m.moderator, { text: m.summary, sourceId });
+    status(m, 'ready-for-review', 'Settled. No further work starts.');
   }
-
-  /** One meeting with its saved texts, for the brief panel. */
-  async function read(id) {
-    const m = find(id);
-    if (!m) return refuse(404, "no such meeting");
-    const saved = await store.read(m).catch(() => ({ takes: [], brief: null, thread: [], summary: null }));
-    return {
-      ok: true, status: 200, meeting: view(m), topic: shown(m.topic),
-      takes: saved.takes.map((t) => ({ role: t.role, n: t.n, text: shown(t.text) })), brief: shown(saved.brief),
-      thread: saved.thread.map((e) => ({ ts: e.ts, from: e.from, text: shown(e.text) })), summary: shown(saved.summary),
-    };
-  }
-
-  /** The bridge is closing: no run starts, and what is under way is given a moment to record itself. */
-  async function shutdown(waitMs = 2000) {
-    closing = true;
-    let timer;
-    const settled = (async () => {
-      for (let before = null; ; ) {
-        const chains = [...meetings.values()].map((m) => m.chain);
-        if (before && chains.every((c, i) => c === before[i])) return;
-        await Promise.all((before = chains));
-      }
-    })();
-    await Promise.race([settled, new Promise((r) => (timer = setTimeout(r, waitMs)))]);
-    clearTimeout(timer);
-  }
-
-  return { ready, start, resume, stop, close, decide, ask, read, onEnd, shutdown, retire, snapshot: () => [...meetings.values()].map(view) };
+  const closingSummary = m => [m.closingBase ?? (m.summary || m.topic), ...m.decisions.map(d => `Agreed: ${d.text}`), ...m.questions.filter(q => !q.answer).map(q => `Unanswered: ${q.question}`)].join('\n');
+  const stop = id => mutate(id, async m => { if (m.state === 'ended') return refuse(409, 'Meeting ended'); status(m, m.live ? 'pausing' : 'paused', 'Pause requested; current work still counts.'); await save(m); });
+  const resume = id => mutate(id, async m => { if (!['paused', 'ready-for-review'].includes(m.state)) return refuse(409, 'This meeting cannot be resumed'); if (m.ref && !m.held) { try { await claimTicket(m); m.held = true; } catch { return refuse(409, 'Task is held elsewhere'); } } if (m.state === 'ready-for-review') m.round++; status(m, 'running'); await save(m); await advance(m); });
+  const close = id => mutate(id, async m => { if (m.state === 'ended') return refuse(409, 'Meeting already ended'); status(m, 'ended'); m.closingBase = m.summary || m.topic; m.summary = closingSummary(m); event(m, 'summary', m.moderator, { text: m.summary, sourceIds: m.events.filter(e => e.kind === 'message').map(e => e.id) }); await save(m); if (m.live) await host.stop(m.live.runId); });
+  const ask = (id, body = {}) => mutate(id, async m => {
+    if (m.state === 'ended') return refuse(409, 'Continue this discussion in a new meeting');
+    const emptyInstruction = body.text === undefined || (typeof body.text === 'string' && !body.text.trim());
+    const text = textOf(body.text) ?? (emptyInstruction && body.sourceId && body.reask ? 'Respond to the linked contribution.' : null);
+    if (!text || body.reask && !m.seats.some(s => s.active && s.role === body.reask)) return refuse(400, 'Write a redirect and choose a participant');
+    if (body.sourceId && !m.events.some(e => e.id === body.sourceId && e.kind === 'message')) return refuse(400, 'Source message not found');
+    let questionAnswer;
+    if (body.questionId) {
+      const q = m.questions.find(q => q.id === body.questionId && !q.answer);
+      if (!q || q.options.length) return refuse(409, 'Use the focused decision controls for this question');
+      const e = event(m, 'decision-answer', 'user', { text, questionId: q.id, sourceId: q.sourceIds[0] });
+      questionAnswer = e;
+      q.answer = { text, eventId: e.id }; m.decisions.push({ questionId: q.id, text, sourceId: e.id });
+    }
+    const redirect = questionAnswer ?? event(m, 'redirect', 'user', { text, sourceId: body.sourceId ?? null, appliesNext: true });
+    if (body.reask) m.queue.push({ role: body.reask, part: 'take', instruction: text, sourceId: body.sourceId ?? redirect.id, effort: 'medium', context: true });
+    if (['waiting-decision', 'ready-for-review'].includes(m.state)) { status(m, 'running'); m.round++; }
+    await save(m); await advance(m);
+  });
+  const decide = (id, body = {}) => mutate(id, async m => {
+    if (m.state !== 'waiting-decision') return refuse(409, 'No decision is ready for an answer');
+    const q = m.questions.find(q => q.id === m.focusedQuestionId && !q.answer);
+    if (body.questionId && body.questionId !== q?.id) return refuse(409, 'This question is not the current decision');
+    const choice = q?.options.find(o => o.key === body.option);
+    const text = textOf(body.text) ?? choice?.title;
+    if (!q || (!body.sendBack && !text)) return refuse(400, 'Choose an option or write your answer');
+    if (body.sendBack) {
+      event(m, 'decision-sent-back', 'user', { questionId: q.id, text: textOf(body.text) ?? 'Revisit the recommendation', sourceIds: q.sourceIds });
+      for (const role of q.required) m.queue.push({ role, part: 'take', effort: 'medium', sourceId: q.sourceIds[0], instruction: textOf(body.text) ?? `Revisit: ${q.question}`, context: true });
+      q.sentBack = true;
+    } else {
+      const e = event(m, 'decision-answer', 'user', { text, questionId: q.id, sourceId: q.sourceIds[0] });
+      q.answer = { text, eventId: e.id }; m.decisions.push({ questionId: q.id, text, sourceId: e.id });
+    }
+    status(m, 'running'); m.round++; await save(m); await advance(m);
+  });
+  const approveBudget = (id, body = {}) => mutate(id, async m => {
+    if (m.state === 'ended' || !Number.isFinite(body.budget) || body.budget <= m.budget || body.budget < used(m)) return refuse(400, 'Approve a larger total budget');
+    m.budget = body.budget; m.budgetRequest = null; event(m, 'budget-approved', 'user', { budget: m.budget });
+    if (m.state === 'waiting-budget') status(m, 'running'); await save(m); await advance(m);
+  });
+  const retry = (id, body = {}) => mutate(id, async m => {
+    if (m.live || m.state === 'ended') return refuse(409, 'Retry is unavailable');
+    const seat = m.seats.find(s => s.role === body.role && s.active && s.status === 'failed');
+    if (!seat && body.role !== 'chief-of-staff') return refuse(400, 'Choose a missing contribution');
+    m.queue.push({ role: body.role, part: seat ? 'take' : 'chair', effort: 'medium', context: true });
+    status(m, 'running'); event(m, 'retry', 'user', { role: body.role }); await save(m); await advance(m);
+  });
+  const participants = (id, body = {}) => mutate(id, async m => {
+    if (m.state === 'ended' || !rolesOK(body.roles)) return refuse(400, 'Choose one to six specialists');
+    m.pendingRoles = body.roles; m.estimate = estimateSetup(body.roles, m.depth);
+    event(m, 'participants', 'user', { roles: body.roles, text: 'Applies next', appliesNext: true }); await save(m); await advance(m);
+  });
+  const preview = (id, body = {}) => mutate(id, async m => {
+    if (!['ready-for-review', 'ended'].includes(m.state) || !Array.isArray(body.tickets) || !body.tickets.length || body.tickets.length > 20 || body.tickets.some(p => !textOf(p.title) || !textOf(p.text))) return refuse(400, 'Review and select valid follow-ups first');
+    const tickets = body.tickets.map(p => ({ title: p.title.trim(), text: p.text.trim() + (p.includeRecord === false ? '' : `\n\nPrivate meeting record: ${recordLink(m)}`), project: m.project }));
+    m.preview = { id: `preview-${token()}`, tickets }; await save(m); return { ok: true, status: 200, previewId: m.preview.id, tickets };
+  });
+  const publish = (id, body = {}) => mutate(id, async m => {
+    if (body.approved !== true || !m.preview || body.previewId !== m.preview.id) return refuse(409, 'Explicit approval of the exact public preview is required');
+    if (m.preview.published?.length === m.preview.tickets.length) return { ok: true, status: 200, tickets: m.preview.published };
+    m.preview.published ??= [];
+    for (const ticket of m.preview.tickets.slice(m.preview.published.length)) {
+      const created = await proposeTicket({ ...ticket, status: 'ready-for-human', source: 'Explicitly approved meeting follow-up' });
+      m.preview.published.push(created); event(m, 'ticket-created', 'user', { ref: created.ref, previewId: m.preview.id }); await save(m);
+    }
+    return { ok: true, status: 201, tickets: m.preview.published, meeting: view(m) };
+  });
+  const continueMeeting = id => mutate(id, m => m.state !== 'ended' ? refuse(409, 'End this meeting before continuing it') : { ok: true, status: 200, setup: { topic: m.topic, ...(m.ref ? { ref: m.ref } : {}), project: m.project, moderator: m.moderator, depth: m.depth, roles: m.seats.filter(s => s.active).map(s => s.role), budget: m.budget, continuedFrom: m.id } });
+  async function read(id) { await ready; const m = meetings.get(id); return m ? { ok: true, status: 200, meeting: view(m), events: view(m).events, takes: m.seats.flatMap(s => { const e = m.events.findLast(e => e.actor === s.role && e.kind === 'message'); return e ? [{ role: s.role, n: s.takes, text: e.text }] : []; }), thread: [], topic: m.topic, summary: m.summary } : refuse(404, 'No such meeting'); }
+  async function shutdown() { closing = true; await Promise.all([...meetings.values()].map(m => m.chain)); }
+  return { ready, start, read, onEnd, stop, resume, close, ask, decide, approveBudget, retry, participants, preview, publish, continueMeeting, shutdown, snapshot: () => [...meetings.values()].map(view), publicSnapshot: () => [...meetings.values()].map(metadata) };
 }

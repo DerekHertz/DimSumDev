@@ -89,6 +89,7 @@ test("a finished Run publishes its handoff and releases the claim; the ticket is
   rec.emit({ type: "done", ok: true });
   const [handoff] = await until(() => { const h = t.handoffsOf(DISPATCH_REF); return h.length && h.every((x) => x.trim()) ? h : null; }, { what: "the written handoff" });
   assert.match(handoff, /Drafted the routing ADR/);
+  await until(async () => (await t.agent(res.body.agent.id))?.state === "done", { what: "the Run to finish settling its claim" });
   await released(t, DISPATCH_REF);
   assert.equal(t.status(DISPATCH_REF), "ready-for-agent", "it can be Run again or Delivered");
   assert.deepEqual(t.ops(DISPATCH_REF).filter((o) => o === "claim" || o === "release"), ["claim", "release"], "the board saw one claim and one release");

@@ -36,6 +36,14 @@ const fixtureObjs = (name) => fixtureLines(name).map((l) => JSON.parse(l));
 
 const SID = "5d3c9a52-8f0e-4b7c-9a41-0e6f1c2b7d90";
 const SID2 = "a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d";
+
+test('meeting effort reaches the Claude CLI through a closed Medium/High allowlist', () => {
+  for (const effort of ['medium', 'high']) {
+    const args = adapter.buildClaudeArgs({ sessionId: SID, agent: 'qa', effort });
+    assert.equal(args[args.indexOf('--effort') + 1], effort);
+  }
+  assert.throws(() => adapter.buildClaudeArgs({ sessionId: SID, agent: 'qa', effort: '--permission-mode=bypassPermissions' }), /effort/i);
+});
 const DENY_RULES = ["Write(.claude/**)", "Edit(.claude/**)", "Bash(git push:*)", "Bash(gh pr create:*)"];
 const DENY_SETTINGS = JSON.stringify({ disableAllHooks: true, permissions: { deny: DENY_RULES } });
 

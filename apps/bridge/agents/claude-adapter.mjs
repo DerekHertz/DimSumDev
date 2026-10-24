@@ -360,9 +360,10 @@ const MCP_CONFIG_FILE_RE = /^\/[A-Za-z0-9._@+-]+(?:\/[A-Za-z0-9._@+-]+)*\.json$/
 export function buildClaudeArgs(options) {
   if (!isPlainObject(options)) throw new TypeError("buildClaudeArgs needs { sessionId, agent, model?, ticketFile?, wall?, worktree? }");
   for (const key of Object.keys(options)) {
-    if (!["sessionId", "resume", "agent", "model", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
+    if (!["sessionId", "resume", "agent", "model", "effort", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
   }
   const { sessionId, resume, agent, model, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
+  if (options.effort !== undefined && !['medium', 'high'].includes(options.effort)) throw new TypeError('Invalid meeting effort');
   const target = project !== undefined && project.control === false;
   if (project !== undefined && (!isPlainObject(project) || typeof project.control !== "boolean")) throw new TypeError("buildClaudeArgs: project must be { control: boolean, root, pluginDir? }");
   if (target && !isWorktreePath(project.pluginDir)) throw new TypeError("buildClaudeArgs: a target project needs pluginDir, a plain absolute path");
@@ -395,6 +396,7 @@ export function buildClaudeArgs(options) {
     ...(resume === true ? ["--resume", sessionId] : ["--session-id", sessionId]),
     "--agent", target ? `den:${definitionOf(agent)}` : definitionOf(agent),
     ...(model === undefined ? [] : ["--model", model]),
+    ...(options.effort === undefined ? [] : ['--effort', options.effort]),
     // den-mvp/48: a target project loads nothing from its own .claude/: no settings, and the den's role definitions come in as a plugin.
     "--setting-sources", target ? "" : "project,local",
     ...(target ? ["--plugin-dir", project.pluginDir] : []),

@@ -121,6 +121,7 @@ export function createApprovalStore({
     says: a.says, intent: a.intent, ...(a.answeredAt ? { answeredAt: a.answeredAt } : {}),
     ...(a.wall ? { wall: { kind: a.wall.kind, targets: a.wall.targets } } : {}),
     ...(a.questions ? { questions: a.questions } : {}),
+    ...(a.privateContext ? { privateContext: true } : {}),
   });
 
   // The child is told only deny, and only while it can still hear.
@@ -168,7 +169,7 @@ export function createApprovalStore({
     return flat === "" ? null : flat.length > max ? `${flat.slice(0, max)}…` : flat;
   };
 
-  function hold(agentId, event, { accepting = true, says = null } = {}) {
+  function hold(agentId, event, { accepting = true, says = null, privateContext = false } = {}) {
     const requestId = event?.requestId;
     // No usable request id: nothing can be answered, so the request is dropped (ADR 0016 6.5).
     if (typeof requestId !== "string" || requestId.length < 1 || requestId.length > REQUEST_ID_MAX) return;
@@ -195,7 +196,7 @@ export function createApprovalStore({
     const a = {
       id: `a-${randomBytes(8).toString("hex")}`, agentId, requestId, tool: cleanText(tool).slice(0, TOOL_MAX), summary, truncated,
       inputLength: JSON.stringify(input).length, ts: new Date(now).toISOString(), expiresAt: new Date(now + wait).toISOString(),
-      state: "pending", note: null, reason: null, input, seen: false, claimed: false,
+      state: "pending", note: null, reason: null, input, seen: false, claimed: false, privateContext,
       says: brief(says, SAYS_MAX), intent: brief(input.description, INTENT_MAX), answeredAt: null, questions,
     };
     a.timer = setTimeout(() => settle(a, "expired"), wait);
@@ -206,7 +207,7 @@ export function createApprovalStore({
   }
 
   // agent-os/05: the pause at three. Not a tool call of the child: the bridge raises it itself, listing the targets.
-  function holdWall(agentId, { kind, targets }) {
+  function holdWall(agentId, { kind, targets, privateContext = false }) {
     const clean = targets.map((t) => cleanText(String(t)).slice(0, SUMMARY_MAX));
     const now = Date.now();
     const noun = kind === "host" ? "hosts" : "writes";
@@ -215,7 +216,7 @@ export function createApprovalStore({
       id: `a-${randomBytes(8).toString("hex")}`, agentId, requestId: null, tool: "wall", summary: `${clean.length} refused ${noun}: ${clean.join(", ")}`.slice(0, SUMMARY_MAX),
       truncated: false, inputLength: JSON.stringify(input).length, ts: new Date(now).toISOString(), expiresAt: new Date(now + ttlMs).toISOString(),
       state: "pending", note: null, reason: null, input, seen: false, claimed: false, says: null, intent: null, answeredAt: null,
-      wall: { kind, targets: clean },
+      wall: { kind, targets: clean }, privateContext,
     };
     a.timer = setTimeout(() => settle(a, "expired"), ttlMs);
     a.timer.unref?.();

@@ -53,7 +53,7 @@ export function createMeetingResidents(den,actors,places,routines,work=null){
   panda.model.position.copy(a.home);panda.model.userData.actorKey=id;den.residents.add(panda.model);places.occupy(home.id,identity);guests.set(id,a);return a;
  }
  function start(resident,meeting,spot){
-  const busy=resident.role!=='orchestrator'&&resident.live&&resident.live.ref!==meeting.ref;
+  const busy=resident.role!=='orchestrator'&&resident.live&&resident.live.ref!==meeting.ref&&resident.live.ref!==`meetings/00-${meeting.id}`;
   const a=busy?guestFor(resident,meeting,spot):resident;if(!a)return null;
   routines.transfer(a);const id='meeting:'+meeting.id+':'+resident.role;
   const trip=a.meetingTrip={stage:'outbound',path:[],spot,wait:0,replans:0,planning:true};a.meetingOwned=true;
@@ -84,11 +84,12 @@ export function createMeetingResidents(den,actors,places,routines,work=null){
   if(signature!==current){for(const a of participants.values())if(a.guest)destroy(a);else goHome(a);participants.clear();current=signature;}
   if(!valid)return;
   const spots=seatSpots(meeting.seats.length);
-  const bao=actors.get('orchestrator');
+  const runtime=meeting.moderator==='jiao'?'codex':'claude';
+  const bao=[...actors.values()].find(a=>a.role==='orchestrator'&&a.runtime===runtime)??actors.get('orchestrator');
   if(bao&&!participants.has('orchestrator')&&!bao.meetingTrip){const chair=start(bao,meeting,{x:0,z:-11,yaw:0});if(chair)participants.set('orchestrator',chair);}
   meeting.seats.forEach((seat,i)=>{
-   const resident=[...actors.values()].find(a=>a.role===seat.role&&a.runtime==='claude');if(!resident)return;
-   const old=participants.get(seat.role),busy=resident.live&&resident.live.ref!==meeting.ref;
+   const resident=[...actors.values()].find(a=>a.role===seat.role&&a.runtime===runtime);if(!resident)return;
+   const old=participants.get(seat.role),busy=resident.live&&resident.live.ref!==meeting.ref&&resident.live.ref!==`meetings/00-${meeting.id}`;
    if(old&&!old.guest&&busy){goHome(old);participants.delete(seat.role);}
    if(!participants.has(seat.role)&&!resident.meetingTrip){const a=start(resident,meeting,spots[i]);if(a)participants.set(seat.role,a);}
   });
