@@ -8,13 +8,14 @@ const within = (candidate, base) => candidate === base || candidate.startsWith(b
 const PATH = /^\/(?:[A-Za-z0-9._@+-]+(?:\/[A-Za-z0-9._@+-]+)*)?$/;
 const FIELDS = ["version", "readRoots", "writeRoots", "readOnlyPaths", "denyPaths", "denyCommands", "hosts"];
 // Exact keys from the official rust-v0.163.0 core/config.schema.json. These are
-// config requests; native tool/shell enforcement still requires real conformance.
+// config requests; native tool/shell enforcement still requires real conformance. Not `code_mode_host`: Codex 0.163 runs its shell through
+// the code-mode `exec` tool, and with the host off every command fails closed ("code-mode host is disabled"); the sandbox profile still confines each command.
 const DISABLED_FEATURES = Object.freeze([
   "multi_agent", "multi_agent_v2", "multi_agent_v2_dynamic_tools", "collab", "enable_fanout",
   "hooks", "codex_hooks", "plugin_hooks", "plugins", "remote_plugin", "apps", "connectors", "enable_mcp_apps",
   "memories", "memory_tool", "external_agent_memory_import", "external_migration", "shell_snapshot", "shell_snapshot_v2",
   "daemon_auto_start", "remote_control", "browser_use", "browser_use_external", "browser_use_full_cdp_access", "in_app_browser",
-  "computer_use", "image_generation", "js_repl", "code_mode", "code_mode_host", "tool_suggest",
+  "computer_use", "image_generation", "js_repl", "code_mode", "tool_suggest",
   "skill_mcp_dependency_install", "skill_env_var_dependency_prompt", "auth_elicitation", "request_permissions", "request_permissions_tool",
   "request_rule", "step_model_switching",
 ]);

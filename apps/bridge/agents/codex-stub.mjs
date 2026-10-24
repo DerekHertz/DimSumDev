@@ -3,7 +3,10 @@
 // result the way app-server does: a commandExecution item whose aggregatedOutput holds the command's output.
 // argv[2] picks the mode: "ok" (default) | "crash" (exit 3 once the turn is acknowledged) | "deaf" (ignores SIGTERM)
 // | "flood" (400 command starts, then done, ignoring the input).
+// Like Codex 0.163, the shell tool is the code-mode `exec` tool: a config with `features.code_mode_host = false` makes every command fail
+// closed ("code-mode host is disabled") instead of running (den-revival/03 1b, found by a real run).
 import { spawnSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import readline from "node:readline";
 
 const MODE = process.argv[2] ?? "ok";
@@ -19,12 +22,17 @@ function flood() {
   notify("turn/completed", { threadId: thread.id, turn: { id: "turn-1", status: "completed" } });
 }
 
+function shellHostDisabled() {
+  const file = `${process.env.CODEX_HOME}/config.toml`;
+  return existsSync(file) && /^code_mode_host = false$/m.test(readFileSync(file, "utf8"));
+}
+
 function runTurn(input) {
   if (MODE === "flood") return flood();
   const base = { threadId: thread.id, turnId: "turn-1" };
   notify("turn/started", { threadId: thread.id, turn: { id: "turn-1", status: "inProgress" } });
   notify("item/started", { ...base, item: { id: "cmd-1", type: "commandExecution", command: input } });
-  const ran = spawnSync("sh", ["-c", input], { encoding: "utf8", cwd: thread.cwd });
+  const ran = shellHostDisabled() ? { status: 1, stdout: "code-mode host is disabled" } : spawnSync("sh", ["-c", input], { encoding: "utf8", cwd: thread.cwd });
   const output = (ran.stdout ?? "") + (ran.stderr ?? "");
   notify("item/completed", { ...base, item: { id: "cmd-1", type: "commandExecution", command: input,
     status: ran.status === 0 ? "completed" : "failed", exitCode: ran.status, aggregatedOutput: output } });
