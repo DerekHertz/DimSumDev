@@ -295,6 +295,44 @@ test("command and completion events translate to host events; native child deleg
   assert.equal(child.closed, 1);
 });
 
+test("config from the execution seam cannot widen the sandbox: only display keys pass, anything else refuses the thread", async () => {
+  for (const config of [{ sandbox_mode: "danger-full-access" }, { approval_policy: "never" }, { default_permissions: ":danger-no-sandbox" },
+    { sandbox_workspace_write: { writable_roots: ["/"] } }, { permissions: { x: { filesystem: { "/": "write" } } } }, { model_verbosity: "low", sandbox_mode: "danger-full-access" }, { model_verbosity: { nested: 1 } }]) {
+    const fx = fixture({ authorizeExecution: async () => ({ profileId: PROFILE, cwd: "/fixture", config }) });
+    await fx.protocol.initialize();
+    await assert.rejects(fx.protocol.prepareThread({ model: MODEL, effort: "high" }), /refused the policy/, JSON.stringify(config));
+    assert.ok(!fx.sent.some((m) => m.method === "thread/start"), JSON.stringify(config));
+    fx.protocol.close();
+  }
+  const fx = fixture({ authorizeExecution: async () => ({ profileId: PROFILE, cwd: "/fixture", config: { model_verbosity: "low" } }) });
+  await fx.protocol.initialize();
+  await fx.protocol.prepareThread({ model: MODEL, effort: "high" });
+  const start = fx.sent.find((m) => m.method === "thread/start").params;
+  assert.deepEqual(start.config, { model_verbosity: "low" });
+  assert.equal(start.cwd, "/fixture");
+  assert.equal(start.permissions, PROFILE);
+  assert.equal(start.approvalPolicy, "never");
+  fx.protocol.close();
+});
+
+test("agent text, replies, commands and command output are masked before they become events", async () => {
+  const KEY = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4";
+  const fx = fixture();
+  await started(fx);
+  fx.notify("item/agentMessage/delta", { threadId: "thread-1", turnId: "turn-1", itemId: "msg-1", delta: `token is ${KEY} ok` });
+  fx.notify("item/started", { threadId: "thread-1", turnId: "turn-1", item: { id: "tool-1", type: "commandExecution", command: `curl -H "Authorization: Bearer ${KEY}0000" https://x` } });
+  fx.notify("item/completed", { threadId: "thread-1", turnId: "turn-1", item: { id: "tool-1", type: "commandExecution", status: "completed", aggregatedOutput: `GITHUB_TOKEN=${KEY}\nrest` } });
+  fx.notify("item/completed", { threadId: "thread-1", turnId: "turn-1", item: { id: "reply-1", type: "agentMessage", text: `found ${KEY}` } });
+  fx.notify("turn/completed", { threadId: "thread-1", turn: { id: "turn-1", status: "completed" } });
+  const received = await drain(fx.protocol);
+  const shown = JSON.stringify(received);
+  assert.ok(!shown.includes(KEY.slice(4)), shown);
+  assert.equal(received.find((e) => e.type === "text").text, "token is [masked: possible secret] ok");
+  assert.match(received.find((e) => e.type === "tool-start").summary, /\[masked: possible secret\]/);
+  assert.match(received.find((e) => e.type === "tool-result").text, /^\[masked: possible secret\]\nrest$/);
+  assert.equal(received.find((e) => e.type === "reply").text, "found [masked: possible secret]");
+});
+
 const launched = [];
 afterEach(() => { for (const child of launched.splice(0)) child.kill("SIGKILL"); });
 const launch = (mode, over = {}) => {

@@ -113,6 +113,44 @@ test("a login cut off half-written is not copied over the user's file", async ()
   assert.equal(readFileSync(`${t.home}/.codex/auth.json`, "utf8"), JSON.stringify({ token: SECRET }));
 });
 
+test("a login the host changed during the run is not overwritten, and no temp file is left behind", async () => {
+  const t = setup();
+  const user = `${t.home}/.codex/auth.json`;
+  const proc = await t.spawn();
+  writeFileSync(`${t.store()}/auth.json`, JSON.stringify({ token: SECRET, refresh: "rotated" }));
+  const hostLogin = JSON.stringify({ token: "logged-in-again-on-the-host" });
+  writeFileSync(user, hostLogin);
+  await ended(proc);
+  assert.equal(readFileSync(user, "utf8"), hostLogin);
+  assert.deepEqual(readdirSync(path.dirname(user)), ["auth.json"]);
+});
+
+test("a write-back that fails leaves no temp login in the user's directory", async () => {
+  const t = setup();
+  const user = `${t.home}/.codex/auth.json`;
+  const proc = await t.spawn();
+  writeFileSync(`${t.store()}/auth.json`, JSON.stringify({ token: SECRET, refresh: "rotated" }));
+  rmSync(user);
+  mkdirSync(`${user}/kept`, { recursive: true });
+  await ended(proc);
+  assert.deepEqual(readdirSync(path.dirname(user)), ["auth.json"]);
+});
+
+test("a role that is not a plain role name is refused before any file is probed", async () => {
+  const t = setup();
+  await assert.rejects(t.runtime.spawn({ role: "../agents/developer", cwd: t.cwd, prompt: "x", ...t.ids }), (err) => err.name === "TypeError" && /role/.test(err.message));
+});
+
+test("secrets in the agent's text, commands and output are masked before they become events", async () => {
+  const KEY = "ghp_" + "a1B2c3D4e5F6g7H8i9J0k1L2m3N4";
+  const t = setup();
+  const proc = await t.spawn({ prompt: `echo ${KEY}` });
+  const events = await collect(proc);
+  assert.ok(events.some((e) => e.type === "tool-result" && /masked/.test(e.text)));
+  assert.ok(!JSON.stringify(events).includes(KEY.slice(4)), JSON.stringify(events));
+  await ended(proc);
+});
+
 test("no login means no start, and the reason never contains the login", async () => {
   const t = setup({ login: false });
   const check = await t.runtime.preflight();

@@ -28,17 +28,20 @@ function readRecipe(file) {
   return { model, effort, instructions };
 }
 
-/** Codex rotates its refresh token in the copy it runs on; without this the user's own login keeps the spent one. Whole-file only, atomic, private. */
+/** Codex rotates its refresh token in the copy it runs on; without this the user's own login keeps the spent one. Whole-file only, atomic, private, and never over a login the host changed during the run. */
 function saveRefreshedLogin({ copy, original, target }) {
+  const next = `${target}.${process.pid}.tmp`;
   try {
     const now = readFileSync(copy);
     if (!original || now.equals(original)) return;
     JSON.parse(now);
-    const next = `${target}.${process.pid}.tmp`;
     writeFileSync(next, now, { mode: 0o600 });
+    if (!readFileSync(target).equals(original)) return;
     renameSync(next, target);
   } catch (err) {
     if (err?.code !== "ENOENT" && err?.name !== "SyntaxError") console.error(`bridge: could not save the refreshed Codex login (${err?.code ?? err?.name})`);
+  } finally {
+    rmSync(next, { force: true });
   }
 }
 
@@ -78,8 +81,9 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
       const problem = loginProblem();
       if (problem) throw new EnforcementError(problem);
       if (project === undefined && !(cwd === control || cwd.startsWith(`${control}/`))) throw new TypeError("codex runtime: a spawn with no project must run inside the control checkout");
+      if (typeof role !== "string" || !/^[a-z][a-z-]*$/.test(role)) throw new TypeError("codex runtime: the role must be a plain role name");
       const recipeFile = `${control}/.codex/agents/${role}.toml`;
-      if (!existsSync(recipeFile) || !/^[a-z][a-z-]*$/.test(role)) throw new EnforcementError(`the ${role} role has no Codex recipe`);
+      if (!existsSync(recipeFile)) throw new EnforcementError(`the ${role} role has no Codex recipe`);
       const recipe = readRecipe(recipeFile);
       if (model !== undefined && model !== recipe.model) throw new TypeError("codex runtime: the model differs from the role's recipe");
       const { codexBin, nativeHelper } = binaries();

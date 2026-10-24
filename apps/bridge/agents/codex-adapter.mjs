@@ -6,6 +6,7 @@
 // confinement.
 import { TextDecoder, isDeepStrictEqual } from "node:util";
 import { hasSecret } from "../../../scripts/exposure.mjs";
+import { cleanText } from "../../shared/safe-text.mjs";
 
 export const MAX_FRAME_BYTES = 1_000_000;
 const MAX_TURN_INPUT_BYTES = 256_000;
@@ -19,7 +20,15 @@ const nativeId = (value) => typeof value === "string" && id(value);
 const text = (value, max = BODY_MAX) => typeof value === "string" && value.length <= max;
 const nonSecretText = (value, max) => text(value, max) && !hasSecret(value);
 const owns = (value, prop) => Object.hasOwn(value, prop);
-const clipped = (value) => typeof value === "string" ? { text: value.slice(0, BODY_MAX), ...(value.length > BODY_MAX ? { more: value.length - BODY_MAX } : {}) } : { text: "" };
+// Mask secrets in the whole text before clipping, as the Claude adapter does; the host cleans again before it stores or shows an event.
+const clipped = (raw) => {
+  if (typeof raw !== "string") return { text: "" };
+  const value = cleanText(raw);
+  return { text: value.slice(0, BODY_MAX), ...(value.length > BODY_MAX ? { more: value.length - BODY_MAX } : {}) };
+};
+// The seam's `config` may only carry these display settings; sandbox, approval and permission keys come from the compiled profile alone.
+const CONFIG_KEYS = Object.freeze(["model_verbosity", "model_reasoning_summary"]);
+const safeConfig = (config) => Object.entries(config).every(([key, value]) => CONFIG_KEYS.includes(key) && text(value, 64));
 
 export class CodexProtocolError extends Error {
   constructor(reason) { super(`Codex protocol: ${reason}`); this.name = "CodexProtocolError"; }
@@ -173,7 +182,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       return;
     }
     if (!["commandExecution", "fileChange", "mcpToolCall"].includes(item.type)) return;
-    if (method === "item/started") emit({ type: "tool-start", id: item.id, name: item.type, summary: typeof item.command === "string" ? item.command.slice(0, 200) : item.type });
+    if (method === "item/started") emit({ type: "tool-start", id: item.id, name: item.type, summary: typeof item.command === "string" ? cleanText(item.command).slice(0, 200) : item.type });
     else {
       emit({ type: "tool-result", id: item.id, ok: item.status === "completed", ...clipped(item.aggregatedOutput) });
       emit({ type: "tool-end", id: item.id });
@@ -261,7 +270,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     const policy = await authorizeExecution(Object.freeze(context));
     ensureOpen();
     if (!object(policy) || typeof policy.profileId !== "string" || !/^[a-z][a-z0-9-]{0,63}$/.test(policy.profileId) ||
-        !text(policy.cwd, 4096) || !policy.cwd.startsWith("/") || (policy.config !== undefined && !object(policy.config)) ||
+        !text(policy.cwd, 4096) || !policy.cwd.startsWith("/") || (policy.config !== undefined && !(object(policy.config) && safeConfig(policy.config))) ||
         (policy.developerInstructions !== undefined && !text(policy.developerInstructions, 128000))) throw new CodexProtocolError("protected execution integration refused the policy");
     return policy;
   }
