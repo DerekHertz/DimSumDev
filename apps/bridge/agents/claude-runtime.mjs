@@ -28,7 +28,7 @@ const GROUP_SETTLE_MS = 2000; // how long an exit waits for the group's last pro
 const CAPABILITIES = { spawn: true, stop: true, approve: true, send: true, handover: true, resume: true };
 
 // A queue that is also an async iterable; end() lets queued events drain, then finishes the stream.
-function createChannel() {
+export function createChannel() {
   const queue = [];
   const waiting = [];
   let ended = false;

@@ -1154,6 +1154,13 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   };
 }
 
+/** den-revival/03: DEN_CODEX=1 adds the Codex runtime (host launch, its own resource group) beside Claude's; off, the one Claude runtime stays as it was. */
+export async function runtimeOptions({ env, claude, root }) {
+  if (env.DEN_CODEX !== "1") return { runtime: claude };
+  const { createCodexRuntime } = await import("./agents/codex-runtime.mjs");
+  return { runtimes: { claude, codex: createCodexRuntime({ env, controlRoot: root }) } };
+}
+
 // Started through the service's bridge/current link, argv[1] is the link and import.meta.url the release it points to: compare real paths.
 const startedDirectly = () => {
   try {
@@ -1204,7 +1211,7 @@ if (startedDirectly()) {
     const { createContainerLauncher } = await import("./agents/container.mjs");
     agentLauncher = createContainerLauncher({ env: process.env, image, docker: createDocker({ env: process.env }), proxy: proxyService, sessionsDir: path.join(denState, "agent-sessions") });
   }
-  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, proxy, runtime: createClaudeRuntime({ env: process.env, launcher: agentLauncher, controlRoot: root }), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
+  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, proxy, ...(await runtimeOptions({ env: process.env, claude: createClaudeRuntime({ env: process.env, launcher: agentLauncher, controlRoot: root }), root })), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
   console.log(`bridge listening on ${bridge.url} (root ${root})`);
   // The only place the launch code is shown (ADR 0016 decision 6.2): once, in a URL fragment the browser never sends.
   console.log(`to steer, open (one use, 5 minutes): ${bridge.url}/#code=${bridge.newLaunchCode()}`);
