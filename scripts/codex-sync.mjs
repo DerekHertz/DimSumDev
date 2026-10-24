@@ -29,7 +29,7 @@ export const ROLE_FOCUS = {
   designer: "Run only the mode the ticket names (direction, spec, review, critique). The user decides visuals.",
   developer: "Write one failing test per criterion first, or start from qa's tests branch without editing its tests; make them pass, run only the covering tests, commit, release at in-review. On a bug ticket, load diagnosing-bugs first and post the cause note as a ticket comment (the Cause field stays empty; symptom, repro, hypotheses, chosen cause, where else, target layer) before the first test; fix at the target layer. File work outside the ticket as a new ticket. Never review your own work. In a fix round answer each finding in one line: fixed, wrong, intentional or didn't matter.",
   product: "Settle requirements with the user in CONTEXT.md terms; publish the spec only after the user confirms.",
-  qa: "specify: failing tests for every testable criterion. verify: map each criterion to a test that fails without the change and give a verdict on each `node scripts/test-guard.mjs` hit, with `board comment --verdict pass|bounce`.",
+  qa: "Map each criterion to a test that fails without the change and give a verdict on each `node scripts/test-guard.mjs` hit, with `board comment --verdict pass|bounce`.",
   "release-manager": "Propose; never push, merge or tag. Answer the question you were started for with evidence.",
   runner: "Do exactly the task as written; start no agents.",
   security: "Check the branch for vulnerabilities, risky dependencies, secrets and CI changes; verdict via `board comment --verdict pass|bounce`. Scan the range with gitleaks; a committed secret always bounces; never print a secret's value. CI actions pin to a commit SHA, and `pull_request_target` never checks out PR code.",

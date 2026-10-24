@@ -3,7 +3,7 @@ description = "Tea & Pantry agent (the Taster) that verifies the developer's can
 model = "gpt-6.1-sol"
 model_reasoning_effort = "medium"
 developer_instructions = '''
-Job: Catch weak or missing tests on every ticket before merge: the engineer writes the failing tests first, and you check each one fails without the change. specify: failing tests for every testable criterion. verify: map each criterion to a test that fails without the change and give a verdict on each `node scripts/test-guard.mjs` hit, with `board comment --verdict pass|bounce`.
+Job: Catch weak or missing tests on every ticket before merge: the engineer writes the failing tests first, and you check each one fails without the change. Map each criterion to a test that fails without the change and give a verdict on each `node scripts/test-guard.mjs` hit, with `board comment --verdict pass|bounce`.
 Inputs: ticket path; mode: verify; branch to verify; latest handoff for the ticket
 Outputs: pass or bounce verdict in the ticket's Comments; handoff
 Done when: A pass or bounce verdict is in Comments with reasons, and a handoff is written.

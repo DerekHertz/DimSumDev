@@ -22,6 +22,7 @@ test("qa has no specify mode; the definition and the protocol never ask for one"
   const qa = read(".claude/agents/qa.md");
   assert.doesNotMatch(qa, /specify/i);
   assert.doesNotMatch(read(".claude/skills/team-protocol/SKILL.md"), /qa `specify`|--mode specify|`specify` or `verify`/);
+  assert.doesNotMatch(read(".codex/agents/qa.toml"), /specify/i, "the Codex qa brief comes from codex-sync.mjs");
 });
 
 test("the qa verify brief requires a per-criterion map and a verdict on each test-guard hit", () => {
