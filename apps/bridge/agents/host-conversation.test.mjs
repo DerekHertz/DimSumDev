@@ -113,7 +113,7 @@ describe("the durable conversation of a role", () => {
 
   test("the file is untrusted: a bad line is dropped, text is cleaned again, and unknown keys are not copied", async () => {
     const t = await setup();
-    await mkdir(path.dirname(file(t.fx.root, "scout")), { recursive: true });
+    await mkdir(path.dirname(file(t.fx.root, "sre")), { recursive: true });
     const base = { runId: "c-0123456789abcdef", ref: DISPATCH_REF, at: "2026-10-12T10:00:00.000Z" };
     const lines = [
       { ...base, id: 1, kind: "message", role: "agent", text: `key ${AWS_KEY} ${BIDI}end`, pid: 4242, command: "rm -rf /" },
@@ -125,8 +125,8 @@ describe("the durable conversation of a role", () => {
       { runId: base.runId, id: 1, role: "user", text: "words the agent never said" },
       "not json",
     ];
-    await writeFile(file(t.fx.root, "scout"), lines.map((l) => (typeof l === "string" ? l : JSON.stringify(l))).join("\n") + "\n");
-    const { entries } = await t.thread("scout");
+    await writeFile(file(t.fx.root, "sre"), lines.map((l) => (typeof l === "string" ? l : JSON.stringify(l))).join("\n") + "\n");
+    const { entries } = await t.thread("sre");
     assert.equal(entries.length, 2);
     assert.deepEqual(Object.keys(entries[0]).sort(), ["at", "id", "kind", "ref", "role", "runId", "text"]);
     assert.ok(!entries[0].text.includes(AWS_KEY) && !entries[0].text.includes(BIDI), "a secret and a bidirectional override do not come back");
@@ -394,7 +394,7 @@ describe("Bao's desk: talking to Bao with no ticket", () => {
     assert.equal(res.body.resumed, true);
     const rec = t.fake.spawns.at(-1);
     assert.deepEqual([rec.args.role, rec.args.ref], ["orchestrator", "den/00-bao"]);
-    assert.match(rec.args.prompt, /You are Bao, the orchestrator, at your desk/);
+    assert.match(rec.args.prompt, /You are Bao, the chief of staff, at your desk/);
     assert.match(rec.args.prompt, /change no file/);
     assert.doesNotMatch(rec.args.prompt, /red on CI/, "no client string reaches the prompt");
     assert.deepEqual(rec.sent.map((m) => m.text), ["What is red on CI right now?"]);

@@ -378,7 +378,7 @@ test("AC5 session-start: no line when the mod is enabled in project settings", (
   const r = start(f, ORCH);
   assert.equal(r.code, 0);
   assert.doesNotMatch(r.stdout, /sleep-guard/);
-  assert.match(r.stdout, /Latest orchestrator handoff/, "the usual pickup is still printed");
+  assert.match(r.stdout, /Latest chief-of-staff handoff/, "the usual pickup is still printed");
 });
 
 test("AC5 session-start: no line when the mod is enabled in local or user settings", () => {

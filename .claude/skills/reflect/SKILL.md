@@ -13,7 +13,7 @@ Transcripts live in `~/.claude/projects/<workspace-slug>/*.jsonl` (the slug is t
 
 ## 2. Three reviewers in parallel
 
-Start three `scout` agents in one message, each given the transcript path and one lens. Each returns at most 8 findings, every one with `file:line` evidence from the transcript.
+Start three `runner` agents in one message, each given the transcript path and one lens. Each returns at most 8 findings, every one with `file:line` evidence from the transcript.
 
 - **Judgment.** Decisions that went wrong or right: a wrong assumption, a skipped check, a gate missed, an ask that should not have been one.
 - **Tooling.** Commands, tools, permissions and files that cost time: retries, blocked calls, wrong paths, output too long for context.

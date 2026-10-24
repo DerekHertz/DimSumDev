@@ -36,7 +36,7 @@ A working artifact, not committed: `decisions.tsv` in the work dir, or `.audit/<
 ## Before you hand back
 
 1. **Audit the log against what happened.** Read this run's transcript under `~/.claude/projects/<workspace-slug>/` (this workspace only; sibling directories hold private chats). Check that each row maps to a real decision, that its evidence resolves, and that no fork or abandoned approach is missing. Fix the log by adding rows that supersede wrong ones; never edit or delete a row.
-2. **Cross-model review.** Start a subagent on a different model tier from the one that did the work (a Haiku `scout` reading the log and transcript, or `code-reviewer`). It flags weak or missing evidence, steps claimed without proof, and choices that look risky in hindsight. Self-review is not a substitute.
+2. **Cross-model review.** Start a subagent on a different model tier from the one that did the work (a Haiku `runner` reading the log and transcript, or `code-reviewer`). It flags weak or missing evidence, steps claimed without proof, and choices that look risky in hindsight. Self-review is not a substitute.
 3. End your report with an "Attention" section: `reviewed by <model>` on its own line, then each flag with the row or moment it points to. "No flags" is a valid value.
 
 Other skills route their audit trail here and let this skill own the format.

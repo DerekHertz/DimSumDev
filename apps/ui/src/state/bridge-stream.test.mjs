@@ -76,7 +76,7 @@ test("after a whole run the page's state still equals the bridge's: no change ty
   sse = openSse(t.bridge);
   await sse.opened;
   await sse.next((f) => f.event === "snapshot");
-  const started = await t.post("/tasks", { role: "scout", text: "Count the steamer baskets." });
+  const started = await t.post("/tasks", { role: "sre", text: "Count the steamer baskets." });
   assert.equal(started.status, 201, started.text);
   await until(() => t.fake.spawns.length === 1, { what: "the spawn" });
   const rec = t.fake.spawns[0];

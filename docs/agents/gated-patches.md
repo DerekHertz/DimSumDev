@@ -6,7 +6,7 @@ Agents can't edit `.claude/` (role definitions, skills, settings) or `CLAUDE.md`
 
 1. Make the change on a scratch copy of the file (outside the gated path), then produce a patch with `git diff` or `git format-patch`. A `format-patch` file carries a commit message; a plain diff gets a generic one naming the file.
 2. Save it as `.scratch/_handoffs/gated/<NN>-<slug>.patch` in the main checkout. `<NN>` is the ticket number, so patches sort in the order to apply. Patch paths are relative to the repo root (`a/.claude/agents/developer.md`).
-3. Name the patch in your handoff and tell the orchestrator the user should run `!npm run apply-gated`.
+3. Name the patch in your handoff and tell the chief of staff the user should run `!npm run apply-gated`.
 
 ## For the user
 

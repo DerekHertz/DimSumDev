@@ -78,7 +78,7 @@ describe("buildClaudeArgs: the fixed argv template (ADR 0016 6.6)", () => {
   });
 
   test("--setting-sources project,local and --strict-mcp-config are present, and no --mcp-config", () => {
-    const argv = need("buildClaudeArgs")({ sessionId: SID, agent: "scout" });
+    const argv = need("buildClaudeArgs")({ sessionId: SID, agent: "chief-of-staff" });
     assert.equal(argv[argv.indexOf("--setting-sources") + 1], "project,local");
     assert.ok(argv.includes("--strict-mcp-config"));
     assert.ok(!argv.includes("--mcp-config"));
@@ -102,8 +102,8 @@ describe("buildClaudeArgs: the fixed argv template (ADR 0016 6.6)", () => {
     // asked the user before the agent could read its own task. The path is the bridge's, never a client string.
     const build = need("buildClaudeArgs");
     const file = "/home/u/dim-sum_den.2/.scratch/den/issues/01-scout.md";
-    const plain = build({ sessionId: SID, agent: "scout" });
-    const argv = build({ sessionId: SID, agent: "scout", ticketFile: file });
+    const plain = build({ sessionId: SID, agent: "chief-of-staff" });
+    const argv = build({ sessionId: SID, agent: "chief-of-staff", ticketFile: file });
     const at = argv.indexOf("--settings") + 1;
     assert.deepEqual(JSON.parse(argv[at]), { disableAllHooks: true, permissions: { deny: DENY_RULES, allow: [`Read(/${file})`] } });
     assert.deepEqual(argv.toSpliced(at, 1), plain.toSpliced(at, 1), "only the --settings value differs");
@@ -136,7 +136,7 @@ describe("buildClaudeArgs: the fixed argv template (ADR 0016 6.6)", () => {
     ];
     for (const file of bad) {
       assert.equal(ok(file), false, `isTicketFilePath(${JSON.stringify(file)})`);
-      assert.throws(() => build({ sessionId: SID, agent: "scout", ticketFile: file }), TypeError, `ticketFile ${JSON.stringify(file)}`);
+      assert.throws(() => build({ sessionId: SID, agent: "chief-of-staff", ticketFile: file }), TypeError, `ticketFile ${JSON.stringify(file)}`);
     }
     for (const file of ["/repo/.scratch/den/issues/01-scout.md", "/home/a.b/x_y-z/@w+1/.scratch/organism-infra/issues/107-steering-slice-2.md"]) {
       assert.equal(ok(file), true, file);
@@ -144,7 +144,7 @@ describe("buildClaudeArgs: the fixed argv template (ADR 0016 6.6)", () => {
   });
 
   test("the child asks for permissions over stdio (the control_request channel)", () => {
-    const argv = need("buildClaudeArgs")({ sessionId: SID, agent: "scout" });
+    const argv = need("buildClaudeArgs")({ sessionId: SID, agent: "chief-of-staff" });
     assert.equal(argv[argv.indexOf("--permission-prompt-tool") + 1], "stdio");
   });
 
@@ -258,7 +258,7 @@ describe("buildClaudeArgs: the fixed argv template (ADR 0016 6.6)", () => {
 // agent-os/01 (the wall spike, ADR 0021 decision 2): an optional `wall` turns the CLI's own sandbox on in the inline
 // settings. The production runtime does not pass it yet; the spike's live check does, to learn whether it holds.
 describe("buildClaudeArgs: the wall (agent-os/01 spike)", () => {
-  const build = (o) => need("buildClaudeArgs")({ sessionId: SID, agent: "scout", ...o });
+  const build = (o) => need("buildClaudeArgs")({ sessionId: SID, agent: "chief-of-staff", ...o });
   const settingsOf = (argv) => JSON.parse(argv[argv.indexOf("--settings") + 1]);
   const sandbox = (hosts) => ({
     enabled: true,
@@ -1092,7 +1092,7 @@ describe("buildClaudeArgs: a bridge agent runs no hook and no status line (den-m
 // ---- connections (den-mvp outcome 4) ----------------------------------------------------------
 
 describe("buildClaudeArgs: connections (den-mvp outcome 4)", () => {
-  const args = (connections) => need("buildClaudeArgs")({ sessionId: SID, agent: "scout", connections });
+  const args = (connections) => need("buildClaudeArgs")({ sessionId: SID, agent: "chief-of-staff", connections });
   const configOf = (argv) => JSON.parse(argv[argv.indexOf("--mcp-config") + 1]);
 
   test("the catalog's targets become the one --mcp-config value, beside --strict-mcp-config: an address, or this node running a script", () => {
@@ -1152,10 +1152,10 @@ describe("buildClaudeArgs: a connection with a credential (den-mvp/33)", () => {
   const build = need("buildClaudeArgs");
   const gh = { name: "github", url: "https://api.githubcopilot.com/mcp/readonly", credential: "den", headers: { "X-MCP-Toolsets": "repos" } };
   test("the credentialed connection is not inline; its config comes by file, and no token is in argv", () => {
-    const a = build({ sessionId: SID, agent: "scout", connections: [gh], mcpConfigFile: "/home/u/.local/state/den/credentials/run/x.json" });
+    const a = build({ sessionId: SID, agent: "chief-of-staff", connections: [gh], mcpConfigFile: "/home/u/.local/state/den/credentials/run/x.json" });
     assert.ok(!a.join(" ").includes("githubcopilot"));
     assert.equal(a[a.lastIndexOf("--mcp-config") + 1], "/home/u/.local/state/den/credentials/run/x.json");
-    assert.throws(() => build({ sessionId: SID, agent: "scout", mcpConfigFile: "relative.json" }), TypeError);
+    assert.throws(() => build({ sessionId: SID, agent: "chief-of-staff", mcpConfigFile: "relative.json" }), TypeError);
   });
   test("the file's config holds the token as a header", async () => {
     const { mcpConfigWithTokens } = await import("./claude-adapter.mjs");

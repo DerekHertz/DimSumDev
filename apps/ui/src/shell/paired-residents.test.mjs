@@ -8,8 +8,10 @@ import {liveActorsFromSnapshot} from '../review/live-actors.mjs';
 import {actorBindings} from '../scene/meshy/layout.mjs';
 import {agentFor,pickedCard} from '../overlay/proximity-card.mjs';
 
+// orchestrator is Bao's desk on the chief of staff's recipe; scout and herald keep their homes until the UI drops them.
+const RETIRED_RESIDENTS=['herald','scout'];
 test('one inventory covers every trusted recipe in both runtimes and four scenery residents',()=>{
- const recipes=readdirSync(new URL('../../../../.codex/agents/',import.meta.url)).filter(f=>f.endsWith('.toml')).map(f=>f.slice(0,-5)).filter(r=>!['default','explorer','worker'].includes(r));
+ const recipes=readdirSync(new URL('../../../../.codex/agents/',import.meta.url)).filter(f=>f.endsWith('.toml')).map(f=>f.slice(0,-5)).filter(r=>!['default','explorer','worker'].includes(r)).map(r=>r==='chief-of-staff'?'orchestrator':r).concat(RETIRED_RESIDENTS);
  for(const runtime of ['claude','codex'])assert.deepEqual(RESIDENTS.filter(r=>r.runtime===runtime&&r.dispatchable).map(r=>r.role).sort(),recipes.sort());
  assert.equal(RESIDENTS.length,32);assert.equal(new Set(RESIDENTS.map(r=>r.id)).size,32);
  assert.equal(RESIDENTS.filter(r=>!r.dispatchable).length,4);

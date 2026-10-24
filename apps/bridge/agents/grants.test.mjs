@@ -4,7 +4,7 @@
 // PINNED INTERFACE (anything not named here is the developer's to choose):
 //   compileCeiling(role, { worktree, grants })   grants is an array of { kind: "host" | "path", value } (at most 6), the same
 //                                                fixed shape POST /tasks takes. Anything outside the shape is a TypeError, never a
-//                                                looser rule. scout takes no grant at all (read-only role): any grant is a TypeError.
+//                                                looser rule. chief-of-staff takes no grant at all (read-only role): any grant is a TypeError.
 //   host grant   -> sandbox.network.allowedDomains = the ceiling's hosts plus the grant's (strictAllowlist stays), and a read
 //                   limit: with at least one host the settings carry sandbox.filesystem.denyRead (non-empty) or
 //                   permissions.blockReadsOutsideWorkingDirectories === true. No host without a read limit (security review of
@@ -125,8 +125,8 @@ describe("task grants compile into the recorded settings", () => {
   });
 
   test("a ceiling with no grants has no sandbox.filesystem.allowWrite (qa verify bounce 1, finding 2)", () => {
-    for (const role of ["scout", ...ROLES_WITH_GRANTS]) {
-      for (const grants of role === "scout" ? [undefined, []] : [undefined, [], [{ kind: "host", value: "registry.npmjs.org" }]]) {
+    for (const role of ["chief-of-staff", ...ROLES_WITH_GRANTS]) {
+      for (const grants of role === "chief-of-staff" ? [undefined, []] : [undefined, [], [{ kind: "host", value: "registry.npmjs.org" }]]) {
         const s = settingsFor(role, grants);
         assert.equal(s.sandbox.filesystem?.allowWrite, undefined, `${role}: no allowWrite without a path grant`);
       }
@@ -141,9 +141,9 @@ describe("task grants compile into the recorded settings", () => {
     assert.equal(walled.filter((a) => a.includes("api.example.com") || a.includes("/srv/shared/data")).length, 1, "only the --settings value carries a grant");
   });
 
-  test("scout takes no grant: read-only means read-only", () => {
+  test("chief-of-staff takes no grant: read-only means read-only", () => {
     for (const grant of [{ kind: "host", value: "api.example.com" }, { kind: "path", value: "/srv/shared/data" }]) {
-      assert.throws(() => compile("scout", [grant]), TypeError, JSON.stringify(grant));
+      assert.throws(() => compile("chief-of-staff", [grant]), TypeError, JSON.stringify(grant));
     }
   });
 });
@@ -198,7 +198,7 @@ describe("the wall's host list is names only (security review of agent-os/01)", 
 });
 
 describe("the ceilings deny the governance paths and commands (one test per entry)", () => {
-  for (const role of ["developer", "qa", "scout"]) {
+  for (const role of ["developer", "qa", "chief-of-staff"]) {
     for (const file of [...CI_PATHS, ...GUARDRAIL_PATHS]) {
       test(`${role}: write to ${file} is denied (Write, Edit and a shell write)`, () => {
         const s = settingsFor(role);
@@ -213,13 +213,13 @@ describe("the ceilings deny the governance paths and commands (one test per entr
   for (const file of CI_PATHS) {
     test(`security with no grant: write to ${file} is denied`, () => assert.ok(fileDenied(settingsFor("security"), file)));
   }
-  for (const role of [...ROLES_WITH_GRANTS, "scout"]) {
+  for (const role of [...ROLES_WITH_GRANTS, "chief-of-staff"]) {
     for (const command of GOVERNANCE_COMMANDS) {
       test(`${role}: "${command}" is denied`, () => assert.ok(bashDenied(settingsFor(role).permissions.deny, command)));
     }
   }
   test("the four original deny rules stay beside the governance ones", () => {
-    for (const role of [...ROLES_WITH_GRANTS, "scout"]) for (const rule of FOUR) assert.ok(settingsFor(role).permissions.deny.includes(rule), `${role} ${rule}`);
+    for (const role of [...ROLES_WITH_GRANTS, "chief-of-staff"]) for (const rule of FOUR) assert.ok(settingsFor(role).permissions.deny.includes(rule), `${role} ${rule}`);
   });
   test("a role with no ceiling is untouched: buildClaudeArgs alone still gives only the four deny rules", () => {
     const s = settingsOf(need("buildClaudeArgs")({ sessionId: SID, agent: "architect" }));
@@ -268,7 +268,7 @@ describe("bypass forms: the compiled rules refuse each wrapped governance comman
     ["<(...)", (c) => `cat <(${c})`], ["subshell", (c) => `(${c})`], ["bash -c", (c) => `bash -c '${c}'`],
   ];
   const BASES = ["git push origin HEAD", "gh pr create --fill", "gh pr merge 12", "gh pr review 12 --approve", "gh issue close 5", "gh release create v1.0"];
-  for (const role of [...ROLES_WITH_GRANTS, "scout"]) {
+  for (const role of [...ROLES_WITH_GRANTS, "chief-of-staff"]) {
     for (const base of BASES) {
       for (const [name, wrap] of WRAPS) {
         test(`${role}: ${name} around "${base}"`, () => assert.ok(bashDenied(settingsFor(role).permissions.deny, wrap(base)), JSON.stringify(wrap(base))));

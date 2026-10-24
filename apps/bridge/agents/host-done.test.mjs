@@ -21,7 +21,7 @@ const sessionLines = async () => (await readFile(t.sessionsFile, "utf8")).split(
 describe("a done event ends the process", () => {
   test("the host closes the child's stdin on done; the agent ends done with no stop recorded", async () => {
     t = await makeBridge();
-    const { agent } = (await t.dispatch("scout")).body;
+    const { agent } = (await t.dispatch("sre")).body;
     const rec = t.fake.spawns[0];
     rec.emit({ type: "done", ok: true });
     const a = await ended(agent.id, "done"); // the test never calls rec.exit(): closing stdin is what ends the fake
@@ -30,12 +30,12 @@ describe("a done event ends the process", () => {
     const lines = (await sessionLines()).filter((l) => l.agentId === agent.id);
     assert.deepEqual(lines.map((l) => l.event), ["spawn", "end"]);
     assert.equal(lines[1].state, "done");
-    await until(async () => (await t.dispatch("scout")).status === 201, { what: "the slot free again (the run's claim given back)" }); // den-mvp/89
+    await until(async () => (await t.dispatch("sre")).status === 201, { what: "the slot free again (the run's claim given back)" }); // den-mvp/89
   });
 
   test("a done with ok:false closes stdin too, and the agent ends failed", async () => {
     t = await makeBridge();
-    const { agent } = (await t.dispatch("scout")).body;
+    const { agent } = (await t.dispatch("sre")).body;
     const rec = t.fake.spawns[0];
     rec.emit({ type: "done", ok: false });
     await ended(agent.id, "failed");
@@ -44,7 +44,7 @@ describe("a done event ends the process", () => {
 
   test("a child that ignores the stdin close is signalled after the grace, and still ends done (not terminated)", async () => {
     t = await makeBridge({ runtimeConfig: { stdinCloseEnds: false }, policy: { killGraceMs: 40 } });
-    const { agent } = (await t.dispatch("scout")).body;
+    const { agent } = (await t.dispatch("sre")).body;
     const rec = t.fake.spawns[0];
     rec.emit({ type: "done", ok: true });
     const a = await ended(agent.id, "done");
@@ -55,7 +55,7 @@ describe("a done event ends the process", () => {
 
   test("a second done does not close stdin twice", async () => {
     t = await makeBridge({ runtimeConfig: { stdinCloseEnds: false, sigtermEnds: false }, policy: { killGraceMs: 60 } });
-    const { agent } = (await t.dispatch("scout")).body;
+    const { agent } = (await t.dispatch("sre")).body;
     const rec = t.fake.spawns[0];
     rec.emit({ type: "done", ok: true });
     rec.emit({ type: "done", ok: true });
@@ -65,7 +65,7 @@ describe("a done event ends the process", () => {
 
   test("a stop after done still ends terminated", async () => {
     t = await makeBridge({ runtimeConfig: { stdinCloseEnds: false }, policy: { killGraceMs: 200 } });
-    const { agent } = (await t.dispatch("scout")).body;
+    const { agent } = (await t.dispatch("sre")).body;
     const rec = t.fake.spawns[0];
     rec.emit({ type: "done", ok: true });
     await until(() => rec.calls.length === 1, { what: "the stdin close" });

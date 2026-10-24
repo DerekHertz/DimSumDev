@@ -169,7 +169,7 @@ for (const role of ["developer", "security"]) {
         cwd: fx.worktree,
       });
       assert.notEqual(r.code, 0, `${role} must not be able to resolve`);
-      assert.match(r.stderr, /resolved|orchestrator/);
+      assert.match(r.stderr, /resolved|chief of staff/);
       assert.match(await fx.readTicket(), /Status:\s*claimed/);
 
       const forced = await runBoard(
@@ -199,7 +199,24 @@ test("a qa claim (verify mode) cannot release at resolved", async () => {
   }
 });
 
-test("an orchestrator claim can release at resolved with a valid handoff", async () => {
+test("a chief-of-staff claim can release at resolved with a valid handoff; reclaiming as one is refused", async () => {
+  const fx = await makeBoardFixture();
+  try {
+    const claimed = await runBoard(["claim", fx.ticketRelPath, "chief-of-staff"], { cwd: fx.worktree });
+    assert.equal(claimed.code, 0, claimed.stderr);
+    await writeValidHandoff(fx);
+    const r = await runBoard(["release", fx.ticketRelPath, "--status", "resolved"], { cwd: fx.worktree });
+    assert.equal(r.code, 0, `the chief of staff may resolve: ${r.stderr}`);
+    assert.match(await fx.readTicket(), /Status:\s*resolved/);
+    const re = await runBoard(["reclaim", fx.ticketRelPath, "chief-of-staff", "--reason", "x"], { cwd: fx.worktree });
+    assert.notEqual(re.code, 0);
+    assert.match(re.stderr, /chief of staff may resolve/);
+  } finally {
+    await fx.cleanup();
+  }
+});
+
+test("an orchestrator claim (the stub, one release) can release at resolved with a valid handoff", async () => {
   const fx = await makeBoardFixture();
   try {
     const claimed = await runBoard(["claim", fx.ticketRelPath, "orchestrator"], { cwd: fx.worktree });

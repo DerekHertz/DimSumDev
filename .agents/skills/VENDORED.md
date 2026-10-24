@@ -16,8 +16,8 @@ Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with 
 | wayfinder | **adapted** | Chart step 1 starts from a grilling hand-off note when given one, and records it as a closed `grilling` ticket (den-mvp/60). Points at `docs/agents/issue-tracker.md`, not the upstream setup command (hardening/02). Carries the post-pin label rules. |
 | resolving-merge-conflicts, writing-for-agents | as-is | none |
 | handoff | **adapted** | Model-invocable. Writes to the board (`.scratch/<feature>/handoffs/`) instead of the OS temp dir. Fixed sections, 60-line cap. |
-| implement | **adapted** | Model-invocable. Claims the ticket via team-protocol, delegates verbose output to `scout`, never merges, ends with /handoff. |
-| to-tickets | **adapted** | Model-invocable (orchestrator). Step 4 is a pass gate. Hardening/02: tickets carry type, Why, Out of scope, Cause and a token estimate (split above 150k, merge below 30k), about 5 done-when checks, an advisory paths line; the "avoid file paths" rule is gone. |
+| implement | **adapted** | Model-invocable. Claims the ticket via team-protocol, delegates verbose output to `runner`, never merges, ends with /handoff. |
+| to-tickets | **adapted** | Model-invocable (chief of staff). Step 4 is a pass gate. Hardening/02: tickets carry type, Why, Out of scope, Cause and a token estimate (split above 150k, merge below 30k), about 5 done-when checks, an advisory paths line; the "avoid file paths" rule is gone. |
 | to-spec | **adapted** | Model-invocable (product). Points at `docs/agents/issue-tracker.md`, not the upstream setup command (hardening/02). |
 | code-review | **adapted** | Adds a Pro token-budget note (sonnet sub-agents, diff command not pasted, current ticket only). Points at `docs/agents/issue-tracker.md`, not the upstream setup command (hardening/02). |
 | team-protocol | **new** | Shared agent rules: board, claims, gates, hand off and exit, token hygiene. |
@@ -34,11 +34,11 @@ Source: https://github.com/cursor/plugins, folder `pstack/` (MIT, Lauren Tan / p
 
 | Skill | Status | Local changes | Who uses it |
 |---|---|---|---|
-| automate-me | **adapted** | Rewritten for Claude Code: `AskUserQuestion`, `scout` slices over `~/.claude/projects/`, `usage-watch` first, pruning through `writing-for-agents`. Drops Cursor's `create-skill` and `unslop` steps. | The user, on request |
+| automate-me | **adapted** | Rewritten for Claude Code: `AskUserQuestion`, `runner` slices over `~/.claude/projects/`, `usage-watch` first, pruning through `writing-for-agents`. Drops Cursor's `create-skill` and `unslop` steps. | The user, on request |
 | principle-laziness-protocol, principle-subtract-before-you-add, unslop | as-is (`disable-model-invocation` removed) | none | developer, architect, code-reviewer (principles, in place of ponytail); technical-writer, herald (unslop) |
 | blast-radius, correct | as-is, light edits | Companion skills `how`, `why`, `arena` replaced by git history and `interrogate`; "operator" is "user" | qa (preloaded); `pipeline-retro` names `correct` |
 | show-me-your-work | **adapted** | Cursor transcript paths become `~/.claude/projects/<slug>`; cross-model review uses a different Claude tier; log kept under `$TMPDIR` in a read-only den run. `scripts/log.sh` as-is. | developer on L tickets and unattended runs |
-| reflect | **adapted** | Three `scout` lenses replace the three Cursor reviewers and synthesizer reference files; the synthesis is done by the main session; edits wait for the user's approval. | The user, at the end of a long relay; `pipeline-retro` points to it |
+| reflect | **adapted** | Three `runner` lenses replace the three Cursor reviewers and synthesizer reference files; the synthesis is done by the main session; edits wait for the user's approval. | The user, at the end of a long relay; `pipeline-retro` points to it |
 | interrogate | **adapted** | Reviewer A is `code-reviewer`, B a different model (Codex when enabled); `rubric.md` and `lead-judgment.md` as-is; the Cursor model rule file and two prompt templates dropped. | security (preloaded) |
 | no-comments | **adapted** | The `comment-sicko` agent and its `how`/`why`/`architect` dependencies are folded into one self-contained skill. | developer, before committing a large diff |
 | (ideas, not files) | folded | `team-protocol` lines (fresh subagent per round, idempotent retries, prove it by running) and qa's blast-radius step (den-mvp/90) | all roles |

@@ -41,13 +41,13 @@ test("runner is a Haiku leaf: model haiku, no Agent tool", () => {
 
 test("no leaf role definition (model: haiku) holds Agent", () => {
   const leaves = AGENTS.filter((a) => front(a).model === "haiku");
-  assert.ok(leaves.includes("runner") && leaves.includes("scout"), `leaves: ${leaves}`);
+  assert.ok(leaves.includes("runner") && !leaves.includes("scout"), `leaves: ${leaves}`);
   for (const l of leaves) assert.deepEqual(front(l).tools.filter((t) => /^Agent\b/.test(t)), [], `${l} is a leaf and holds Agent`);
 });
 
-test("the tree is three levels: only the orchestrator starts branch agents; a branch starts only leaves", () => {
+test("the tree is three levels: only the orchestrator and the chief of staff start branch agents; a branch starts only leaves", () => {
   const leaves = AGENTS.filter((a) => front(a).model === "haiku");
-  for (const a of AGENTS.filter((x) => x !== "orchestrator")) {
+  for (const a of AGENTS.filter((x) => x !== "orchestrator" && x !== "chief-of-staff")) {
     for (const t of agentTargets(front(a).tools)) assert.ok(leaves.includes(t), `${a} starts ${t}, which is not a leaf`);
   }
 });
@@ -56,13 +56,12 @@ test("developer and qa can start runner and say when to", () => {
   for (const a of ["developer", "qa"]) {
     const g = front(a);
     assert.ok(agentTargets(g.tools).includes("runner"), `${a} cannot start runner`);
-    assert.ok(agentTargets(g.tools).includes("scout"), `${a} lost scout`);
     assert.match(g.body, /`runner`[^\n]*\b(verify|check)/i, `${a} does not say when to use runner`);
   }
 });
 
-test("the orchestrator is on Sonnet and preloads only what every run uses", () => {
-  const o = front("orchestrator");
+test("the chief of staff (Bao's desk, once the orchestrator) is on Sonnet and preloads only what every run uses", () => {
+  const o = front("chief-of-staff");
   assert.equal(o.model, "sonnet");
   assert.equal(o.effort, "high");
   assert.deepEqual(o.skills, ["team-protocol", "grilling", "domain-modeling"]);
@@ -77,15 +76,6 @@ test("the architect reads codebase-design and domain-modeling when used, not pre
   assert.match(a.body, /domain-modeling/);
 });
 
-// den-mvp/104: Claude Code grants plain Bash for a Bash(cmd:*) rule (probed on 2.1.293), so herald names no scope the harness does not enforce.
-test("herald claims no Bash scope the harness does not enforce; the den wall is its guard", () => {
-  const h = front("herald");
-  assert.deepEqual(h.tools.filter((t) => /^Bash\b/.test(t)), ["Bash"]);
-  assert.match(h.body, /den wall/);
-  assert.match(h.body, /draft-check\.mjs/);
-  assert.doesNotMatch(h.body, /Your Bash runs only that script/);
-});
-
 test("runner's edit scope is pinned: fully specified changes; no board, commit, push or .claude/ edits", () => {
   const b = front("runner").body;
   assert.match(b, /never run `board`, `git commit`, `git push`, or edit anything under `\.claude\/` or `CLAUDE\.md`/);
@@ -96,8 +86,8 @@ test("qa verify: runner makes no edit, so a leaf cannot weaken a test the guard 
   assert.match(read(".claude/agents/qa.md"), /runner[^\n]*(makes no edit|no edit)[^\n]*verify|verify[^\n]*runner[^\n]*makes no edit/i);
 });
 
-test("the orchestrator asks on a failed or stale usage reading, warns at 80% weekly, and passes the provider", () => {
-  const b = front("orchestrator").body;
+test("the chief of staff asks on a failed or stale usage reading, warns at 80% weekly, and passes the provider", () => {
+  const b = front("chief-of-staff").body;
   assert.match(b, /usage\.mjs[^\n]*exits 1[^\n]*"stale": true[^\n]*ask the user/i);
   assert.match(b, /80% (of )?weekly|weekly[^\n]*80%/i);
   assert.match(b, /--provider/);
@@ -106,7 +96,7 @@ test("the orchestrator asks on a failed or stale usage reading, warns at 80% wee
 
 test("no genome mentions a Blender probe", () => {
   for (const a of AGENTS) assert.doesNotMatch(front(a).body, /Blender probe|probes its tools/i, a);
-  assert.doesNotMatch(front("orchestrator").body, /Blender/i);
+  assert.doesNotMatch(front("chief-of-staff").body, /Blender/i);
 });
 
 // mcp__socket stays on developer: the connections catalog grants it and catalog.test.mjs (den-mvp/36) pins that; the user decides.

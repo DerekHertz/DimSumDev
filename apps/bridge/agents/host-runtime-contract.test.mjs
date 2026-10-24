@@ -81,7 +81,7 @@ test("same-named tickets in distinct projects retain distinct shared capacity re
     assert.equal(capacity.live, 2);
     assert.equal(capacity.room, 0);
     assert.deepEqual(capacity.refs.map(({ ref, project }) => ({ ref, project })), [{ ref: DISPATCH_REF, project: "den" }, { ref: DISPATCH_REF, project: "acme" }]);
-    assert.equal((await host.start({ ref: "fx/03-ready-p1", role: "herald" })).status, 429);
+    assert.equal((await host.start({ ref: "fx/03-ready-p1", role: "technical-writer" })).status, 429);
     assert.equal(runtime.spawns.length, 2);
   } finally {
     for (const record of runtime.spawns) record.exit({ code: 1 });

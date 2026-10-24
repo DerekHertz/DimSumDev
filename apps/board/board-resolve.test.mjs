@@ -1,7 +1,7 @@
 // Acceptance tests for organism-infra/98: `board resolve <ref>... --pr N [--note "<text>"]`.
 //
 // Pinned contract (QA's reading of the ticket; the developer must follow it):
-//   - resolve takes the claim as orchestrator, publishes an orchestrator handoff
+//   - resolve takes the claim as chief-of-staff, publishes an chief-of-staff handoff
 //     to <main>/.scratch/<feature>/handoffs/<NN>-*.md whose State block has
 //     ticket "<feature>/<NN-slug>", agent "orchestrator", current_step "resolved"
 //     and the PR number somewhere in `artifacts`, then releases with
@@ -65,7 +65,7 @@ async function snapshot(fx, tickets) {
 
 // --- Criterion 1: resolve on an in-review ticket with no lock ---
 
-test("resolve --pr N on an in-review ticket with no lock resolves it with an orchestrator handoff", async () => {
+test("resolve --pr N on an in-review ticket with no lock resolves it with an chief-of-staff handoff", async () => {
   const fx = await makeBoardFixture({ content: codeTicket("01-do-thing") });
   try {
     const r = await resolveCmd(fx, [fx.ticketRelPath], "--pr", "42");
@@ -80,14 +80,14 @@ test("resolve --pr N on an in-review ticket with no lock resolves it with an orc
     const { state } = await stateOf(fx, files[0]);
     assert.equal(validateState(state).ok, true, JSON.stringify(validateState(state)));
     assert.equal(state.ticket, "sample/01-do-thing");
-    assert.equal(state.role, "orchestrator");
+    assert.equal(state.role, "chief-of-staff");
     assert.equal(state.current_step, "resolved");
     assert.match(JSON.stringify(state.artifacts), /\b42\b/, "the PR is named in artifacts");
 
     const events = (await eventsRaw(fx.root)).split("\n").filter(Boolean).map((l) => JSON.parse(l));
     const rel = events.filter((e) => e.op === "release" && e.kind !== "override");
     assert.equal(rel.length, 1);
-    assert.equal(rel[0].role, "orchestrator");
+    assert.equal(rel[0].role, "chief-of-staff");
     assert.equal(rel[0].from_status, "claimed");
     assert.equal(rel[0].to_status, "resolved");
     assert.equal(events.some((e) => e.kind === "override"), false, "no --force override used");
@@ -112,7 +112,7 @@ test("resolve writes the same resolved row as the claim/handoff/release path (bo
     const a = await resolveCmd(viaResolve, [viaResolve.ticketRelPath], "--pr", "42");
     assert.equal(a.code, 0, a.stderr);
 
-    const c = await run(viaRelease, ["claim", viaRelease.ticketRelPath, "orchestrator"]);
+    const c = await run(viaRelease, ["claim", viaRelease.ticketRelPath, "chief-of-staff"]);
     assert.equal(c.code, 0, c.stderr);
     await writeValidHandoff(viaRelease);
     const b = await run(viaRelease, ["release", viaRelease.ticketRelPath, "--status", "resolved", "--pr", "42"]);
@@ -204,7 +204,7 @@ test("several refs with one --pr resolve every ticket in the batch", async () =>
       assert.equal(mine.length, 1, `one handoff for ${nn}, got ${files}`);
       const { state } = await stateOf(fx, mine[0]);
       assert.equal(state.ticket, nn === "01" ? "sample/01-do-thing" : "sample/02-other-thing");
-      assert.equal(state.role, "orchestrator");
+      assert.equal(state.role, "chief-of-staff");
       assert.equal(state.current_step, "resolved");
       assert.match(JSON.stringify(state.artifacts), /\b77\b/);
     }

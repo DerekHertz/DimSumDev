@@ -6,8 +6,9 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { makeBoardFixture, runBoard, eventsPath } from "./board-fixture.mjs";
 import { isBoardRole } from "./board-service.mjs";
-import { ROLES, slotClassOf } from "../bridge/agents/policy.mjs";
-import { ceilingOf } from "../bridge/agents/claude-adapter.mjs";
+import { DESK_ROLE, ROLES, SESSION_CAP, SLOT_CLASSES, definitionOf, slotClassOf } from "../bridge/agents/policy.mjs";
+import { buildClaudeArgs, ceilingOf } from "../bridge/agents/claude-adapter.mjs";
+import { SPECIALISTS } from "../bridge/meetings/types.mjs";
 
 const NEW = ["code-reviewer", "release-manager", "sre", "technical-writer"];
 const json = (rel) => JSON.parse(readFileSync(fileURLToPath(new URL(rel, import.meta.url)), "utf8"));
@@ -15,12 +16,34 @@ const json = (rel) => JSON.parse(readFileSync(fileURLToPath(new URL(rel, import.
 const DEFINED = readdirSync(fileURLToPath(new URL("../../.claude/agents/", import.meta.url))).filter((f) => f.endsWith(".md")).map((f) => f.slice(0, -3)).filter((r) => r !== "runner");
 
 test("every role definition the bridge may start is in its role table, has a ceiling, and the board can hold it", () => {
-  assert.deepEqual([...ROLES].sort(), [...DEFINED].sort());
-  for (const role of DEFINED) {
+  // team-and-den-ux/19: the role table is the role files plus Bao's desk key, which has no file of its own.
+  assert.deepEqual([...ROLES].sort(), [...DEFINED, DESK_ROLE].sort());
+  for (const role of ROLES) {
     assert.ok(ceilingOf(role), `${role} has no ceiling in ceilings.json`);
-    // herald runs unclaimed: the board keeps no handoffs for it (apps/bridge/server.mjs), and it retires in team-and-den-ux/19.
-    if (role !== "herald") assert.ok(isBoardRole(role), `the board cannot hold a ticket for ${role}`);
+    assert.ok(isBoardRole(role), `the board cannot hold a ticket for ${role}`);
   }
+});
+
+// team-and-den-ux/19 criterion 1: orchestrator, herald and scout are retired as dispatchable roles.
+test("orchestrator, herald and scout have no role file, are not dispatchable, and the scout slot is gone", () => {
+  for (const role of ["orchestrator", "herald", "scout"]) assert.ok(!DEFINED.includes(role), `.claude/agents/${role}.md still exists`);
+  for (const role of ["herald", "scout"]) {
+    assert.ok(!ROLES.includes(role), `${role} is still in the bridge's role table`);
+    assert.ok(!SPECIALISTS.includes(role), `${role} still takes a meeting seat`);
+    assert.throws(() => buildClaudeArgs({ sessionId: "00000000-0000-4000-8000-000000000000", agent: role }));
+  }
+  assert.deepEqual(SLOT_CLASSES, ["worker", "bao"]);
+  assert.equal(SESSION_CAP, 3);
+  assert.deepEqual(Object.keys(json("../bridge/agents/limits.json").classes).sort(), ["bao", "worker"]);
+  const connections = json("../bridge/library/connections.json").connections;
+  for (const c of connections) assert.ok(!c.roles.includes("scout") && !c.roles.includes("herald"), c.name);
+});
+
+test("Bao's desk key runs the chief of staff's definition on Bao's slot", () => {
+  assert.equal(definitionOf(DESK_ROLE), "chief-of-staff");
+  assert.equal(slotClassOf(DESK_ROLE), "bao");
+  const args = buildClaudeArgs({ sessionId: "00000000-0000-4000-8000-000000000000", agent: DESK_ROLE });
+  assert.equal(args[args.indexOf("--agent") + 1], "chief-of-staff");
 });
 
 test("the new roles run on the worker slot and its resource limits, write only in their worktree, and reach no host", () => {
@@ -42,6 +65,22 @@ test("the code reviewer claims a ticket on the board and its verdict counts", as
     assert.equal(verdict.code, 0, verdict.stderr);
     const rows = readFileSync(eventsPath(fx.root), "utf8").trim().split("\n").map((l) => JSON.parse(l));
     assert.ok(rows.some((e) => e.op === "comment" && e.verdict === "bounce" && e.role === "code-reviewer"), JSON.stringify(rows.at(-1)));
+  } finally {
+    await fx.cleanup();
+  }
+});
+
+test("board resolve works with no orchestrator role: the chief of staff claims and resolves (team-and-den-ux/57)", async () => {
+  const fx = await makeBoardFixture();
+  try {
+    const claim = await runBoard(["claim", fx.ticketRelPath, "chief-of-staff"], { cwd: fx.worktree });
+    assert.equal(claim.code, 0, claim.stderr);
+    const released = await runBoard(["release", fx.ticketRelPath, "--status", "in-review", "--force", "--reason", "fixture has no handoff"], { cwd: fx.worktree });
+    assert.equal(released.code, 0, released.stderr);
+    const resolved = await runBoard(["resolve", fx.ticketRelPath, "--pr", "1"], { cwd: fx.worktree });
+    assert.equal(resolved.code, 0, resolved.stderr);
+    const rows = readFileSync(eventsPath(fx.root), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    assert.ok(rows.some((e) => e.op === "resolve" || e.to_status === "resolved"), JSON.stringify(rows.at(-1)));
   } finally {
     await fx.cleanup();
   }

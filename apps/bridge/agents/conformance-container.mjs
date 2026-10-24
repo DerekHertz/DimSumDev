@@ -20,7 +20,7 @@ import { agentProxyEnv, ensureProxy } from "../proxy/container.mjs";
 import { createDocker } from "../service/agent-image.mjs";
 import { containerRunArgs as productionRunArgs } from "./container.mjs";
 
-export const CONTAINER_ROLE = "scout"; // a known role: the bridge's argv template accepts nothing else
+export const CONTAINER_ROLE = "sre"; // team-and-den-ux/19: the scout retired. A known role: the bridge's argv template accepts nothing else
 export const CONTAINER_HOST = "example.com"; // the one host the proxy grants
 export const CONTAINER_BLOCKED_HOST = "example.org"; // a host it does not
 const MODEL_RE = /^[a-z0-9][a-z0-9.-]{0,63}$/;

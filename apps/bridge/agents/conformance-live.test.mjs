@@ -391,7 +391,7 @@ describe("runLive", () => {
     assert.match(setup.worktree, /\/\.claude\/worktrees\/den-den-01-live-check-[0-9a-f]{8}$/);
     const sessionId = start.argv[start.argv.indexOf("--session-id") + 1];
     assert.equal(typeof adapterAll.compileCeiling, "function", "agent-os/04: claude-adapter.mjs must export compileCeiling");
-    // agent-os/04: scout has a ceiling now, so the production argv carries the wall; the worktree is the child's cwd.
+    // agent-os/04: the live role (sre) has a ceiling, so the production argv carries the wall; the worktree is the child's cwd.
     assert.deepEqual(start.argv, buildClaudeArgs({ sessionId, agent: LIVE_ROLE, ...adapterAll.compileCeiling(LIVE_ROLE, { ...liveCredentials(), worktree: setup.worktree, mainGit: path.join(path.dirname(path.dirname(path.dirname(setup.worktree))), ".git") }), ticketFile: path.join(repo.dir, ".scratch", "den", "issues", "01-live-check.md") }));
     assert.ok(!start.envKeys.includes("DEN_SECRET_CANARY"));
 
@@ -448,7 +448,7 @@ describe("runLive", () => {
     const repo = makeLiveRepo({ model: "haiku" });
     try {
       const role = readFileSync(path.join(repo.dir, ".claude", "agents", `${LIVE_ROLE}.md`), "utf8");
-      assert.match(role, /^---\nname: scout\n/);
+      assert.match(role, /^---\nname: sre\n/);
       assert.match(role, /\nmodel: haiku\n/);
       assert.ok(role.includes(repo.target) && role.includes(repo.body) && role.includes(LIVE_MARKER));
       assert.equal(path.dirname(repo.target), repo.dir);

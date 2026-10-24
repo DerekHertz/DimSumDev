@@ -31,14 +31,22 @@ function loadConfig() {
   }
 }
 
+// team-and-den-ux/57: the chief of staff (Bao, Jiao) replaced the orchestrator. Every check for the
+// executive session goes through here; `orchestrator` stays an alias for sessions started before the rename.
+// Its budget is still read from the config's `orchestrator` key.
+export const CHIEF_OF_STAFF = "chief-of-staff";
+export function isChiefOfStaff(role) {
+  return role === CHIEF_OF_STAFF || role === "orchestrator";
+}
+
 export function budgetFor(role) {
   const cfg = loadConfig();
-  if (!cfg || !valid(cfg.default)) return { ...(role === "orchestrator" ? BUILT_IN.orchestrator : BUILT_IN.agent) };
+  if (!cfg || !valid(cfg.default)) return { ...(isChiefOfStaff(role) ? BUILT_IN.orchestrator : BUILT_IN.agent) };
   const fallback = pick(cfg.default);
   let entry;
   // Per-role entries live under `roles` (`cells` before ADR 0028; still read).
   const perRole = cfg.roles ?? cfg.cells;
-  if (role === "orchestrator") entry = cfg.orchestrator;
+  if (isChiefOfStaff(role)) entry = cfg.orchestrator;
   else if (typeof role === "string" && perRole && typeof perRole === "object" && Object.hasOwn(perRole, role)) entry = perRole[role];
   return valid(entry) ? pick(entry) : fallback;
 }

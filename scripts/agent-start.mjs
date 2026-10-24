@@ -18,12 +18,12 @@
 import { spawnSync } from "node:child_process";
 import { realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
-import { budgetFor } from "./context-budget.mjs";
+import { CHIEF_OF_STAFF, budgetFor } from "./context-budget.mjs";
 import { normalizeLegacyFlags } from "../apps/board/legacy-terms.mjs";
 
 const CONTEXT = fileURLToPath(new URL("./context.mjs", import.meta.url));
 // organism-infra/145: the orchestrator's warn and refuse numbers come from scripts/context-budget.json.
-const { warn: WARN_AT, stop: REFUSE_AT } = budgetFor("orchestrator");
+const { warn: WARN_AT, stop: REFUSE_AT } = budgetFor(CHIEF_OF_STAFF);
 const BOARD = fileURLToPath(new URL("../apps/board/board.mjs", import.meta.url));
 
 function fail(msg) {

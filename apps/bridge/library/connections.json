@@ -7,7 +7,6 @@
       "url": "https://mcp.context7.com/mcp",
       "credential": "none",
       "roles": [
-        "scout",
         "developer",
         "architect"
       ],
@@ -30,8 +29,7 @@
         "architect",
         "qa",
         "security",
-        "developer",
-        "scout"
+        "developer"
       ],
       "tools": {
         "pull_request_read": "read",
@@ -91,7 +89,6 @@
       "url": "https://mcp.deepwiki.com/mcp",
       "credential": "none",
       "roles": [
-        "scout",
         "architect",
         "developer"
       ],

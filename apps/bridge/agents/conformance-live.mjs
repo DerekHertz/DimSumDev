@@ -1,6 +1,6 @@
 // den-v1 loop S3: the live check, run as spike `Live` of conformance.mjs (`npm run smoke:live`). Unlike the other
 // spikes, which drive the CLI directly, this one goes through the production path: startBridge, the Claude runtime,
-// the host's worktree and its fixed prompt. A throwaway git repository holds a probe role file for `scout`; the role
+// the host's worktree and its fixed prompt. A throwaway git repository holds a probe role file for `sre`; the role
 // file, not the prompt, tells the model to write one file inside its worktree and one outside it. The harness plays
 // the den: it watches GET /state for the held approval, reads the full input, allows it and waits for the end.
 // den-v1 loop S5: while that request is held it also sends the agent one message (POST /agents/:id/message), and the
@@ -25,7 +25,7 @@ import { decodeControlRequest } from "./claude-adapter.mjs";
 import { createClaudeRuntime } from "./claude-runtime.mjs";
 
 export const LIVE_REF = "den/01-live-check";
-export const LIVE_ROLE = "scout"; // a known role: the production argv template accepts nothing else
+export const LIVE_ROLE = "sre"; // team-and-den-ux/19: the scout retired. A known role: the production argv template accepts nothing else
 export const LIVE_MARKER = "LIVE-CHECK-OK";
 const INSIDE_FILE = "inside.txt";
 const ENDED = ["done", "failed", "terminated"];

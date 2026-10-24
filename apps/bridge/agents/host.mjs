@@ -31,6 +31,7 @@ import {
   USAGE_REFUSE_AT, APPROVAL_TTL_MS, SHUTDOWN_SPAWN_WAIT_MS, DIRECT_MODE, DESK_REF,
   TRANSCRIPT_AGENTS, TRANSCRIPT_ENTRIES, TRANSCRIPT_RESULT_MAX, TRANSCRIPT_TEXT_MAX, REPLY_EXCERPT_MAX, USAGE_MESSAGES,
   MESSAGE_MAX_BYTES, MESSAGE_QUEUE_MAX, MESSAGE_SETTLE_MS, CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS,
+  definitionOf,
 } from "./policy.mjs";
 import { ceilingOf, grantContainsWorktrees, parseGrants } from "./claude-adapter.mjs";
 import { parseCatalog } from "../library/catalog.mjs";
@@ -152,7 +153,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     resume: a.resume, reason: a.reason, project: a.project ?? "den", worktree: a.worktree ?? null, branch: a.branch ?? null,
     model: a.model ?? null, usage: a.usage ?? null, costUsd: a.costUsd ?? null, reply: a.reply ?? null, durationMs: a.durationMs ?? null,
     resumeOf: a.resumeOf ?? null, followUp: canContinue(a) && END_STATES.includes(a.state),
-    wall: wallView(a),
+    parent: a.parent ?? null, wall: wallView(a),
   });
   // agent-os/05: refusals by the wall, counted per kind (hosts together, writes together). A kind's count restarts
   // when the user answers its pause. Absent until there is a refusal.
@@ -382,8 +383,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     typeof usage === "number" && usage >= USAGE_REFUSE_AT ? refuse(429, `five-hour usage is ${usage}% (limit ${USAGE_REFUSE_AT}%)`) : null;
   // The one capacity rule (organism-infra/226, ADR 0016 amendment 14): live agents plus foreign claim locks fill max;
   // live agents alone fill the session cap. `locked` is read before the synchronous step, never inside it.
-  // den-mvp outcome 1: that rule counts the worker slots. Bao and a scout each have a reserved slot of their own: their
-  // agents (and the locks those agents hold) are not worker load, and no worker may take their slot.
+  // den-mvp outcome 1: that rule counts the worker slots. Bao has a reserved slot of its own: its
+  // agent (and the locks it holds) are not worker load, and no worker may take their slot.
   const liveIn = (cls) => [...liveByRef.values()].filter((a) => slotClassOf(a.role) === cls);
   const capacityNow = (locked, project = "den") => {
     const reservedRefs = new Set([...liveByRef.values()].filter((a) => slotClassOf(a.role) !== "worker").map(refKey));
@@ -477,6 +478,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (noRoom) return unhold(noRoom);
     const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}) });
     agent.intentId = ticket.intent.id;
+    // team-and-den-ux/19: a relay's worker is a child of its ticket's owner, Bao or Jiao. A direct task stands outside a tree.
+    if (entry !== "direct" && entry !== "desk" && !meeting) agent.parent = ticket.intent.owner;
     if (entry === "dispatch") agent.claimed = true; // den-mvp/89: a Run holds the board claim for its whole run; spawnAgent makes it
     return launch(agent, ENTRY_ROUTES[entry], usage === null);
   }
@@ -735,6 +738,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     try {
       await sessions.append({
         event: "spawn", agentId: agent.id, ref: agent.ref, role: agent.role, sessionId: agent.sessionId, runtime: agent.runtimeId, runtimeSessionId: agent.runtimeSessionId, resourceId: agent.id, route: routeName, project: agent.project, worktree: agent.worktree, branch: agent.branch,
+        ...(agent.parent ? { parent: agent.parent } : {}),
         ...(agent.resumeOf ? { resumeOf: agent.resumeOf, origin: agent.origin } : {}),
       });
     } catch (err) {
@@ -753,10 +757,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   // text is in its ticket file (the board is in the main checkout, not in the agent's worktree), so its template
   // names that file by a path built from the bridge's own root and the validated ref.
   const ticketFile = (ref, base = root) => path.join(base, ".scratch", ref.split("/")[0], "issues", `${ref.split("/")[1]}.md`);
-  const recipeOf = (a) => path.join(root, a.runtimeId === "codex" ? ".codex" : ".claude", "agents", `${a.role}.${a.runtimeId === "codex" ? "toml" : "md"}`);
+  const recipeOf = (a) => path.join(root, a.runtimeId === "codex" ? ".codex" : ".claude", "agents", `${definitionOf(a.role)}.${a.runtimeId === "codex" ? "toml" : "md"}`);
   const promptFor = (a) =>
     a.ref === DESK_REF
-      ? `You are Bao, the orchestrator, at your desk in the den. Read ${recipeOf(a)} for who you are. ` +
+      ? `You are ${a.runtimeId === "codex" ? "Jiao" : "Bao"}, the chief of staff, at your desk in the den. Read ${recipeOf(a)} for who you are. ` +
         "Here the user talks with you with no ticket: answer their messages about the repo, the board and CI, reading what you need. " +
         "For pull requests, checks and CI logs use the GitHub connection's tools (mcp__github__*): `gh` has no login here. " +
         "Run no board command and change no file: the board is read-only to your shell. Act on the board through the den's tools " +
@@ -1284,6 +1288,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       resumeOf: prev.id, origin: prev.origin ?? prev.id, project: prev.project ?? "den", followUp: { text, messageId },
     });
     agent.intentId = ticket.intent.id;
+    if (prev.parent) agent.parent = prev.parent;
     const started = await launch(agent, CONVERSE_ROUTE, usage === null);
     if (!started.ok) return started;
     sessions

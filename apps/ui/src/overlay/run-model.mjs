@@ -5,7 +5,7 @@ import { capacity as capacityOf } from "../../../bridge/agents/capacity.mjs";
 import { SLOTS, slotClassOf } from "../../../bridge/agents/policy.mjs";
 
 /** The roles Run offers: every role. den-mvp outcome 1: a developer, qa or security agent may be started directly. */
-export const ROLE_OPTIONS = ["orchestrator", "architect", "product", "designer", "scout", "herald", "developer", "qa", "security"];
+export const ROLE_OPTIONS = ["orchestrator", "architect", "product", "designer", "developer", "qa", "security"];
 
 const DEFAULT_ROLE = { feature: "orchestrator", bug: "orchestrator", "design-question": "architect", design: "architect", decision: "architect", spec: "product", ui: "designer", asset: "designer" };
 const ENDED = new Set(["done", "failed", "terminated"]);
@@ -42,7 +42,7 @@ export function slotRows(capacity, agents) {
 /**
  * Whether Run is enabled for a ticket, and the visible text under it. Reasons, first match wins: demo mode, no steering
  * session, capacity unknown, a start in flight for this ref, the ticket already has a live agent, no room. `role` picks
- * the slot: the orchestrator (Bao) and a scout each have one reserved slot; every other role takes a worker slot.
+ * the slot: the orchestrator (Bao) has one reserved slot; every other role takes a worker slot.
  */
 export function runState({ capacity, ticket, inflight, steer, role } = {}) {
   if (steer?.demo) return { enabled: false, reason: "Demo mode: actions are off" };
@@ -75,7 +75,7 @@ export function runState({ capacity, ticket, inflight, steer, role } = {}) {
 export function capacityFromSnapshot(snapshot) {
   const known = snapshot?.capacity;
   if (!known) return null;
-  // Worker slots only: Bao's and a scout's agents (and the locks they hold) sit in their own reserved slots.
+  // Worker slots only: Bao's agents (and the locks they hold) sit in Bao's reserved slot.
   const live = (snapshot.agents ?? []).filter((a) => a.ref && !ENDED.has(a.state));
   const reservedRefs = new Set(live.filter((a) => slotClassOf(a.role) !== "worker").map((a) => a.ref));
   const liveRefs = live.filter((a) => !reservedRefs.has(a.ref)).map((a) => a.ref);

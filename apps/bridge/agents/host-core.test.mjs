@@ -39,15 +39,15 @@ const names = (rec) => rec.calls.map((c) => c.call);
 const at = (rec, call) => rec.calls.find((c) => c.call === call)?.at;
 
 describe("policy constants (agents/policy.mjs)", () => {
-  test("the slots, the caps and the grace are the ones the den-mvp spec names: two workers, one Bao, one scout", async () => {
+  test("the slots, the caps and the grace are the ones the den-mvp spec names: two workers and one Bao (team-and-den-ux/57: no scout slot)", async () => {
     const p = await loadPolicy();
-    assert.deepEqual({ ...p.SLOTS }, { worker: 2, bao: 1, scout: 1 });
+    assert.deepEqual({ ...p.SLOTS }, { worker: 2, bao: 1 });
     assert.equal(p.MAX_CONCURRENT_AGENTS, 2);
-    assert.equal(p.SESSION_CAP, 4);
+    assert.equal(p.SESSION_CAP, 3);
     assert.equal(p.KILL_GRACE_MS, 5000);
     assert.equal(p.slotClassOf("orchestrator"), "bao");
-    assert.equal(p.slotClassOf("scout"), "scout");
-    for (const role of ["developer", "qa", "security", "product", "architect", "designer", "herald"]) assert.equal(p.slotClassOf(role), "worker", role);
+    assert.equal(p.slotClassOf("chief-of-staff"), "bao");
+    for (const role of ["developer", "qa", "security", "product", "architect", "designer", "technical-writer"]) assert.equal(p.slotClassOf(role), "worker", role);
     assert.equal(p.RELAY_HOP_ROLES, undefined, "no role is refused by name any more");
   });
 });
@@ -108,8 +108,8 @@ describe("dispatch: a fake-runtime agent starts, streams events, and is killed (
     assert.deepEqual(snap.agents.find((x) => x.id === a.id)?.ref, DISPATCH_REF);
   });
 
-  test("every role of the first slice dispatches: orchestrator, architect, product, designer, scout, herald", async () => {
-    for (const role of ["orchestrator", "architect", "product", "designer", "scout", "herald"]) {
+  test("every role of the first slice dispatches: orchestrator, architect, product, designer, technical-writer", async () => {
+    for (const role of ["orchestrator", "architect", "product", "designer", "technical-writer"]) {
       t = await makeBridge();
       const res = await t.dispatch(role);
       assert.equal(res.status, 201, `${role}: ${res.text}`);
@@ -125,7 +125,7 @@ describe("dispatch: a fake-runtime agent starts, streams events, and is killed (
 
   test("no client string reaches the runtime: extra body fields never appear in its arguments", async () => {
     t = await makeBridge();
-    const res = await t.dispatch("scout", DISPATCH_REF, {
+    const res = await t.dispatch("architect", DISPATCH_REF, {
       prompt: "INJECTED-PROMPT",
       cwd: "/etc/INJECTED-CWD",
       note: "INJECTED-NOTE",
@@ -433,9 +433,9 @@ describe("dispatch policy: refusals write nothing and start nothing", () => {
     await refused(await t.dispatch(5), 400, "role not a string");
     await refused(await t.post("/agents", { ref: DISPATCH_REF }), 400, "role missing");
     await refused(await t.post("/agents", { role: "architect" }), 400, "ref missing");
-    await refused(await t.dispatch("scout", DISPATCH_REF, { mode: 5 }), 400, "mode not a string");
+    await refused(await t.dispatch("architect", DISPATCH_REF, { mode: 5 }), 400, "mode not a string");
     for (const ref of ["../x", "-a/01-x", `${FEATURE}/2-short`, "FX/02-x", `${FEATURE}/02-ready-p0/../../x`, "fx/01-x y", ""]) {
-      await refused(await t.dispatch("scout", ref), 400, `ref ${JSON.stringify(ref)}`);
+      await refused(await t.dispatch("architect", ref), 400, `ref ${JSON.stringify(ref)}`);
     }
   });
 
@@ -455,18 +455,16 @@ describe("dispatch policy: refusals write nothing and start nothing", () => {
     assert.equal((await t.dispatch("architect")).body.agent.mode, null);
   });
 
-  test("herald dispatches from the route like the other non-relay roles (user, 2026-10-06)", async () => {
+  test("the retired scout and herald are refused like any unknown role, and start nothing (team-and-den-ux/57)", async () => {
     t = await makeBridge();
-    const res = await t.dispatch("herald");
-    assert.equal(res.status, 201, res.text);
-    assert.equal(res.body.agent.role, "herald");
-    assert.equal(t.fake.spawns.length, 1);
+    for (const role of ["scout", "herald"]) await refused(await t.dispatch(role), 400, role);
+    assert.equal(t.fake.spawns.length, 0);
   });
 
   test("a ref that is not on the board is 404; a ticket outside the frontier is 409 (organism-infra/226: the gate no longer decides)", async () => {
     t = await makeBridge();
-    await refused(await t.dispatch("scout", `${FEATURE}/99-nope`), 404, "unknown ticket");
-    const blocked = await t.dispatch("scout", NO_GATE_REF);
+    await refused(await t.dispatch("architect", `${FEATURE}/99-nope`), 404, "unknown ticket");
+    const blocked = await t.dispatch("architect", NO_GATE_REF);
     await refused(blocked, 409, "not in the frontier");
     assert.match(blocked.body.error, /not in the frontier/i);
   });
@@ -553,12 +551,12 @@ describe("caps and the concurrent-dispatch race (criterion 3)", () => {
     assert.equal((await t.state()).agents.length, 2);
   });
 
-  test("the 4-session cap is a hard ceiling that an override cannot raise: twelve racing starts, four win", async () => {
+  test("the 3-session cap is a hard ceiling that an override cannot raise: twelve racing starts, three win", async () => {
     t = await makeBridge({ runtimeConfig: { spawnDelayMs: 30 }, policy: { maxConcurrent: 100, sessionCap: 100 } });
     const results = await Promise.all(refs(12).map((ref) => t.bridge.host.start({ ref, role: "architect" })));
-    assert.equal(results.filter((r) => r.status === 201).length, 4);
-    assert.equal(results.filter((r) => r.status === 429).length, 8);
-    assert.ok(t.fake.peakLive <= 4, `peak ${t.fake.peakLive}`);
+    assert.equal(results.filter((r) => r.status === 201).length, 3);
+    assert.equal(results.filter((r) => r.status === 429).length, 9);
+    assert.ok(t.fake.peakLive <= 3, `peak ${t.fake.peakLive}`);
     t.fake.spawns[0].exit();
     await until(async () => (await t.bridge.host.start({ ref: `${FEATURE}/60-late`, role: "architect" })).status === 201, { what: "a freed session" });
   });

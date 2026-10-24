@@ -247,3 +247,13 @@ test("AC3: a session with no agent_type (plain claude) gets no output", () => {
   assert.equal(r.out, "");
   assert.ok(!existsSync(gh.log));
 });
+
+test("team-and-den-ux/57: a chief-of-staff session gets the pickup and its own handoffs are found", () => {
+  const f = fixture();
+  const { env } = full(f);
+  handoff(f, "2026-10-03-chief-of-staff-1.md");
+  const r = run(f, hook({ agent_type: "chief-of-staff" }), env);
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(r.out.includes(".scratch/_handoffs/2026-10-03-chief-of-staff-1.md"), r.out);
+  assert.match(r.out, /Latest chief-of-staff handoff/);
+});

@@ -13,21 +13,21 @@ Every role's contract: what it takes in, what it hands back, what it may do on i
 
 | Role | Status | Team | Layer, model | Inputs | Outputs | Authority | Hands to |
 |---|---|---|---|---|---|---|---|
-| Bao, Jiao | Bao existing; Jiao new (codex-residents) | the Pass | root, executive | the user's conversation, approved specs, the board, the work order | tickets, the breakdown to managers, the final review, the outcome to the user, decision briefs | files and starts tickets inside approved work; picks roles above the floor and runtimes; never drops a required role | managers; the user |
+| Chief of staff (Bao, Jiao) | Bao existing; Jiao new (codex-residents); one role definition, `chief-of-staff` | the Pass | root, executive | the user's conversation, approved specs, the board, the work order | tickets, the breakdown to managers, the final review, the outcome to the user, decision briefs | files and starts tickets inside approved work; picks roles above the floor and runtimes; never drops a required role | managers; the user |
 | Product | existing | the Pass | manager, Sonnet | an idea or request with no settled spec | a spec on the board | grills the user, writes specs; interactive, never auto-advanced | the owner |
 | Architect | existing | the Pass | manager, Sonnet | structure or design questions | ADR drafts, module boundaries, test seams | writes ADR drafts; the user accepts them | the owner |
 | Designer | existing | Front of House | manager, Sonnet | UI tickets | a detailed spec and low-cost mockups; the user does visual critique | interactive, never auto-advanced | the owner, the engineer |
 | Engineer (`developer`) | existing, changed | Steamers | manager, Sonnet | a ticket with criteria | a candidate commit: failing tests first, then the change; each criterion's test listed | commits in its own worktree; reviews nothing of its own | the code reviewer and qa |
 | Code reviewer | **new** | Tea & Pantry | manager, Sonnet | the candidate commit and the ticket | `VERDICT: pass\|bounce` with findings, for that commit | reviews the diff: standards, design, simplicity, spec fit; writes no code | the bridge (the owner) |
-| qa | existing, changed | Tea & Pantry | manager, Sonnet | the candidate commit and the ticket | `VERDICT` with a per-criterion map to a test that fails without the change, and test-guard verdicts | runs the app and the tests; writes no product code; `specify` retires with team-and-den-ux/19 | the bridge (the owner) |
+| qa | existing, changed | Tea & Pantry | manager, Sonnet | the candidate commit and the ticket | `VERDICT` with a per-criterion map to a test that fails without the change, and test-guard verdicts | runs the app and the tests; writes no product code; has no `specify` mode (the engineer writes the failing tests first) | the bridge (the owner) |
 | Security | existing | Tea & Pantry | manager, Sonnet | a candidate with a `risk-check` hit or a user-merge-list path | `VERDICT` with findings | gates secrets, dependencies and CI | the bridge (the owner) |
 | Release manager | **new** | the Pass | bridge steps, plus a Sonnet agent for judgment | a reviewed candidate; merged PRs; CI results | push, PR and merge-on-green (bridge steps under its name); diagnoses, tags, release notes, den update proposals (agent) | never merges a user-merge-list change; never pushes CI config; holds no git login | the user (proposals), the owner |
 | SRE | **new** | Tea & Pantry | manager, Haiku; scheduled | health, logs, resource use, delivery and update records | health reports, tickets, proposed fixes | observes and proposes only; changes nothing | the owner; the user for fixes |
 | Technical writer | **new** | Front of House | manager, Sonnet; scheduled | docs-affecting tickets; the repo, for drift; a topic for a post | doc updates on the ticket's branch; drift tickets; post drafts | edits docs; never publishes a post | the code reviewer or owner; the user publishes |
 | Runner | existing, changed | Steamers | leaf, Haiku (or a model the manager picks) | one scoped subtask from a manager | result, evidence, failures | starts no agent; read-only when asked to search | its manager |
-| Orchestrator | retiring (team-and-den-ux/19) | the Pass | executive | as today | as today | as today; its duties move to Bao and Jiao, its release steps to the release manager | |
-| Herald | retiring (team-and-den-ux/19) | Front of House | manager | as today | as today | as today; the technical writer takes its posts | |
-| Scout | retiring (team-and-den-ux/19) | Steamers | leaf | as today | as today | as today; becomes the runner's read-only mode | |
+| Orchestrator | retired (team-and-den-ux/57); replaced by the chief of staff | the Pass | executive | none | none | its duties are Bao and Jiao's, its release steps the release manager's | |
+| Herald | retired (team-and-den-ux/57); replaced by the technical writer | Front of House | manager | none | none | the technical writer drafts its posts | |
+| Scout | retired (team-and-den-ux/57); replaced by the runner | Steamers | leaf | none | none | the runner's read-only mode does its work | |
 
 ## Which roles a task calls
 
@@ -38,7 +38,7 @@ No ceremony: a task calls only the roles it needs. The planner's rules name the 
 - **Plain docs:** the writer and the owner's review.
 - **Research or design:** the owner's review, and the user's verdict where the ticket asks for one.
 
-A code ticket today (after team-and-den-ux/02): (qa `specify` on a risk-path ticket, until 19) → engineer → code reviewer, then qa, at the same commit (in parallel from 18) → one fix round with both findings → `risk-check`, security on a hit → the release manager's steps: push, PR, merge on green. The user merges a user-merge-list change. Every PR body, whoever opens it, follows the `pr-writing` skill: What changes, System map, Risk, Evidence.
+A code ticket today (after team-and-den-ux/19): engineer (failing tests first) → code reviewer, then qa, at the same commit (in parallel from 18) → one fix round with both findings → `risk-check`, security on a hit → the release manager's steps: push, PR, merge on green. The user merges a user-merge-list change. Every PR body, whoever opens it, follows the `pr-writing` skill: What changes, System map, Risk, Evidence.
 
 ## Independent review
 

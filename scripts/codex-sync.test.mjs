@@ -443,8 +443,8 @@ test("no role carries the Codex caveat or Claude-only wording; read-only roles r
   assert.match(readFileSync(path.join(ROOT, "AGENTS.md"), "utf8"), /subagents inherit the parent session's sandbox/i);
 });
 
-test("the orchestrator hands each stage to a fresh subagent thread instead of carrying the relay in one context", () => {
-  assert.match(parseToml(roleToml("orchestrator")).developer_instructions, /fresh subagent/);
+test("the chief of staff hands each stage to a fresh subagent thread instead of carrying the relay in one context", () => {
+  assert.match(parseToml(roleToml("chief-of-staff")).developer_instructions, /fresh subagent/i);
 });
 
 test("the security role keeps its secret and CI rules: gitleaks, committed secrets bounce, pinned actions", () => {
@@ -502,11 +502,11 @@ test("Codex runtime guidance keeps the gates, the one-owner rule and the verific
   assert.doesNotMatch(agents, /\b(?:Sonnet|Haiku)\b|reserved slot beside them|Cloud sessions|Token hygiene/);
 });
 
-test("the Codex team-protocol keeps the user's approval points and the orchestrator's autonomy defers to them", () => {
+test("the Codex team-protocol keeps the user's approval points and the chief of staff's autonomy defers to them", () => {
   const p = readFileSync(path.join(ROOT, ".agents/skills/team-protocol/SKILL.md"), "utf8");
   const gates = p.slice(p.indexOf("## Gates"), p.indexOf("## Handoff"));
   for (const k of [/user-merge list/, /visual verdicts/, /twice-failed ticket/, /5-hour usage at 90%/, /open scope question/]) assert.match(gates, k, `Gates lacks ${k}`);
-  assert.match(parseToml(roleToml("orchestrator")).developer_instructions, /except the user-kept approvals in team-protocol Gates/);
+  assert.match(parseToml(roleToml("chief-of-staff")).developer_instructions, /except the user-kept approvals in team-protocol Gates/);
 });
 
 test("the generated implement skill keeps den agents off the full suite", () => {

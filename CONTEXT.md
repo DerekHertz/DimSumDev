@@ -25,7 +25,7 @@ The den's list of onboarded projects: a slug, a plain path, a board kind and the
 _Avoid_: Project config, workspace list
 
 **Team**:
-A group of roles that owns one SDLC outcome, drawn as a place on Bao: the Pass (orchestrator, product, architect, release manager), Steamers (developer, scout, runner), Tea & Pantry (code reviewer, qa, security, SRE), Front of House (designer, technical writer, herald), Service, Meter, Recipe book, Order rail. See the table in `design-brief.md` §4.2.
+A group of roles that owns one SDLC outcome, drawn as a place on Bao: the Pass (chief of staff, product, architect, release manager), Steamers (developer, runner), Tea & Pantry (code reviewer, qa, security, SRE), Front of House (designer, technical writer); the orchestrator, scout and herald are retired (team-and-den-ux/57), replaced by the chief of staff, the runner and the technical writer. Service, Meter, Recipe book, Order rail. See the table in `design-brief.md` §4.2.
 _Avoid_: Station and organ (the old names, ADR 0028 and organism-infra/53), department, squad
 
 **Role**:
@@ -37,7 +37,7 @@ The file that defines a role: `.claude/agents/<role>.md`.
 _Avoid_: Genome (the old name, ADR 0028), agent config
 
 **Owner**:
-The executive, Bao (Claude) or Jiao (Codex), that owns a ticket, project or task, recorded as `owner: bao|jiao`. It is the root of the task's tree and does the last review (ADR 0029).
+The chief of staff, Bao (Claude) or Jiao (Codex), that owns a ticket, project or task, recorded as `owner: bao|jiao`. It is the root of the task's tree and does the last review (ADR 0029).
 _Avoid_: Lead, assignee
 
 **Code reviewer**:
@@ -54,14 +54,18 @@ _Avoid_: Ops, on-call
 
 **Technical writer**:
 The role that keeps the docs true to the code, sweeps for docs drift, and drafts public posts for the user to publish. It takes over herald's drafts.
-_Avoid_: Docs-writer (the scenery panda's old name), herald (retiring)
+_Avoid_: Docs-writer (the scenery panda's old name), herald (retired, team-and-den-ux/57)
 
 **Agent**:
 One running instance of a role, working one ticket, usually in its own git worktree.
 _Avoid_: Cell (the old name, ADR 0028), worker, bot
 
+**Chief of staff**:
+The one executive role (`.claude/agents/chief-of-staff.md`). It plans and keeps the work order, writes rundowns and decision briefs, reads and writes the board, starts the worker roles as children of its tree, and does the last review on what it owns. It is second in command to the user: the user sets direction, it runs the work (it may reorder tickets within goals, file tickets, reassign or stop agents, bounce work and merge green pull requests off the risk path) and keeps watch by events and by rhythm (a morning rundown, a weekly review). It acts nowhere past the wall or the user's approval points. Bao is its Claude instance and Jiao its Codex instance: peers, not two roles (ADR 0029).
+_Avoid_: Orchestrator (the retired role)
+
 **Bao**:
-The orchestrator's on-screen body: a large seated plush panda at the heart of the den. Walking up to Bao is talking to the orchestrator (ADR 0019).
+The chief of staff's Claude instance, and its on-screen body: a large seated plush panda at the heart of the den. Walking up to Bao is talking to the chief of staff (ADR 0019).
 _Avoid_: Mascot, avatar
 
 **Resident panda**:
@@ -258,7 +262,7 @@ A group of tool errors that share one normalized signature (paths, numbers, hash
 _Avoid_: Error bucket, error type
 
 **Savings proposal**:
-A suggested change that cuts token use at a telemetry hotspot, such as an index, a helper script, or delegating to scout. It becomes a ticket only after the user approves it.
+A suggested change that cuts token use at a telemetry hotspot, such as an index, a helper script, or delegating to the runner. It becomes a ticket only after the user approves it.
 _Avoid_: Optimization, recommendation
 
 ## Communication
@@ -302,7 +306,7 @@ The chair's artifact: the question, two or three options with one recommended, t
 _Avoid_: Report, summary (the summary is kept after 24 hours)
 
 **Chair**:
-The agent that writes a meeting's decision brief from the takes: Bao (the orchestrator), on Bao's own slot. An architect chair for design questions is in ADR 0017 and is not built.
+The agent that writes a meeting's decision brief from the takes: Bao (the chief of staff; once the orchestrator, retired in team-and-den-ux/57), on Bao's own slot. An architect chair for design questions is in ADR 0017 and is not built.
 _Avoid_: Host, moderator
 
 ## UI names

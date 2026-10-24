@@ -12,7 +12,7 @@ import { execFileSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import { StringDecoder } from "node:string_decoder";
 import { cleanText, safeToolInput } from "../../shared/safe-text.mjs";
-import { COST_MAX_USD, MODEL_RE, REQUEST_ID_MAX, REQUEST_IDS_PER_AGENT, ROLES, UUID_RE, WORKTREES_DIR } from "./policy.mjs";
+import { COST_MAX_USD, MODEL_RE, REQUEST_ID_MAX, REQUEST_IDS_PER_AGENT, ROLES, UUID_RE, WORKTREES_DIR, definitionOf } from "./policy.mjs";
 
 export const MAX_LINE_BYTES = 1_000_000; // ADR 0016 6.8: a stdout line over about 1 MB is dropped
 export const CLAUDE_MODELS = Object.freeze(["opus", "sonnet", "haiku"]); // the CLI's own aliases; nothing else reaches --model
@@ -178,7 +178,7 @@ export function isWorktreePath(dir) {
 }
 
 // ---- role ceilings (agent-os/04, ADR 0021 decisions 2 to 5) --------------------------------
-// ceilings.json gives scout, developer, qa and security a ceiling: { write: "none" | "worktree", hosts: [...] }. A role with
+// ceilings.json gives each role a ceiling: { write: "none" | "worktree", hosts: [...] }. A role with
 // no key has none and starts as before. The data is checked once at load, so a bad edit stops the bridge, not a Start.
 const CEILINGS = JSON.parse(readFileSync(new URL("./ceilings.json", import.meta.url), "utf8"));
 for (const [role, ceiling] of Object.entries(CEILINGS)) {
@@ -393,7 +393,7 @@ export function buildClaudeArgs(options) {
     "--permission-prompt-tool", "stdio",
     // den-mvp outcome 2: a follow-up continues the earlier session under the same id; everything else is built afresh.
     ...(resume === true ? ["--resume", sessionId] : ["--session-id", sessionId]),
-    "--agent", target ? `den:${agent}` : agent,
+    "--agent", target ? `den:${definitionOf(agent)}` : definitionOf(agent),
     ...(model === undefined ? [] : ["--model", model]),
     // den-mvp/48: a target project loads nothing from its own .claude/: no settings, and the den's role definitions come in as a plugin.
     "--setting-sources", target ? "" : "project,local",

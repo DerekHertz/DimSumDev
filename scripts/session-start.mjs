@@ -1,8 +1,8 @@
 #!/usr/bin/env node
-// organism-infra/110: Claude Code `SessionStart` hook command. For an orchestrator session
-// (hook input `agent_type: "orchestrator"`, set by `claude --agent orchestrator`) it prints,
-// as plain stdout that Claude Code adds to the session context, the pickup the orchestrator
-// otherwise gathers by hand: the latest orchestrator handoff, open PRs with their check
+// organism-infra/110: Claude Code `SessionStart` hook command. For a chief-of-staff session
+// (hook input `agent_type: "chief-of-staff"`, or the old "orchestrator"; set by `claude --agent chief-of-staff`) it prints,
+// as plain stdout that Claude Code adds to the session context, the pickup the chief of staff
+// otherwise gathers by hand: the latest chief-of-staff handoff, open PRs with their check
 // state, pending gate requests and plan usage. Capped at 1600 chars (about 400 tokens).
 // Any failed read degrades to "unknown"; the hook always exits 0 and never blocks.
 import { readdirSync, readFileSync } from "node:fs";
@@ -11,6 +11,7 @@ import path from "node:path";
 import { spawnSync } from "node:child_process";
 import { readStdinJson, boardRoot, runUsage, usageWindow, defaultUsageScript } from "./hook-io.mjs";
 import { readRequestRows, foldRequests } from "../apps/bridge/requests-log.mjs";
+import { isChiefOfStaff } from "./context-budget.mjs";
 
 const CAP = 1600;
 const TITLE_MAX = 60;
@@ -24,7 +25,7 @@ function latestHandoff(root) {
   }
   const found = [];
   for (const name of names) {
-    const m = /^(\d{4}-\d{2}-\d{2})-orchestrator-(\d+)\.md$/.exec(name);
+    const m = /^(\d{4}-\d{2}-\d{2})-(?:chief-of-staff|orchestrator)-(\d+)\.md$/.exec(name);
     if (m) found.push({ name, date: m[1], n: Number(m[2]) });
   }
   found.sort((a, b) => (a.date === b.date ? a.n - b.n : a.date < b.date ? -1 : 1));
@@ -87,12 +88,12 @@ function usageLine(timeout) {
 }
 
 const input = readStdinJson();
-if (input.agent_type === "orchestrator") {
+if (isChiefOfStaff(input.agent_type)) {
   const root = boardRoot();
   const timeout = Number(process.env.SESSION_START_TIMEOUT_MS) || 5000;
 
   const handoff = latestHandoff(root);
-  const must = [handoff ? `Latest orchestrator handoff: .scratch/_handoffs/${handoff}` : "Latest orchestrator handoff: none", usageLine(timeout)];
+  const must = [handoff ? `Latest chief-of-staff handoff: .scratch/_handoffs/${handoff}` : "Latest chief-of-staff handoff: none", usageLine(timeout)];
   const modLine = modEnabled() ? null : modInstallLine(root);
 
   const prs = openPrs(timeout);

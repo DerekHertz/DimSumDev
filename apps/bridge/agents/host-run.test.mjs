@@ -163,12 +163,12 @@ describe("the result: reply, cost and the run's own totals", () => {
 
   test("a den-started agent's row names its mode", async () => {
     t = await makeBridge();
-    const res = await t.post("/tasks", { role: "scout", text: "Count the steamer baskets." });
+    const res = await t.post("/tasks", { role: "sre", text: "Count the steamer baskets." });
     assert.equal(res.status, 201, res.text);
     t.fake.spawns[0].emit({ type: "done", ok: true, costUsd: 0.002 });
     await ended(res.body.agent.id);
     const row = await rowFor(res.body.agent.id);
-    assert.deepEqual([row.ticket, row.role, row.mode, row.cost_usd], [res.body.ticket.ref, "scout", "direct", 0.002]);
+    assert.deepEqual([row.ticket, row.role, row.mode, row.cost_usd], [res.body.ticket.ref, "sre", "direct", 0.002]);
     assert.equal(JSON.stringify(row).includes("steamer"), false, "no task text in the ledger");
   });
 
