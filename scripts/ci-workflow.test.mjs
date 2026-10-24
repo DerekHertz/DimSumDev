@@ -15,6 +15,10 @@ test("the sandbox job uses the supported Ubuntu host and requires real resource 
   assert.match(job,/runs-on: ubuntu-24\.04/);
   const preflight=job.indexOf('createResourceLauncher');
   assert.ok(preflight>=0&&preflight<job.indexOf('npm run test:rest'));
+  const setup=job.indexOf('apt-get install');
+  assert.ok(setup>=0&&setup<preflight,'sandbox prerequisites must be installed before enforcement is probed');
+  assert.match(job,/apt-get install[^\n]*bubblewrap[^\n]*dbus-user-session/);
+  assert.match(job,/systemctl start "user@\$\(id -u\)\.service"/);
   assert.match(job,/if\s*\(!\w+\.ok\)\s*throw new Error/);
 });
 

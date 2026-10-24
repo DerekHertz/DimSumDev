@@ -27,6 +27,13 @@ jobs:
           cache: "npm"
       - name: Install dependencies
         run: npm ci
+      - name: Install sandbox host prerequisites
+        timeout-minutes: 3
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends bubblewrap dbus-user-session
+          sudo loginctl enable-linger "$(id -un)"
+          sudo systemctl start "user@$(id -u).service"
       - name: Require the enforced sandbox host
         timeout-minutes: 1
         run: |
