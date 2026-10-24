@@ -2,7 +2,7 @@ import { Component, Suspense, useCallback, useEffect, useMemo, useRef, useState,
 import { Canvas, events as defaultEvents } from "@react-three/fiber";
 import { CameraRig } from "./scene/procedural/CameraRig.jsx";
 import { MeshyDen } from "./scene/meshy/MeshyDen.jsx";
-import { FrameCap } from "./scene/frame-cap.mjs";
+import { FrameCap, FPS_OPTIONS, createFramePreference } from "./scene/frame-cap.mjs";
 import { PandaCard } from "./scene/procedural/PandaCard.jsx";
 import { ProximityCard } from "./overlay/ProximityCard.jsx";
 import { TranscriptPanel, useTranscript } from "./overlay/TranscriptPanel.jsx";
@@ -103,6 +103,8 @@ export function App() {
   const [den,setDen]=useState(null);
   const [roofs]=useState(()=>{let storage;try{storage=window.localStorage;}catch{}return createRoofPreference(storage);});
   const [roofMode,setRoofMode]=useState(roofs.mode);
+  const [framePreference]=useState(()=>{let storage;try{storage=window.localStorage;}catch{}return createFramePreference(storage);});
+  const [fps,setFps]=useState(framePreference.fps);
   useEffect(()=>{den?.garden?.setRoofMode(roofMode);},[den,roofMode]);
   const [gardenLoad, setGardenLoad] = useState({ status: 'loading', message: 'Opening the garden…' });
   const [exploring,setExploring]=useState(false);
@@ -398,6 +400,11 @@ export function App() {
           <div role="group" aria-label="Roof visibility" className="den-roof-controls">
             {['full','cutaway'].map(mode=><button key={mode} type="button" className="btn btn-outline" aria-pressed={roofMode===mode} onClick={()=>{roofs.set(mode);setRoofMode(mode);}}>{mode==='full'?'Full roofs':'Cutaway'}</button>)}
           </div>
+          <label className="den-fps-control">Frame rate
+            <select aria-label="Frame rate" value={fps} onChange={event=>{framePreference.set(Number(event.target.value));setFps(framePreference.fps);}}>
+              {FPS_OPTIONS.map(value=><option key={value} value={value}>{value} FPS</option>)}
+            </select>
+          </label>
         </div>
         <main aria-label="Den scene" aria-describedby="den-navigation-hint" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown + -" tabIndex={0} className="scene forest-garden">
           <div className="forest-canvas">
@@ -405,7 +412,7 @@ export function App() {
               <Canvas aria-hidden="true" orthographic shadows dpr={[1,1.5]} frameloop="demand"
                 camera={{ manual: true, zoom: 1, near: 0.1, far: 160 }}
                 gl={{antialias:true,powerPreference:'high-performance'}} events={sceneEvents} onPointerMissed={() => { setSelected(null); unpick(); }}>
-                <FrameCap />
+                <FrameCap fps={fps} />
                 <CameraRig store={camera} stage={stage} den={den} onModeChange={onExploreChange} onHint={setExploreHint} onCursorChange={setCursorFree} onLocationChange={setWalkPlace} />
                 <Suspense fallback={null}>
                   <MeshyDen snapshot={snapshot} bindings={bindings} onScenePresentations={onScenePresentations} onLoadState={setGardenLoad} placements={scenePlacements} frontier={frontier} tally={tally} onOpenTally={openTally}

@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import {createDenScene} from './plush/assembly.mjs';
 import {createGardenNavigation} from './garden-navigation.mjs';
 import {gardenRoute} from './garden-route.mjs';
-import {gardenRoutineSpots} from './daily-routines.mjs';
+import {gardenRoutineSpots,createDailyRoutines} from './daily-routines.mjs';
+import {createFrameWork} from './frame-work.mjs';
+import * as T from 'three';
 
 globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};
 test('real assembled garden offers dry reachable tea, pond, greeting, station and library approaches with valid team returns',()=>{
@@ -23,4 +25,41 @@ test('real assembled garden offers dry reachable tea, pond, greeting, station an
   }
   assert.equal(garden.assets.tea.koi.fish.length,3);
  }finally{garden.dispose();}
+});
+
+
+function budgetedRoutine(){
+ let clock=0;const work=createFrameWork({now:()=>++clock,budgetMs:2}),model=new T.Group();
+ const a={id:'one',identity:'resident:one',teamId:'pass',baseYaw:0,home:model.position.clone(),envelope:{radius:.3,height:1},panda:{model},state:'idle'};
+ const den={walkWorld:{},routineSpots:[{id:'tea',kind:'tea',position:{x:3,y:0,z:0},face:{x:0,y:0,z:0}}],routineClear:()=>true,routineRouteSteps:function*(_a,_from,to){for(let i=0;i<10;i++)yield;return [{...to}];}};
+ const routines=createDailyRoutines(den,new Map([[a.id,a]]),{work,random:()=>0});
+ return {a,work,routines,tick(n,reduced=false){for(let i=0;i<n;i++){routines.update(1/60,reduced);work.update();}},dispose(){routines.dispose();work.dispose();}};
+}
+
+test('budgeted departures prepare early but lease only on the departure beat',()=>{
+ const f=budgetedRoutine();f.tick(100);assert.equal(f.routines.reservations.size,0);assert.equal(f.a.outing,null);
+ f.tick(22);assert.equal(f.routines.reservations.get('tea'),'one');assert.equal(f.a.outing.stage,'outbound');f.dispose();
+});
+
+test('work rebinding and reduced motion cancel a prepared departure without a stale lease',()=>{
+ for(const reduced of [false,true]){
+  const f=budgetedRoutine();f.tick(100);if(!reduced)f.a.live={ref:'new-work'};
+  f.tick(30,reduced);assert.equal(f.routines.reservations.size,0);assert.equal(f.a.outing,null);f.dispose();
+ }
+});
+
+test('transferring an unstarted return job clears planning state and permits later departures',()=>{
+ const f=budgetedRoutine();try{
+  f.a.panda.model.position.x=1;f.a.outing={stage:'visit',spot:{id:'tea'}};
+  f.routines.cancel(f.a);assert.equal(f.a.routePending,true);assert.equal(f.work.has(f.a),true);
+  f.routines.transfer(f.a);assert.equal(f.work.has(f.a),false);assert.equal(f.a.routePending,false);assert.equal(f.a.outing,null);
+  f.tick(122);assert.equal(f.a.outing.stage,'outbound');assert.ok(f.a.panda.model.position.x>1,'a later trip moves instead of remaining stuck in planning');
+ }finally{f.dispose();}
+});
+
+test('disposing an unstarted return job clears its planning state',()=>{
+ const f=budgetedRoutine();try{
+  f.a.outing={stage:'visit',spot:{id:'tea'}};f.routines.cancel(f.a);assert.equal(f.a.routePending,true);
+  f.routines.dispose();assert.equal(f.work.has(f.a),false);assert.equal(f.a.routePending,false);assert.equal(f.a.outing,null);
+ }finally{f.dispose();}
 });

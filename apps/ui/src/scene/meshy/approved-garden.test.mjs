@@ -20,8 +20,10 @@ test('55-I/J/N: production assembly preserves approved plots, 27 bamboo sites, c
  for(const [id,hash]of Object.entries(provenance.packedModelHashes))assert.equal(manifest.assets['characters.'+id].sha256,hash,'signed '+id+' model');
  const g=createApprovedGarden();try{
   assert.equal(g.assets.pass.root.position.x,-30.5);assert.equal(g.assets.front.root.position.z,24);assert.deepEqual(g.officePlot,{x:0,z:-32,width:26,depth:17});
-  let total=0,shadow=0;g.root.traverse(n=>{if(n.isMesh){const triangles=(n.geometry.index?.count??n.geometry.attributes.position.count)/3;total+=triangles;if(n.castShadow)shadow+=triangles;}});
+  let total=0,shadow=0,meshes=0,casters=0;g.root.traverse(n=>{if(n.isMesh){meshes++;const triangles=(n.geometry.index?.count??n.geometry.attributes.position.count)/3;total+=triangles;if(n.castShadow){casters++;shadow+=triangles;}}});
   assert.ok(total<1.8e6,'production geometry '+total);assert.ok(shadow<700000,'production shadows '+shadow);
+  assert.ok(meshes<600,'static scenery main-pass meshes '+meshes);
+  assert.ok(casters<350,'static scenery shadow-pass meshes '+casters);
   const snapshots=new Map();g.root.traverse(n=>{if(n.isMesh)snapshots.set(n,n.position.clone());});
   g.setRoofMode('cutaway');assert.ok(g.assets.pass.roof.children.some(n=>n.material?.clippingPlanes?.length));g.setRoofMode('full');
   for(const [n,p]of snapshots)assert.deepEqual(n.position,p);

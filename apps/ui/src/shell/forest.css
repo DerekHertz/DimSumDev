@@ -197,6 +197,9 @@
 }
 .den-camera-controls { position: absolute; z-index: 4; left: var(--space-3); bottom: var(--space-3); display: flex; flex-wrap: wrap; gap: var(--space-2); max-width: calc(100% - 32px); padding: var(--space-2); border: 1px solid var(--line-strong); border-radius: var(--radius-m); background: var(--surface-glass); }
 .den-roof-controls { display: flex; gap: var(--space-1); }
+.den-fps-control { display: flex; align-items: center; gap: var(--space-1); font: 700 11px/16px var(--font-sans); }
+.den-fps-control select { min-height: 44px; padding: var(--space-1); border: 1px solid var(--line-strong); border-radius: var(--radius-m); color: var(--ink); background: var(--surface-glass); font: inherit; }
+.den-fps-control select:focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
 .den-roof-controls button { flex: none; min-width: 44px; min-height: 44px; font: 700 11px/16px var(--font-sans); }
 .den-roof-controls button:hover { background: var(--surface-300); }
 .den-roof-controls button[aria-pressed="true"] { background: var(--qi-fill); color: var(--on-qi); border-color: var(--qi); }
