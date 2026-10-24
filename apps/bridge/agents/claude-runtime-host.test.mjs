@@ -205,3 +205,26 @@ describe("the production entry (node apps/bridge/server.mjs)", () => {
     child.kill("SIGTERM");
   });
 });
+
+// hardening/10: the container launcher (DEN_AGENT_CONTAINERS=1) gets what it mounts; a host launcher (flag off) gets nothing new.
+describe("the runtime's container info", () => {
+  const recording = (container) => {
+    const inner = unconfinedLauncher();
+    const seen = [];
+    return { seen, launcher: { ...inner, ...(container ? { container: true } : {}), launch: (o) => (seen.push(o), inner.launch(o)) } };
+  };
+  for (const flag of [true, false]) {
+    test(`with the container flag ${flag ? "on, the launcher gets the role, session, main .git and grants" : "off, the launcher gets no container info"}`, async () => {
+      const rec = recording(flag);
+      const t = await boot({ mode: "approve" }, { launcher: rec.launcher });
+      const res = await t.post("/agents", { ref: DISPATCH_REF, role: "architect" });
+      assert.ok([201, 202].includes(res.status), `dispatch answered ${res.status} ${res.text}`);
+      const opts = await until(async () => rec.seen[0] ?? null, { ms: 5000, what: "the launch" });
+      if (!flag) return assert.equal("container" in opts, false);
+      assert.equal(opts.container.role, "architect");
+      assert.match(opts.container.sessionId, /^[0-9a-f-]{36}$/);
+      assert.ok(opts.container.mainGit.endsWith("/.git"), opts.container.mainGit);
+      assert.ok(Array.isArray(opts.container.grants));
+    });
+  }
+});

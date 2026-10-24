@@ -254,3 +254,108 @@ describe("reopen with catchUp (Bao's desk)", () => {
     assert.deepEqual(await ws.retire({ ref: REF, agentId: ID }), { removed: false, saved: null });
   });
 });
+
+// hardening/10 (hardening/13 security, M): an agent can write the config git reads in its worktree. The bridge's own git there
+// (head, status, add, commit, diff) must not run an fsmonitor or a hook the agent planted.
+test("host git in an agent worktree runs no planted fsmonitor or hook", async () => {
+  const { createWorkspaces } = await load();
+  const fx = await fixture({ git: true });
+  const ws = createWorkspaces(fx.root);
+  const made = await ws.create({ ref: REF, agentId: ID });
+  const marks = path.join(fx.root, "..", `planted-${process.pid}`);
+  cleanups.push(() => import("node:fs/promises").then((fs) => fs.rm(marks, { recursive: true, force: true })));
+  await mkdir(path.join(marks, "hooks"), { recursive: true });
+  await writeFile(path.join(marks, "hooks", "post-commit"), `#!/bin/sh\ntouch ${path.join(marks, "hook-ran")}\n`, { mode: 0o755 });
+  await run("git", ["-C", made.dir, "config", "core.fsmonitor", `touch ${path.join(marks, "fsmonitor-ran")}; false`]);
+  await run("git", ["-C", made.dir, "config", "core.hooksPath", path.join(marks, "hooks")]);
+  await writeFile(path.join(made.dir, "agent-change.txt"), "x\n");
+  await ws.head(made);
+  const { saved } = await ws.retire({ ref: REF, agentId: ID });
+  assert.ok(saved, "the change was committed to a wip branch");
+  for (const m of ["fsmonitor-ran", "hook-ran"]) assert.equal(await access(path.join(marks, m)).then(() => true, () => false), false, m);
+});
+
+// hardening/10 (hardening/13 security, M, second half): the agent can write its worktree's `.git` file and its admin dir's
+// `commondir` (both mounted rw), and so point the bridge's git at a config it planted. The bridge pins GIT_DIR, GIT_COMMON_DIR
+// and GIT_WORK_TREE from its own records, and reads no attributes from the tree, so no planted driver runs on the host.
+describe("host git ignores the worktree's own pointers and attributes", () => {
+  const marked = async (marks, m) => exists(path.join(marks, m));
+  async function setup() {
+    const { createWorkspaces } = await load();
+    const fx = await fixture({ git: true });
+    const ws = createWorkspaces(fx.root);
+    const made = await ws.create({ ref: REF, agentId: ID });
+    const marks = path.join(fx.root, "..", `planted-attr-${process.pid}`);
+    await mkdir(marks, { recursive: true });
+    cleanups.push(() => import("node:fs/promises").then((fs) => fs.rm(marks, { recursive: true, force: true })));
+    const mainGit = path.join(await realpath(fx.root), ".git");
+    const admin = path.join(mainGit, "worktrees", path.basename(made.dir));
+    return { ws, fx, made, marks, mainGit, admin };
+  }
+
+  test("a rewritten .git and commondir toward a planted config run no filter driver in head, brief or retire", async () => {
+    const { ws, made, marks, mainGit, admin } = await setup();
+    const planted = path.join(made.dir, ".planted");
+    const { cp } = await import("node:fs/promises");
+    await cp(mainGit, planted, { recursive: true });
+    await git(planted, "--git-dir", planted, "config", "filter.x.clean", `touch ${path.join(marks, "filter-ran")}; cat`);
+    await git(planted, "--git-dir", planted, "config", "filter.x.smudge", `touch ${path.join(marks, "filter-ran")}; cat`);
+    await writeFile(path.join(made.dir, ".git"), `gitdir: ${path.join(planted, "worktrees", path.basename(made.dir))}\n`);
+    await writeFile(path.join(admin, "commondir"), `${planted}\n`);
+    await writeFile(path.join(made.dir, ".gitattributes"), "* filter=x\n");
+    await writeFile(path.join(made.dir, "agent-change.txt"), "x\n");
+    await ws.head(made);
+    await ws.brief(made, "findings\n");
+    assert.equal(await exists(path.join(planted, "info", "exclude")) && (await readFile(path.join(planted, "info", "exclude"), "utf8")).includes(".den/"), false, "brief wrote the planted exclude");
+    assert.ok((await readFile(path.join(mainGit, "info", "exclude"), "utf8")).includes(".den/"), "brief writes the main repository's exclude");
+    // retire's `add -A ... :(exclude).den` fails while an excluded .den exists (filed separately), so the note goes first here.
+    await import("node:fs/promises").then((fs) => fs.rm(path.join(made.dir, ".den"), { recursive: true }));
+    const { saved } = await ws.retire({ ref: REF, agentId: ID });
+    assert.ok(saved, "the change was committed to a wip branch");
+    assert.equal(await marked(marks, "filter-ran"), false, "a planted filter driver ran on the host");
+  });
+
+  test("a planted .gitattributes selects no driver from the trusted config", async () => {
+    const { ws, fx, made, marks } = await setup();
+    await git(fx.root, "config", "filter.y.clean", `touch ${path.join(marks, "trusted-filter-ran")}; cat`);
+    await writeFile(path.join(made.dir, ".gitattributes"), "* filter=y\n");
+    await writeFile(path.join(made.dir, "agent-change.txt"), "x\n");
+    await ws.head(made);
+    const { saved } = await ws.retire({ ref: REF, agentId: ID });
+    assert.ok(saved, "the change was committed to a wip branch");
+    assert.equal(await marked(marks, "trusted-filter-ran"), false, "a driver chosen by the tree's .gitattributes ran on the host");
+  });
+});
+
+// hardening/10 fix round (qa F1, security L3): the common dir comes from the trusted root, so a bridge whose root is itself a
+// linked worktree (where `.git` is a file) still works; the admin dir is the one `worktree add` recorded, checked at create.
+describe("the bridge's git dirs come from the root and from worktree add", () => {
+  test("a root that is a linked worktree creates, reads, briefs and retires an agent worktree", async () => {
+    const { createWorkspaces } = await load();
+    const fx = await fixture({ git: true });
+    const linked = path.join(fx.root, "..", `linked-root-${process.pid}`);
+    await git(fx.root, "worktree", "add", "--detach", linked);
+    cleanups.push(() => run("git", ["-C", fx.root, "worktree", "remove", "--force", linked]).catch(() => {}));
+    const ws = createWorkspaces(linked);
+    const made = await ws.create({ ref: REF, agentId: ID });
+    assert.equal(await ws.head(made), (await git(linked, "rev-parse", "HEAD")).trim());
+    await ws.brief(made, "findings\n");
+    assert.ok((await readFile(path.join(await realpath(fx.root), ".git", "info", "exclude"), "utf8")).includes(".den/"), "brief writes the common exclude");
+    await import("node:fs/promises").then((fs) => fs.rm(path.join(made.dir, ".den"), { recursive: true }));
+    await writeFile(path.join(made.dir, "agent-change.txt"), "x\n");
+    const { removed, saved } = await ws.retire({ ref: REF, agentId: ID });
+    assert.equal(removed, true);
+    assert.ok(saved, "the change was committed to a wip branch");
+  });
+
+  test("create refuses, and leaves no worktree, when git gave the admin dir another name than the worktree's", async () => {
+    const { createWorkspaces } = await load();
+    const fx = await fixture({ git: true });
+    const { worktree } = (await load()).workspaceNames({ ref: REF, agentId: ID });
+    const stale = path.join(fx.root, ".git", "worktrees", path.basename(worktree));
+    await mkdir(stale, { recursive: true });
+    const ws = createWorkspaces(fx.root);
+    await assert.rejects(ws.create({ ref: REF, agentId: ID }), /admin/);
+    assert.equal(await exists(path.join(fx.root, worktree)), false, "the worktree was taken away");
+  });
+});

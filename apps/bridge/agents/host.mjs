@@ -43,7 +43,7 @@ import { createAdmission } from "./admission.mjs";
 import { createConversations } from "./conversations.mjs";
 import { createToolReplayFilter } from "./tool-replay-filter.mjs";
 import { createApprovalStore, cleanText } from "./approvals.mjs";
-import { createWorkspaces, prepareMainGit } from "./workspace.mjs";
+import { createWorkspaces, gitCommonDir, prepareMainGit, worktreeGit, worktreeRoot } from "./workspace.mjs";
 import { TIERS, readCost, readCount, readModel, readTiers } from "./run-record.mjs";
 import { deliveryPrompt, WORK_TIPS } from "../delivery/prompts.mjs";
 import { MEETING_PARTS, NOTE_MAX as MEETING_FILE_MAX, meetingPrompt } from "../meetings/prompts.mjs";
@@ -105,7 +105,8 @@ const NO_CONNECTIONS = parseCatalog({ connections: [] });
 // started with no connection and every connection tool is refused.
 // The files a run changed between two commits (paths relative to its worktree).
 async function gitChangedFiles(dir, from, to) {
-  const { stdout } = await new Promise((resolve, reject) => execFile("git", ["diff", "--name-only", "-z", from, to], { cwd: dir, maxBuffer: 4 << 20 }, (err, out) => (err ? reject(err) : resolve({ stdout: String(out) }))));
+  const { args, env } = worktreeGit(dir, await gitCommonDir(worktreeRoot(dir)));
+  const { stdout } = await new Promise((resolve, reject) => execFile("git", [...args, "diff", "--name-only", "-z", from, to], { env, maxBuffer: 4 << 20 }, (err, out) => (err ? reject(err) : resolve({ stdout: String(out) }))));
   return stdout.split("\0").filter(Boolean);
 }
 

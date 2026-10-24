@@ -85,3 +85,19 @@ test("governance closes the credentials folder, which covers the token and the r
     assert.ok(paths.some((d) => p === d || p.startsWith(`${d}/`)), `${p} is denied`);
   }
 });
+
+test("with the container flag on, the launcher is told the config file, so it can mount it (hardening/10)", async () => {
+  const home = await mkdtemp(path.join(tmpdir(), "den-cred-home-"));
+  const credDir = path.join(home, ".local", "state", "den", "credentials");
+  await mkdir(credDir, { recursive: true });
+  await writeFile(path.join(credDir, "github.token"), TOKEN);
+  cleanups.push(() => rm(home, { recursive: true, force: true }));
+  const seen = [];
+  const launcher = { ...unconfinedLauncher(), container: true, launch: async (o) => { seen.push(o); throw new Error("no launch"); } };
+  const runtime = createClaudeRuntime({ controlRoot: "/", launcher, env: { PATH: process.env.PATH, HOME: home, DEN_CLAUDE_BIN: "claude" } });
+  const cwd = await mkdtemp(path.join(tmpdir(), "den-cred-cwd-"));
+  await assert.rejects(runtime.spawn({ role: "developer", cwd, prompt: "go", sessionId: SESSION, connections: [GITHUB] }), /no launch/);
+  const file = configOf(seen[0].args).find((f) => f.startsWith(`${credDir}/run/`));
+  assert.ok(file, "the run has a config file");
+  assert.equal(seen[0].container.mcpConfigFile, file);
+});
