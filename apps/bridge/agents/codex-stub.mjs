@@ -1,17 +1,26 @@
 // Test-only stand-in for `codex app-server` (not a .test.mjs file). It speaks the JSON-RPC lines the adapter
 // expects over stdio. On turn/start it runs the turn's input text as a real shell command and reports the
 // result the way app-server does: a commandExecution item whose aggregatedOutput holds the command's output.
-// argv[2] picks the mode: "ok" (default) | "crash" (exit 3 once the turn is acknowledged).
+// argv[2] picks the mode: "ok" (default) | "crash" (exit 3 once the turn is acknowledged) | "deaf" (ignores SIGTERM)
+// | "flood" (400 text deltas, then done, ignoring the input).
 import { spawnSync } from "node:child_process";
 import readline from "node:readline";
 
 const MODE = process.argv[2] ?? "ok";
 const MODEL = "gpt-stub-1";
+if (MODE === "deaf") { process.on("SIGTERM", () => {}); setInterval(() => {}, 1000); }
 const out = (message) => process.stdout.write(JSON.stringify(message) + "\n");
 const notify = (method, params) => out({ method, params });
 let thread = null;
 
+function flood() {
+  notify("turn/started", { threadId: thread.id, turn: { id: "turn-1", status: "inProgress" } });
+  for (let i = 0; i < 400; i += 1) notify("item/agentMessage/delta", { threadId: thread.id, turnId: "turn-1", itemId: "msg-1", delta: "x" });
+  notify("turn/completed", { threadId: thread.id, turn: { id: "turn-1", status: "completed" } });
+}
+
 function runTurn(input) {
+  if (MODE === "flood") return flood();
   const base = { threadId: thread.id, turnId: "turn-1" };
   notify("turn/started", { threadId: thread.id, turn: { id: "turn-1", status: "inProgress" } });
   notify("item/started", { ...base, item: { id: "cmd-1", type: "commandExecution", command: input } });

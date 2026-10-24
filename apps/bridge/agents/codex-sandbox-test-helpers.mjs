@@ -9,33 +9,16 @@
 // Production never imports this file. `codexSandboxHost()` says why a host cannot run it, so CI skips with a reason.
 import { spawnSync, execFile } from "node:child_process";
 import { createServer, connect } from "node:net";
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import assert from "node:assert/strict";
 import os from "node:os";
 import path from "node:path";
 import { createResourceLauncher, findUserBus } from "./resource-group.mjs";
+import { findCodexNative } from "./codex-sandbox-plan.mjs";
 
 const SLICE = `den-test-codexsb-p${process.pid}`;
 const MARKER = "fake-credential-marker-do-not-leak";
 let seq = 0;
-
-/** Codex's native helper: the vendored binary the CLI re-executes inside its own sandbox (the profile must grant read on it). */
-function findNative() {
-  const which = spawnSync("sh", ["-c", "command -v codex"], { encoding: "utf8" });
-  if (which.status !== 0) return { reason: "the `codex` CLI is not on PATH" };
-  const root = path.resolve(path.dirname(realpathSync(which.stdout.trim())), "..");
-  try {
-    const scope = path.join(root, "node_modules", "@openai");
-    for (const pkg of readdirSync(scope).filter((n) => n.startsWith("codex-linux"))) {
-      const vendor = path.join(scope, pkg, "vendor");
-      for (const triple of readdirSync(vendor)) {
-        const bin = path.join(vendor, triple, "bin", "codex");
-        if (existsSync(bin)) return { codexBin: realpathSync(bin), nativeHelper: realpathSync(bin) };
-      }
-    }
-  } catch {}
-  return { reason: "Codex's native helper (node_modules/@openai/codex-linux-*/vendor/*/bin/codex) was not found next to the CLI" };
-}
 
 let hostCheck;
 /** { skip: false, ... } when this host can run the real launch plan; otherwise { skip: "<reason>" }. Cached. */
@@ -43,7 +26,7 @@ export function codexSandboxHost() {
   hostCheck ??= (async () => {
     if (process.platform !== "linux") return { skip: "the launch plan needs Linux (control groups, bubblewrap)" };
     if (spawnSync("sh", ["-c", "command -v bwrap"]).status !== 0) return { skip: "bwrap is not installed" };
-    const native = findNative();
+    const native = findCodexNative();
     if (native.reason) return { skip: native.reason };
     const ready = await createResourceLauncher({ env: process.env, slice: SLICE }).preflight();
     if (!ready.ok) return { skip: `this host cannot enforce the resource group (user systemd bus?): ${ready.reason}` };
@@ -54,9 +37,11 @@ export function codexSandboxHost() {
 
 const run = (file, args) => new Promise((resolve) => execFile(file, args, { env: findUserBus(process.env).env, timeout: 5000 }, () => resolve()));
 
-/** Drops this process's slice (the host probe and every launch create it); call from `after()` in each test file. */
+/** Drops this process's slice (the host probe and every launch create it); call from `after()` in each test file.
+ * systemd also makes the dash-parents of the slice name (den-test-codexsb, den-test): their runtime limits are reverted too. */
 export async function dropSlice() {
   for (const verb of ["revert", "stop"]) await run("systemctl", ["--user", verb, `${SLICE}.slice`]);
+  for (const parent of ["den-test-codexsb", "den-test"]) await run("systemctl", ["--user", "revert", `${parent}.slice`]);
 }
 
 /**

@@ -172,7 +172,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       if (method === "item/completed" && typeof item.text === "string") emit({ type: "reply", ...clipped(item.text) });
       return;
     }
-    if (!["commandExecution", "fileChange", "mcpToolCall", "dynamicToolCall"].includes(item.type)) return;
+    if (!["commandExecution", "fileChange", "mcpToolCall"].includes(item.type)) return;
     if (method === "item/started") emit({ type: "tool-start", id: item.id, name: item.type, summary: typeof item.command === "string" ? item.command.slice(0, 200) : item.type });
     else {
       emit({ type: "tool-result", id: item.id, ok: item.status === "completed", ...clipped(item.aggregatedOutput) });
@@ -336,7 +336,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     if (!turnId || interrupting) return false;
     interrupting = true;
     discardQuestions("Turn interrupted");
-    await rpc("turn/interrupt", { threadId: thread.id, turnId });
+    try { await rpc("turn/interrupt", { threadId: thread.id, turnId }); } catch (err) { interrupting = false; throw err; }
     return true;
   }
 
@@ -355,11 +355,17 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
 
 // Wires a child already spawned as `codex app-server --stdio` (stdio piped) to a protocol. The child is
 // killed when the protocol closes and the protocol closes when the child's stdout ends or it fails.
-export function openCodexAppServer({ child, ...options }) {
+export function openCodexAppServer({ child, killGraceMs = 2000, ...options }) {
   const protocol = createCodexProtocol({
     ...options,
     write: (line) => new Promise((resolve, reject) => child.stdin.write(line, (err) => (err ? reject(err) : resolve()))),
-    close: () => { child.stdin.destroy(); child.kill("SIGTERM"); },
+    close: () => {
+      child.stdin.destroy();
+      child.kill("SIGTERM");
+      const hard = setTimeout(() => child.kill("SIGKILL"), killGraceMs);
+      hard.unref();
+      child.once("close", () => clearTimeout(hard));
+    },
   });
   child.stdin.on("error", () => protocol.close());
   child.stdout.on("data", protocol.feed);

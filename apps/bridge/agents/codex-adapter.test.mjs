@@ -1,4 +1,4 @@
-import { test } from "node:test";
+import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
@@ -295,8 +295,11 @@ test("command and completion events translate to host events; native child deleg
   assert.equal(child.closed, 1);
 });
 
+const launched = [];
+afterEach(() => { for (const child of launched.splice(0)) child.kill("SIGKILL"); });
 const launch = (mode, over = {}) => {
   const child = spawn(process.execPath, [STUB, mode], { stdio: ["pipe", "pipe", "ignore"] });
+  launched.push(child);
   const protocol = openCodexAppServer({ child, authorizeExecution: async () => ({ profileId: "den-codex", cwd: process.cwd() }), ...over });
   return { child, protocol };
 };
@@ -347,4 +350,29 @@ test("an app-server that exits mid-turn ends the event stream and rejects furthe
   assert.equal(protocol.state().closed, true);
   await assert.rejects(protocol.interrupt(), /protocol/);
   await new Promise((resolve) => child.once("close", resolve));
+});
+
+test("close ends a child that ignores SIGTERM", async () => {
+  const { child, protocol } = launch("ok", { killGraceMs: 100 });
+  const deaf = launch("deaf", { killGraceMs: 100 });
+  await deaf.protocol.prepareThread({ model: "gpt-stub-1", effort: "high" });
+  deaf.protocol.close();
+  const [, signal] = await new Promise((resolve) => deaf.child.once("close", (...args) => resolve(args)));
+  assert.equal(signal, "SIGKILL");
+  protocol.close();
+  await new Promise((resolve) => child.once("close", resolve));
+});
+
+test("a failed interrupt does not leave questions unanswerable", async () => {
+  const fx = fixture({ handler(message, respond, protocol) {
+    if (message.method === "turn/interrupt") return protocol.feed(Buffer.from(JSON.stringify({ id: message.id, error: { code: -1, message: "no" } }) + "\n"));
+    if (message.method === "turn/start") return respond(message.id, { turn: { id: "turn-1", status: "inProgress" } });
+    return baseHandler(message, respond);
+  } });
+  await started(fx);
+  await assert.rejects(fx.protocol.interrupt(), /RPC failed/);
+  fx.request("q", "item/tool/requestUserInput", { threadId: "thread-1", turnId: "turn-1", itemId: "q", isBlocking: true,
+    questions: [{ id: "choice", header: "Choice", question: "Which file?" }] });
+  await fx.protocol.answerQuestion("q-1", { choice: { answers: ["a.txt"] } });
+  fx.protocol.close();
 });
