@@ -28,10 +28,18 @@ export function buildTeahouse(kit,{props={}}={}){
    for(const x of [-width*.4,width*.4])for(const z of [-depth*.4,depth*.4])beam(chair,[x,0,z],[x,.58,z],.08,'timber');
    const back=kit.mesh(chair,new T.TorusGeometry(width*.43,.1,6,24,Math.PI),'timber',[0,1.05,-depth*.1]);back.rotation.x=Math.PI/2;
   }
-  const supportWidth=index===0?3.6:3;
-  const pad=box(chair,[supportWidth,.14,2.2],[0,.6975,1.2],upholstery,.13);pad.name='Fitted sage seat pad';
+  const outline=new T.Shape();
+  outline.moveTo(0,1.35);
+  outline.bezierCurveTo(.7,1.35,1.25,.95,1.4,.4);
+  outline.bezierCurveTo(1.55,-.2,1.55,-1.1,1.05,-1.65);
+  outline.bezierCurveTo(.8,-1.85,-.8,-1.85,-1.05,-1.65);
+  outline.bezierCurveTo(-1.55,-1.1,-1.55,-.2,-1.4,.4);
+  outline.bezierCurveTo(-1.25,.95,-.7,1.35,0,1.35);outline.closePath();
+  const cushion=new T.ExtrudeGeometry(outline,{depth:.1,bevelEnabled:true,bevelSize:.025,bevelThickness:.035,bevelSegments:3,steps:1,curveSegments:8});cushion.rotateX(-Math.PI/2);cushion.scale(width/4,1,1);
+  const pad=kit.mesh(chair,cushion,upholstery,[0,.6325,0]);pad.name='Fitted sage seat pad';
   chair.traverse(node=>{if(node.isMesh)node.castShadow=false;});
-  chairs.push({root:chair,spot,supportTop:1.18,width,depth,supportWidth});
+  const supportRegions=[[1.05,0,1.55],[.65,1.55,1.74]].map(([halfX,minZ,maxZ])=>({halfX:halfX*width/4,minZ,maxZ}));
+  chairs.push({root:chair,spot,supportTop:1.18,width,depth,supportRegions});
  }
  const lanternFrame=group('Meeting lantern and cantilever',root);
  beam(lanternFrame,[0,.4,-7.7],[0,6.8,-7.7],.09,'timber');beam(lanternFrame,[0,6.8,-7.7],[0,6.8,-4],.09,'timber');beam(lanternFrame,[0,6.8,-4],[0,6.2,-4],.025,'honey');

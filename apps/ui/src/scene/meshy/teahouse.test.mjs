@@ -6,8 +6,27 @@ import {createHash} from 'node:crypto';
 import {createApprovedGarden} from './approved-garden.mjs';
 import {teahouseProps} from './teahouse.test-fixture.mjs';
 import {treeStructureConflicts} from './teahouse-garden.mjs';
+import {buildTeahouse,fitTeahouseProp} from './teahouse.mjs';
+import {gardenKit} from './approved/garden-kit-budget.mjs';
 
 globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};
+
+test('seat support stays inside the actual imported upholstery instead of projecting a rectangular slab',()=>{
+ const props=teahouseProps(),kit=gardenKit('Upholstery footprint regression'),teahouse=buildTeahouse(kit,{props});
+ try{
+  for(const chair of teahouse.chairs){
+   const original=fitTeahouseProp(props.chair,[chair.width,1.25,chair.depth]),pad=chair.root.getObjectByName('Fitted sage seat pad');
+   original.updateWorldMatrix(true,true);pad.updateWorldMatrix(true,false);
+   const ray=new T.Raycaster(new T.Vector3(),new T.Vector3(0,-1,0)),point=new T.Vector3(),positions=pad.geometry.attributes.position;
+   for(let i=0;i<positions.count;i++){
+    point.fromBufferAttribute(positions,i).applyMatrix4(pad.matrixWorld);chair.root.worldToLocal(point);
+    ray.ray.origin.set(point.x,2,point.z);
+    const hit=ray.intersectObject(original,true)[0];
+    assert.ok(hit&&hit.point.y>.55&&hit.point.y<.8,'support overhangs the original cushion at '+point.x.toFixed(2)+','+point.z.toFixed(2));
+   }
+  }
+ }finally{kit.dispose();}
+});
 
 test('approved furniture is grounded with permanent padded seats and a substantial pedestal',()=>{
  const garden=createApprovedGarden({props:teahouseProps()});
@@ -23,6 +42,19 @@ test('approved furniture is grounded with permanent padded seats and a substanti
   assert.ok(bounds.min.y<=.43,'pedestal meets the floor');
   assert.ok(bounds.max.x-bounds.min.x>=6,'table has a generous circular surface');
   assert.ok(bounds.max.y>1.5&&bounds.max.y<2,'table stays below the smallest seated faces');
+ }finally{garden.dispose();}
+});
+
+test('physical chair support never extends onto an invisible overhanging platform',()=>{
+ const garden=createApprovedGarden({props:teahouseProps()});try{
+  const ray=new T.Raycaster(new T.Vector3(),new T.Vector3(0,-1,0));
+  for(const chair of garden.teahouse.chairs){
+   const pad=chair.root.getObjectByName('Fitted sage seat pad');
+   for(const surface of garden.surfaces.filter(s=>s.name===chair.root.name))for(const [x,z]of surface.vertices){
+    ray.ray.origin.set(x,2,z);const hit=ray.intersectObject(pad,true)[0];
+    assert.ok(hit&&Math.abs(hit.point.y-surface.supportTop)<.01,'physical support must lie on actual upholstery');
+   }
+  }
  }finally{garden.dispose();}
 });
 

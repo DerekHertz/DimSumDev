@@ -74,6 +74,7 @@ test('actual seated bodies rest on their padded support instead of floating abov
 test('native meeting seating clears the actual assembled table with every specialist body and preserves ownership through return',()=>{
  const f=approvedFixture();try{
   const table=triangles(f.den.garden.teahouse.table),tableIndex=meshIndex(f.den.garden.teahouse.table);
+  const chairs=f.den.garden.teahouse.chairs,chairIndices=chairs.map(chair=>meshIndex(chair.root));
   assert.ok(table.length>=32,'actual table triangles retained by batching');
   // The top is convex; test the actual batched surface independently of its pedestal.
   const top=table.filter(t=>[t.a,t.b,t.c].every(p=>p.y>=1.43));
@@ -105,7 +106,13 @@ test('native meeting seating clears the actual assembled table with every specia
     for(const time of [0,.4,1.2]){
      actor.panda.rig.poseSit(time,{grounded:true});const body=triangles(actor.panda.model);
      assert.equal(body.filter(t=>intersects(t,planes)).length,0,actor.role+' actual seated triangles clear actual table');
-     if(time===0)assert.equal(tableIndex.collides(body),false,actor.role+' clears every actual table surface, including the pedestal');
+     if(time===0){
+      assert.equal(tableIndex.collides(body),false,actor.role+' clears every actual table surface, including the pedestal');
+      const index=chairs.map((chair,index)=>({index,distance:Math.hypot(chair.spot.x-actor.panda.model.position.x,chair.spot.z-actor.panda.model.position.z)})).sort((a,b)=>a.distance-b.distance)[0].index;
+      assert.equal(chairIndices[index].collides(body),false,actor.role+' clears its actual chair after seating fit adjustments');
+      const bottom=Math.min(...body.flatMap(t=>[t.a.y,t.b.y,t.c.y])),ray=new T.Raycaster(undefined,new T.Vector3(0,-1,0),0,.13);
+      assert.ok(body.flatMap(t=>[t.a,t.b,t.c]).filter(p=>p.y<bottom+.025).some(p=>{ray.ray.origin.copy(p).y+=.01;return ray.intersectObject(chairs[index].root,true).some(hit=>hit.distance<.12);}),actor.role+' retains real upholstery contact at its chosen seat');
+     }
      assert.ok(Math.min(...body.flatMap(t=>[t.a.y,t.b.y,t.c.y]))>=f.den.walkWorld.supportAt(actor.panda.model.position.x,actor.panda.model.position.z)-.02,'body stays above its supporting floor');
     }
    }

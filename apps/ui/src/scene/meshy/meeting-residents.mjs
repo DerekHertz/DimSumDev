@@ -59,7 +59,7 @@ export function createMeetingResidents(den,actors,places,routines){
   routines.transfer(a);const id='meeting:'+meeting.id+':'+resident.role;
   let lease=null,path=[],chosen=null;
   const radius=Math.hypot(spot.x,spot.z+4)||1;
-  for(const extra of (den.walkWorld.meetingApproach?[0,-.2,-.4]:[0,.5,1,1.5,2,2.5])){
+  for(const extra of (den.walkWorld.meetingApproach?[0,.2,-.2,-.4]:[0,.5,1,1.5,2,2.5])){
    const position={x:spot.x+spot.x/radius*extra,y:den.walkWorld.supportAt?.(spot.x,spot.z)+.045||.46,z:spot.z+(spot.z+4)/radius*extra};
    const place=places.define({id,kind:'meeting',position});if(!place.owner)place.position={...position};
    lease=places.reserve(id,a.identity,{...a.envelope,yaw:spot.yaw});if(!lease)continue;

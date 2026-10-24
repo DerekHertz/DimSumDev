@@ -160,10 +160,11 @@ sign(land.root,'WELCOME TO THE DEN',[0,3.2,44],7);for(const horizontal of [-5.1,
 capture(pathGroup,null);capture(teahouse.floor,null);obstacles.push(...propObstacles(teahouse.table));capture(teahouse.lanternFrame,null);
 for(const chair of teahouse.chairs){
  obstacles.push(...propObstacles(chair.root));
- const halfX=chair.supportWidth/2,halfZ=1.1;
- const vertices=[[-halfX,1.2-halfZ],[-halfX,1.2+halfZ],[halfX,1.2-halfZ],[halfX,1.2+halfZ]].map(([x,z])=>chair.root.localToWorld(new Three.Vector3(x,0,z)).toArray()).map(p=>[p[0],p[2]]);
- const bounds=new Three.Box3().setFromObject(chair.root);
- surfaces.push({name:chair.root.name,min:bounds.min.toArray(),max:bounds.max.toArray(),vertices,supportTop:chair.supportTop});
+ for(const {halfX,minZ,maxZ}of chair.supportRegions){
+  const vertices=[[-halfX,minZ],[-halfX,maxZ],[halfX,minZ],[halfX,maxZ]].map(([x,z])=>chair.root.localToWorld(new Three.Vector3(x,0,z)).toArray()).map(p=>[p[0],p[2]]);
+  const bounds=new Three.Box3().setFromObject(chair.root);
+  surfaces.push({name:chair.root.name,min:bounds.min.toArray(),max:bounds.max.toArray(),vertices,supportTop:chair.supportTop});
+ }
 }
 land.finish([pathGroup,teahouse.floor,teahouse.table,teaTray]);
 const teaBounds=new Three.Box3().setFromObject(teaTray),teaRadius=Math.hypot(Math.max(Math.abs(teaBounds.min.x),Math.abs(teaBounds.max.x)),Math.max(Math.abs(teaBounds.min.z+4),Math.abs(teaBounds.max.z+4)));
