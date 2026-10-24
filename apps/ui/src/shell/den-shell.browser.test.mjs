@@ -70,6 +70,7 @@ async function open({ width = 1440, inventory = false } = {}) {
     if (action === 'stop') { meeting.state = 'paused'; meeting.pause = { kind: 'user', reason: 'Paused by you' }; }
     if (action === 'resume') meeting.state = 'running';
     if (action === 'close') meeting.state = 'ended';
+    meeting.updatedAt = new Date(Math.max(Date.now(), (Date.parse(meeting.updatedAt) || 0) + 1)).toISOString();
     snapshot.seq++;
     await r.fulfill({ status: 202, json: { meeting } });
     // Deliver the same state change the live bridge publishes.

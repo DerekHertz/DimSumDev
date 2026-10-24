@@ -47,7 +47,9 @@
 .forest-shell .den-rail, .forest-shell .den-rail-entry { contain: none; position: relative; }
 .forest-shell .den-rail-entry, .forest-shell .den-roof-controls button { min-height: 44px; }
 .forest-shell .meeting-workspace p { font-weight: 400; }
-.forest-shell :is(button, input, textarea, select, summary):focus-visible { outline: 3px solid var(--focus-ring); outline-offset: 3px; }
+.forest-shell :is(button, input, textarea, select, summary):focus-visible { outline: 2px solid var(--focus-ring); outline-offset: 2px; }
+.forest-shell .den-rail-entry:focus-visible { outline-offset: -2px; }
+.forest-shell .den-sheet .card-in-sheet { max-height: none; }
 .forest-shell :is(.code-well, .note-field, .meeting-bubble, .meeting-decision, .meeting-choice, .meeting-proposal, .meeting-summary) { --glass-center: var(--glass-reading); color: var(--ink); }
 .forest-shell .den-meeting-sheet { left: max(92px, 9vw); right: 3vw; top: 9vh; bottom: 7vh; width: auto; max-width: 1440px; border-radius: 36px; border-width: 4px !important; }
 .den-meeting-sheet .den-sheet-head { padding: 22px 28px 12px; }

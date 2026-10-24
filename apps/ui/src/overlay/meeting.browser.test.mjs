@@ -89,6 +89,7 @@ test('composer controls stay above the record footer, and the recent feed links 
       assert.ok(bounds.send <= bounds.footer, JSON.stringify(bounds));
       assert.ok(bounds.textarea <= bounds.footer, JSON.stringify(bounds));
       await t.page.getByRole('button', { name: 'Close panel (the meeting keeps running)' }).click();
+      await t.page.getByRole('button', { name: 'Close panel', exact: true }).click();
       const recent = t.page.getByRole('button', { name: 'Recent activity +', exact: true });
       await recent.click();
       await t.page.getByRole('complementary', { name: 'Recent activity' }).getByRole('button', { name: /architect contributed/ }).click();
@@ -142,6 +143,9 @@ test('both themes share rim glass on existing panels, rail and every button with
       assert.deepEqual(missing, []);
       assert.match(await t.page.locator('.den-meeting-sheet').evaluate(el => getComputedStyle(el, '::before').maskComposite), /exclude/);
       await t.page.getByRole('button', { name: 'Close panel (the meeting keeps running)' }).focus();
+      await t.page.keyboard.press('Tab');
+      await t.page.keyboard.press('Shift+Tab');
+      assert.equal(await t.page.getByRole('button', { name: 'Close panel (the meeting keeps running)' }).evaluate(el => el === document.activeElement), true);
       assert.equal(await t.page.evaluate(() => getComputedStyle(document.activeElement).outlineStyle), 'solid');
       assert.deepEqual(t.errors, []);
     } finally { await t.close(); }
