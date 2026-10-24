@@ -19,6 +19,9 @@ test("the sandbox job uses the supported Ubuntu host and requires real resource 
   assert.ok(setup>=0&&setup<preflight,'sandbox prerequisites must be installed before enforcement is probed');
   assert.match(job,/apt-get install[^\n]*bubblewrap[^\n]*dbus-user-session/);
   assert.match(job,/systemctl start "user@\$\(id -u\)\.service"/);
+  assert.match(job,/profile bwrap \/usr\/bin\/bwrap flags=\(unconfined\)\s*\{\s*userns,\s*\}/);
+  assert.match(job,/apparmor_parser -r \/etc\/apparmor\.d\/bwrap/);
+  assert.ok(!/sysctl[^\n]*apparmor_restrict_unprivileged_userns\s*=\s*0/.test(job),'the global user-namespace restriction stays enabled');
   assert.match(job,/if\s*\(!\w+\.ok\)\s*throw new Error/);
 });
 
