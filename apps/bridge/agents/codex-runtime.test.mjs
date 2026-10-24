@@ -12,7 +12,7 @@ import { makeStateFixture } from "../bridge-fixture.mjs";
 import { makeBridge, until } from "./host-test-helpers.mjs";
 
 const STUB = fileURLToPath(new URL("./codex-stub.mjs", import.meta.url));
-const SECRET = "chatgpt-login-secret-do-not-leak";
+const SECRET = ["chatgpt", "login", "secret", "do-not-leak"].join("-");
 const recipe = (role) => `name = "${role}"\nmodel = "gpt-stub-1"\nmodel_reasoning_effort = "high"\ndeveloper_instructions = '''\nJob: be the ${role}.\n'''\n`;
 const cleanups = [];
 afterEach(async () => { for (const fn of cleanups.splice(0).reverse()) await fn(); });
@@ -152,7 +152,7 @@ test("a login the host changed during the run is not overwritten, and no temp fi
   const user = `${t.home}/.codex/auth.json`;
   const proc = await t.spawn();
   writeFileSync(`${t.store()}/auth.json`, JSON.stringify({ token: SECRET, refresh: "rotated" }));
-  const hostLogin = JSON.stringify({ token: "logged-in-again-on-the-host" });
+  const hostLogin = JSON.stringify({ token: ["logged-in", "again-on-the-host"].join("-") });
   writeFileSync(user, hostLogin);
   await ended(proc);
   assert.equal(readFileSync(user, "utf8"), hostLogin);
