@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createMeetings } from './runner.mjs';
 
-async function fixture(roles = ['architect'], ref = null) {
+async function fixture(roles = ['architect'], ref = null, budget = 20) {
   const starts = [];
   const holds = { claims: 0, releases: 0 };
   const api = createMeetings({
@@ -14,7 +14,7 @@ async function fixture(roles = ['architect'], ref = null) {
     proposeTicket: async () => { throw new Error('No ticket should be created'); },
   });
   await api.ready;
-  const start = await api.start({ topic: 'Recovery design', roles, budget: 20, ...(ref ? { ref } : {}) });
+  const start = await api.start({ topic: 'Recovery design', roles, budget, ...(ref ? { ref } : {}) });
   const flush = async () => { for (let i = 0; i < 10; i++) await new Promise(resolve => setImmediate(resolve)); };
   await flush();
   const id = start.meeting.id;
@@ -107,3 +107,37 @@ test('a specialist decline remains private and is identified to the moderator as
   assert.match(f.starts.at(-1).meeting.file, /architect declined/);
   assert.equal(JSON.stringify(f.api.publicSnapshot()).includes('PRIVATE-DECLINE-CONTEXT'), false);
 });
+
+for (const mode of ['reply', 'budget', 'pause', 'end', 'invalid-plan']) {
+  test(`queued reply after missing-input moderation respects ${mode}`, async () => {
+    const f = await fixture(['architect', 'qa'], null, mode === 'budget' ? 0.65 : 20);
+    await f.finish('Claim: One journal');
+    await f.api.onEnd({ agentId: f.api.snapshot()[0].live.runId, state: 'failed', costUsd: 0.1 });
+    await f.flush();
+    const sourceId = (await f.api.read(f.id)).events.find(e => e.kind === 'message').id;
+    assert.equal((await f.api.ask(f.id, { sourceId, reask: 'qa' })).ok, true);
+    if (mode === 'pause') await f.api.stop(f.id);
+    if (mode === 'end') await f.api.close(f.id);
+    const plan = { action: 'decision', question: 'Which journal?', options: [{ key: 'A', title: 'One', tradeoff: 'Simple but grows' }, { key: 'B', title: 'Many', tradeoff: 'Small but dispersed' }], recommended: 'A', required: ['qa'], sourceIds: [sourceId] };
+    await f.finish(mode === 'invalid-plan' ? 'invalid' : JSON.stringify(plan));
+    const record = await f.api.read(f.id);
+    if (mode === 'reply') {
+      assert.equal(f.starts.length, 4, `queued response stranded: state=${record.meeting.state}`);
+      assert.equal(f.starts.at(-1).role, 'qa');
+      assert.equal(record.meeting.queue.length, 0);
+      assert.equal(record.meeting.state, 'running');
+      assert.equal((await f.api.decide(f.id, { option: 'A' })).status, 409);
+      assert.equal((await f.api.retry(f.id, { role: 'qa' })).status, 409);
+    } else {
+      assert.equal(f.starts.length, 3);
+      assert.equal(record.meeting.state, mode === 'end' ? 'ended' : mode === 'budget' ? 'waiting-budget' : 'paused');
+      if (mode === 'budget') {
+        assert.equal(record.meeting.queue.length, 1);
+        assert.equal((await f.api.decide(f.id, { option: 'A' })).status, 409);
+        await f.api.approveBudget(f.id, { budget: 2 });
+        assert.equal(f.starts.length, 4);
+        assert.equal(f.starts.at(-1).role, 'qa');
+      }
+    }
+  });
+}

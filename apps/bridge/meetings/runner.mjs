@@ -137,10 +137,11 @@ export function createMeetings({ host, log, store, readTicket, readProject = asy
       const was = m.state;
       if (was === 'pausing') status(m, 'paused', 'Current response finished; no new work starts.');
       else if (was !== 'ended' && live.part === 'chair') {
+        let missingInput = false;
         if (!success) status(m, 'paused', 'Moderator contribution missing; retry to continue.');
-        else moderate(m, text, message.id);
+        else missingInput = moderate(m, text, message.id) === 'missing-input';
         const redirected = m.queue.length || m.events.some(e => e.appliesNext && !m.events.some(applied => applied.kind === 'redirect-applied' && applied.sourceId === e.id));
-        if (redirected && ['ready-for-review', 'waiting-decision'].includes(m.state)) status(m, 'running', 'Applying your queued request before settling.');
+        if (redirected && (missingInput || ['ready-for-review', 'waiting-decision'].includes(m.state))) status(m, 'running', 'Applying your queued request before settling.');
       }
       if (was === 'ended') m.summary = closingSummary(m);
       await save(m); return advance(m);
@@ -174,7 +175,7 @@ export function createMeetings({ host, log, store, readTicket, readProject = asy
       m.questions.push(q);
       m.focusedQuestionId = q.id;
       const missing = q.required.filter(r => !m.seats.some(s => s.role === r && s.status === 'taken'));
-      status(m, missing.length ? 'paused' : 'waiting-decision', missing.length ? `Decision blocked by missing input: ${missing.join(', ')}` : 'Only you can settle this question.'); return;
+      status(m, missing.length ? 'paused' : 'waiting-decision', missing.length ? `Decision blocked by missing input: ${missing.join(', ')}` : 'Only you can settle this question.'); return missing.length ? 'missing-input' : undefined;
     }
     if (plan.action === 'suggestions') {
       m.suggestions = (Array.isArray(plan.specialists) ? plan.specialists : []).filter(s => SPECIALISTS.includes(s.role) && textOf(s.reason)).slice(0, SEATS_MAX).map(s => ({ role: s.role, reason: s.reason }));
