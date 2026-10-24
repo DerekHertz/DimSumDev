@@ -40,7 +40,7 @@ async function open(state) {
   await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   await page.route((u) => u.pathname === '/session', (r) => r.fulfill({ json: { token: 't'.repeat(43) } }));
   const events = [{ id: 'e-product', actor: 'product', kind: 'message', round: 1, at: m.startedAt, text: 'Claim: Keep the two-week cut line.\nEvidence: the spec', cost: 0, runId: 'c-product' }];
-  await page.route((u) => u.pathname.startsWith('/meetings/'), (r) => r.fulfill({ json: { meeting: m, events } }));
+  await page.route((u) => u.pathname.startsWith('/meetings/'), (r) => r.fulfill({ json: { meeting: m, events, takes: [], thread: [] } }));
   await page.goto(`${server.resolvedUrls.local[0]}#code=${'c'.repeat(43)}`);
   return { page, errors, close: async () => { await browser.close(); await server.close(); } };
 }
