@@ -1,9 +1,9 @@
 // den-revival/03 slice 1b (ADR 0030): the Codex CellRuntime on the host launch path. It starts `codex app-server --stdio` in its own
 // resource group, hands the thread a per-role permission profile (compileCodexPermissions) that Codex's own sandbox enforces on every
 // tool command, and turns the adapter's events into the host's. The model, effort and instructions come from the role's
-// `.codex/agents/<role>.toml`. The login is copied into a private native store the profile denies to tool commands, and removed
-// when the run ends. No tree, no steering, no resume yet. Registration is a flag in server.mjs (DEN_CODEX=1).
-import { chmodSync, copyFileSync, existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+// `.codex/agents/<role>.toml`. The login is copied into a private native store the profile denies to tool commands; when the run ends the copy is
+// removed, and first written back to the user's file if Codex refreshed it. No tree, no steering, no resume yet. Registration is a flag in server.mjs (DEN_CODEX=1).
+import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { openCodexAppServer } from "./codex-adapter.mjs";
@@ -28,7 +28,21 @@ function readRecipe(file) {
   return { model, effort, instructions };
 }
 
-const privateDir = (dir) => {
+/** Codex rotates its refresh token in the copy it runs on; without this the user's own login keeps the spent one. Whole-file only, atomic, private. */
+function saveRefreshedLogin({ copy, original, target }) {
+  try {
+    const now = readFileSync(copy);
+    if (!original || now.equals(original)) return;
+    JSON.parse(now);
+    const next = `${target}.${process.pid}.tmp`;
+    writeFileSync(next, now, { mode: 0o600 });
+    renameSync(next, target);
+  } catch (err) {
+    if (err?.code !== "ENOENT" && err?.name !== "SyntaxError") console.error(`bridge: could not save the refreshed Codex login (${err?.code ?? err?.name})`);
+  }
+}
+
+const privateDir =(dir) => {
   mkdirSync(dir, { recursive: true, mode: 0o700 });
   chmodSync(dir, 0o700);
   return dir;
@@ -71,7 +85,11 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
       const { codexBin, nativeHelper } = binaries();
       const writes = ceilingOf(role)?.takesGrants === true;
       const session = privateDir(`${stateRoot}/${sessionId}`);
-      const cleanup = () => rmSync(session, { recursive: true, force: true });
+      let original;
+      const cleanup = () => {
+        saveRefreshedLogin({ copy: `${session}/native/auth.json`, original, target: authSource });
+        rmSync(session, { recursive: true, force: true });
+      };
       try {
         const nativeStore = privateDir(`${session}/native`);
         const tmp = privateDir(`${session}/tmp`);
@@ -90,8 +108,8 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
         const config = { ...compiled.config, model: recipe.model, model_reasoning_effort: recipe.effort, cli_auth_credentials_store: "file",
           shell_environment_policy: { inherit: "none", set: { PATH: path_, HOME: tmp, TMPDIR: tmp } } };
         writeFileSync(`${nativeStore}/config.toml`, renderCodexConfig(config), { mode: 0o600 });
-        copyFileSync(authSource, `${nativeStore}/auth.json`);
-        chmodSync(`${nativeStore}/auth.json`, 0o600);
+        original = readFileSync(authSource);
+        writeFileSync(`${nativeStore}/auth.json`, original, { mode: 0o600 });
         const launched = await launcher.launch({ slotClass: slotClassOf(role), id: runId ?? sessionId, bin: codexBin, args: codexArgs, cwd,
           env: { PATH: path_, HOME: privateDir(`${session}/home`), CODEX_HOME: nativeStore, XDG_CONFIG_HOME: privateDir(`${session}/xdg`), TMPDIR: tmp, LANG: "C.UTF-8" } });
         return await attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup });

@@ -1,11 +1,12 @@
 // den-revival/03 slice 1b: the Codex runtime on the host launch path, over the stub app-server (no Codex binary, login or account call).
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, utimesSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createCodexRuntime } from "./codex-runtime.mjs";
+import { runtimeOptions } from "../server.mjs";
 import { unconfinedLauncher } from "./launcher-test-helpers.mjs";
 import { makeStateFixture } from "../bridge-fixture.mjs";
 import { makeBridge, until } from "./host-test-helpers.mjs";
@@ -24,7 +25,7 @@ function setup({ login = true, mode = "ok", over = {} } = {}) {
   const cwd = path.join(control, "worktree");
   for (const d of [`${home}/.codex`, `${control}/.codex/agents`, cwd]) mkdirSync(d, { recursive: true });
   if (login) writeFileSync(`${home}/.codex/auth.json`, JSON.stringify({ token: SECRET }), { mode: 0o600 });
-  for (const role of ["developer", "qa"]) writeFileSync(`${control}/.codex/agents/${role}.toml`, recipe(role));
+  for (const role of ["developer", "chief-of-staff"]) writeFileSync(`${control}/.codex/agents/${role}.toml`, recipe(role));
   const runtime = createCodexRuntime({ env: { HOME: home, PATH: process.env.PATH }, launcher: unconfinedLauncher(), controlRoot: control, native: { codexBin: process.execPath, nativeHelper: STUB }, codexArgs: [STUB, mode], ...over });
   const ids = { sessionId: "11111111-1111-4111-8111-111111111111", runId: "c-0123456789abcdef" };
   const spawn = async (more = {}) => {
@@ -55,7 +56,7 @@ test("a direct run returns the shell output and the acknowledged thread, with th
   assert.ok(end.code !== undefined);
 });
 
-test("each role gets its own profile: a writer writes its worktree, a reader only reads it", async () => {
+test("each role gets its own profile: a writer writes its worktree, a role with no write ceiling only reads it", async () => {
   const t = setup();
   const dev = await t.spawn();
   const devConfig = readFileSync(`${t.store()}/config.toml`, "utf8");
@@ -65,9 +66,9 @@ test("each role gets its own profile: a writer writes its worktree, a reader onl
   dev.closeInput();
   await dev.exited;
   const qaDir = setup();
-  const qa = await qaDir.spawn({ role: "qa" });
+  const qa = await qaDir.spawn({ role: "chief-of-staff" });
   const qaConfig = readFileSync(`${qaDir.store()}/config.toml`, "utf8");
-  assert.match(qaConfig, /default_permissions = "den-qa"/);
+  assert.match(qaConfig, /default_permissions = "den-chief-of-staff"/);
   assert.doesNotMatch(qaConfig, new RegExp(`"${qaDir.cwd}" = "write"`));
   assert.match(qaConfig, new RegExp(`"${qaDir.cwd}" = "read"`));
   qa.closeInput();
@@ -84,6 +85,32 @@ test("the login is copied into the private native store and never into the workt
   assert.match(readFileSync(`${t.store()}/config.toml`, "utf8"), /"[^"]*\/native" = "deny"/);
   proc.closeInput();
   await proc.exited;
+});
+
+const ended = async (proc) => { proc.closeInput(); await proc.exited; };
+
+test("a login the run refreshed is written back to the user's file, whole and private, and an unchanged one is left alone", async () => {
+  const t = setup();
+  const user = `${t.home}/.codex/auth.json`;
+  const quiet = await t.spawn();
+  utimesSync(user, 1, 1);
+  await ended(quiet);
+  assert.equal(statSync(user).mtimeMs, 1000);
+  const refreshed = JSON.stringify({ token: SECRET, refresh: "rotated" });
+  const proc = await t.spawn();
+  writeFileSync(`${t.store()}/auth.json`, refreshed);
+  await ended(proc);
+  assert.equal(readFileSync(user, "utf8"), refreshed);
+  assert.equal(statSync(user).mode & 0o777, 0o600);
+  assert.deepEqual(readdirSync(path.dirname(user)), ["auth.json"]);
+});
+
+test("a login cut off half-written is not copied over the user's file", async () => {
+  const t = setup();
+  const proc = await t.spawn();
+  writeFileSync(`${t.store()}/auth.json`, '{"token": "cut-o');
+  await ended(proc);
+  assert.equal(readFileSync(`${t.home}/.codex/auth.json`, "utf8"), JSON.stringify({ token: SECRET }));
 });
 
 test("no login means no start, and the reason never contains the login", async () => {
@@ -129,4 +156,15 @@ test("one direct task to a Codex resident returns a result in the den", async ()
   assert.equal(res.status, 201, res.text);
   assert.equal(res.body.agent.runtime, "codex");
   await until(async () => (await bridge.agent(res.body.agent.id))?.state === "done", { ms: 8000, what: "the Codex run to finish" });
+});
+
+test("the Codex runtime is registered only with DEN_CODEX=1, and then beside Claude's", async () => {
+  const claude = { id: "claude" };
+  assert.deepEqual(await runtimeOptions({ env: {}, claude, root: "/unused" }), { runtime: claude });
+  assert.deepEqual(await runtimeOptions({ env: { DEN_CODEX: "0" }, claude, root: "/unused" }), { runtime: claude });
+  const t = setup();
+  const on = await runtimeOptions({ env: { DEN_CODEX: "1", HOME: t.home, PATH: process.env.PATH }, claude, root: t.control });
+  assert.equal(on.runtime, undefined);
+  assert.equal(on.runtimes.claude, claude);
+  assert.equal(on.runtimes.codex.id, "codex");
 });
