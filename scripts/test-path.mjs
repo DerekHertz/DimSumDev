@@ -5,6 +5,7 @@
 import { spawnSync } from "node:child_process";
 import { readdirSync, statSync } from "node:fs";
 import path from "node:path";
+import { isBrowserFile, nodeTestArgs } from "./test-split.mjs";
 
 function fail(msg) {
   process.stderr.write(`test:path: ${msg}\n`);
@@ -48,5 +49,9 @@ for (const arg of args) {
 // that exits 0 on failures; this runner must own its exit code.
 const env = { ...process.env };
 delete env.NODE_TEST_CONTEXT;
-const r = spawnSync(process.execPath, ["--test", ...files], { stdio: "inherit", env });
+// Browser files get the same file-concurrency cap as `npm run test:browser`, so a directory
+// full of them cannot start a Chromium per file all at once.
+const ROOT = path.resolve(path.dirname(new URL(import.meta.url).pathname), "..");
+const cap = files.some((f) => isBrowserFile(path.relative(ROOT, f), ROOT)) ? nodeTestArgs("browser") : [];
+const r = spawnSync(process.execPath, ["--test", ...cap, ...files], { stdio: "inherit", env });
 process.exit(r.status ?? 1);

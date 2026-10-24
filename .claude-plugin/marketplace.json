@@ -1,12 +1,21 @@
 {
   "name": "dimsumden-mods",
-  "owner": { "name": "Dim Sum Dev" },
-  "metadata": { "description": "Dim Sum Dev's own mods (project-scope Claude Code plugins). Mods trial: see .scratch/mods-trial/spec.md." },
+  "owner": {
+    "name": "Dim Sum Dev"
+  },
+  "metadata": {
+    "description": "Dim Sum Dev's own mods (project-scope Claude Code plugins). Mods trial: see .scratch/mods-trial/spec.md."
+  },
   "plugins": [
     {
       "name": "sleep-guard",
       "source": "./mods/sleep-guard",
       "description": "Blocks sleep-chain Bash commands and points to gh pr checks --watch or Monitor."
+    },
+    {
+      "name": "test-run-guard",
+      "source": "./mods/test-run-guard",
+      "description": "Blocks uncapped node --test runs over globs, directories or many files, and points to npm run test:path."
     },
     {
       "name": "north-star",

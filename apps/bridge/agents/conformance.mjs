@@ -1285,7 +1285,7 @@ export const SPIKES = {
   Live: { title: "one agent through the bridge itself (den-v1 loop S3): worktree cwd, a held Write outside it, allow over HTTP, tool result, done", turns: 1, run: runLive },
   Wall: { title: "the wall (agent-os/01): the CLI sandbox under the bridge's argv; writes and hosts outside it, the file tools, an escape attempt", turns: 20, run: runWall },
   Limits: { title: "systemd-run limits (agent-os/01 question 5): the CLI in a scope with a memory and a CPU limit; a sandboxed command over each", turns: 3, run: runLimits },
-  Container: { title: "a container per agent (hardening/13, ADR 0031): the seven wall answers from one agent in a rootless Docker container behind the proxy, with the network, limits and .git checks", turns: 16, run: runContainer },
+  Container: { title: "a container per agent (hardening/13, ADR 0031): the seven wall answers from one agent in a rootless Docker container behind the proxy, with the network, limits and .git checks", turns: 17, run: runContainer },
 };
 
 // ---- Runner and CLI ------------------------------------------------------------------------

@@ -289,6 +289,18 @@ describe("createProxyService", () => {
       assert.deepEqual(Object.entries(final).sort(), seen.map((s) => [s.secret, s.role]).sort());
     });
 
+    test("retireRunSecret drops one run's secret from the file and keeps the others (hardening/16 F4)", async () => {
+      await seed("a");
+      await make().start();
+      const one = await service.mintRunSecret({ role: "developer" });
+      const two = await service.mintRunSecret({ role: "qa" });
+      await service.retireRunSecret(one.secret);
+      assert.deepEqual(JSON.parse(await readFile(secretsFile(), "utf8")), { [two.secret]: "qa" });
+      await service.retireRunSecret(one.secret);
+      await service.retireRunSecret("not-a-secret");
+      assert.deepEqual(JSON.parse(await readFile(secretsFile(), "utf8")), { [two.secret]: "qa" }, "retiring an unknown secret changes nothing");
+    });
+
     test("a role the ceilings do not know is refused and the file is unchanged", async () => {
       await seed("a");
       await make().start();
