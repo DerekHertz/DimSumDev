@@ -17,7 +17,7 @@ import { cardFor } from "./proximity-card.mjs";
 const flush = () => new Promise((r) => setImmediate(r));
 const rejectWith = (status, reason) => Object.assign(new Error(reason), { status, reason });
 const viewer = { x: 0, z: 0, yaw: Math.PI / 2 };
-const panda = (over = {}) => ({ id: "scout", name: "The Scout", role: "scout", team: "Steamers", position: { x: -2, z: 0 }, ...over });
+const panda = (over = {}) => ({ id: "developer", name: "The Developer", role: "developer", team: "Steamers", position: { x: -2, z: 0 }, ...over });
 const residentCard = (over) => cardFor([panda(over)], [], viewer);
 
 function harness({ startTask } = {}) {
@@ -26,7 +26,7 @@ function harness({ startTask } = {}) {
     sendMessage: async (...args) => { calls.push(["sendMessage", ...args]); return { ok: true, messageId: "m-1" }; },
     startTask: (role, body) => {
       calls.push(["startTask", role, body]);
-      return (startTask ?? (async () => ({ agent: { id: "c-new" }, ticket: { ref: "den/01-scout" } })))(role, body);
+      return (startTask ?? (async () => ({ agent: { id: "c-new" }, ticket: { ref: "den/01-developer" } })))(role, body);
     },
   };
   const composer = createMessageComposer({ client, now: () => 0 });
@@ -41,9 +41,9 @@ describe("T on a resident opens the composer in start mode", () => {
     const s = h.state();
     assert.equal(s.open, true);
     assert.equal(s.phase, "ready");
-    assert.equal(s.overline, "New task for The Scout");
-    assert.equal(s.ariaLabel, "New task for The Scout");
-    assert.equal(s.placeholder, "Tell The Scout what to do");
+    assert.equal(s.overline, "New task for The Developer");
+    assert.equal(s.ariaLabel, "New task for The Developer");
+    assert.equal(s.placeholder, "Tell The Developer what to do");
     assert.equal(s.note, "One task, started as a new agent");
     assert.equal(s.sendLabel, "Start");
     assert.equal(s.busyLabel, "Starting");
@@ -56,7 +56,7 @@ describe("T on a resident opens the composer in start mode", () => {
     const live = { id: "c-1", state: "working", capabilities: { send: true } };
     h.composer.open(cardFor([panda({ agent: live })], [], viewer), { mode: "walk" });
     const s = h.state();
-    assert.equal(s.overline, "Message The Scout");
+    assert.equal(s.overline, "Message The Developer");
     assert.equal(s.note, "One message, sent to this agent only");
     assert.equal(s.sendLabel, "Send");
     assert.equal(s.busyLabel, "Sending");
@@ -69,10 +69,10 @@ describe("T on a resident opens the composer in start mode", () => {
     h.composer.key({ key: "Enter", inBox: true }, { card: residentCard(), mode: "walk" });
     assert.equal(h.state().phase, "sending");
     await flush();
-    assert.deepEqual(h.calls, [["startTask", "scout", { text: "Count the baskets." }]]);
+    assert.deepEqual(h.calls, [["startTask", "developer", { text: "Count the baskets." }]]);
     const s = h.state();
     assert.equal(s.open, false);
-    assert.equal(s.announcement, "Task started for The Scout.");
+    assert.equal(s.announcement, "Task started for The Developer.");
     assert.equal(s.focusReturn, "scene");
     assert.equal(h.composer.statusFor(residentCard()), null, "nothing to show until the agent is bound to the panda");
     const bound = cardFor([panda({ agent: { id: "c-new", state: "working", capabilities: {} } })], [], viewer);
@@ -86,7 +86,7 @@ describe("T on a resident opens the composer in start mode", () => {
 
   test("a refusal keeps the text and says why; a retry sends again", async () => {
     let n = 0;
-    const h = harness({ startTask: async () => { if ((n += 1) === 1) throw rejectWith(429, "max_concurrent_agents (2) reached"); return { agent: { id: "c-2" }, ticket: { ref: "den/02-scout" } }; } });
+    const h = harness({ startTask: async () => { if ((n += 1) === 1) throw rejectWith(429, "max_concurrent_agents (2) reached"); return { agent: { id: "c-2" }, ticket: { ref: "den/02-developer" } }; } });
     h.composer.open(residentCard(), { mode: "walk" });
     h.composer.setText("Count the baskets.");
     await h.composer.send();
@@ -121,7 +121,7 @@ describe("T on a resident opens the composer in start mode", () => {
   test("a draft is kept per panda, and a snapshot with no such agent does not close the box", () => {
     const h = harness();
     h.composer.open(residentCard(), { mode: "walk" });
-    h.composer.setText("for the scout");
+    h.composer.setText("for the developer");
     h.composer.sync({ agents: [{ id: "c-other", state: "done" }] });
     assert.equal(h.state().phase, "ready");
     h.composer.close();
@@ -129,7 +129,7 @@ describe("T on a resident opens the composer in start mode", () => {
     assert.equal(h.state().text, "");
     h.composer.close();
     h.composer.open(residentCard(), { mode: "walk" });
-    assert.equal(h.state().text, "for the scout");
+    assert.equal(h.state().text, "for the developer");
   });
 
   test("demo mode and an over-long task open or send nothing", async () => {

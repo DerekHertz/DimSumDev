@@ -123,7 +123,7 @@ test('the meetings card: setup sends the question and the roles picked, and says
     await card.getByLabel('security').check();
     await card.getByLabel('architect').check();
     assert.match(await card.locator('#meeting-cost').innerText(), /3 runs: 2 takes, one at a time, then Bao's brief\. Five-hour usage is 41%\./);
-    assert.equal(await card.getByRole('checkbox').count(), 11, 'the scout and Bao are not seats; ADR 0029 adds four specialists');
+    assert.equal(await card.getByRole('checkbox').count(), 10, 'Bao is not a seat; the scout and the herald are retired (ADR 0029)');
     await start.click();
     await page.waitForFunction(() => document.querySelector('#meeting-topic')?.value === '');
     assert.deepEqual(t.posts.map((p) => [p[0], p[1]]), [['/meetings', { topic: 'Should the scout get a second connection?', roles: ['architect', 'security'] }]]);
