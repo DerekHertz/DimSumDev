@@ -24,7 +24,7 @@ const COMMIT_RE = /^[0-9a-f]{40,64}$/;
 // root (so a root that is itself a linked worktree works), GIT_DIR is <common>/worktrees/<name> (create checks that `worktree add`
 // recorded exactly that admin dir), GIT_WORK_TREE is the worktree, and attributes come from the empty tree, so no filter, textconv
 // or diff driver is selected. A sha256 repository rejects the sha1 empty tree, so git fails closed there.
-const EMPTY_TREE = "4b825dc642cb6eb9a060e54bf8d69288fbee4904";
+export const EMPTY_TREE ="4b825dc642cb6eb9a060e54bf8d69288fbee4904";
 
 /** Host-side git in an agent worktree must not run code the agent could plant in the worktree's config (hardening/13 security, M). */
 export const SAFE_GIT = Object.freeze(["-c", "core.fsmonitor=", "-c", "core.hooksPath=/dev/null"]);
@@ -166,7 +166,8 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
         const author = ["-c", "user.name=den", "-c", "user.email=den@localhost"];
         if (status !== "") {
           await wt(dir, "checkout", "-q", "-b", wip);
-          await wt(dir, "add", "-A", "--", ".", ":(exclude).agents/skills", ":(exclude).den");
+          // No :(exclude).den here: git exits 1 for an excluded path that exists, and brief() already ignores .den/ in the main exclude.
+          await wt(dir, "add", "-A", "--", ".", ":(exclude).agents/skills");
           await wt(dir, ...author, "commit", "-q", "--no-verify", "-m", `den: unsaved work of ${ref} (${short})`);
           saved = wip;
         } else {
