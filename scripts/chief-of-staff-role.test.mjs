@@ -40,3 +40,22 @@ test("CONTEXT.md defines the chief of staff and Bao as its Claude instance", () 
   assert.doesNotMatch(context, /The orchestrator's on-screen body/);
   assert.match(context, /\*\*Owner\*\*:\nThe chief of staff, Bao \(Claude\) or Jiao \(Codex\)/);
 });
+
+// team-and-den-ux/57 code review finding 4: the role cannot widen the charter's approval points.
+test("the charter's approval list is the whole list, with each carve-out named", () => {
+  assert.match(claude, /approval list in `docs\/agents\/team-charter\.md`[^\n]*is the whole list/);
+  assert.match(claude, /SRE restart, rollback or limit proposal[^\n]*go to the user/, "SRE proposals are not acted on");
+  assert.match(claude, /release manager den update proposal[^\n]*go to the user/, "den update proposals are not acted on");
+  for (const kept of [/a purchase/, /an API key/, /an outbound service/]) assert.match(claude, kept);
+  assert.match(claude, /reassign or stop the agents in your own tree/);
+  assert.doesNotMatch(claude, /reassign or stop agents,/);
+  assert.match(claude, /`ready-for-agent` only when the ticket touches nothing on the user-merge list/);
+});
+
+// Findings 2 and 3: neither protocol names qa `specify`, the orchestrator or scout as live.
+test("the Claude and Codex team protocols name no retired role or mode", () => {
+  for (const rel of [".claude/skills/team-protocol/SKILL.md", ".codex/team-protocol.md", ".agents/skills/team-protocol/SKILL.md"]) {
+    const text = readFileSync(path.join(ROOT, rel), "utf8");
+    assert.doesNotMatch(text, /through `scout`|the orchestrator|skips `specify`|runs qa `specify`|--mode specify/, rel);
+  }
+});

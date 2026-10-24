@@ -9,7 +9,7 @@ Your first message states your role and ticket, e.g. `[role: developer | ticket:
 
 Run agents on their role definition's model (user, 2026-10-01): every agent, the chief of staff too, runs on Sonnet 5.5 at high effort, except the Haiku leaves (`runner`) and the Haiku `sre`. Until `05`, a dispatch through a generic agent type passes the role definition's model and effort explicitly.
 
-Your final report to the chief of staff stays under about 300 words: the verdict, the branch, the numbers, and a pointer to the handoff for details. Claim only results you actually ran. Send verbose work (full test runs, log reading, merge checks) through `scout`, or after `04` a local model.
+Your final report to the chief of staff stays under about 300 words: the verdict, the branch, the numbers, and a pointer to the handoff for details. Claim only results you actually ran. Send verbose work (full test runs, log reading, merge checks) through `runner`, or after `04` a local model.
 
 ## The board
 
