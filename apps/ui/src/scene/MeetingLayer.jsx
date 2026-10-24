@@ -19,10 +19,10 @@ export function pillText(m) {
   return `Meeting on ${n} · ${spoken} of ${m.seats.length} have spoken`;
 }
 
-export function MeetingLayer({ snapshot, stage, claims = {}, onOpen }) {
+export function MeetingLayer({ snapshot, stage, claims = {}, onOpen, selectedMeetingId = null }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const t = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(t); }, []);
-  const m = tableMeeting(snapshot?.meetings, now);
+  const m = tableMeeting(snapshot?.meetings, now, selectedMeetingId);
   const nodes = useRef(new Map());
   const landed = useRef(new Map()); // role -> when its claim was first shown, for the claim bubble
   const said = useRef(new Map()); // role -> label text last announced
@@ -30,7 +30,7 @@ export function MeetingLayer({ snapshot, stage, claims = {}, onOpen }) {
 
   const labels = [];
   if (m && seated(m)) for (const s of m.seats) labels.push({ key: s.role, role: s.role, ...seatLabel(s, m) });
-  if (m) labels.push({ key: "orchestrator", role: null, name: "Bao", ...baoLabel(m) });
+  if (m) labels.push({ key: "orchestrator", role: null, name: m.moderator === 'jiao' ? 'Jiao' : 'Bao', ...baoLabel(m) });
 
   useEffect(() => {
     if (!m) { landed.current.clear(); said.current.clear(); return; }

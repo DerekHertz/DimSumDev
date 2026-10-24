@@ -22,6 +22,7 @@ const runOf = (raw) => (isObject(raw) && AGENT_ID_RE.test(raw.runId) && (SPECIAL
 
 /** A clean meeting record, or null. Unknown keys are not copied. */
 export function validateMeeting(raw) {
+  if (raw?.schema === 2) return validateWorkspace(raw);
   if (!isObject(raw) || !MEETING_ID_RE.test(raw.id) || typeof raw.ref !== "string" || !REF_RE.test(raw.ref) || !MEETING_STATES.includes(raw.state) || !ts(raw.startedAt)) return null;
   if (typeof raw.dir !== "string" || !MEETING_DIR_RE.test(raw.dir) || typeof raw.topic !== "string" || Buffer.byteLength(raw.topic) > TOPIC_MAX_BYTES) return null;
   const seats = (Array.isArray(raw.seats) ? raw.seats : []).flatMap((s) =>
@@ -40,6 +41,16 @@ export function validateMeeting(raw) {
     runs: (Array.isArray(raw.runs) ? raw.runs : []).slice(-50).flatMap((r) => (runOf(r) && END_STATES.includes(r.state) ? [{ ...runOf(r), state: r.state }] : [])),
     restedAt: ts(raw.restedAt), retired: raw.retired === true, startedAt: raw.startedAt, updatedAt: ts(raw.updatedAt) ?? raw.startedAt,
   };
+}
+
+function validateWorkspace(raw) {
+  if (!MEETING_ID_RE.test(raw.id) || !['bao', 'jiao'].includes(raw.moderator) || !/^[a-z][a-z0-9-]{0,63}$/.test(raw.project) || !ts(raw.startedAt)) return null;
+  if (raw.ref !== null && !REF_RE.test(raw.ref)) return null;
+  if (!['running', 'pausing', 'paused', 'waiting-decision', 'waiting-budget', 'ready-for-review', 'ended'].includes(raw.state)) return null;
+  if (!Array.isArray(raw.seats) || raw.seats.length > SPECIALISTS.length || raw.seats.filter(s => s.active !== false).length > SEATS_MAX || new Set(raw.seats.map(s => s.role)).size !== raw.seats.length || raw.seats.some(s => !SPECIALISTS.includes(s.role))) return null;
+  if (!Array.isArray(raw.events) || raw.events.some(e => typeof e.id !== 'string' || !ts(e.at) || typeof e.kind !== 'string' || typeof e.actor !== 'string')) return null;
+  if (!Number.isFinite(raw.budget) || raw.budget < 0 || !Number.isFinite(raw.spent) || raw.spent < 0) return null;
+  return structuredClone(raw);
 }
 
 export function createMeetingLog(dir) {

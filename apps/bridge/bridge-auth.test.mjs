@@ -145,9 +145,20 @@ const BODIES = {
   "POST /meetings/:id/close": { real: {}, bogus: {}, prepare: () => meeting({ stopped: true }) },
   "POST /meetings/:id/decide": { real: { option: "A" }, bogus: { option: "B" }, prepare: () => meeting({ briefed: true }) },
   "POST /meetings/:id/ask": { real: { text: "and at restart?" }, bogus: { text: "something else" }, prepare: () => meeting({ briefed: true }) },
+  'POST /meetings/:id/budget': { real: { budget: 5 }, bogus: { budget: -1 }, prepare: () => meeting() },
+  'POST /meetings/:id/retry': { real: { role: 'chief-of-staff' }, bogus: { role: 'unknown' }, prepare: () => meeting({ stopped: true }) },
+  'POST /meetings/:id/participants': { real: { roles: ['qa', 'architect'] }, bogus: { roles: ['unknown'] }, prepare: () => meeting() },
+  'POST /meetings/:id/preview': { real: { tickets: [{ title: 'Reviewed work', text: 'Explicit public text', includeRecord: false }] }, bogus: { tickets: [] }, prepare: () => meeting({ ended: true }) },
+  'POST /meetings/:id/publish': { real: { approved: true }, bogus: { approved: false }, prepare: async () => {
+    const id = await meeting({ ended: true });
+    const response = await send(bridge, { method: 'POST', path: `/meetings/${id}/preview`, headers: authed(bridge, token), body: BODIES['POST /meetings/:id/preview'].real });
+    BODIES['POST /meetings/:id/publish'].real.previewId = response.body.previewId;
+    return id;
+  } },
+  'POST /meetings/:id/continue': { real: {}, bogus: {}, prepare: () => meeting({ ended: true }) },
 };
 // A meeting with one seat: running (its take never ends), stopped, or taken to its brief by the fake agents. -> its id
-async function meeting({ stopped = false, briefed = false } = {}) {
+async function meeting({ stopped = false, briefed = false, ended = false } = {}) {
   const headers = authed(bridge, token);
   const started = await send(bridge, { method: "POST", path: "/meetings", headers, body: { topic: "one log or many?", roles: ["qa"] } });
   assert.equal(started.status, 201, JSON.stringify(started.body));
@@ -156,16 +167,17 @@ async function meeting({ stopped = false, briefed = false } = {}) {
     for (let i = 0; i < 200 && !fake.spawns[n]; i += 1) await new Promise((r) => setTimeout(r, 10));
     return fake.spawns[n];
   };
-  if (stopped) assert.equal((await send(bridge, { method: "POST", path: `/meetings/${id}/stop`, headers, body: {} })).status, 202);
+  if (stopped) { assert.equal((await send(bridge, { method: "POST", path: `/meetings/${id}/stop`, headers, body: {} })).status, 202); const rec = await spawned(0); rec.emit({ type: 'reply', text: 'Claim: one log' }); rec.emit({ type: 'done', ok: true }); for (let i = 0; i < 200; i++) { if ((await send(bridge, { path: '/state' })).body.meetings.some(m => m.id === id && m.state === 'paused')) break; await new Promise(r => setTimeout(r, 10)); } }
   if (briefed) {
     const say = (rec, text) => (rec.emit({ type: "reply", text }), rec.emit({ type: "done", ok: true }));
     say(await spawned(0), "Claim: one log");
-    say(await spawned(1), "## Option A: one\n## Option B: many\nRECOMMENDED: A");
+    say(await spawned(1), JSON.stringify({ action: 'decision', question: 'One or many?', options: [{ key: 'A', title: 'One', tradeoff: 'Simple but grows' }, { key: 'B', title: 'Many', tradeoff: 'Small but dispersed' }], recommended: 'A', required: ['qa'] }));
     for (let i = 0; i < 200; i += 1) {
-      if ((await send(bridge, { path: "/state" })).body?.meetings?.some((m) => m.id === id && m.state === "briefed")) break;
+      if ((await send(bridge, { path: "/state" })).body?.meetings?.some((m) => m.id === id && m.state === "waiting-decision")) break;
       await new Promise((r) => setTimeout(r, 10));
     }
   }
+  if (ended) assert.equal((await send(bridge, { method: 'POST', path: `/meetings/${id}/close`, headers, body: {} })).status, 202);
   return id;
 }
 // A delivery on its own ticket, running (its developer never ends) or stopped. -> its id

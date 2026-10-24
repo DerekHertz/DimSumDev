@@ -9,9 +9,9 @@ import {TABLE,tableMeeting,turnTeaTray} from './meeting-table.mjs';
 import {sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 
 // Native R3F scene. App remains the sole owner of live state, actions and panels.
-export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,stage,onReady,onNearby,onScenePresentations,picked=null,onPick,zoneView=null,onZoneClick=null,onLoadState,bindings=null,onOpenMeeting=null}){
+export function MeshyDen({selectedMeetingId=null,snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,stage,onReady,onNearby,onScenePresentations,picked=null,onPick,zoneView=null,onZoneClick=null,onLoadState,bindings=null,onOpenMeeting=null}){
  const [den,setDen]=useState(null);
- const live=useRef(null),inputs=useRef({});inputs.current={snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,onNearby,onScenePresentations,picked,onPick,zoneView,onZoneClick,onLoadState,bindings,onOpenMeeting};
+ const live=useRef(null),inputs=useRef({});inputs.current={selectedMeetingId,snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,onNearby,onScenePresentations,picked,onPick,zoneView,onZoneClick,onLoadState,bindings,onOpenMeeting};
  const {scene,gl,camera,size}=useThree();
  useEffect(()=>{
   const abort=new AbortController();let mounted=true,world=null;
@@ -32,10 +32,10 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
  useEffect(()=>{
   const agents=live.current?.agents;if(!agents)return;
   // den-mvp/64: the table's meeting is re-read every second too, so a farewell clears on time.
-  const bind=()=>{agents.applyLive(liveActorsFromSnapshot(snapshot,{now:Date.now()}),inputs.current.bindings);const m=tableMeeting(snapshot?.meetings,Date.now());agents.applyMeeting(m);if(live.current)live.current.meeting=m;};bind();const timer=setInterval(bind,1000);return()=>clearInterval(timer);
- },[den,snapshot,bindings]);
+  const bind=()=>{agents.applyLive(liveActorsFromSnapshot(snapshot,{now:Date.now()}),inputs.current.bindings);const m=tableMeeting(snapshot?.meetings,Date.now(),selectedMeetingId);agents.applyMeeting(m);if(live.current)live.current.meeting=m;};bind();const timer=setInterval(bind,1000);return()=>clearInterval(timer);
+ },[den,snapshot,bindings,selectedMeetingId]);
  useEffect(()=>{live.current?.agents.setSelected(selected??null);},[den,selected]);
- useEffect(()=>{const visibility=()=>{const agents=live.current?.agents;if(!agents)return;if(!document.hidden){agents.applyLive(liveActorsFromSnapshot(inputs.current.snapshot,{now:Date.now()}),inputs.current.bindings);agents.applyMeeting(tableMeeting(inputs.current.snapshot?.meetings,Date.now()));}agents.setHidden(document.hidden);};document.addEventListener('visibilitychange',visibility);visibility();return()=>document.removeEventListener('visibilitychange',visibility);},[den]);
+ useEffect(()=>{const visibility=()=>{const agents=live.current?.agents;if(!agents)return;if(!document.hidden){agents.applyLive(liveActorsFromSnapshot(inputs.current.snapshot,{now:Date.now()}),inputs.current.bindings);agents.applyMeeting(tableMeeting(inputs.current.snapshot?.meetings,Date.now(),inputs.current.selectedMeetingId));}agents.setHidden(document.hidden);};document.addEventListener('visibilitychange',visibility);visibility();return()=>document.removeEventListener('visibilitychange',visibility);},[den]);
  useFrame((_,delta)=>{
   const l=live.current;if(!l)return;const dt=Math.min(delta,.1);l.agents.update(dt,l.media.matches);l.elapsed=(l.elapsed||0)+(l.media.matches?0:dt);l.den.ornaments?.update(camera,size.height);l.den.world.updateMatrixWorld(true);
   // Labels float .4 above the head: Bao's crown is 3; a species publishes its own head top (antlers included).

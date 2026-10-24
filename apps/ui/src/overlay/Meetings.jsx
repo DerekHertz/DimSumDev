@@ -1,247 +1,152 @@
-// den-mvp outcome 4: the Meetings card. Setup (a question and who to ask), progress (each seat and the chair), and the
-// brief (the chair's text, the options to choose from, the takes, the follow-ups). Everything an agent wrote renders as
-// React text, never as HTML. Choosing an option records the choice and writes proposed work; nothing is built by it.
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Card } from "./Card.jsx";
-import { SEATS_MAX, SPECIALISTS, meetingRows, setupState, toggleRole } from "./meeting-model.mjs";
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Card } from './Card.jsx';
+import { SPECIALISTS, SEATS_MAX, meetingRows, toggleRole } from './meeting-model.mjs';
+import { ROLE_PORTRAITS } from '../shell/role-portraits.mjs';
 
-const SEAT_MARK = { taken: "●", declined: "–", failed: "▲", waiting: "○" }; // a shape per state, so colour is never the only cue
-const errorText = (e) => `Couldn't do that: ${e?.status ? `${e.status} ` : ""}${e?.reason ?? "the bridge refused the request."}`;
+const money = n => `$${Number(n ?? 0).toFixed(2)}`;
+const person = name => ({ bao: 'Bao', jiao: 'Jiao', 'chief-of-staff': 'Moderator', user: 'You' }[name] ?? name);
+const stateName = state => ({ 'waiting-decision': 'Waiting on your decision', 'waiting-budget': 'Budget approval needed', pausing: 'Pausing…', paused: 'Paused', running: 'In discussion', 'ready-for-review': 'Ready for review', ended: 'Ended' }[state] ?? state);
+const portrait = (role, moderator) => ROLE_PORTRAITS[`${moderator === 'jiao' ? 'codex:' : ''}${['bao', 'jiao', 'chief-of-staff'].includes(role) ? 'orchestrator' : role}`];
+const blocked = steer => steer.demo || steer.state === 'none';
+function Face({ role, moderator }) { return <img className="meeting-face" src={portrait(role, moderator)} alt="" />; }
 
-/** One request per key (a meeting id, or "new") at a time; the last refusal for a key stays until its next press. */
 export function useMeetings(client) {
   const pending = useRef(new Set());
-  const [inflight, setInflight] = useState(() => new Set());
+  const [inflight, setInflight] = useState(new Set());
   const [results, setResults] = useState({});
   const call = useCallback(async (key, fn) => {
     if (pending.current.has(key)) return false;
-    pending.current.add(key);
-    setInflight(new Set(pending.current));
-    setResults((r) => Object.fromEntries(Object.entries(r).filter(([k]) => k !== key)));
-    try {
-      await fn();
-      return true;
-    } catch (e) {
-      setResults((r) => ({ ...r, [key]: { error: errorText(e) } }));
-      return false;
-    } finally {
-      pending.current.delete(key);
-      setInflight(new Set(pending.current));
-    }
+    pending.current.add(key); setInflight(new Set(pending.current));
+    setResults(r => ({ ...r, [key]: null }));
+    try { return await fn() ?? true; }
+    catch (e) { setResults(r => ({ ...r, [key]: { error: e?.reason ?? e?.message ?? 'The bridge refused the request.' } })); return false; }
+    finally { pending.current.delete(key); setInflight(new Set(pending.current)); }
   }, []);
-  const start = useCallback((body) => call("new", () => client.startMeeting(body)), [call, client]);
+  const start = useCallback(body => call('new', () => client.startMeeting(body)), [call, client]);
   const steer = useCallback((id, action, body) => call(id, () => client.steerMeeting(id, action, body)), [call, client]);
-  // team-and-den-ux/04 (spec section 5): End meeting stops a running meeting and then closes it; the takes are kept.
-  const end = useCallback((id, running) => call(id, async () => {
-    if (running) await client.steerMeeting(id, "stop");
-    await client.steerMeeting(id, "close");
-  }), [call, client]);
+  const end = useCallback(id => steer(id, 'close'), [steer]);
   return useMemo(() => ({ inflight, results, start, steer, end }), [inflight, results, start, steer, end]);
 }
 
-/** End meeting…, then an inline confirm: End meeting / Keep it running (spec section 5). */
-function EndMeeting({ row, meetings, off }) {
-  const [asking, setAsking] = useState(false);
-  const keep = useRef(null);
-  const ask = setAsking;
-  useEffect(() => { if (asking) keep.current?.focus({ preventScroll: true }); }, [asking]);
-  if (!row.canEnd) return null;
-  const acting = meetings.inflight.has(row.id);
-  if (!asking) return <button type="button" className="btn btn-outline run-btn" title={off ?? undefined} disabled={!!off || acting} aria-label={`End the meeting ${row.title}`} onClick={() => ask(true)}>End meeting…</button>;
-  return (
-    <span className="meeting-confirm" role="group" aria-label={`End the meeting ${row.title}?`} data-confirm
-      onKeyDown={(e) => { if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); ask(false); } }}>
-      <span className="small">End it? The takes are kept.</span>
-      <button type="button" className="btn btn-solid run-btn" disabled={acting} onClick={async () => { if (await meetings.end(row.id, row.state === "running")) ask(false); }}>End meeting</button>
-      <button type="button" ref={keep} className="btn btn-outline run-btn" onClick={() => ask(false)}>Keep it running</button>
-    </span>
-  );
-}
-
-function Setup({ snapshot, steer, meetings }) {
-  const [topic, setTopic] = useState("");
-  const [roles, setRoles] = useState([]);
-  const [ref, setRef] = useState("");
-  const inflight = meetings.inflight.has("new");
-  const state = setupState({ topic, roles, usage: snapshot?.usage?.fiveHour ?? null, steer, inflight });
-  const locked = !!steer.demo || steer.state === "none" || inflight;
-  const send = async () => {
-    if (await meetings.start({ topic, roles, ref })) { setTopic(""); setRoles([]); setRef(""); }
-  };
-  return (
-    <section className="meeting-setup" aria-label="Start a meeting">
-      <p className="ov">Start a meeting</p>
-      <p className="small muted">Each role you pick gives one short take. Bao then writes a brief with two or three options, and you choose.</p>
-      <label className="note-label" htmlFor="meeting-topic">The question</label>
-      <textarea id="meeting-topic" className="note-field" rows={3} maxLength={2000} value={topic} disabled={locked} placeholder="What should be decided, and what matters most to you" onChange={(e) => setTopic(e.target.value)} />
-      <fieldset className="meeting-roles" disabled={locked}>
-        <legend className="note-label">Who to ask ({roles.length} of {SEATS_MAX})</legend>
-        {SPECIALISTS.map((role) => (
-          <label key={role} className="meeting-role">
-            <input type="checkbox" checked={roles.includes(role)} disabled={!roles.includes(role) && roles.length >= SEATS_MAX} onChange={() => setRoles((r) => toggleRole(r, role))} />
-            <span>{role}</span>
-          </label>
-        ))}
-      </fieldset>
-      <label className="note-label" htmlFor="meeting-ref">About a ticket (optional)</label>
-      <input id="meeting-ref" className="note-field meeting-ref" type="text" maxLength={120} value={ref} disabled={locked} placeholder="feature/07-slug. Left empty, a discussion ticket is written." onChange={(e) => setRef(e.target.value)} />
-      <p className="small muted" id="meeting-cost">{state.cost}</p>
-      <div className="run-controls">
-        <button type="button" className="btn btn-solid run-btn" disabled={!state.enabled} aria-busy={inflight || undefined} aria-describedby={`meeting-cost${state.reason ? " meeting-reason" : ""}`} onClick={send}>{inflight ? "Starting…" : "Start meeting"}</button>
-      </div>
-      {state.reason && !inflight ? <p id="meeting-reason" className="small muted run-reason">{state.reason}</p> : null}
-      {meetings.results.new?.error ? <p className="small gate-error" role="alert">{meetings.results.new.error}</p> : null}
-    </section>
-  );
-}
-
-/** The saved texts of one meeting: loaded when its row is opened, and again whenever the bridge records a change to it. */
-function Detail({ row, client, steer, meetings, openRole = null }) {
-  const box = useRef(null);
-  const [data, setData] = useState(null);
-  const [error, setError] = useState(null);
-  const [text, setText] = useState("");
-  const [reask, setReask] = useState("");
+function Setup({ client, snapshot, steer, meetings, initial = {}, onStarted }) {
+  const [topic, setTopic] = useState(initial.topic ?? '');
+  const [roles, setRoles] = useState(initial.roles ?? []);
+  const [ref, setRef] = useState(initial.ref ?? '');
+  const [project, setProject] = useState(initial.project ?? 'den');
+  const [moderator, setModerator] = useState(initial.moderator ?? '');
+  const [depth, setDepth] = useState(initial.depth ?? 'quick');
+  const [budget, setBudget] = useState(initial.budget ?? 2);
+  const [projects, setProjects] = useState([{ slug: 'den' }]);
+  const [suggestions, setSuggestions] = useState([]);
+  const [suggestId, setSuggestId] = useState(null);
+  const [suggestState, setSuggestState] = useState(null);
+  useEffect(() => { client.getProjects?.().then(body => setProjects(body.projects ?? body)).catch(() => {}); }, [client]);
   useEffect(() => {
-    let current = true;
-    client.getMeeting(row.id).then(
-      (body) => { if (current) { setData(body); setError(null); } },
-      (err) => { if (current) setError(err?.reason ?? "Could not load the meeting."); },
-    );
-    return () => { current = false; };
-  }, [client, row.id, row.stamp]);
-  const off = steer.demo ? "Demo mode: actions are off" : steer.state === "none" ? "Not signed in to steer" : null;
-  const busy = meetings.inflight.has(row.id);
-  const ask = async () => {
-    if (await meetings.steer(row.id, "ask", { text, reask })) { setText(""); setReask(""); }
+    if (!suggestId) return;
+    let active = true;
+    const load = async () => { const data = await client.getMeeting(suggestId).catch(() => null); if (!active || !data) return; setSuggestState(data.meeting.state); if (data.meeting.suggestions?.length) { setSuggestions(data.meeting.suggestions); setRoles(data.meeting.suggestions.map(s => s.role)); setSuggestId(null); } };
+    load(); const timer = setInterval(load, 1000);
+    return () => { active = false; clearInterval(timer); };
+  }, [client, suggestId]);
+  const busy = meetings.inflight.has('new');
+  const disabled = blocked(steer) || busy;
+  const range = (roles.length + 1) * (depth === 'dig-in' ? 0.9 : 0.4);
+  const start = async (suggestOnly = false) => {
+    const result = await meetings.start({ topic, roles: suggestOnly ? ['architect'] : roles, ...(ref.trim() ? { ref: ref.trim() } : {}), project, ...(moderator ? { moderator } : {}), depth, budget: Number(budget), continuedFrom: initial.continuedFrom, suggestOnly });
+    if (result?.meeting) { if (suggestOnly) { setSuggestId(result.meeting.id); setSuggestState(result.meeting.state); } else onStarted?.(result.meeting.id); }
   };
-  // den-mvp/64: opened from a seat at the table, the take is scrolled into view once it has loaded.
-  useEffect(() => {
-    if (!openRole || !data) return;
-    box.current?.querySelector(`[data-take="${CSS.escape(openRole)}"]`)?.scrollIntoView({ block: "nearest" });
-  }, [openRole, data]);
-  return (
-    <div className="meeting-detail" ref={box}>
-      {error ? <p className="small gate-error" role="alert">{error}</p> : null}
-      {!data && !error ? <p className="small muted">Loading…</p> : null}
-      {data?.topic ? (<><p className="ov">The question</p><p className="small meeting-quote">{data.topic}</p></>) : null}
-      {data?.summary ? (<><p className="ov">Summary</p><pre className="code-well meeting-text">{data.summary}</pre></>) : null}
-      {data?.brief ? (<><p className="ov">The brief, as Bao wrote it</p><pre className="code-well meeting-text" data-meeting-brief>{data.brief}</pre></>) : null}
-      {row.options.length > 0 ? (
-        <>
-          <p className="ov">Options</p>
-          <ul className="library-list">
-            {row.options.map((o) => (
-              <li key={o.key} className="meeting-option">
-                <span className="small"><strong>{o.key}</strong> {o.title}{o.recommended ? <span className="muted"> · Bao recommends this</span> : null}</span>
-                {row.canDecide ? <button type="button" className="btn btn-outline run-btn" title={off ?? undefined} disabled={!!off || busy} aria-label={`Choose option ${o.key}: ${o.title}`} onClick={() => meetings.steer(row.id, "decide", { option: o.key })}>Choose {o.key}</button> : null}
-              </li>
-            ))}
-          </ul>
-          {row.canDecide ? <p className="small muted">Choosing writes a ticket for the work and marks it as waiting for your approval. Nothing is built yet.</p> : null}
-        </>
-      ) : null}
-      {row.decisions.length > 0 ? (
-        <>
-          <p className="ov">Your choices</p>
-          <ul className="library-list">
-            {row.decisions.map((d, i) => <li key={i} className="small">Option {d.option}, {d.title}. Proposed work: <span className="code-small">{d.ticket}</span>, waiting for your approval on the board.</li>)}
-          </ul>
-        </>
-      ) : null}
-      {data?.takes?.length > 0 ? (
-        <>
-          <p className="ov">Takes</p>
-          {data.takes.map((t) => (
-            <details key={`${t.role}-${t.n ?? 1}`} className="meeting-take" data-take={t.role} open={t.role === openRole || undefined}>
-              <summary className="small"><span className="library-name">{t.role}</span>{t.n > 1 ? ` (take ${t.n})` : ""}</summary>
-              <pre className="code-well meeting-text">{t.text}</pre>
-            </details>
-          ))}
-        </>
-      ) : null}
-      {data?.thread?.length > 0 ? (
-        <>
-          <p className="ov">Follow-ups</p>
-          <ul className="library-list">
-            {data.thread.map((e, i) => <li key={i} className="small meeting-quote"><strong>{e.from === "user" ? "You" : "Bao"}:</strong> {e.text}</li>)}
-          </ul>
-        </>
-      ) : null}
-      {row.canAsk ? (
-        <div className="meeting-ask">
-          <label className="note-label" htmlFor={`ask-${row.id}`}>Ask a follow-up</label>
-          <textarea id={`ask-${row.id}`} className="note-field" rows={2} maxLength={2000} value={text} disabled={!!off || busy} placeholder="Bao answers from the saved takes and the brief" onChange={(e) => setText(e.target.value)} />
-          <div className="run-controls">
-            <label className="small muted run-label" htmlFor={`reask-${row.id}`}>Ask again first</label>
-            <select id={`reask-${row.id}`} className="run-select" value={reask} disabled={!!off || busy} onChange={(e) => setReask(e.target.value)}>
-              <option value="">nobody</option>
-              {row.roles.map((r) => <option key={r} value={r}>{r}</option>)}
-            </select>
-            <button type="button" className="btn btn-outline run-btn" title={off ?? undefined} disabled={!!off || busy || !text.trim()} aria-busy={busy || undefined} onClick={ask}>Ask</button>
-          </div>
-          <p className="small muted">{reask ? `2 runs: ${reask} gives a new take, then Bao answers.` : "1 run: Bao answers."}</p>
-        </div>
-      ) : null}
+  return <section className="meeting-setup" aria-label="Start a meeting">
+    <p className="ov">{initial.continuedFrom ? 'Continue in a new meeting' : 'Start a meeting'}</p>
+    <div className="meeting-setup-grid">
+      <label>Project<select className="run-select" value={project} disabled={disabled} onChange={e => setProject(e.target.value)}>{projects.map(p => <option key={p.slug} value={p.slug}>{p.name ?? p.slug}</option>)}</select></label>
+      <label>Task (optional)<input className="note-field" placeholder="feature/08-task, or standalone" value={ref} disabled={disabled} onChange={e => setRef(e.target.value)} /></label>
+      <label>Moderator<select className="run-select" value={moderator} disabled={disabled} onChange={e => setModerator(e.target.value)}><option value="">Task owner · Bao or Jiao</option><option value="bao">Bao · Claude</option><option value="jiao">Jiao · Codex</option></select></label>
     </div>
-  );
+    <label className="note-label" htmlFor="meeting-topic">What would you like to think through?</label>
+    <textarea id="meeting-topic" className="note-field" rows={3} maxLength={2000} value={topic} disabled={disabled} onChange={e => setTopic(e.target.value)} placeholder="Describe the topic and what matters to you…" />
+    <fieldset className="meeting-role-grid" disabled={disabled}><legend>Specialists · {roles.length} of {SEATS_MAX}</legend>{SPECIALISTS.map(role => <label className="meeting-role-card glass" key={role}><input type="checkbox" checked={roles.includes(role)} disabled={!roles.includes(role) && roles.length >= SEATS_MAX} onChange={() => setRoles(r => toggleRole(r, role))} /><Face role={role} moderator={moderator} /><span>{role}<small>{suggestions.find(s => s.role === role)?.reason ?? 'Select to bring this perspective'}</small></span></label>)}</fieldset>
+    <button type="button" disabled={disabled || !topic.trim() || !!suggestId} onClick={() => start(true)}>Suggest who · estimated {money(depth === 'dig-in' ? 0.9 : 0.4)}</button>
+    {suggestState ? <p className="small">Suggestion consultation: {stateName(suggestState)}. This separate run counts toward its approved budget.{suggestId ? <button onClick={() => onStarted?.(suggestId)}>Open suggestion record</button> : null}</p> : null}
+    <div className="meeting-setup-grid">
+      <label>Depth<select className="run-select" value={depth} disabled={disabled} onChange={e => setDepth(e.target.value)}><option value="quick">Quick takes</option><option value="dig-in">Dig in</option></select></label>
+      <label>Approved budget ($)<input className="note-field" type="number" min="0" step="0.25" value={budget} disabled={disabled} onChange={e => setBudget(e.target.value)} /></label>
+    </div>
+    <p className="small muted">{depth === 'quick' ? 'Concise independent views and focused follow-ups; code reading when needed.' : 'Investigate relevant code and docs, with evidence in deeper discussion.'} Specialists start at Medium effort.</p>
+    <p className="small">Estimated {money(range / 5)}–{money(range)} for opening takes and one moderation pass. Further discussion adds work. Estimates are planning allowances, not exact billing limits.</p>
+    <button type="button" className="btn-solid" disabled={disabled || !topic.trim() || !roles.length || budget === '' || Number(budget) < 0} onClick={() => start()}>Approve setup & start meeting ↗</button>
+    {meetings.results.new?.error ? <p role="alert">{meetings.results.new.error}</p> : null}
+  </section>;
 }
 
-/**
- * team-and-den-ux/04: one meeting in the side sheet. The sheet's × only hides it (the meeting keeps running); Leave meeting
- * stops following it (it runs on to its brief, and its row offers Rejoin); End meeting… stops it after an inline confirm.
- */
-export function MeetingSheet({ row, client, steer, meetings, openRole = null, onLeave }) {
-  const off = steer.demo ? "Demo mode: actions are off" : steer.state === "none" ? "Not signed in to steer" : null;
-  return (
-    <>
-      <p className="small" aria-live="polite">{row.line}</p>
-      <Detail row={row} client={client} steer={steer} meetings={meetings} openRole={openRole} />
-      {meetings.results[row.id]?.error ? <p className="small gate-error" role="alert">{meetings.results[row.id].error}</p> : null}
-      <div className="run-controls den-sheet-actions">
-        <button type="button" className="btn btn-outline run-btn" onClick={onLeave}>Leave meeting</button>
-        <EndMeeting row={row} meetings={meetings} off={off} />
-      </div>
-    </>
-  );
+function FollowUps({ m, meetings, disabled }) {
+  const [drafts, setDrafts] = useState(() => m.proposals.map(p => ({ title: p.title, text: '', selected: false, includeRecord: true })));
+  const [preview, setPreview] = useState(null);
+  const [published, setPublished] = useState(null);
+  const change = (i, patch) => { setDrafts(rows => rows.map((r, n) => n === i ? { ...r, ...patch } : r)); setPreview(null); };
+  return <section className="meeting-followups"><h3>Proposed follow-ups</h3><p className="small muted">Select and edit public ticket text. Private notes are never copied automatically. Creating tickets starts no execution.</p>
+    {m.proposals.map((p, i) => <div className="glass meeting-proposal" key={p.id}><label><input type="checkbox" checked={drafts[i]?.selected ?? false} onChange={e => change(i, { selected: e.target.checked })} /> Create a ticket</label><p className="small">Proposal: {p.title} · <a href={`#${p.sourceId}`}>source discussion</a></p><label>Public title<input className="note-field" value={drafts[i]?.title ?? ''} onChange={e => change(i, { title: e.target.value })} /></label><label>Exact public text<textarea className="note-field" rows={3} value={drafts[i]?.text ?? ''} onChange={e => change(i, { text: e.target.value })} placeholder="Write the ticket text you want to publish" /></label><label><input type="checkbox" checked={drafts[i]?.includeRecord ?? true} onChange={e => change(i, { includeRecord: e.target.checked })} /> Include the private record link (readable only with den access)</label></div>)}
+    {!m.proposals.length ? <p className="small">No proposed tickets.</p> : <button disabled={disabled || !drafts.some(d => d.selected && d.text.trim())} onClick={async () => { const result = await meetings.steer(m.id, 'preview', { tickets: drafts.filter(d => d.selected).map(({ selected, ...d }) => d) }); if (result) setPreview(result); }}>Preview exact public tickets</button>}
+    {preview?.tickets ? <div className="glass meeting-public-preview"><h3>Public preview · {m.project}</h3>{preview.tickets.map((p, i) => <article key={i}><h4>{p.title}</h4><pre>{p.text}</pre></article>)}<button className="btn-solid" disabled={disabled || !!published} onClick={async () => { const result = await meetings.steer(m.id, 'publish', { previewId: preview.previewId, approved: true }); if (result) setPublished(result); }}>Approve & create selected tickets</button></div> : null}
+    {published ? <p role="status">Created {published.tickets?.length ?? 0} tickets awaiting approval. No execution started.</p> : null}
+  </section>;
 }
 
-export function MeetingsCard({ client, snapshot, open, onToggle, busy, steer, meetings, shown, onShow, shownRole = null, left = null }) {
-  const rows = meetingRows(snapshot);
-  const waiting = rows.filter((r) => r.state === "briefed" || r.state === "paused").length;
-  const running = rows.filter((r) => r.state === "running").length;
-  const off = steer.demo ? "Demo mode: actions are off" : steer.state === "none" ? "Not signed in to steer" : null;
-  return (
-    <Card id="meetings" overlay="meetings" label="Meetings" edge="line" open={open} onToggle={onToggle} title="Meetings" aside={<span className="card-summary">{running > 0 ? `${running} running` : waiting > 0 ? `${waiting} waiting on you` : "none running"}</span>} busy={busy}>
-      {rows.length > 0 ? (
-        <ul className="queue-rows meeting-rows">
-          {rows.map((r) => {
-            const isOpen = shown === r.id;
-            const acting = meetings.inflight.has(r.id);
-            return (
-              <li key={r.id} className="queue-row library-row" data-meeting={r.state}>
-                <span className="queue-title">{r.title}</span>
-                <span className="code-small muted">{r.ref}</span>
-                <p className="small" aria-live="polite">{r.line}</p>
-                {r.next ? <p className="small muted">{r.next}</p> : null}
-                <ul className="library-list">
-                  {r.seats.map((s) => <li key={s.role} className="small"><span aria-hidden="true">{SEAT_MARK[s.status]}</span> <span className="library-name">{s.role}</span> {s.line}</li>)}
-                  <li className="small"><span aria-hidden="true">{r.hasBrief ? "●" : "○"}</span> <span className="library-name">Bao</span> chairs: {r.chair}</li>
-                </ul>
-                <div className="run-controls">
-                  {/* team-and-den-ux/04: the meeting opens in the side sheet; one you left offers Rejoin. */}
-                  <button type="button" className="btn btn-outline run-btn" aria-pressed={isOpen} onClick={(e) => onShow(r.id, e.currentTarget)}>{left?.has(r.id) ? "Rejoin" : r.hasBrief ? "Open the brief" : "Open"}</button>
-                  {r.canStop ? <button type="button" className="btn btn-outline run-btn" title={off ?? undefined} disabled={!!off || acting} aria-label={`Pause the meeting ${r.title}`} onClick={() => meetings.steer(r.id, "stop")}>Pause</button> : null}
-                  {r.canResume ? <button type="button" className="btn btn-solid run-btn" title={off ?? undefined} disabled={!!off || acting} onClick={() => meetings.steer(r.id, "resume")}>Resume</button> : null}
-                  <EndMeeting row={r} meetings={meetings} off={off} />
-                </div>
-                {meetings.results[r.id]?.error ? <p className="small gate-error" role="alert">{meetings.results[r.id].error}</p> : null}
-              </li>
-            );
-          })}
-        </ul>
-      ) : <p className="small muted">No meeting yet.</p>}
-      <Setup snapshot={snapshot} steer={steer} meetings={meetings} />
-    </Card>
-  );
+export function MeetingSheet({ row, client, steer, meetings, openRole = null, onContinue }) {
+  const [data, setData] = useState(null), [error, setError] = useState(null);
+  const [text, setText] = useState(''), [respond, setRespond] = useState(null), [to, setTo] = useState('');
+  const [tab, setTab] = useState('conversation'), [custom, setCustom] = useState('');
+  const [endConfirm, setEndConfirm] = useState(false), [budget, setBudget] = useState('');
+  const [continuation, setContinuation] = useState(null), [record, setRecord] = useState(false);
+  useEffect(() => { let active = true; client.getMeeting(row.id).then(body => { if (active) { setData(body); setError(null); } }, e => { if (active) setError(e.reason ?? 'Could not read the private record'); }); return () => { active = false; }; }, [client, row.id, row.stamp]);
+  useEffect(() => { if (openRole && data) document.querySelector(`[data-take="${CSS.escape(openRole)}"]`)?.scrollIntoView({ block: 'nearest' }); }, [openRole, data]);
+  const m = data?.meeting;
+  if (!m) return <p role={error ? 'alert' : 'status'}>{error ?? 'Opening private meeting record…'}</p>;
+  const disabled = blocked(steer) || meetings.inflight.has(m.id);
+  const focusedQuestionId = m.focusedQuestionId ?? m.questions.findLast(q => q.options.length && !q.answer && !q.sentBack)?.id;
+  const send = async () => { if (await meetings.steer(m.id, 'ask', { text, ...(respond ? { sourceId: respond, reask: to } : {}) })) { setText(''); setRespond(null); setTo(''); } };
+  const sources = (ids, sourceMeetingId = null) => <span className="meeting-sources">{ids.map((id, i) => <a key={id} href={sourceMeetingId ? `/?meeting=${sourceMeetingId}#${id}` : `#${id}`}>Source {i + 1} ↗ </a>)}</span>;
+  return <div className="meeting-workspace" data-state={m.state}>
+    <h2 className="meeting-private-title">{m.title}</h2>
+    <div className="meeting-context"><span><strong>{person(m.moderator)}</strong> moderating · {m.depth === 'dig-in' ? 'Dig in' : 'Quick takes'} · Round {m.round}</span><span>{m.project}{m.ref ? ` / ${m.ref}` : ' / Standalone'}</span><div className="meeting-participant-faces">{m.seats.filter(s => s.active !== false).map(s => <Face key={s.role} role={s.role} moderator={m.moderator} />)}</div></div>
+    <div className="meeting-status" role="status"><strong>{stateName(m.state)}</strong><span>Actual reported {money(m.spent)}{m.estimatedSpent > 0 ? ` + est. ${money(m.estimatedSpent)} (billing unavailable)` : ''}</span><span>{money(m.budget)} budget · {m.live ? `1 running · est. ${money(m.live.estimate)}` : '0 running'}</span>{m.state === 'paused' || m.state === 'ready-for-review' ? <button disabled={disabled} onClick={() => meetings.steer(m.id, 'resume')}>{m.state === 'paused' ? 'Resume' : 'Discuss more'}</button> : m.state === 'running' ? <button disabled={disabled} onClick={() => meetings.steer(m.id, 'stop')}>Ⅱ Pause</button> : null}</div>
+    {m.state === 'waiting-budget' ? <div className="glass meeting-budget"><strong>Approve before more work starts</strong><p>Next: {person(m.budgetRequest?.role)} · {m.budgetRequest?.effort} · estimated {money(m.budgetRequest?.estimate)}. Remaining {money(m.budgetRequest?.remaining)}.</p><label>New total budget ($)<input type="number" min={m.budget} step="0.25" value={budget} onChange={e => setBudget(e.target.value)} /></label><button disabled={disabled || Number(budget) <= m.budget} onClick={() => meetings.steer(m.id, 'budget', { budget: Number(budget) })}>Approve budget & continue</button></div> : null}
+    <p className="meeting-state-note">{m.events.findLast(e => e.kind === 'status')?.text}</p>
+    <nav className="meeting-tabs" aria-label="Meeting areas"><button aria-pressed={tab === 'conversation'} onClick={() => setTab('conversation')}>Conversation</button><button aria-pressed={tab === 'decisions'} onClick={() => setTab('decisions')}>Questions & decisions</button></nav>
+    <div className={`meeting-columns meeting-tab-${tab}`}>
+      <section className="meeting-conversation" aria-label="Conversation"><div className="meeting-section-title"><h3>Conversation</h3><small>{m.seats.filter(s => s.active !== false).length + 1} participants · {data.events.filter(e => e.kind === 'message').length} contributions</small></div>
+        <div className="meeting-messages">{data.events.map(e => ['message', 'redirect', 'decision-answer', 'failure'].includes(e.kind) ? <article id={e.id} key={e.id} data-take={e.actor} className={`meeting-message ${e.actor === 'user' ? 'meeting-user' : ''}`}><Face role={e.actor === 'user' ? m.moderator : e.actor} moderator={m.moderator} /><div className="meeting-message-content"><header><strong>{person(e.actor)}</strong><small>Round {e.round} · <time dateTime={e.at}>{new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></small></header><div className="glass meeting-bubble">{e.sourceId ? sources([e.sourceId]) : null}<p>{e.kind === 'message' ? (/^Claim:\s*(.*)/m.exec(e.text)?.[1] ?? (e.part === 'chair' ? 'Moderator contribution · expand to read the plan and evidence.' : e.text.split('\n')[0])) : e.text}</p>{e.appliesNext && !data.events.some(applied => applied.kind === 'redirect-applied' && applied.sourceId === e.id) ? <strong className="meeting-applies">Applies next · current responses finish first</strong> : null}</div>{e.kind === 'message' ? <><div className="meeting-message-actions"><details><summary>Explanation, sources & tools</summary><pre>{e.text}</pre><p>Confidence: {/Confidence:\s*(.+)/i.exec(e.text)?.[1] ?? 'unavailable from this contribution'}</p><p>Run: {e.runId} · {e.cost === null ? `estimated ${money(e.estimate)}; actual cost unavailable` : `actual ${money(e.cost)}`}</p>{e.tools?.length ? <ul>{e.tools.map((tool, i) => <li key={i}>{tool}</li>)}</ul> : <p>Tool activity unavailable in this record. No activity has been inferred.</p>}</details><button disabled={disabled || m.state === 'ended'} onClick={() => { setRespond(e.id); setTo(m.seats.find(s => s.active !== false && s.role !== e.actor)?.role ?? ''); }}>Ask someone to respond ↗</button></div></> : e.kind === 'failure' ? <button disabled={disabled || m.state === 'ended'} onClick={() => meetings.steer(m.id, 'retry', { role: ['bao', 'jiao'].includes(e.actor) ? 'chief-of-staff' : e.actor })}>Retry · budget applies</button> : null}</div></article> : e.kind === 'effort' || e.kind === 'participants' ? <p key={e.id} className="glass meeting-activity">{e.kind === 'effort' ? `${person(e.actor)} raised ${e.role} to High: ${e.text} · estimated ${money(e.estimate)}` : `Participants updated · ${e.text}`}</p> : null)}</div>
+        {m.state !== 'ended' ? <div className="glass meeting-composer">{respond ? <div><label>Responding to <a href={`#${respond}`}>source message</a><select aria-label="Who should respond" value={to} onChange={e => setTo(e.target.value)}>{m.seats.filter(s => s.active !== false).map(s => <option key={s.role}>{s.role}</option>)}</select></label><button aria-label="Cancel linked response" onClick={() => setRespond(null)}>×</button></div> : null}<label className="visually-hidden" htmlFor="meeting-redirect">Jump in or redirect</label><textarea id="meeting-redirect" value={text} maxLength={2000} onChange={e => setText(e.target.value)} placeholder="Jump in, answer, or redirect the discussion…" onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && text.trim()) send(); }} /><footer><small>Current responses finish. Redirects apply before the next work.</small><button disabled={disabled || !text.trim() || (respond && !to)} onClick={send}>Send ↑</button></footer></div> : <p className="small">Ended · this record stays private permanently.</p>}
+      </section>
+      <aside className="meeting-decisions" aria-label="Questions and decisions"><h3>Questions & decisions</h3>
+        {m.questions.map(q => <section className="glass meeting-decision" key={q.id}><p className="ov">{q.answer ? 'Answered' : q.sentBack ? 'Sent back for discussion' : 'Your call'}</p><h3>{q.question}</h3>{q.actor ? <p className="small">{person(q.actor)} asks you · Confidence: {q.confidence ?? 'unavailable'}</p> : null}{sources(q.sourceIds, q.sourceMeetingId)}{q.options.map(o => <div key={o.key} className={`glass meeting-choice ${o.key === q.recommended ? 'meeting-recommended' : ''}`}><strong>{o.title}</strong>{o.key === q.recommended ? <small>Recommended</small> : null}<p className="small">{o.tradeoff}</p>{!q.answer && !q.sentBack && q.id === focusedQuestionId && m.state === 'waiting-decision' ? <button disabled={disabled} onClick={() => meetings.steer(m.id, 'decide', { option: o.key, questionId: q.id })}>Choose {o.key}</button> : null}</div>)}{q.answer ? <p>Agreed: {q.answer.text} · <a href={`#${q.answer.eventId}`}>Your answer</a></p> : <><label>Write my answer<textarea className="note-field" value={custom} onChange={e => setCustom(e.target.value)} /></label><div className="meeting-decision-actions"><button disabled={disabled || (q.options.length > 0 && (q.id !== focusedQuestionId || m.state !== 'waiting-decision')) || m.state === 'ended' || !custom.trim()} onClick={() => meetings.steer(m.id, q.options.length ? 'decide' : 'ask', { text: custom, questionId: q.id })}>Save my answer ↗</button><button disabled={disabled || !q.options.length || q.id !== focusedQuestionId || m.state !== 'waiting-decision'} onClick={() => meetings.steer(m.id, 'decide', { sendBack: true, text: custom, questionId: q.id })}>Discuss more ↩</button></div><small>Answers enter the private record and resume within budget. No tickets are created.</small></>}</section>)}
+        {!m.questions.length ? <p className="small muted">Open questions will appear here with recommendations, tradeoffs and source discussion.</p> : null}
+        <section className="meeting-agreed"><h3>Agreed so far</h3>{m.decisions.map((d, i) => <p className="glass" key={i}>✓ {d.text} · <a href={d.sourceMeetingId ? `/?meeting=${d.sourceMeetingId}#${d.sourceId}` : `#${d.sourceId}`}>Source</a></p>)}</section>
+        <details className="meeting-participants"><summary>Participants · edit for next work</summary>{SPECIALISTS.map(role => <label key={role}><input type="checkbox" checked={(m.pendingRoles ?? m.seats.filter(s => s.active !== false).map(s => s.role)).includes(role)} disabled={disabled || m.state === 'ended'} onChange={() => meetings.steer(m.id, 'participants', { roles: toggleRole(m.pendingRoles ?? m.seats.filter(s => s.active !== false).map(s => s.role), role) })} />{role}</label>)}{m.pendingRoles ? <p>Applies next · underway contributions finish and remain attributed.</p> : null}</details>
+        {m.summary ? <section className="glass meeting-summary"><h3>Summary</h3><p>{m.summary}</p>{sources(data.events.filter(e => e.kind === 'summary').flatMap(e => e.sourceIds ?? (e.sourceId ? [e.sourceId] : [])))}</section> : null}
+        {['ready-for-review', 'ended'].includes(m.state) ? <FollowUps key={m.id + m.proposals.map(p => p.id).join()} m={m} meetings={meetings} disabled={disabled} /> : null}
+      </aside>
+    </div>
+    <footer className="meeting-footer"><button onClick={() => setRecord(!record)}>♧ Private meeting record</button><small>Permanent · discussion, decisions and notes linked to sources</small>{m.state !== 'ended' ? <button onClick={() => setEndConfirm(true)} disabled={disabled}>End meeting…</button> : <button disabled={disabled} onClick={async () => { const result = await meetings.steer(m.id, 'continue'); if (result) setContinuation(result.setup); }}>Continue this discussion ↗</button>}</footer>
+    {endConfirm ? <div className="glass meeting-end-confirm" data-confirm role="group" aria-label="End meeting confirmation" onKeyDown={e => { if (e.key === 'Escape') { e.stopPropagation(); setEndConfirm(false); } }}><p>End and save the closing summary, decisions and unanswered questions? No tickets are created.</p><button disabled={disabled} onClick={async () => { if (await meetings.end(m.id)) setEndConfirm(false); }}>End & save summary</button><button onClick={() => setEndConfirm(false)}>Keep meeting open</button></div> : null}
+    {record ? <details open className="meeting-record"><summary>Private chronological record · {m.id}</summary>{data.events.map(e => <p id={['message', 'redirect', 'decision-answer', 'failure'].includes(e.kind) ? undefined : e.id} key={e.id}><time>{e.at}</time> · {person(e.actor)} · {e.kind} · Round {e.round} · {e.text ?? e.state ?? e.role} {e.sourceId ? sources([e.sourceId]) : null}</p>)}</details> : null}
+    {continuation ? <Setup client={client} snapshot={null} steer={steer} meetings={meetings} initial={continuation} onStarted={onContinue} /> : null}
+    {meetings.results[m.id]?.error ? <p role="alert">{meetings.results[m.id].error}</p> : null}
+  </div>;
+}
+
+export function MeetingsCard({ client, snapshot, open, onToggle, busy, steer, meetings, shown, onShow, left }) {
+  const [query, setQuery] = useState(''), [project, setProject] = useState(''), [participant, setParticipant] = useState(''), [state, setState] = useState('');
+  const [privateRows, setPrivateRows] = useState(null);
+  const revision = snapshot?.meetings?.map(m => m.updatedAt).join();
+  useEffect(() => { let active = true; client.getMeetings?.().then(body => { if (active) setPrivateRows(body.meetings); }).catch(() => {}); return () => { active = false; }; }, [client, revision, steer.state]);
+  const source = privateRows ? { meetings: privateRows } : snapshot;
+  const rows = meetingRows(source, Infinity).filter(r => (!project || r.project === project) && (!participant || r.roles.includes(participant)) && (!state || r.state === state) && `${r.title} ${r.ref ?? ''} ${r.summary}`.toLowerCase().includes(query.toLowerCase()));
+  const [starting, setStarting] = useState(false);
+  return <Card id="meetings" overlay="meetings" label="Meetings" edge="line" open={open} onToggle={onToggle} title="Meetings" busy={busy}>
+    <p className="small muted">Think together. Permanent private discussion; opening a record never resumes it.</p>
+    <div className="meeting-history-filters"><input className="note-field" aria-label="Search meetings by topic, summary or task" placeholder="Search meetings or tasks…" value={query} onChange={e => setQuery(e.target.value)} /><select aria-label="Filter project" value={project} onChange={e => setProject(e.target.value)}><option value="">All projects</option>{[...new Set(meetingRows(snapshot, Infinity).map(r => r.project))].map(p => <option key={p}>{p}</option>)}</select><select aria-label="Filter participant" value={participant} onChange={e => setParticipant(e.target.value)}><option value="">All participants</option>{SPECIALISTS.map(r => <option key={r}>{r}</option>)}</select><select aria-label="Filter status" value={state} onChange={e => setState(e.target.value)}><option value="">All statuses</option>{['running', 'waiting-decision', 'waiting-budget', 'pausing', 'paused', 'ready-for-review', 'ended'].map(s => <option value={s} key={s}>{stateName(s)}</option>)}</select></div>
+    <div className="meeting-history">{rows.map(r => <article className="glass meeting-history-row" data-meeting={r.state} key={r.id}><strong>{r.title}</strong><p>{stateName(r.state)}{['waiting-decision', 'waiting-budget', 'paused'].includes(r.state) ? ' · Needs you' : ''}</p><small>{r.project} · {r.ref ?? 'Standalone'} · {r.roles.join(', ')}</small>{r.summary ? <p className="small">{r.summary}</p> : null}<button aria-pressed={shown === r.id} onClick={e => onShow(r.id, e.currentTarget)}>{left?.has(r.id) ? 'Reopen record' : 'Open meeting'}</button></article>)}{!rows.length ? <p>No matching meetings.</p> : null}</div>
+    <button className="btn-solid" onClick={() => setStarting(!starting)}>{starting ? 'Hide setup' : 'New meeting ↗'}</button>
+    {starting ? <Setup client={client} snapshot={snapshot} steer={steer} meetings={meetings} onStarted={id => onShow(id)} /> : null}
+  </Card>;
 }

@@ -730,8 +730,8 @@ export function Cards({ snapshot, ownBuild = null, now, connection, placeholder,
         </Sheet>
       ) : null}
       {meetingRow ? (
-        <Sheet id="sheet-side" slot="side" eyebrow="Meeting" title={meetingRow.title} closeLabel="Close panel (the meeting keeps running)" onClose={onCloseMeeting} focusKey={meetingRow.id}>
-          <MeetingSheet row={meetingRow} client={client} steer={steer} meetings={meetings} openRole={meetingRole} onLeave={onLeaveMeeting} />
+        <Sheet id="sheet-side" slot="side" eyebrow="Meeting" title={meetingRow.title} closeLabel="Close panel (the meeting keeps running)" onClose={onCloseMeeting} focusKey={meetingRow.id} meeting>
+          <MeetingSheet row={meetingRow} client={client} steer={steer} meetings={meetings} openRole={meetingRole} onContinue={onShowMeeting} />
         </Sheet>
       ) : null}
     </>

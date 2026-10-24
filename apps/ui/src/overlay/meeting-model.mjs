@@ -46,6 +46,7 @@ export function seatLine(seat, meeting) {
 
 /** One line saying where a meeting stands. */
 export function meetingLine(m) {
+  if (m?.schema === 2) return ({ running: `${m.live ? m.live.role + ' is contributing' : 'Starting next response'}`, pausing: 'Pausing… Current work finishes and still counts.', paused: 'Paused', 'waiting-budget': 'Waiting for budget approval', 'waiting-decision': 'Waiting on your decision', 'ready-for-review': 'Ready for review', ended: 'Ended · private record preserved permanently' })[m.state];
   if (m?.state === "paused") return `Waiting: ${m.pause?.reason || "paused"}`;
   if (m?.state === "running") {
     if (!m.live) return "Starting the next run";
@@ -61,22 +62,22 @@ export function meetingLine(m) {
 }
 
 /** Can a follow-up be asked? Only of a meeting that has its brief, is not running, and still has its takes. */
-export const canAsk = (m) => ["briefed", "decided", "closed"].includes(m?.state) && !!m.brief && !m.retired;
+export const canAsk = (m) => m?.schema === 2 ? m.state !== 'ended' : ["briefed", "decided", "closed"].includes(m?.state) && !!m.brief && !m.retired;
 /** Can an option be chosen? Only for a brief that has no decision yet. */
-export const canDecide = (m) => m?.state === "briefed" && !!m.brief && !m.retired;
+export const canDecide = (m) => m?.schema === 2 ? m.state === 'waiting-decision' : m?.state === "briefed" && !!m.brief && !m.retired;
 
 /** The rows of the Meetings list: the ones under way or waiting for a choice first, then the newest ended. */
 export function meetingRows(snapshot, max = 5) {
   const all = list(snapshot);
-  const open = (m) => LIVE.has(m.state) || m.state === "briefed";
+  const open = (m) => m.schema === 2 ? m.state !== 'ended' : LIVE.has(m.state) || m.state === "briefed";
   const rows = [...all.filter(open), ...all.filter((m) => !open(m)).reverse()].slice(0, max);
   return rows.map((m) => ({
-    id: m.id, ref: m.ref, title: m.title || shortRef(m.ref), state: m.state, line: meetingLine(m), stamp: m.updatedAt ?? "",
+    id: m.id, ref: m.ref, project: m.project ?? 'den', summary: m.summary ?? '', title: m.title || shortRef(m.ref), state: m.state, line: meetingLine(m), stamp: m.updatedAt ?? "",
     seats: m.seats.map((s) => ({ role: s.role, status: s.status, line: seatLine(s, m) })),
     chair: m.live?.role === CHAIR ? "at work now" : m.brief ? `wrote brief ${m.brief.version}` : "after the takes",
     options: (m.brief?.options ?? []).map((o) => ({ key: o.key, title: o.title, recommended: o.key === m.brief.recommended })),
     decisions: (m.decisions ?? []).map((d) => ({ option: d.option, title: d.title, ticket: d.ticket })),
-    roles: m.seats.map((s) => s.role),
+    roles: [...m.seats.filter(s => s.active !== false).map((s) => s.role), ...(m.moderator ? [m.moderator] : [])],
     canStop: m.state === "running", canResume: m.state === "paused", canClose: m.state !== "running" && m.state !== "closed",
     canEnd: m.state !== "closed", // team-and-den-ux/04: End meeting… stops a running one first
     canAsk: canAsk(m), canDecide: canDecide(m), hasBrief: !!m.brief,
@@ -89,8 +90,12 @@ const SELF_ENDING = new Set(["no-room"]);
 
 /** A meeting that waits on the user, as a Needs you request (the shape overlay-model.mjs lists). Bao chairs, so it is Bao's card. */
 export function meetingRequests(snapshot) {
+  const modern = list(snapshot).filter(m => m.schema === 2 && ['paused', 'waiting-budget', 'waiting-decision'].includes(m.state)).map(m => ({ key: `meeting:${m.id}`, kind: 'meeting', id: m.id, ref: m.ref ?? m.id, short: m.title, role: 'orchestrator', team: 'pass', eyebrow: `${m.moderator === 'jiao' ? 'Jiao' : 'Bao'} · Meeting`, title: meetingLine(m), reason: m.events?.findLast(e => e.kind === 'status')?.text ?? '', reasonFallback: false, plain: true, next: 'Open the meeting to review.', rowText: m.title, preview: [], detailLabel: '', age: null, primary: { action: 'open', label: 'Open meeting' } }));
+  return [...modern, ...legacyRequests(snapshot)];
+}
+function legacyRequests(snapshot) {
   return list(snapshot)
-    .filter((m) => (m.state === "paused" && !SELF_ENDING.has(m.pause?.kind)) || m.state === "briefed")
+    .filter((m) => m.schema !== 2 && ((m.state === "paused" && !SELF_ENDING.has(m.pause?.kind)) || m.state === "briefed"))
     .map((m) => {
       const short = shortRef(m.ref);
       const briefed = m.state === "briefed";

@@ -36,7 +36,7 @@ export function railBadges({ snapshot, now, ownBuild = null } = {}) {
   return {
     needs: { count: needsYouModel(snapshot, now).count },
     queue: { count: Array.isArray(snapshot?.frontier) ? snapshot.frontier.length : 0 },
-    meetings: { dot: meetings.some((m) => m?.state === "running") },
+    meetings: { dot: meetings.some((m) => ['running', 'waiting-decision', 'waiting-budget', 'paused'].includes(m?.state)), count: meetings.filter(m => ['waiting-decision', 'waiting-budget'].includes(m?.state)).length },
     build: { dot: newVersionReady(ownBuild, snapshot?.build ?? null) },
   };
 }

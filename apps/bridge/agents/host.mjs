@@ -129,7 +129,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const controlHandle = { slug: "den", root, control: root, workspaces };
   const projects = projectsOption ?? { active: async () => "den", get: async (slug) => (slug === "den" ? controlHandle : null) };
   // A run's project, fixed when it starts: a desk, meeting or orchestrator run is the den's; any other takes the active project.
-  const isControl = (a) => a.role === "orchestrator" || a.ref === DESK_REF || Boolean(a.meeting);
+  const isControl = (a) => a.role === "orchestrator" || a.ref === DESK_REF;
   const workspacesOf = async (slug) => (slug === undefined || slug === "den" ? workspaces : (await projects.get(slug))?.workspaces ?? null);
   const agents = new Map(); // id -> record; insertion order is snapshot order
   const liveByRef = new Map(); // project/ref -> record, for every reserved or running agent
@@ -149,9 +149,9 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
 
   const view = (a) => ({
     id: a.id, ref: a.ref, role: a.role, mode: a.mode, runtime: a.runtimeId, sessionId: a.sessionId, runtimeSessionId: a.runtimeSessionId ?? null, state: a.state,
-    startedAt: a.startedAt, lastEventAt: a.lastEventAt, tool: a.tool, tokens: a.tokens, capabilities: a.capabilities,
+    startedAt: a.startedAt, lastEventAt: a.lastEventAt, tool: a.meeting ? null : a.tool, tokens: a.tokens, capabilities: a.capabilities,
     resume: a.resume, reason: a.reason, project: a.project ?? "den", worktree: a.worktree ?? null, branch: a.branch ?? null,
-    model: a.model ?? null, usage: a.usage ?? null, costUsd: a.costUsd ?? null, reply: a.reply ?? null, durationMs: a.durationMs ?? null,
+    model: a.model ?? null, usage: a.usage ?? null, costUsd: a.costUsd ?? null, reply: a.meeting ? null : a.reply ?? null, durationMs: a.durationMs ?? null,
     resumeOf: a.resumeOf ?? null, followUp: canContinue(a) && END_STATES.includes(a.state),
     parent: a.parent ?? null, wall: wallView(a),
   });
@@ -273,7 +273,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       buffer.entries.shift();
       buffer.dropped += 1;
     }
-    onChange({ type: "transcript", agentId: agent.id, entry: full });
+    if (!agent.meeting) onChange({ type: "transcript", agentId: agent.id, entry: full });
     keep(agent, full);
     return full.id;
   }
@@ -286,7 +286,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // without reinserting the evicted row into the snapshot's bounded transcript.
     const full = { ...(at < 0 ? original : buffer.entries[at]), ...patch, id, source: sourceOf(agent, id) };
     if (at >= 0) buffer.entries[at] = full;
-    onChange({ type: "transcript", agentId: agent.id, entry: full });
+    if (!agent.meeting) onChange({ type: "transcript", agentId: agent.id, entry: full });
   }
   const sourceOf = (agent, entryId) => ({ project: agent.project, runtime: agent.runtimeId, role: agent.role, runId: agent.id, entryId });
   // Correlation is run-local and explicit. The replay filter outlives ledger eviction;
@@ -313,7 +313,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     }
   }
   const transcriptView = () =>
-    Object.fromEntries([...transcripts].map(([id, b]) => [id, { entries: b.entries.slice(), dropped: b.dropped }]));
+    Object.fromEntries([...transcripts].filter(([id]) => !agents.get(id)?.meeting).map(([id, b]) => [id, { entries: b.entries.slice(), dropped: b.dropped }]));
   // An agent with a pending approval waits on the user; once none is pending it shows the state its runtime reported.
   function syncWaiting(agent) {
     if (!agent || agent.exited || agent.stopRequested || !agent.proc) return;
@@ -415,7 +415,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   async function select(input, { execute = true } = {}) {
     const selectedRuntime = runtimeId(input?.runtime);
     if (!selectedRuntime) return refuse(400, "unknown runtime");
-    const control = input.role === "orchestrator" || input.ref === DESK_REF || Boolean(input.meeting);
+    const control = input.role === "orchestrator" || input.ref === DESK_REF;
     if (input.project !== undefined && !validProject(input.project)) return refuse(400, "invalid project");
     const active = await projects.active();
     const project = input.project ?? (control ? "den" : active);
@@ -423,7 +423,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (control && project !== "den") return refuse(409, "this run belongs to the den project");
     const handle = await projects.get(project).catch(() => null);
     if (!handle) return refuse(409, "the project is not onboarded");
-    if (execute && !control && project !== active) return refuse(409, "the project is not active");
+    if (execute && !control && !input.meeting && project !== active) return refuse(409, "the project is not active");
     if (execute && input.delivery && project !== "den") return refuse(409, "Deliver runs on the den project only, for now");
     return { runtime: selectedRuntime, project };
   }
@@ -447,9 +447,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // So is a meeting run. Its note is the bridge's own text: the topic and the takes are quoted in it as data.
     let meeting = null;
     if (entry === "start" && input.meeting !== undefined) {
-      const { part, file } = input.meeting ?? {};
+      const { part, file, effort = 'medium', moderator = 'bao', standalone = false, taskRef = null } = input.meeting ?? {};
       if (step || !MEETING_PARTS.includes(part) || typeof file !== "string" || file.length > MEETING_FILE_MAX) return refuse(400, "a meeting run needs its part and its note");
-      meeting = { part, file };
+      if (!['medium', 'high'].includes(effort) || !['bao', 'jiao'].includes(moderator) || typeof standalone !== 'boolean') return refuse(400, 'invalid meeting settings');
+      if (taskRef !== null && !REF_RE.test(taskRef)) return refuse(400, 'invalid meeting task');
+      meeting = { part, file, effort, moderator, standalone, taskRef };
     }
     const notUp = down(runtime, { step: Boolean(step || meeting) });
     if (notUp) return notUp;
@@ -660,7 +662,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (agent.meeting) {
       try {
         await workspaces.brief(workspace, agent.meeting.file, "meeting.md");
-        agent.meeting = { part: agent.meeting.part }; // the note is in the worktree now; the run's record does not carry it
+        const { file, ...settings } = agent.meeting;
+        agent.meeting = settings;
       } catch (err) {
         await workspaces.remove(workspace);
         drop(agent);
@@ -682,6 +685,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const args = {
       role: agent.role, ...(agent.mode ? { mode: agent.mode } : {}), ref: agent.ref, cwd: workspace.dir, sessionId: agent.sessionId, runId: agent.id, ...(agent.runtimeSessionId ? { runtimeSessionId: agent.runtimeSessionId } : {}),
       prompt: agent.followUp ? agent.followUp.text : promptFor(agent), ticketFile: ticketFile(agent.ref, project.root), mainGit,
+      ...(agent.meeting ? { effort: agent.meeting.effort } : {}),
       // den-mvp/49: derived here, from the bridge's own root and the run's project; never from a request. The runtime refuses a spawn without it outside the control checkout.
       project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent) },
       ...(agent.resumeOf ? { resume: true, runId: agent.id, promptId: agent.followUp.messageId } : {}),
@@ -771,7 +775,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         "ready-for-agent ticket the user asked you to start). The last two ask the user first. release_propose drafts the next release for the user to approve in the den; you cannot tag or publish. " +
         "Start only what the user asked for; propose anything else in words. The user's message follows."
       : a.meeting
-      ? meetingPrompt({ role: a.role, part: a.meeting.part, ref: a.ref, ticketFile: ticketFile(a.ref, a.projectRoot), recipeFile: recipeOf(a) })
+      ? meetingPrompt({ role: a.role, ...a.meeting, ref: a.meeting.taskRef ?? a.ref, ticketFile: ticketFile(a.meeting.taskRef ?? a.ref, a.projectRoot), recipeFile: recipeOf(a) })
       : a.delivery
       ? deliveryPrompt({ role: a.role, mode: a.mode, ref: a.ref, ticketFile: ticketFile(a.ref, a.projectRoot), since: a.delivery.since, fix: a.delivery.findings !== undefined, note: a.delivery.note !== undefined, guard: a.delivery.guard !== undefined, author: a.delivery.author === true, recipeFile: recipeOf(a) })
       : a.mode === DIRECT_MODE
@@ -849,7 +853,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // What the bridge itself saw of the run (den-mvp outcome 3): where it started, where it ended, its last words.
     // Not awaited: what follows a run (the next step of a delivery, a wait on the git host) is not part of its end.
     Promise.resolve()
-      .then(() => onEnd({ ...run, startSha: agent.startSha ?? null, sha: agent.sha ?? null, branch: agent.branch ?? null, report: agent.report ?? null }))
+      .then(() => onEnd({ ...run, startSha: agent.startSha ?? null, sha: agent.sha ?? null, branch: agent.branch ?? null, report: agent.report ?? null, ...(agent.meeting ? { tools: (transcripts.get(agent.id)?.entries ?? []).filter(e => e.kind === 'tool').map(e => `${e.name}: ${e.summary ?? ''} [${e.status}]`) } : {}) }))
       .catch((err) => console.error(`bridge: the end hook failed for ${agent.id}: ${err?.stack ?? err}`));
   }
 
