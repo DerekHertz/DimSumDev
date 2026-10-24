@@ -166,9 +166,9 @@ else echo "busctl not tested: it is not installed" >&2; fi
 [ $bad = 0 ] && echo contained; exit $bad`;
 
 /** The probe's verdict from its exit code and what it printed: null when contained, else the reason. */
-export function judgeProbe(code, out) {
+export function judgeProbe(code, out, stderr = "") {
   if (code === 0 && /^contained$/m.test(out)) return null;
-  return `a run could loosen its own limits or reach the service manager: ${oneLine(out) || `the probe ended with ${code === null ? "no answer" : `code ${code}`}`}`;
+  return `a run could loosen its own limits or reach the service manager: ${oneLine(out) || `the probe ended with ${code === null ? "no answer" : `code ${code}`}`}${stderr ? `: ${oneLine(stderr)}` : ""}`;
 }
 
 /**
@@ -350,15 +350,15 @@ export function createResourceLauncher({ env = process.env, limits = LIMITS, sli
       const { sockets } = busPlaces(env);
       const { child, group } = await start({ slotClass: "worker", id: `${process.pid}-${(probes += 1)}`, bin: "/bin/sh", args: ["-c", PROBE_SCRIPT, "den-probe", ...sockets], cwd: "/", env: { PATH: env?.PATH ?? process.env.PATH }, prefix: "den-probe" });
       child.stdin.on("error", () => {});
-      let out = "";
+      let out = "", stderr = "";
       child.stdout.on("data", (c) => out.length < 4096 && (out += c));
-      child.stderr.resume();
+      child.stderr.on("data", (c) => stderr.length < 4096 && (stderr += c));
       const code = await new Promise((resolve) => {
         const timer = setTimeout(() => resolve(null), SCOPE_WAIT_MS);
         child.once("exit", (c) => (clearTimeout(timer), resolve(c)));
       });
       group.kill();
-      const verdict = judgeProbe(code, out);
+      const verdict = judgeProbe(code, out, stderr);
       if (verdict !== null) return { ok: false, reason: verdict };
       if (!(await group.settled(KILL_SETTLE_MS))) return { ok: false, reason: `the probe's processes outlived a kill of ${group.unit}` };
       passed = Date.now();

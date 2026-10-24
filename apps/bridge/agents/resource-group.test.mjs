@@ -226,6 +226,7 @@ describe("the probe's verdict", () => {
     assert.match(judgeProbe(1, "the service manager answered a connection\n"), /answered a connection/);
     assert.match(judgeProbe(0, ""), /code 0/);
     assert.match(judgeProbe(null, ""), /no answer/);
+    assert.match(judgeProbe(1, "", "bwrap: Creating new namespace failed: Operation not permitted\n"), /code 1.*bwrap: Creating new namespace failed: Operation not permitted/);
   });
 });
 
