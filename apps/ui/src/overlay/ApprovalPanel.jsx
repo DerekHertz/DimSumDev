@@ -92,10 +92,10 @@ export function ApprovalPanel({ review, state }) {
       </div>
       <footer className="approval-foot">
         <button type="button" className="approval-deny" ref={refs.deny} disabled={!state.denyEnabled} onClick={() => review.press("deny")}>
-          {busy("deny") ? <><span className="approval-spinner" aria-hidden="true" />Sending</> : <>{state.questions ? 'Dismiss' : 'Deny'} <kbd>Q</kbd></>}
+          {busy("deny") ? <><span className="approval-spinner" aria-hidden="true" />Sending</> : state.questions ? <>Dismiss <kbd>Q</kbd></> : <>Deny <kbd>Q</kbd></>}
         </button>
         <button type="button" className="approval-allow" ref={refs.allow} disabled={!state.allowEnabled} onClick={() => review.press("allow")}>
-          {busy("allow") ? <><span className="approval-spinner" aria-hidden="true" />Sending</> : <>{state.questions ? 'Send answers' : 'Allow'} <kbd>E</kbd></>}
+          {busy("allow") ? <><span className="approval-spinner" aria-hidden="true" />Sending</> : state.questions ? <>Send answers <kbd>E</kbd></> : <>Allow <kbd>E</kbd></>}
         </button>
       </footer>
     </aside>
