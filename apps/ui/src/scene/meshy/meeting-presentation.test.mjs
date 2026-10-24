@@ -21,7 +21,7 @@ test('a live role is highlighted at its actual seated place while the assembled 
   assert.equal(presentation.activePlace.visible,true);
   assert.equal(presentation.activePlace.position.x,-3);
   assert.equal(presentation.activePlace.position.z,-4);
-  assert.ok(presentation.activePlace.position.y>0&&presentation.activePlace.position.y<product.position.y,'steady cue sits below the panda');
+  assert.ok(presentation.activePlace.position.y>=product.position.y&&presentation.activePlace.position.y<product.position.y+.1,'steady cue rests on the occupied seat instead of hiding under the chair');
   presentation.update({...meeting,live:{role:'orchestrator'}},seats);
   assert.equal(presentation.activePlace.position.x,0);
   assert.equal(presentation.activePlace.position.z,-8,'Bao can be the active role while drafting');
@@ -41,4 +41,20 @@ test('the active-place cue clears for waiting, ended, retired, absent and unseat
   }
   presentation.update(running,new Map());assert.equal(presentation.activePlace.visible,false,'a role still travelling is not highlighted at an empty place');
  }finally{presentation.dispose();}
+});
+
+test('one hanging lantern warms to amber while waiting and resets after the meeting',()=>{
+ const garden=createApprovedGarden(),presentation=createMeetingPresentation({lantern:garden.meetingLantern});
+ try{
+  assert.ok(garden.meetingLantern,'the assembled nook owns its hanging lantern');
+  const paper=garden.meetingLantern.material,normal=paper.color.getHex();
+  for(const state of ['paused','briefed']){
+   presentation.update({state,seats:[]},new Map());
+   assert.notEqual(paper.color.getHex(),normal);
+   assert.equal(presentation.activePlace.visible,false);
+  }
+  for(const meeting of [null,{state:'closed'},{state:'running'},{state:'briefed',retired:true}]){
+   presentation.update(meeting,new Map());assert.equal(paper.color.getHex(),normal);
+  }
+ }finally{presentation.dispose();garden.dispose();}
 });

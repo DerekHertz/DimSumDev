@@ -12,6 +12,7 @@ import {createPandaAppearanceFactory} from './panda-appearance.mjs';
 import {createMeshyActors} from './actors.mjs';
 import {leisurePlaces} from './approved-plan.mjs';
 import {routeLength} from './daily-routines.mjs';
+import {teahouseProps} from './teahouse.test-fixture.mjs';
 globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};
 
 test('55-I/J/N: production assembly preserves approved plots, 27 bamboo sites, coherent restorable roofs and budgets',()=>{
@@ -51,7 +52,7 @@ test('55-B/E/F/K: actual approved cast occupies all 24 reserved homes and every 
 });
 
 test('55-N: maximum permanent and guest population stays below production triangle and shadow limits',t=>{
- const garden=createApprovedGarden();try{
+ const garden=createApprovedGarden({props:teahouseProps()});try{
   let total=0,shadow=0;garden.root.traverse(n=>{if(n.isMesh){const triangles=(n.geometry.index?.count??n.geometry.attributes.position.count)/3;total+=triangles;if(n.castShadow)shadow+=triangles;}});
   const assets={product:'fox',architect:'crane','release-manager':'lucky-cat',developer:'developer',runner:'golden-monkey','code-reviewer':'lion',qa:'otter',security:'pangolin',sre:'tortoise',designer:'deer','technical-writer':'technical-writer'};
   const bodyCounts=garden.docks.map(d=>{const id=d.role==='orchestrator'?(d.runtime==='claude'?'bao':'jiao'):assets[d.role],bytes=gunzipSync(readFileSync(new URL('../../../public/den/models/characters/'+id+'.glb.gz',import.meta.url))),gltf=JSON.parse(bytes.subarray(20,20+bytes.readUInt32LE(12)));return gltf.meshes.flatMap(m=>m.primitives).reduce((n,p)=>n+gltf.accessors[p.indices].count/3,0);});

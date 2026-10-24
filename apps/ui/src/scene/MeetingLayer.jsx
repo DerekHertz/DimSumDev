@@ -3,7 +3,7 @@
 // anchors (stage.meetingAnchors, written by the scene each frame) are projected to the screen like ChipLayer's chips.
 import { useEffect, useRef, useState } from "react";
 import * as THREE from "three";
-import { baoLabel, seatLabel, seated, tableMeeting } from "./meshy/meeting-table.mjs";
+import { baoLabel, seatLabel, seatName, seated, tableMeeting } from "./meshy/meeting-table.mjs";
 import { stackChips } from "./chip-model.mjs";
 
 export const CLAIM_SHOW_MS = 6000;
@@ -12,7 +12,7 @@ const ticketNumber = (m) => /\/(\d+)-/.exec(m.ref)?.[1] ?? m.title;
 
 export function pillText(m) {
   const n = ticketNumber(m);
-  if (m.state === "briefed" || m.state === "paused") return `Meeting on ${n} · waiting on you`;
+  if (m.state === "briefed" || m.state === "paused") return `Meeting on ${n} · Needs you`;
   if (!seated(m)) return `Meeting on ${n} · ${baoLabel(m).text}`;
   if (m.live?.role === "orchestrator") return `Meeting on ${n} · Bao is drafting the brief`;
   const spoken = m.seats.filter((s) => s.status !== "waiting").length;
@@ -29,7 +29,7 @@ export function MeetingLayer({ snapshot, stage, claims = {}, onOpen }) {
   const [announce, setAnnounce] = useState("");
 
   const labels = [];
-  if (m && seated(m)) for (const s of m.seats) labels.push({ key: s.role, role: s.role, ...seatLabel(s, m) });
+  if (m && seated(m)) for (const s of m.seats) labels.push({ key: s.role, role: s.role, name:seatName(s.role), ...seatLabel(s, m) });
   if (m) labels.push({ key: "orchestrator", role: null, name: "Bao", ...baoLabel(m) });
 
   useEffect(() => {
@@ -54,14 +54,15 @@ export function MeetingLayer({ snapshot, stage, claims = {}, onOpen }) {
       if (camera && size) {
         camera.updateMatrixWorld();
         // Seats sit close together, so at the Den zoom their labels stack upward instead of overlapping.
-        const pts = [];
+        const pts = [];let labelWidth=0,labelHeight=24;
         for (const [key, el] of nodes.current) {
           const a = stage.meetingAnchors?.get(key);
           const v = a ? a.clone().project(camera) : null;
           if (!v || v.z < -1 || v.z > 1 || Math.abs(v.x) > 1 || Math.abs(v.y) > 1) { el.style.visibility = "hidden"; continue; }
+          const bounds=el.getBoundingClientRect();labelWidth=Math.max(labelWidth,bounds.width);labelHeight=Math.max(labelHeight,bounds.height);
           pts.push({ ref: key, x: ((v.x + 1) / 2) * size.width, y: ((1 - v.y) / 2) * size.height });
         }
-        for (const [key, p] of stackChips(pts, { width: 150, height: 24, gap: 3 })) {
+        for (const [key, p] of stackChips(pts, { width: labelWidth, height: labelHeight, gap: 3 })) {
           const el = nodes.current.get(key);
           el.style.left = `${p.x}px`;
           el.style.top = `${p.y}px`;
@@ -88,7 +89,7 @@ export function MeetingLayer({ snapshot, stage, claims = {}, onOpen }) {
             className={`meeting-label meeting-${l.kind}`} data-seat={l.key} style={{ visibility: "hidden" }}
             aria-label={`${l.name ?? l.role}: ${l.text}${claim ? `. ${claim}` : ""}`} onClick={() => onOpen?.(m.id, l.role)}>
             {claim ? <span className="meeting-claim">{claim}</span> : null}
-            <span className="meeting-tag"><span aria-hidden="true">{GLYPH[l.kind]}</span> {l.name ? `${l.name} · ` : ""}{l.text}</span>
+            <span className="meeting-tag"><span aria-hidden="true">{GLYPH[l.kind]}</span> {(l.name ?? l.role).replace(/^The /,'')}</span>
           </button>
         );
       })}

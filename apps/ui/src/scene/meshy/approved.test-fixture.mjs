@@ -7,10 +7,11 @@ import {createApprovedGarden} from './approved-garden.mjs';
 import {createApprovedNavigation} from './approved-navigation.mjs';
 import {createMeshyActors} from './actors.mjs';
 import {leisurePlaces} from './approved-plan.mjs';
+import {teahouseProps} from './teahouse.test-fixture.mjs';
 
 export function approvedFixture({missing=[]}={}){
  globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};
- const garden=createApprovedGarden(),characters={},residents=new T.Group();
+ const garden=createApprovedGarden({props:teahouseProps()}),characters={},residents=new T.Group();
  const manifest=JSON.parse(readFileSync(new URL('../../../public/den/manifest.json',import.meta.url)));
  for(const [id,asset]of Object.entries(manifest.assets))if(id.startsWith('characters.'))characters[asset.characterId||asset.roleId]=readGlbGeometry(gunzipSync(readFileSync(new URL('../../../public'+asset.url,import.meta.url))));
  for(const key of missing)delete characters[key];

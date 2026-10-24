@@ -49,7 +49,7 @@ export function createMeshyActors(den){
    if(key===held&&!reduced)continue;
    p.rotation.y=a.yaw??a.baseYaw;
    if(a.mount!=null&&!reduced)a.panda.rig.poseMount(a.mount);else if(a.moved)a.panda.rig.poseWaddle(a.gait,{groundAt:den.walkWorld.supportAt});else a.panda.rig.poseIdle(time+a.index*.63,{reducedMotion:reduced||!!a.live});
-   if(a.meetingTrip?.stage==='seated')a.panda.rig.poseSit?.(1);
+   if(a.meetingTrip?.stage==='seated')a.panda.rig.poseSit?.(1,{grounded:true,reducedMotion:reduced});
    if(visit&&!a.panda.model.userData.modelUnavailable){if(a.panda.rig.profile?.sit&&['rest','tea','pond','games'].includes(visit.spot.kind))a.panda.rig.poseSit(1);(a.gesture??=createLeisureGesture(a.panda.rig)).pose(visit.spot.kind==='games'?'mahjong':visit.spot.kind==='friend'?'greeting':visit.spot.kind,visit.elapsed);}else a.gesture?.pose(null,0);
   }
  }

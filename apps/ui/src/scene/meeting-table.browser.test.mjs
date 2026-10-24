@@ -80,7 +80,7 @@ test('a briefed meeting waits on the user and its panel take is keyboard accessi
     const { page } = t;
     const pill = page.locator('.meeting-pill');
     await pill.waitFor({ timeout: 60000 });
-    assert.match(await pill.innerText(), /Meeting on 57 · waiting on you/);
+    assert.match(await pill.innerText(), /Meeting on 57 · Needs you/);
     await pill.focus();
     await page.keyboard.press('Enter');
     const meeting = page.locator('[data-sheet=side]');

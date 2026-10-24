@@ -5,7 +5,7 @@ import {createMeshyWorld} from './world.mjs';
 import {createMeshyActors} from './actors.mjs';
 import {liveActorsFromSnapshot} from '../../review/live-actors.mjs';
 import {agentFor,cardFor,pickedCard} from '../../overlay/proximity-card.mjs';
-import {TABLE,tableMeeting} from './meeting-table.mjs';
+import {tableMeeting} from './meeting-table.mjs';
 import {createMeetingPresentation} from './meeting-presentation.mjs';
 import {sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
 
@@ -20,11 +20,8 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
   createMeshyWorld(gl,{signal:abort.signal,onProgress:message=>inputs.current.onLoadState?.({status:'loading',message})}).then(d=>{
    world=d;if(!mounted){d.dispose();return;}
    const agents=createMeshyActors(d),media=matchMedia('(prefers-reduced-motion: reduce)');
-   // den-mvp/64: a gold ring round the table while a meeting's brief waits on the user.
-   const glow=new THREE.Mesh(new THREE.TorusGeometry(2.8,.06,8,72),new THREE.MeshBasicMaterial({color:'#f8bd40',transparent:true,opacity:.9}));
-   glow.name='Brief waiting';glow.rotation.x=Math.PI/2;glow.scale.set(1,.68,1);glow.position.set(TABLE.x,.35,TABLE.z);glow.visible=false;d.world.add(glow);
-   const meetingPresentation=createMeetingPresentation();d.world.add(meetingPresentation.root);
-   live.current={den:d,agents,media,anchored:new Set(),proximity:0,meeting:null,meetingPresentation,glow};setDen(d);stage.tallyAnchor=d.tallyAnchor;onReady(d);
+   const meetingPresentation=createMeetingPresentation({lantern:d.garden.meetingLantern});d.world.add(meetingPresentation.root);
+   live.current={den:d,agents,media,anchored:new Set(),proximity:0,meeting:null,meetingPresentation};setDen(d);stage.tallyAnchor=d.tallyAnchor;onReady(d);
    inputs.current.onLoadState?.({status:'ready',message:'The forest garden is ready.'});
   }).catch(error=>{if(mounted&&error.name!=='AbortError'){console.error('Den scene',error);inputs.current.onLoadState?.({status:'error',message:'The garden models could not load. Reload to retry.'});}});
   return()=>{mounted=false;abort.abort();onReady(null);inputs.current.onScenePresentations?.([]);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current?.meetingPresentation.dispose();live.current=null;world?.dispose();stage.anchors.clear();};
@@ -53,7 +50,6 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
   const meetingSeats=l.agents.seatModels();
   if(l.meeting)for(const [role,model]of meetingSeats)anchors.set(role,labelAt(model));
   l.meetingPresentation.update(l.meeting,meetingSeats);
-  l.glow.visible=l.meeting?.state==='briefed'||l.meeting?.state==='paused';
   l.proximity+=dt;if(l.proximity<.1)return;l.proximity=0;
   inputs.current.onScenePresentations?.(l.agents.presentationRows());
   let card=null;const walking=!!stage.explorer?.active,pick=walking?null:inputs.current.picked;

@@ -1,6 +1,8 @@
 // den-mvp/64: a meeting at Bao's table. Which meeting the table shows, where its seats are, what each seat says,
 // and the glide route a panda takes to its seat. Pure: the actors and the label layer read it; the snapshot decides.
+import {RESIDENTS} from '../../shell/resident-inventory.mjs';
 export const TABLE = Object.freeze({ x: 0, z: -4 }); // approved central meeting plaza
+export const seatName=role=>RESIDENTS.find(r=>r.role===role&&r.runtime==='claude')?.name??role.replaceAll('-',' ');
 export const PLAZA_RING = 8; // the stone ring around the plaza; far teams join it before turning in
 export const FAREWELL_MS = 6000; // how long Bao says what you chose before the table clears
 export const CLAIM_MAX = 80;
@@ -10,8 +12,10 @@ const SEATED = new Set(["running", "paused", "briefed"]);
 const ENDED = new Set(["decided", "closed"]);
 const deg = Math.PI / 180;
 // Seat angles around the table, 0 = front (the camera side), -90 = left. Order is the meeting's role order.
-const LAYOUTS = [[], [0], [-90, 90], [-90, 0, 90], [-90, -35, 35, 90], [-90, -45, 0, 45, 90], [-90, -45, 0, 45, 90, 180]];
-const RX = 3.5, RZ = 2.5;
+const LAYOUTS = [[], [2], [1,4], [1,2,4], [0,1,4,5], [0,1,2,4,5], [0,1,2,3,4,5]];
+const ANGLES=[-900/7,-540/7,-180/7,180/7,540/7,900/7];
+export const CHAIR_SPOT=Object.freeze({x:0,z:TABLE.z-5.6,yaw:0});
+const RX = 5.6, RZ = 5.6;
 
 export const seated = (m) => !!m && SEATED.has(m.state) && !m.retired;
 
@@ -25,7 +29,8 @@ export function tableMeeting(meetings, now = Date.now()) {
 
 export function seatSpots(n) {
   const angles = LAYOUTS[Math.max(0, Math.min(n, LAYOUTS.length - 1))];
-  return angles.map((a) => {
+  return angles.map((index) => {
+    const a=ANGLES[index];
     const dx = RX * Math.sin(a * deg), dz = RZ * Math.cos(a * deg);
     return { x: TABLE.x + dx, z: TABLE.z + dz, yaw: Math.atan2(-dx, -dz) };
   });
