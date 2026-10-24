@@ -78,6 +78,7 @@ export function compileCodexPermissions(input) {
     approval_policy: "never",
     approvals_reviewer: "user",
     web_search: "disabled",
+    agents: { enabled: false },
     features: Object.fromEntries(DISABLED_FEATURES.map((name) => [name, false])),
     shell_environment_policy: { inherit: "none" },
     mcp_servers: {},

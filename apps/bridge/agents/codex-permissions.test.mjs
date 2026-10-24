@@ -30,6 +30,9 @@ test("neutral effective restrictions translate into an exact named profile witho
 
 test("actual native feature names suppress children and alternate surfaces without pretending to clear inherited config", () => {
   const compiled = compileCodexPermissions(input());
+  assert.equal(compiled.config.agents?.enabled, false, "agents.enabled controls native child tools in Codex 0.163");
+  assert.equal(compiled.config.features.code_mode, false);
+  assert.equal(compiled.config.features.js_repl, false);
   for (const name of ["multi_agent", "multi_agent_v2", "multi_agent_v2_dynamic_tools", "collab", "enable_fanout", "hooks", "codex_hooks", "plugin_hooks", "plugins", "apps", "connectors", "shell_snapshot", "request_permissions", "request_permissions_tool", "request_rule", "step_model_switching"]) {
     assert.equal(compiled.config.features[name], false, name);
   }
