@@ -11,6 +11,18 @@ const list = (snapshot) => (Array.isArray(snapshot?.meetings) ? snapshot.meeting
 const cap = (s) => `${s[0].toUpperCase()}${s.slice(1)}`;
 const bytes = (text) => new TextEncoder().encode(text).length;
 
+const modernStates = { running: 'In discussion', 'waiting-decision': 'Waiting on your decision', 'waiting-budget': 'Waiting for budget approval', pausing: 'Pausing…', paused: 'Paused', 'ready-for-review': 'Ready for review', ended: 'Ended' };
+const speaker = role => ({ bao: 'Bao', jiao: 'Jiao', user: 'You' }[role] ?? role);
+export const meetingPillLabel = m => `Meeting · ${modernStates[m.state] ?? m.state}`;
+
+export function recentActivity(snapshot, max = 6) {
+  const meetings = (snapshot?.meetings ?? []).flatMap(m => (m.activity ?? []).map(e => ({ key: e.id, kind: 'meeting', target: m.id, actor: SPECIALISTS.includes(e.actor) ? e.actor : null, at: e.at, text: e.kind === 'status' ? `${speaker(e.actor)} · ${modernStates[e.state] ?? e.state}` : `${speaker(e.actor)} ${ { message: `contributed in round ${e.round}`, failure: 'could not finish a contribution', effort: 'changed thinking effort', participants: 'updated participants', 'decision-answer': 'answered a question', 'ticket-created': 'created an approved follow-up' }[e.kind] ?? e.kind }` })));
+  const agents = (snapshot?.agents ?? []).filter(a => !a.ref?.startsWith('meetings/')).map(a => ({ key: `${a.id}:${a.state}`, kind: 'agent', target: a.id, actor: a.role, at: a.lastEventAt ?? a.startedAt, text: `${a.role} · ${a.state}` }));
+  const deliveries = (snapshot?.deliveries ?? []).map(d => ({ key: `${d.id}:${d.state}`, kind: 'delivery', target: d.id, at: d.updatedAt ?? d.startedAt, text: `Delivery ${d.ref ?? d.id} · ${d.state}` }));
+  const approvals = (snapshot?.approvals ?? []).filter(a => a.state === 'pending').map(a => ({ key: a.id, kind: 'agent', target: a.agentId, at: a.ts, text: `A specialist asks to use ${a.tool}` }));
+  return [...meetings, ...agents, ...deliveries, ...approvals].sort((a, b) => (Date.parse(b.at) || 0) - (Date.parse(a.at) || 0)).slice(0, max);
+}
+
 /** How many runs a meeting of these roles starts, in words: one take each, then the chair. */
 export const runsLine = (count) => (count === 0 ? "Pick who to ask." : `${count + 1} runs: ${count} take${count === 1 ? "" : "s"}, one at a time, then Bao's brief.`);
 

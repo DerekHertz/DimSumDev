@@ -65,12 +65,12 @@
 .meeting-status { background: var(--glass-reading); }
 .meeting-status > strong { margin-right: auto; }
 .meeting-status button { padding: 3px 12px; }
-.meeting-columns { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); flex: 1; min-height: 0; }
-.meeting-conversation { min-width: 0; padding: 20px 24px 16px; display: flex; flex-direction: column; }
+.meeting-columns { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); flex: 1; min-height: 0; }
+.meeting-conversation { min-width: 0; min-height: 0; padding: 20px 24px 16px; display: flex; flex-direction: column; }
 .meeting-section-title, .meeting-message header { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
 .meeting-section-title { margin-bottom: 18px; }
 .meeting-workspace h3 { font: 650 13px/1.4 var(--font-sans); margin: 0 0 12px; }
-.meeting-messages { flex: 1; min-height: 120px; overflow-y: auto; scrollbar-width: thin; padding: 4px 4px 12px 0; }
+.meeting-messages { flex: 1; min-height: 0; overflow-y: auto; scrollbar-width: thin; padding: 4px 4px 12px 0; }
 .meeting-message { display: flex; gap: 11px; margin: 0 0 22px; scroll-margin: 18px; }
 .meeting-message-content { min-width: 0; flex: 1; }
 .meeting-message header { margin-bottom: 7px; font-size: 12px; }
@@ -86,7 +86,7 @@
 .meeting-user .meeting-bubble { --glass-center: color-mix(in srgb, var(--qi) 8%, var(--glass-reading)); }
 .meeting-applies, .meeting-sources { display: block; margin: 4px 0; font-size: 10px; }
 .meeting-activity { margin-left: 45px; padding: 12px; font-size: 11px; }
-.meeting-composer { margin-top: auto; padding: 13px 15px; border-radius: 23px !important; --glass-center: var(--glass-reading); }
+.meeting-composer { flex: none; margin-top: auto; padding: 13px 15px; border-radius: 23px !important; --glass-center: var(--glass-reading); }
 .meeting-composer textarea { width: 100%; min-height: 54px; resize: vertical; border: 0; background: transparent; color: var(--ink); font: inherit; }
 .meeting-composer textarea::placeholder { color: var(--ink-muted); opacity: 1; }
 .meeting-composer footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
@@ -102,7 +102,7 @@
 .meeting-decision button { padding: 5px 12px; font-size: 11px; }
 .meeting-agreed > p, .meeting-summary, .meeting-proposal, .meeting-public-preview, .meeting-history-row { padding: 12px; margin: 12px 0; }
 .meeting-participants label { display: flex; align-items: center; gap: 6px; margin: 10px 0; }
-.meeting-footer { margin-top: auto; border-top: 1px solid var(--line); border-bottom: none; }
+.meeting-footer { margin-top: 0; border-top: 1px solid var(--line); border-bottom: none; }
 .meeting-footer button { padding: 4px 10px; font-size: 10px; }
 .meeting-footer > :last-child { margin-left: auto; }
 .meeting-tabs { display: none; }
@@ -119,15 +119,21 @@
 .meeting-history-row { border-radius: 20px !important; }
 .meeting-workspace input, .meeting-workspace select { max-width: 100%; }
 .meeting-workspace :target { outline: 3px solid var(--focus-ring); outline-offset: 4px; }
+.meeting-feed { position: absolute; top: 58px; left: 16px; z-index: 7; width: 260px; max-width: calc(100% - 32px); padding: 7px; pointer-events: auto; font-size: 11px; }
+.meeting-feed > button { padding: 4px 10px; }
+.meeting-feed ul { margin: 6px 0 0; padding: 0; list-style: none; }
+.meeting-feed li button { width: 100%; margin: 3px 0; padding: 6px 10px; text-align: left; font-size: 11px; }
 @media (max-width: 800px) {
   .forest-shell .den-meeting-sheet { left: 12px; right: 12px; top: 76px; bottom: 68px; width: auto; border-radius: 28px; }
   .meeting-tabs { display: flex; gap: 8px; padding: 8px 20px; }
   .meeting-columns { display: block; }
+  .meeting-conversation, .meeting-decisions { height: 100%; box-sizing: border-box; }
   .meeting-tab-conversation .meeting-decisions, .meeting-tab-decisions .meeting-conversation { display: none; }
   .meeting-decisions { max-height: none; border-left: none; }
   .meeting-context, .meeting-status, .meeting-footer { padding: 10px 16px; }
   .meeting-conversation { padding: 14px 16px; }
   .meeting-messages { max-height: 43vh; }
+  .meeting-footer > small { display: none; }
   .meeting-section-title small { display: none; }
   .meeting-message-actions { flex-wrap: wrap; }
 }

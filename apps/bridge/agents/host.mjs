@@ -111,7 +111,7 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -435,6 +435,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const { ref, role } = input;
     const selected = captured ?? await select(input);
     if (selected.ok === false) return selected;
+    const heldByMeeting = input.meeting ? null : meetingHold(ref, selected.project);
+    if (heldByMeeting) return refuse(409, `Meeting ${heldByMeeting} holds this task while its response is running`);
     const runtime = adapters[selected.runtime];
     const mode = entry === "direct" ? DIRECT_MODE : input.mode ?? null;
     // A delivery step is the internal entry's alone: no route reads these fields.
@@ -1384,7 +1386,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     runAgent(token) {
       if (typeof token !== "string" || !/^[A-Za-z0-9_-]{20,255}$/.test(token)) return null;
       const a = agents.get(runTokens.get(tokenHash(token)));
-      return a && a.proc && !a.exited && !a.stopRequested ? { id: a.id, role: a.role, ref: a.ref } : null;
+      return a && a.proc && !a.exited && !a.stopRequested ? { id: a.id, role: a.role, ref: a.ref, project: a.project } : null;
     },
     // den-mvp/38: uses up one allow the user gave this run for `tool` whose input `matches`; false when there is none.
     takeAllowed(agentId, tool, matches) {

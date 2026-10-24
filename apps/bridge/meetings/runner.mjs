@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto';
 import { hasSecret } from '../../../scripts/exposure.mjs';
 import { REF_RE } from '../agents/policy.mjs';
 import { SPECIALISTS, SEATS_MAX, TOPIC_MAX_BYTES } from './types.mjs';
-import { parseBrief, optionText } from './plan.mjs';
+import { parseBrief, optionText, readDecline } from './plan.mjs';
 import { meetingNote } from './prompts.mjs';
 import { validProject } from '../agents/identity.mjs';
 
@@ -17,12 +17,12 @@ export function createMeetings({ host, log, store, readTicket, readProject = asy
   let closing = false;
   const stamp = () => new Date(now()).toISOString();
   const view = m => structuredClone(Object.fromEntries(Object.entries(m).filter(([key]) => key !== 'chain')));
-  const metadata = m => ({ schema: 2, id: m.id, ref: m.ref, project: m.project, title: 'Private meeting', moderator: m.moderator, chair: m.chair, state: m.state, seats: m.seats, round: m.round, live: m.live ? { runId: m.live.runId, role: m.live.role, part: m.live.part, estimate: m.live.estimate } : null, budget: m.budget, spent: m.spent, estimatedSpent: m.estimatedSpent, startedAt: m.startedAt, updatedAt: m.updatedAt });
+  const metadata = m => ({ schema: 2, id: m.id, ref: m.ref, project: m.project, title: 'Private meeting', moderator: m.moderator, chair: m.chair, state: m.state, seats: m.seats.map(s => ({ role: s.role, status: s.status, active: s.active, takes: s.takes })), round: m.round, live: m.live ? { runId: m.live.runId, role: m.live.role, part: m.live.part, estimate: m.live.estimate } : null, budget: m.budget, spent: m.spent, estimatedSpent: m.estimatedSpent, activity: m.events.filter(e => ['message', 'failure', 'status', 'effort', 'participants', 'decision-answer', 'ticket-created'].includes(e.kind)).slice(-8).map(e => ({ id: e.id, at: e.at, kind: e.kind, actor: e.actor, round: e.round, state: e.state })), startedAt: m.startedAt, updatedAt: m.updatedAt });
   const event = (m, kind, actor, more = {}) => {
     const e = { id: `e-${token()}`, at: stamp(), round: m.round, version: m.events.length + 1, kind, actor, ...more };
     m.events.push(e); return e;
   };
-  const save = async m => { m.updatedAt = new Date(Math.max(now(), (Date.parse(m.updatedAt) || 0) + 1)).toISOString(); await log.save(view(m)); if (m.held && ['ready-for-review', 'ended'].includes(m.state)) { await releaseTicket(m); m.held = false; await log.save(view(m)); } onChange({ type: 'meeting', meeting: metadata(m) }); };
+  const save = async m => { m.updatedAt = new Date(Math.max(now(), (Date.parse(m.updatedAt) || 0) + 1)).toISOString(); await log.save(view(m)); if (m.held && !m.live && !m.pendingWork && !['running', 'pausing'].includes(m.state)) { await releaseTicket(m); m.held = false; await log.save(view(m)); } onChange({ type: 'meeting', meeting: metadata(m) }); };
   const status = (m, state, reason = '') => { m.state = state; event(m, 'status', m.moderator, { state, text: reason }); };
   const enqueue = (m, fn) => {
     const next = (m.chain ?? Promise.resolve()).then(fn).catch(async err => { if (m.state !== 'ended') status(m, 'paused', 'Storage or runtime failed. No further work starts.'); await save(m).catch(() => {}); return refuse(503, 'Meeting operation could not be durably completed. Review the private record before retrying.'); });
@@ -82,7 +82,8 @@ export function createMeetings({ host, log, store, readTicket, readProject = asy
     const allDiscussion = m.events.filter(e => ['message', 'redirect', 'decision-answer'].includes(e.kind));
     const discussion = allDiscussion.filter((e, i) => i >= allDiscussion.length - 12 || e.id === work.sourceId);
     const takes = part === 'chair' || m.round > 1 || work.sourceId || m.seats.find(s => s.role === role)?.takes || m.seats.find(s => s.role === role)?.joined || work.context ? discussion.map(e => ({ role: `${e.actor} [${e.id}]`, text: e.text })) : [];
-    const file = meetingNote({ part: takes.length ? 'chair' : 'take', ref: m.ref ?? '(standalone)', topic: m.topic, takes, followUp: work.instruction }) + `\n## Meeting settings\nDepth: ${m.depth}. ${m.depth === 'dig-in' ? 'Investigate relevant code and docs; cite evidence.' : 'Concise independent views; read code when needed.'}\nEffort: ${effort}.\nCurrent summary (quoted):\n> ${m.summary.replaceAll('\n', '\n> ')}\nReply source: ${work.sourceId ?? 'none'}\nUser redirects (latest six, quoted):\n` + m.events.filter(e => e.kind === 'redirect').slice(-6).map(e => `> ${e.text.replaceAll('\n', '\n> ')}`).join('\n') + `\nRequest (quoted):\n> ${(work.instruction ?? 'Opening take or moderation').replaceAll('\n', '\n> ')}\nEarlier history remains in the permanent private record.\n`;
+    const absent = m.seats.filter(s => s.active && ['failed', 'declined'].includes(s.status)).map(s => ({ role: s.role, ...(s.status === 'declined' ? { declined: s.reason } : {}) }));
+    const file = meetingNote({ part: part === 'chair' || takes.length ? 'chair' : 'take', ref: m.ref ?? '(standalone)', topic: m.topic, takes, absent, followUp: work.instruction }) + `\n## Meeting settings\nDepth: ${m.depth}. ${m.depth === 'dig-in' ? 'Investigate relevant code and docs; cite evidence.' : 'Concise independent views; read code when needed.'}\nEffort: ${effort}.\nCurrent summary (quoted):\n> ${m.summary.replaceAll('\n', '\n> ')}\nReply source: ${work.sourceId ?? 'none'}\nUser redirects (latest six, quoted):\n` + m.events.filter(e => e.kind === 'redirect').slice(-6).map(e => `> ${e.text.replaceAll('\n', '\n> ')}`).join('\n') + `\nRequest (quoted):\n> ${(work.instruction ?? 'Opening take or moderation').replaceAll('\n', '\n> ')}\nEarlier history remains in the permanent private record.\n`;
     m.pendingWork = { role, part, effort, estimate }; await save(m);
     const started = await host.start({ ref: `meetings/00-${m.id}`, project: m.project, runtime: m.moderator === 'jiao' ? 'codex' : 'claude', role, meeting: { part, file, effort, moderator: m.moderator, standalone: !m.ref, taskRef: m.ref } });
     m.pendingWork = null;
@@ -100,7 +101,8 @@ export function createMeetings({ host, log, store, readTicket, readProject = asy
     if (!validProject(project) || !await readProject(project)) return refuse(400, 'Choose an onboarded project');
     const ticket = input.ref ? await readTicket(input.ref, { project }) : null;
     if (input.ref && !ticket) return refuse(404, 'No such task');
-    if (input.ref && [...meetings.values()].some(m => !m.suggestOnly && m.ref === input.ref && m.project === project && m.state !== 'ended')) return refuse(409, 'This task already has an open meeting');
+    const heldBy = input.ref && [...meetings.values()].find(m => m.ref === input.ref && m.project === project && (m.held || m.live || ['running', 'pausing'].includes(m.state)));
+    if (heldBy) return refuse(409, `Meeting ${heldBy.id} holds this task while its response is running`);
     const moderator = input.moderator ?? ticket?.owner ?? 'bao';
     if (!['bao', 'jiao'].includes(moderator)) return refuse(400, 'Choose Bao or Jiao');
     const budget = input.budget ?? 2;
@@ -125,9 +127,11 @@ export function createMeetings({ host, log, store, readTicket, readProject = asy
       const cost = Number.isFinite(run.costUsd) && run.costUsd >= 0 ? run.costUsd : null;
       if (cost !== null) m.spent += cost;
       else m.estimatedSpent += live.estimate;
-      const success = run.state === 'done' && typeof run.report === 'string' && !!run.report.trim() && !hasSecret(run.report);
-      const message = event(m, success ? 'message' : 'failure', live.part === 'chair' ? m.moderator : live.role, { text: success ? text : 'Contribution missing. Retry is subject to the budget.', runId: run.agentId, cost, estimate: cost === null ? live.estimate : null, part: live.part, sourceId: live.sourceId ?? null, tools: Array.isArray(run.tools) ? run.tools.filter(t => typeof t === 'string' && !hasSecret(t)).slice(0, 50) : [] });
-      if (seat) { seat.status = success ? 'taken' : 'failed'; seat.takes += success ? 1 : 0; }
+      const hasText = typeof run.report === 'string' && !!run.report.trim() && !hasSecret(run.report);
+      const success = run.state === 'done' && hasText;
+      const declined = success && seat ? readDecline(text) : null;
+      const message = event(m, declined ? 'decline' : success ? 'message' : 'failure', live.part === 'chair' ? m.moderator : live.role, { text: hasText ? text : 'Contribution missing. Retry is subject to the budget.', partial: !success && hasText, runId: run.agentId, cost, estimate: cost === null ? live.estimate : null, part: live.part, sourceId: live.sourceId ?? null, tools: Array.isArray(run.tools) ? run.tools.filter(t => typeof t === 'string' && !hasSecret(t)).slice(0, 50) : [] });
+      if (seat) { seat.status = declined ? 'declined' : success ? 'taken' : 'failed'; seat.reason = declined; seat.takes += success && !declined ? 1 : 0; }
       const asked = success && seat ? /^Question for the user:\s*(.+)/im.exec(text)?.[1]?.trim() : null;
       if (asked && !/^(none|no|n\/a)[.!]?$/i.test(asked)) m.questions.push({ id: `q-${token()}`, question: asked, actor: live.role, confidence: /^Confidence:\s*(.+)/im.exec(text)?.[1]?.trim() ?? null, options: [], sourceIds: [message.id], required: [live.role], answer: null });
       const was = m.state;
@@ -135,6 +139,8 @@ export function createMeetings({ host, log, store, readTicket, readProject = asy
       else if (was !== 'ended' && live.part === 'chair') {
         if (!success) status(m, 'paused', 'Moderator contribution missing; retry to continue.');
         else moderate(m, text, message.id);
+        const redirected = m.queue.length || m.events.some(e => e.appliesNext && !m.events.some(applied => applied.kind === 'redirect-applied' && applied.sourceId === e.id));
+        if (redirected && ['ready-for-review', 'waiting-decision'].includes(m.state)) status(m, 'running', 'Applying your queued request before settling.');
       }
       if (was === 'ended') m.summary = closingSummary(m);
       await save(m); return advance(m);
@@ -181,11 +187,12 @@ export function createMeetings({ host, log, store, readTicket, readProject = asy
   }
   const closingSummary = m => [m.closingBase ?? (m.summary || m.topic), ...m.decisions.map(d => `Agreed: ${d.text}`), ...m.questions.filter(q => !q.answer).map(q => `Unanswered: ${q.question}`)].join('\n');
   const stop = id => mutate(id, async m => { if (m.state === 'ended') return refuse(409, 'Meeting ended'); status(m, m.live ? 'pausing' : 'paused', 'Pause requested; current work still counts.'); await save(m); });
-  const resume = id => mutate(id, async m => { if (!['paused', 'ready-for-review'].includes(m.state)) return refuse(409, 'This meeting cannot be resumed'); if (m.ref && !m.held) { try { await claimTicket(m); m.held = true; } catch { return refuse(409, 'Task is held elsewhere'); } } status(m, 'running'); m.round++; await save(m); await advance(m); });
+  const resume = id => mutate(id, async m => { if (!['paused', 'ready-for-review'].includes(m.state)) return refuse(409, 'This meeting cannot be resumed'); if (m.ref && !m.held) { try { await claimTicket(m); m.held = true; } catch { return refuse(409, 'Task is held elsewhere'); } } if (m.state === 'ready-for-review') m.round++; status(m, 'running'); await save(m); await advance(m); });
   const close = id => mutate(id, async m => { if (m.state === 'ended') return refuse(409, 'Meeting already ended'); status(m, 'ended'); m.closingBase = m.summary || m.topic; m.summary = closingSummary(m); event(m, 'summary', m.moderator, { text: m.summary, sourceIds: m.events.filter(e => e.kind === 'message').map(e => e.id) }); await save(m); if (m.live) await host.stop(m.live.runId); });
   const ask = (id, body = {}) => mutate(id, async m => {
     if (m.state === 'ended') return refuse(409, 'Continue this discussion in a new meeting');
-    const text = textOf(body.text);
+    const emptyInstruction = body.text === undefined || (typeof body.text === 'string' && !body.text.trim());
+    const text = textOf(body.text) ?? (emptyInstruction && body.sourceId && body.reask ? 'Respond to the linked contribution.' : null);
     if (!text || body.reask && !m.seats.some(s => s.active && s.role === body.reask)) return refuse(400, 'Write a redirect and choose a participant');
     if (body.sourceId && !m.events.some(e => e.id === body.sourceId && e.kind === 'message')) return refuse(400, 'Source message not found');
     let questionAnswer;

@@ -417,7 +417,7 @@ export function App() {
             </SceneBoundary>
             <ChipLayer placements={sceneChips} labelsOverride={MESHY_TEAM_LABELS} hearts={hearts} tally={tally} tallyOpen={topic === 'tally'} tickets={snapshot?.tickets} selected={selected} onSelect={selectTicket} stage={stage} />
             <ToolBubbleLayer bindings={bindings} stage={stage} onInspect={inspectTools} picked={picked} selected={selected} />
-            <MeetingLayer selectedMeetingId={selectedMeetingId} snapshot={snapshot} stage={stage} claims={claims} onOpen={(meeting, role) => openMeeting(meeting, role)} />
+            <MeetingLayer selectedMeetingId={selectedMeetingId} snapshot={snapshot} stage={stage} claims={claims} onOpen={(meeting, role) => openMeeting(meeting, role)} onOpenAgent={openConversation} onOpenWork={() => openTopic('work')} />
             <div className="den-crosshair" aria-hidden="true" hidden={!exploring || cursorFree}>+</div>
             {exploring ? <p className="den-location" role="status" aria-label="Current location">{walkPlace}</p> : null}
             {!den ? <p className="forest-loading" role={gardenLoad.status === 'error' ? 'alert' : 'status'}>{gardenLoad.message}<span>{gardenLoad.status === 'error' ? 'Your board controls are still available on the rail.' : 'Preparing Bao, the workspaces and their props.'}</span></p> : null}

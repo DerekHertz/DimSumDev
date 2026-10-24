@@ -38,6 +38,14 @@ function stub(responder) {
 }
 
 const ok = (body) => ({ ok: true, status: 200, json: async () => body });
+
+test('source-linked meeting replies may omit the extra instruction', async () => {
+  const fetch = stub(() => ok({ ok: true }));
+  const client = createBridgeClient({ fetch });
+  await client.steerMeeting('m-0000000000000001', 'ask', { reask: 'qa', sourceId: 'e-1', text: '' });
+  assert.equal(fetch.calls.length, 1);
+  assert.deepEqual(JSON.parse(fetch.calls[0].init.body), { reask: 'qa', sourceId: 'e-1', text: '' });
+});
 const refuse = (status, body) => ({ ok: false, status, json: async () => body });
 const header = (init, name) => Object.entries(init.headers ?? {}).find(([k]) => k.toLowerCase() === name.toLowerCase())?.[1];
 

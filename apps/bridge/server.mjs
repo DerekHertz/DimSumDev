@@ -180,7 +180,10 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   // den-mvp/49: the den and the projects onboarded beside it. The registry is the user's (den:project); the active project is ours.
   const projects = createProjects({ control: root, denState: denState ?? stateDir ?? path.join(root, ".scratch", "_run") });
   const hub = createHub(root, {
-    agents: () => host.snapshot(), approvals: () => host.approvals(), transcripts: () => host.transcripts(), capacity: async (lockedRefs) => host.capacity(lockedRefs, await projects.active()),
+    agents: () => host.snapshot(), approvals: () => host.approvals(), transcripts: () => host.transcripts(), capacity: async (lockedRefs) => {
+      const project = await projects.active();
+      return host.capacity(lockedRefs.filter(ref => !meetings?.snapshot().some(m => m.held && m.ref === ref && m.project === project)), project);
+    },
     deliveries: () => delivery?.snapshot() ?? [],
     meetings: () => meetings?.publicSnapshot() ?? [],
     ci: () => ciWatch.snapshot(),
@@ -205,6 +208,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     bridgeUrl: () => `http://127.0.0.1:${actualPort}`,
     policy,
     library,
+    meetingHold: (ref, project) => meetings?.snapshot().find(m => m.held && m.ref === ref && m.project === project)?.id ?? null,
     onChange: (change) => hub.publish(change),
     recordRun: createLedger(root).record,
     onEnd: (run) => Promise.all([delivery.onEnd(run), meetings.onEnd(run)]),
@@ -236,7 +240,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       await board.handoff(agent.ref, { role: agent.role, mode: boardMode(agent), runId: agent.id, sha: "", report: `The run did not start: ${reason}.`, committed: false, source: "den run", status: "ready-for-agent" }).catch(() => board.drop(agent.ref, { status: "ready-for-agent", reason: `${agent.role} run did not start: ${reason}` }));
       await runClaims.remove(agent.id);
     },
-    lockedRefs: async ({ project }) => (await buildSnapshot((await projects.get(project)).root, 0)).tickets.filter((t) => t.holder && !meetings?.snapshot().some(m => m.held && m.ref === t.ref && m.project === project)).map((t) => t.ref),
+    lockedRefs: async ({ project }) => (await buildSnapshot((await projects.get(project)).root, 0)).tickets.filter((t) => t.holder && !meetings?.snapshot().some(m => m.held && m.ref === t.ref && m.project === project && t.holder.role === 'chief-of-staff' && t.holder.since === m.holdSince)).map((t) => t.ref),
     openDesk: () => ensureDesk(root),
     // F34: a batch the bridge would refuse is denied when it asks, with the reason, so the user is not asked for it.
     checkCall: (tool, input) => (tool === "mcp__den__board_file" ? checkFileBatch(input).error ?? null : null),
@@ -277,8 +281,20 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     },
     // The work a chosen option proposes: a ticket at ready-for-human, so it is in no queue until the user approves it.
     proposeTicket: async ({ title, text, project }) => createTicket((await projects.get(project)).root, { feature: DEN_FEATURE, slug: "proposed", title, text, source: "den meeting", status: "ready-for-human" }),
-    claimTicket: async m => createDeliveryBoard((await projects.get(m.project)).root).claim(m.ref, { role: 'chief-of-staff' }),
-    releaseTicket: async m => createDeliveryBoard((await projects.get(m.project)).root).drop(m.ref, { status: m.ticketStatus ?? 'ready-for-agent', reason: 'Meeting stopped starting work' }),
+    claimTicket: async m => {
+      const target = (await projects.get(m.project)).root;
+      const before = (await buildSnapshot(target)).tickets.find(t => t.ref === m.ref);
+      await createDeliveryBoard(target).claim(m.ref, { role: 'chief-of-staff' });
+      m.holdSince = (await buildSnapshot(target)).tickets.find(t => t.ref === m.ref)?.holder?.since;
+      m.ticketStatus = before?.status ?? m.ticketStatus;
+    },
+    releaseTicket: async m => {
+      const target = (await projects.get(m.project)).root;
+      const holder = (await buildSnapshot(target)).tickets.find(t => t.ref === m.ref)?.holder;
+      if (!holder) return;
+      if (holder.role !== 'chief-of-staff' || holder.since !== m.holdSince) return;
+      await createDeliveryBoard(target).drop(m.ref, { status: m.ticketStatus ?? 'ready-for-agent', reason: 'Meeting stopped starting work' });
+    },
   });
   await meetings.ready;
   await ciWatch.ready;
@@ -857,6 +873,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       if (tool === "start_delivery") {
         const ref = fullRef(body.ref);
         if (!allowed((input) => input.ref === cleanText(body.ref))) return refused(403, "the user has not allowed starting this delivery");
+        const holding = meetings.snapshot().find(m => m.held && m.ref === ref && m.project === 'den');
+        if (holding) return refused(409, `Meeting ${holding.id} holds this task while its response is running`);
         const result = await delivery.start({ ref, ...(body.roles === undefined ? {} : { roles: body.roles }) });
         if (!result.ok) return refused(result.status, result.error);
         return done(`started the delivery of ${ref} (${result.delivery.id})`);
@@ -894,6 +912,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       }
       ticket = { ticket: { ref } };
     }
+    const holding = meetings.snapshot().find(m => m.held && m.ref === ref && m.project === 'den');
+    if (holding) return reply(res, 409, { error: `Meeting ${holding.id} holds this task while its response is running` });
     const result = await delivery.start({ ref, ...(body.from === undefined ? {} : { from: body.from }), ...(body.roles === undefined ? {} : { roles: body.roles }) });
     if (!result.ok) return reply(res, result.status, { error: result.error, ...ticket });
     reply(res, result.status, { delivery: result.delivery, ...ticket });

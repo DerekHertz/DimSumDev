@@ -126,7 +126,7 @@ export function createBridgeClient({ fetch }) {
       if (!["resume", "stop", "close", "decide", "ask", "budget", "retry", "participants", "preview", "publish", "continue"].includes(action)) throw failure(0, "Unknown action.");
       const { text } = payload;
       const trimmed = typeof text === "string" ? text.trim() : "";
-      if (action === "ask" && !trimmed) throw failure(0, "Write the follow-up first.");
+      if (action === "ask" && !trimmed && !(payload.sourceId && payload.reask)) throw failure(0, "Write the follow-up first.");
       const body = await call(`/meetings/${encodeURIComponent(id)}/${action}`, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       return body ?? { ok: true };
     },
