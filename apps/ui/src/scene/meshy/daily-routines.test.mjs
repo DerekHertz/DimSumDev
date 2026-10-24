@@ -47,3 +47,19 @@ test('work rebinding and reduced motion cancel a prepared departure without a st
   f.tick(30,reduced);assert.equal(f.routines.reservations.size,0);assert.equal(f.a.outing,null);f.dispose();
  }
 });
+
+test('transferring an unstarted return job clears planning state and permits later departures',()=>{
+ const f=budgetedRoutine();try{
+  f.a.panda.model.position.x=1;f.a.outing={stage:'visit',spot:{id:'tea'}};
+  f.routines.cancel(f.a);assert.equal(f.a.routePending,true);assert.equal(f.work.has(f.a),true);
+  f.routines.transfer(f.a);assert.equal(f.work.has(f.a),false);assert.equal(f.a.routePending,false);assert.equal(f.a.outing,null);
+  f.tick(122);assert.equal(f.a.outing.stage,'outbound');assert.ok(f.a.panda.model.position.x>1,'a later trip moves instead of remaining stuck in planning');
+ }finally{f.dispose();}
+});
+
+test('disposing an unstarted return job clears its planning state',()=>{
+ const f=budgetedRoutine();try{
+  f.a.outing={stage:'visit',spot:{id:'tea'}};f.routines.cancel(f.a);assert.equal(f.a.routePending,true);
+  f.routines.dispose();assert.equal(f.work.has(f.a),false);assert.equal(f.a.routePending,false);assert.equal(f.a.outing,null);
+ }finally{f.dispose();}
+});
