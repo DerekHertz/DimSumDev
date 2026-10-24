@@ -8,6 +8,7 @@ import {WADDLE} from './panda-rig.mjs';
 import {bindResidentNavigation} from './approved-navigation.mjs';
 import {createMeetingResidents} from './meeting-residents.mjs';
 import {RESIDENTS,sameResident,boundAgentKey} from '../../shell/resident-inventory.mjs';
+import {createFrameWork} from './frame-work.mjs';
 
 const RETURNING='Working · returning to desk';
 export function createMeshyActors(den){
@@ -18,10 +19,12 @@ export function createMeshyActors(den){
   const identity=RESIDENTS.find(r=>r.id===source.id),legacy=definitions.get(source.id),role=identity?.role||legacy[0],name=identity?.name||legacy[1],team=identity?.team||legacy[2],concept=identity?!identity.dispatchable:legacy[5],runtime=identity?.runtime||'claude';
   const a={id:source.id,role,runtime,name,team,teamId:source.teamId??team,concept:!!concept,stationary:role==='orchestrator'||!!model.userData.modelUnavailable,dock:source,panda:{model,rig:den.pandaRigs.get(model).rig},home:model.position.clone(),baseYaw:model.rotation.y,index:actors.size,state:'idle',activity:role==='orchestrator'?'Hosting the Den':'At the workspace',live:null};
   homes.prepare(a);a.homeNote=model.userData.modelUnavailable?'Model unavailable — reload to retry; available in Team':a.presentation;model.userData.home=a.home;actors.set(source.id,a);
+  if(!a.stationary)a.gesture=createLeisureGesture(a.panda.rig);
  }
  den.placeRegistry=places;if(den.garden?.approved)bindResidentNavigation(den,actors);
- const routines=createDailyRoutines(den,actors);
- const meetings=den.garden?.approved?createMeetingResidents(den,actors,places,routines):null;
+ const work=createFrameWork();
+ const routines=createDailyRoutines(den,actors,{work:den.routineRouteSteps?work:null});
+ const meetings=den.garden?.approved?createMeetingResidents(den,actors,places,routines,work):null;
  const note=a=>{a.presentation=a.meetingTrip?.blocked?'Waiting for a clear route '+(a.meetingTrip.stage==='return'?'home':'to the meeting'):a.live&&(a.outing||a.meetingTrip?.stage==='return')?RETURNING:a.outing?(a.outing.stage==='return'?'Returning home':a.outing.stage==='outbound'?'Going to '+a.outing.spot.kind:({tea:'Taking tea',pond:'Watching the pond',rest:'Resting',games:'Playing mahjong',friend:'Visiting '+a.outing.host?.name}[a.outing.spot.kind])):a.homeNote;};
  function applyLive(rows=[],sharedBindings=null){
   // Shared bindings retain every run even though only residents have bodies.
@@ -43,6 +46,7 @@ export function createMeshyActors(den){
   if(!reduced)time+=Math.min(dt,.1);
   if(!reduced||den.garden?.approved)routines.update(Math.min(dt,.1),reduced,held);
   meetings?.update(Math.min(dt,.1),reduced);
+  work.update();
   for(const [key,a]of actors){
    const p=a.panda.model,visit=!reduced&&a.outing?.stage==='visit'?a.outing:null;note(a);
    if(a.moved)a.gait=(a.gait||0)+a.moved/p.scale.x/(a.panda.rig.profile?.gait?.stride??WADDLE.stride)*(a.panda.rig.profile?.gait?.duration??WADDLE.duration);
@@ -55,5 +59,5 @@ export function createMeshyActors(den){
  }
  // The walker keeps a body's width from every resident, wherever it stands now.
  den.walkAvoid=()=>[...actors.values()].filter(a=>a.panda.model.visible).map(a=>({x:a.panda.model.position.x,z:a.panda.model.position.z,r:.65}));
- return {actors,places,routines,setHidden(value){hidden=!!value;routines.setHidden(value);},applyLive,applyMeeting:meeting=>meetings?.apply(meeting),seatModels:()=>meetings?.seatModels()||new Map(),seatOf:id=>meetings?.seatOf(id)||null,setSelected,hold(key=null){held=key;},liveFigures,presentationRows,update,dispose(){meetings?.dispose();routines.dispose();for(const a of actors.values())a.gesture?.dispose();homes.dispose();actors.clear();}};
+ return {actors,places,routines,setHidden(value){hidden=!!value;routines.setHidden(value);},applyLive,applyMeeting:meeting=>meetings?.apply(meeting),seatModels:()=>meetings?.seatModels()||new Map(),seatOf:id=>meetings?.seatOf(id)||null,setSelected,hold(key=null){held=key;},liveFigures,presentationRows,update,dispose(){work.dispose();meetings?.dispose();routines.dispose();for(const a of actors.values())a.gesture?.dispose();homes.dispose();actors.clear();}};
 }

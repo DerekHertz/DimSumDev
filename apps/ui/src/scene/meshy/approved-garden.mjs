@@ -7,6 +7,7 @@ import {buildStructure} from './approved/approved-structures.mjs';
 import {buildLandscape} from './approved/approved-landscape.mjs';
 import {workDocks,activeResidents,OFFICE_PLOT} from './approved-plan.mjs';
 import {RESIDENTS} from '../../shell/resident-inventory.mjs';
+import {batchStaticAssemblies} from './static-batches.mjs';
 
 export function createApprovedGarden(){
  // Navigation keeps the actual furniture bounding volumes before batching.
@@ -148,8 +149,8 @@ walk([[0,-17],[0,-14],[-10,-14],[-10,6],[0,6],[0,9]],6);
 walk([[0,-14],[10,-14],[10,6],[0,6]],6);
 box(land.root,[26,.1,17],[0,.16,24],'jadeLight',.5);
 const library=createLibrary();library.root.position.set(0,.02,24);root.add(library.root);assets.library=library;capture(library.root,library.roof);landmark('Library + reading garden',0,24,6.8);
+batchStaticAssemblies(library.root);
 footprints.push({id:'library',x:0,z:24,yaw:0,width:10.1,depth:8.1});
-const libraryRoofMaterials=[];library.roof.traverse(node=>{if(node.isMesh){node.material=node.material.clone();libraryRoofMaterials.push(node.material);}});
 const festival=createFestival();festival.root.position.set(-65,0,-4);festival.root.rotation.y=Math.PI/2;root.add(festival.root);assets.festival=festival;capture(festival.root,festival.roof);landmark('Keynote stage',-65,-4,6);
 footprints.push({id:'festival',x:-65,z:-4,yaw:Math.PI/2,width:13.2,depth:9});
 box(land.root,[8,.055,16],[-56.5,.21,-4],'jadeLight',.3);

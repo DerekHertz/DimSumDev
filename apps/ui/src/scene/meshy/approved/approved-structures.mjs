@@ -200,7 +200,9 @@ if(kind==='tea'){
 
 const roofMaterials=[];
 function finish(){
- kit.finish([...root.children].filter(node=>node!==figures));
+ const scenery=group('Static building scenery');
+ for(const node of [...root.children])if(node!==figures&&node!==roof&&node!==scenery)scenery.attach(node);
+ kit.finish([scenery,roof]);
  roof.traverse(node=>{if(!node.isMesh)return;node.material=node.material.clone();roofMaterials.push(node.material);});
 }
 function setRoofMode(mode){

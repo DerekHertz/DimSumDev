@@ -29,12 +29,29 @@ export async function loadOrnaments(){
  return result;
 }
 
+function obstacleTree(entries){
+ if(!entries.length)return null;
+ const box=new Three.Box3();for(const entry of entries)box.union(entry.box);
+ if(entries.length<=8)return {box,entries};
+ const size=box.getSize(new Three.Vector3()),axis=size.x>=size.y&&size.x>=size.z?'x':size.y>=size.z?'y':'z';
+ entries.sort((a,b)=>(a.box.min[axis]+a.box.max[axis])-(b.box.min[axis]+b.box.max[axis]));
+ const middle=Math.floor(entries.length/2);
+ return {box,left:obstacleTree(entries.slice(0,middle)),right:obstacleTree(entries.slice(middle))};
+}
+
+function blockedBy(tree,ray,limitSquared,hit,active){
+ if(!tree||!ray.intersectBox(tree.box,hit))return false;
+ if(tree.entries)return tree.entries.some(({source,box})=>active.has(source)&&ray.intersectBox(box,hit)&&ray.origin.distanceToSquared(hit)<limitSquared);
+ return blockedBy(tree.left,ray,limitSquared,hit,active)||blockedBy(tree.right,ray,limitSquared,hit,active);
+}
+
 export function createRuntimeOrnaments(den,artwork){
  const marks=new Map(),point=new Three.Vector3(),raycaster=new Three.Raycaster(),projected=new Three.Vector3(),hit=new Three.Vector3();
- const solids=(den.walkWorld?.physicalObstacles||[]).map(o=>({source:o,box:new Three.Box3(new Three.Vector3(...o.min),new Three.Vector3(...o.max))}));
+ const solids=obstacleTree((den.walkWorld?.physicalObstacles||[]).map(o=>({source:o,box:new Three.Box3(new Three.Vector3(...o.min),new Three.Vector3(...o.max))})));
  const roofs=[];for(const asset of Object.values(den.garden.assets||{}))asset.roof?.traverse(n=>{if(n.isMesh)roofs.push({mesh:n,box:new Three.Box3().setFromObject(n)});});
  function update(camera,height){
   const unitsPerPixel=camera.isOrthographic?(camera.top-camera.bottom)/Math.max(1,height)/camera.zoom:.04,shown=[];
+  const active=new Set(den.walkWorld?.physicalObstacles||[]);
   for(const [model,{rig}]of den.pandaRigs){
    if(model.userData.modelUnavailable)continue;
    let mark=marks.get(model);if(!mark){const art=artwork[model.userData.runtime];if(!art)continue;mark=new Three.Mesh(art.geometry,art.materials);mark.name=model.userData.runtime+' runtime ornament';mark.castShadow=mark.receiveShadow=false;mark.raycast=()=>{};den.world.add(mark);marks.set(model,mark);}
@@ -42,7 +59,7 @@ export function createRuntimeOrnaments(den,artwork){
    const scale=Math.max(1,Math.min(3,14*unitsPerPixel/.66));mark.scale.setScalar(scale);mark.position.copy(point);mark.position.y+=.26+.33*scale;mark.quaternion.copy(camera.quaternion);mark.rotateY(-.18);
    projected.copy(mark.position).project(camera);raycaster.setFromCamera(new Three.Vector2(projected.x,projected.y),camera);
    const length=raycaster.ray.origin.distanceTo(mark.position);
-   const blocked=solids.some(({source,box})=>(den.walkWorld?.physicalObstacles||[]).includes(source)&&raycaster.ray.intersectBox(box,hit)&&raycaster.ray.origin.distanceTo(hit)<length-.1)||roofs.some(({mesh,box})=>{
+   const blocked=blockedBy(solids,raycaster.ray,Math.max(0,length-.1)**2,hit,active)||roofs.some(({mesh,box})=>{
     if(!raycaster.ray.intersectBox(box,hit)||raycaster.ray.origin.distanceTo(hit)>=length-.1)return false;
     const material=Array.isArray(mesh.material)?mesh.material[0]:mesh.material;
     return !(material.clippingPlanes||[]).some(plane=>plane.distanceToPoint(hit)<0);

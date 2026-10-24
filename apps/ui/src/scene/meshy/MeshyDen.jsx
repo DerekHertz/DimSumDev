@@ -2,7 +2,7 @@ import {useEffect,useRef,useState} from 'react';
 import {useFrame,useThree} from '@react-three/fiber';
 import * as THREE from 'three';
 import {createMeshyWorld} from './world.mjs';
-import {createMeshyActors} from './actors.mjs';
+import {prepareDenScene} from './prepare-scene.mjs';
 import {liveActorsFromSnapshot} from '../../review/live-actors.mjs';
 import {agentFor,cardFor,pickedCard} from '../../overlay/proximity-card.mjs';
 import {TABLE,tableMeeting,turnTeaTray} from './meeting-table.mjs';
@@ -14,18 +14,21 @@ export function MeshyDen({snapshot,placements,frontier,tally,selected,onSelect,o
  const live=useRef(null),inputs=useRef({});inputs.current={snapshot,placements,frontier,tally,selected,onSelect,onOpenTally,onNearby,onScenePresentations,picked,onPick,zoneView,onZoneClick,onLoadState,bindings,onOpenMeeting};
  const {scene,gl,camera,size}=useThree();
  useEffect(()=>{
-  const abort=new AbortController();let mounted=true,world=null;
+  const abort=new AbortController();let mounted=true,world=null,preparing=false;
   inputs.current.onLoadState?.({status:'loading',message:'Opening the forest garden…'});
-  createMeshyWorld(gl,{signal:abort.signal,onProgress:message=>inputs.current.onLoadState?.({status:'loading',message})}).then(d=>{
+  createMeshyWorld(gl,{signal:abort.signal,onProgress:message=>inputs.current.onLoadState?.({status:'loading',message})}).then(async d=>{
    world=d;if(!mounted){d.dispose();return;}
-   const agents=createMeshyActors(d),media=matchMedia('(prefers-reduced-motion: reduce)');
+   const media=matchMedia('(prefers-reduced-motion: reduce)');
    // den-mvp/64: a gold ring round the table while a meeting's brief waits on the user.
    const glow=new THREE.Mesh(new THREE.TorusGeometry(2.8,.06,8,72),new THREE.MeshBasicMaterial({color:'#f8bd40',transparent:true,opacity:.9}));
    glow.name='Brief waiting';glow.rotation.x=Math.PI/2;glow.scale.set(1,.68,1);glow.position.set(TABLE.x,.35,TABLE.z);glow.visible=false;d.world.add(glow);
+   inputs.current.onLoadState?.({status:'loading',message:'Preparing the garden…'});
+   preparing=true;let agents;
+   try{agents=await prepareDenScene(d,gl,camera,scene,size.height,abort.signal);}finally{preparing=false;if(!mounted)d.dispose();}
    live.current={den:d,agents,media,anchored:new Set(),proximity:0,meeting:null,susan:d.world.getObjectByName('Lazy susan'),glow};setDen(d);stage.tallyAnchor=d.tallyAnchor;onReady(d);
    inputs.current.onLoadState?.({status:'ready',message:'The forest garden is ready.'});
-  }).catch(error=>{if(mounted&&error.name!=='AbortError'){console.error('Den scene',error);inputs.current.onLoadState?.({status:'error',message:'The garden models could not load. Reload to retry.'});}});
-  return()=>{mounted=false;abort.abort();onReady(null);inputs.current.onScenePresentations?.([]);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current=null;world?.dispose();stage.anchors.clear();};
+  }).catch(error=>{world?.dispose();if(mounted&&error.name!=='AbortError'){console.error('Den scene',error);inputs.current.onLoadState?.({status:'error',message:'The garden models could not load. Reload to retry.'});}});
+  return()=>{mounted=false;abort.abort();onReady(null);inputs.current.onScenePresentations?.([]);stage.meetingAnchors?.clear();stage.toolAnchors?.clear();live.current?.agents.dispose();live.current=null;if(!preparing)world?.dispose();stage.anchors.clear();};
  },[gl,stage,onReady]);
  useEffect(()=>{const previous={background:scene.background,fog:scene.fog},media=matchMedia('(prefers-color-scheme: dark)');const apply=()=>{const color=media.matches?'#171b20':'#f8f3e8';scene.background=new THREE.Color(color);scene.fog=new THREE.Fog(color,180,300);};apply();media.addEventListener('change',apply);return()=>{media.removeEventListener('change',apply);scene.background=previous.background;scene.fog=previous.fog;};},[scene]);
  useEffect(()=>{if(!den)return;den.setFrontier(frontier||[]);den.setTally(tally?.rods);},[den,frontier,tally]);

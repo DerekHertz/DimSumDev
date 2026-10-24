@@ -1,7 +1,7 @@
 // Assemble approved source factories in the working Garden loop layout.
 import * as T from 'three';
-import { mergeGeometries } from 'three/addons/utils/BufferGeometryUtils.js';
-import { gardenKit, castsShadow } from './garden-kit.mjs';
+import { gardenKit } from './garden-kit.mjs';
+import { batchStaticAssemblies } from '../static-batches.mjs';
 import { createPlaces, roads, routeToWalk, bounds, door } from './plan.mjs';
 import { createLibrary } from './library.mjs';
 import { createPavilion } from './pavilion.mjs';
@@ -15,23 +15,11 @@ import { createGardenInfill } from './grounds.mjs';
 
 export const GROUND=.26;
 
-// The library predates assembly batching. Preserve its roof/wall/interior controls.
-function batchLibrary(library){
- const originals=new Set();library.root.updateMatrixWorld(true);
- for(const assembly of [...library.root.children]){
-  if(assembly.isMesh)continue;
-  const batches=new Map(),old=[],inverse=assembly.matrixWorld.clone().invert();
-  assembly.traverse(n=>{if(!n.isMesh)return;originals.add(n.geometry);const g=n.geometry.index?n.geometry.toNonIndexed():n.geometry.clone();g.applyMatrix4(inverse.clone().multiply(n.matrixWorld));if(!g.attributes.uv)g.setAttribute('uv',new T.Float32BufferAttribute(new Float32Array(g.attributes.position.count*2),2));const cast=castsShadow(n),key=n.material.uuid+(cast?':cast':''),entry=batches.get(key)||{mat:n.material,cast,parts:[]};entry.parts.push(g);batches.set(key,entry);old.push(n);});
-  old.forEach(n=>n.removeFromParent());for(const{mat,cast,parts}of batches.values()){const mesh=new T.Mesh(mergeGeometries(parts,false),mat);mesh.name=assembly.name+' · assembly batch';mesh.castShadow=cast;mesh.receiveShadow=true;mesh.userData.noShadow=!cast;assembly.add(mesh);parts.forEach(g=>g.dispose());}
- }
- originals.forEach(g=>g.dispose());
-}
-
 export function createDenScene(){
  const root=new T.Group();root.name='Plush bamboo garden grounds';
  const places=createPlaces('garden'),walks=roads('garden'),byId=Object.fromEntries(places.map(p=>[p.id,p]));
  const assets={library:createLibrary(),steamers:createPavilion(),pass:createWorkPavilion('pass'),pantry:createWorkPavilion('pantry'),front:createWorkPavilion('front'),festival:createFestival(),mahjong:createMahjong(),tea:createTeaGarden(),sleepy:createSleepyNook()};
- batchLibrary(assets.library);
+ batchStaticAssemblies(assets.library.root);
  for(const[id,asset]of Object.entries(assets)){
   const place=byId[id];asset.root.position.set(place.x,GROUND,place.z);asset.root.rotation.y=-place.rotation*Math.PI/180;asset.root.userData.placeId=id;
   asset.root.traverse(n=>{if(n.isMesh){n.receiveShadow=true;n.castShadow=!n.userData.noShadow;}});root.add(asset.root);

@@ -3,13 +3,15 @@ import assert from 'node:assert/strict';
 import * as T from 'three';
 import {createMeetingResidents} from './meeting-residents.mjs';
 import {createPlaceRegistry} from './places.mjs';
-function fixture(busy=false){
+import {createFrameWork} from './frame-work.mjs';
+function fixture(busy=false,work=null){
  const model=new T.Group(),rig={poseIdle(){},poseWaddle(){},poseSit(){}};model.position.set(-10,.36,-10);
  const a={id:'qa',identity:'resident:qa',role:'qa',runtime:'claude',home:model.position.clone(),baseYaw:0,envelope:{radius:.6,height:2},panda:{model,rig},live:busy?{ref:'other-run',state:'working'}:null};
  const actors=new Map([['qa',a]]),den={residents:new T.Group(),walkWorld:{navigation:{groundAt:(_x,_z,y)=>y},nodes:[{x:-6,y:.36,z:-10}]},routineRoute:(_a,_from,to)=>[{...to}],routineClear:()=>true,createPanda(){return {model:new T.Group(),rig:{...rig}};},destroyPanda(model){model.removeFromParent();}};
  const places=createPlaceRegistry(den.walkWorld,{getBodies:()=>[...actors.values(),...(den.guestActors?.values()||[])].map(a=>({owner:a.identity,position:a.panda.model.position,envelope:a.envelope}))});
  places.define({id:'work:qa',kind:'work',position:a.home});places.reserve('work:qa',a.identity,a.envelope);places.occupy('work:qa',a.identity);a.homePlace='work:qa';
- const meeting=createMeetingResidents(den,actors,places,{transfer(){}}),m={id:'m1',ref:'meeting-run',state:'running',seats:[{role:'qa'}]};
+ if(work)den.routineRouteSteps=function*(...args){yield;yield;return den.routineRoute(...args);};
+ const meeting=createMeetingResidents(den,actors,places,{transfer(){}},work),m={id:'m1',ref:'meeting-run',state:'running',seats:[{role:'qa'}]};
  return {a,actors,den,places,meeting,m};
 }
 const tick=(f,s)=>{for(let i=0;i<s*10;i++)f.meeting.update(.1,false);};
@@ -52,4 +54,26 @@ test('meeting waits truthfully on an empty blocked replan and retries after a ne
  assert.equal(f.a.meetingTrip.stage,'seated');assert.equal(f.a.yaw,f.a.meetingTrip.spot.yaw);
  f.meeting.apply({...f.m,state:'closed'});tick(f,20);assert.equal(f.a.meetingTrip,null);
  f.meeting.dispose();f.places.dispose();
+});
+
+
+test('cancelling a meeting during budgeted planning releases its seat and cannot complete later',()=>{
+ let clock=0;const work=createFrameWork({now:()=>++clock,budgetMs:2}),f=fixture(false,work);
+ f.meeting.apply(f.m);work.update();
+ assert.equal(f.a.meetingTrip.planning,true);assert.ok(f.a.meetingPlace);
+ f.meeting.apply({...f.m,state:'closed'});
+ for(let i=0;i<30;i++){work.update();f.meeting.update(1/60);}
+ assert.equal(f.a.meetingTrip,null);assert.equal(f.a.meetingOwned,false);
+ assert.equal([...f.places.values()].filter(p=>p.owner&&p.kind!=='work').length,0);
+ assert.deepEqual(f.a.panda.model.position,f.a.home);
+ f.meeting.dispose();work.dispose();f.places.dispose();
+});
+
+test('closing a meeting removes a guest whose route is still being planned',()=>{
+ let clock=0;const work=createFrameWork({now:()=>++clock,budgetMs:2}),f=fixture(true,work);
+ f.meeting.apply(f.m);work.update();assert.equal(f.den.guestActors.size,1);
+ f.meeting.apply({...f.m,state:'closed'});for(let i=0;i<30;i++)work.update();
+ assert.equal(f.den.guestActors.size,0);
+ assert.equal([...f.places.values()].filter(p=>p.owner&&p.kind!=='work').length,0);
+ assert.equal(f.a.live.ref,'other-run');f.meeting.dispose();work.dispose();f.places.dispose();
 });
