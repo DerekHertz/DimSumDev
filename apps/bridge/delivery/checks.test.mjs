@@ -217,6 +217,33 @@ describe("createChecks().run", () => {
     }
   });
 
+  // hardening/20 (security L1 on hardening/10): the commit's .gitattributes must not select a filter driver from the user's
+  // config (global or the repository's own) while the bridge checks the commit out on the host.
+  test("checking out a commit whose .gitattributes names a filter runs no driver from the user's config", async () => {
+    const { dir, repo, recordDir } = repoFixture();
+    const marks = path.join(dir, "marks");
+    mkdirSync(marks);
+    const globalConfig = path.join(dir, "global-gitconfig");
+    writeFileSync(globalConfig, `[filter "g"]\n\tsmudge = touch ${path.join(marks, "global-ran")}; cat\n[filter "r"]\n\tsmudge = touch ${path.join(marks, "repo-ran")}; cat\n`);
+    writeFileSync(path.join(repo, ".gitattributes"), "a.txt filter=g\nb.txt filter=r\n");
+    writeFileSync(path.join(repo, "a.txt"), "a\n");
+    writeFileSync(path.join(repo, "b.txt"), "b\n");
+    git(repo, "add", "-A");
+    git(repo, "commit", "-q", "-m", "attributes");
+    git(repo, "config", "filter.r.smudge", `touch ${path.join(marks, "repo-ran")}; cat`);
+    const sha = git(repo, "rev-parse", "HEAD");
+    const before = process.env.GIT_CONFIG_GLOBAL;
+    process.env.GIT_CONFIG_GLOBAL = globalConfig;
+    try {
+      const rec = await createChecks({ repo, launcher: fakeLauncherWithCwd({ allPass: () => true }), recordDir, bwrap: process.execPath }).run({ sha });
+      assert.equal(rec.state, "green", rec.reason);
+    } finally {
+      if (before === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+      else process.env.GIT_CONFIG_GLOBAL = before;
+    }
+    assert.deepEqual(readdirSync(marks), [], "a driver chosen by the commit's .gitattributes ran on the host");
+  });
+
   test("with the den's packages folders, a commit whose lockfile has none installed is skipped and says how to fix it", async () => {
     const { dir, repo, sha, recordDir } = repoFixture();
     const depsDir = path.join(dir, "deps");

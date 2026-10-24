@@ -240,6 +240,22 @@ describe("reopen with catchUp (Bao's desk)", () => {
     assert.equal((await git(fx.root, "show", `${out.saved}:mine.txt`)), "work\n");
   });
 
+  // hardening/20: brief() puts .den/ in the exclude and creates .den, and an excluded path in the add pathspec made `git add` exit 1.
+  test("retire saves a change in a briefed worktree: the change is committed, .den is not, and the worktree is removed", async () => {
+    const { createWorkspaces } = await load();
+    const fx = await fixture({ git: true });
+    const ws = createWorkspaces(fx.root);
+    const made = await ws.create({ ref: REF, agentId: ID });
+    await ws.brief(made, "what the review found\n");
+    await writeFile(path.join(made.dir, "mine.txt"), "work\n");
+    const out = await ws.retire({ ref: REF, agentId: ID });
+    assert.equal(out.saved, "wip/fx-02-ready-p0-01234567");
+    assert.equal(out.removed, true);
+    assert.equal(await exists(made.dir), false);
+    assert.equal(await git(fx.root, "show", `${out.saved}:mine.txt`), "work\n");
+    assert.deepEqual((await git(fx.root, "ls-tree", "-r", "--name-only", out.saved)).split("\n").filter((n) => n.startsWith(".den")), []);
+  });
+
   test("retire keeps a branch for a commit that is not on main, and ignores a worktree that is gone", async () => {
     const { createWorkspaces } = await load();
     const fx = await fixture({ git: true });
@@ -308,8 +324,6 @@ describe("host git ignores the worktree's own pointers and attributes", () => {
     await ws.brief(made, "findings\n");
     assert.equal(await exists(path.join(planted, "info", "exclude")) && (await readFile(path.join(planted, "info", "exclude"), "utf8")).includes(".den/"), false, "brief wrote the planted exclude");
     assert.ok((await readFile(path.join(mainGit, "info", "exclude"), "utf8")).includes(".den/"), "brief writes the main repository's exclude");
-    // retire's `add -A ... :(exclude).den` fails while an excluded .den exists (filed separately), so the note goes first here.
-    await import("node:fs/promises").then((fs) => fs.rm(path.join(made.dir, ".den"), { recursive: true }));
     const { saved } = await ws.retire({ ref: REF, agentId: ID });
     assert.ok(saved, "the change was committed to a wip branch");
     assert.equal(await marked(marks, "filter-ran"), false, "a planted filter driver ran on the host");
@@ -341,7 +355,6 @@ describe("the bridge's git dirs come from the root and from worktree add", () =>
     assert.equal(await ws.head(made), (await git(linked, "rev-parse", "HEAD")).trim());
     await ws.brief(made, "findings\n");
     assert.ok((await readFile(path.join(await realpath(fx.root), ".git", "info", "exclude"), "utf8")).includes(".den/"), "brief writes the common exclude");
-    await import("node:fs/promises").then((fs) => fs.rm(path.join(made.dir, ".den"), { recursive: true }));
     await writeFile(path.join(made.dir, "agent-change.txt"), "x\n");
     const { removed, saved } = await ws.retire({ ref: REF, agentId: ID });
     assert.equal(removed, true);

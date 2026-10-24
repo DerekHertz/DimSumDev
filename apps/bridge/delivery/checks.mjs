@@ -23,6 +23,7 @@ import { findBwrap } from "../build/box.mjs";
 import { lockHash } from "../build/releases.mjs";
 import { EnforcementError, LIMITS } from "../agents/resource-group.mjs";
 import { WORKTREES_DIR } from "../agents/policy.mjs";
+import { EMPTY_TREE } from "../agents/workspace.mjs";
 
 const execFileP = promisify(execFile);
 const SHA_RE = /^[0-9a-f]{40}$/;
@@ -376,8 +377,9 @@ export function createChecks({ repo, launcher, recordDir, depsDir, bwrap = findB
     const name = `check-${sha.slice(0, 12)}-${process.pid}-${(runs += 1)}`;
     const wtDir = path.join(repo, ...WORKTREES_DIR.split("/"), name);
     try {
-      // The checkout runs on the host, so nothing of the commit's may run there: no hooks, no LFS or other smudge filter.
-      await exec("git", ["-C", repo, "-c", "core.hooksPath=/dev/null", "-c", "filter.lfs.process=", "-c", "filter.lfs.smudge=", "-c", "filter.lfs.required=false", "worktree", "add", "--detach", wtDir, sha], { env: { ...process.env, GIT_LFS_SKIP_SMUDGE: "1" } });
+      // The checkout runs on the host, so nothing of the commit's may run there: no hooks, no LFS smudge filter, and no attributes
+      // from the commit (the empty tree), so its .gitattributes selects no driver. The user's global and system config are not read.
+      await exec("git", ["-C", repo, `--attr-source=${EMPTY_TREE}`, "-c", "core.hooksPath=/dev/null", "-c", "filter.lfs.process=", "-c", "filter.lfs.smudge=", "-c", "filter.lfs.required=false", "worktree", "add", "--detach", wtDir, sha], { env: { ...process.env, GIT_LFS_SKIP_SMUDGE: "1", GIT_CONFIG_GLOBAL: "/dev/null", GIT_CONFIG_NOSYSTEM: "1" } });
     } catch (err) {
       return finish("error", `could not make a worktree at the commit: ${String(err?.stderr || err?.message || err).trim().slice(0, 200)}`);
     }
