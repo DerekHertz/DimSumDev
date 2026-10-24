@@ -149,17 +149,17 @@ describe("threadView: messages, stop and run markers", () => {
 });
 
 describe("footModel and stopModel", () => {
-  const agent = { id: RUN, role: "scout", state: "working", capabilities: { send: true, stop: true } };
+  const agent = { id: RUN, role: "runner", state: "working", capabilities: { send: true, stop: true } };
 
   test("a live run takes a message and can be stopped", () => {
-    assert.deepEqual(footModel({ agent }), { mode: "message", canSend: true, canStop: true, stopShown: true, placeholder: "Message Scout", sendLabel: "Send", reason: null, readOnly: false });
+    assert.deepEqual(footModel({ agent }), { mode: "message", canSend: true, canStop: true, stopShown: true, placeholder: "Message Runner", sendLabel: "Send", reason: null, readOnly: false });
     const mute = footModel({ agent: { ...agent, capabilities: { send: false, stop: true } } });
     assert.deepEqual([mute.canSend, mute.canStop, mute.reason], [false, true, "This agent's runtime cannot take a message."]);
   });
 
   test("an ended run is followed up when its session can be continued, and is read-only when it cannot", () => {
     const follow = footModel({ agent: { ...agent, state: "done", followUp: true } });
-    assert.deepEqual([follow.mode, follow.canSend, follow.canStop, follow.sendLabel, follow.placeholder], ["follow-up", true, false, "Follow up", "Follow up with Scout"]);
+    assert.deepEqual([follow.mode, follow.canSend, follow.canStop, follow.sendLabel, follow.placeholder], ["follow-up", true, false, "Follow up", "Follow up with Runner"]);
     assert.deepEqual([footModel({ agent: { ...agent, state: "failed", followUp: false } }).mode, footModel({ agent: null }).reason], ["ended", "The agent ended."]);
   });
 
@@ -188,4 +188,14 @@ test("the desk thread with no run takes a first message; demo, offline and signe
   assert.equal(footModel({ agent: null, desk: true, connection: { phase: "offline" } }).canSend, false);
   assert.equal(footModel({ agent: null, desk: true, signedIn: false }).canSend, false);
   assert.equal(footModel({ agent: null }).canSend, false, "any other thread with no run stays closed");
+});
+
+test('historical retired-role conversations stay readable without offering a restart',()=>{
+ for(const role of ['scout','herald','debugger','knowledge-keeper','docs-writer','stem-cub']){
+  const agent={id:'historical',role,state:'done',followUp:true};
+  const foot=footModel({agent});
+  assert.equal(foot.canSend,false,role);
+  assert.equal(foot.readOnly,true,role);
+  assert.match(foot.reason,/retired/i);
+ }
 });

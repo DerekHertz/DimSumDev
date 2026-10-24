@@ -13,8 +13,6 @@ export function residentHomes(garden){
  put('release-manager','pass',[-3.05,0,5.8]);
  put('code-reviewer','pantry',[-3.05,0,5.8]);put('sre','pantry',[3.05,0,5.8]);
  put('technical-writer','front',[3.05,0,5.8]);
- put('debugger','steamers',[0,.41,1.1],-.10);put('knowledge-keeper','library',[-1.1,.43,2.6],.18);
- put('docs-writer','library',[2,.43,2.45],-.25);put('stem-cub',null,[0,GROUND,25.6]);
  return RESIDENTS.map(resident=>{
   if(resident.role==='orchestrator')return {...resident,teamId:null,position:[resident.runtime==='claude'?-1.75:1.75,GROUND+.03,-.6],yaw:0};
   const home=homes.get(resident.role),point=[...home.point];

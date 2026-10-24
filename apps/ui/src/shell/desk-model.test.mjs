@@ -4,18 +4,18 @@ import { deskActivity, deskResidents } from './desk-model.mjs';
 import {activeResidents} from '../scene/meshy/approved-plan.mjs';
 import {RESIDENTS} from './resident-inventory.mjs';
 
-test('55-K: scene totals count the 24 visible identities while the callable directory keeps legacy runs',()=>{
+test('55-K: scene totals count the 24 visible identities and Team excludes retired runs',()=>{
  const sceneResidents=activeResidents(RESIDENTS),snapshot={agents:[{id:'legacy',role:'scout',ref:'work/legacy',state:'working'}]};
  assert.deepEqual(deskActivity(snapshot,{residents:sceneResidents}),{working:0,waiting:0,blocked:0,resting:24,visitors:0});
- assert.ok(deskResidents(snapshot).some(r=>r.role==='scout'&&r.ref==='work/legacy'));
+ assert.ok(deskResidents(snapshot).every(r=>r.role!=='scout'));
 });
 
-test('a quiet garden keeps all thirty-two permanent residents without invented activity', () => {
+test('a quiet garden keeps all twenty-four permanent residents without invented activity', () => {
   const residents = deskResidents(null);
-  assert.equal(residents.length, 32);
-  assert.equal(new Set(residents.map(row => row.id)).size, 32);
+  assert.equal(residents.length, 24);
+  assert.equal(new Set(residents.map(row => row.id)).size, 24);
   assert.ok(residents.every(row => row.state === 'resident' && row.ref === null));
-  assert.deepEqual(deskActivity(null), { working: 0, waiting: 0, blocked: 0, resting: 32, visitors: 0 });
+  assert.deepEqual(deskActivity(null), { working: 0, waiting: 0, blocked: 0, resting: 24, visitors: 0 });
 });
 
 test('concurrent work gets separate visitors and preserves the exact ticket selection', () => {
@@ -29,7 +29,7 @@ test('concurrent work gets separate visitors and preserves the exact ticket sele
     { id: 'developer', ref: 'feature/01', state: 'working', visitor: false },
     { id: 'developer#feature/02', ref: 'feature/02', state: 'needs-you', visitor: true },
   ]);
-  assert.deepEqual(deskActivity(snapshot), { working: 1, waiting: 1, blocked: 0, resting: 31, visitors: 1 });
+  assert.deepEqual(deskActivity(snapshot), { working: 1, waiting: 1, blocked: 0, resting: 23, visitors: 1 });
 });
 
 test('profiles preserve live task identity without treating placement tool data as correlated activity', () => {

@@ -52,7 +52,7 @@ test('actual live garden and keyboard roster expose both crews while Codex actio
   assert.equal(await page.locator('.message-composer,.transcript-panel').count(),0);
   await page.getByRole('button',{name:'Close panda card'}).click();
   await page.locator('[data-rail=team]').click();
-  const choices=page.getByRole('list',{name:'Residents and visitors'}).getByRole('button');assert.ok(await choices.count()>=32,'the roster includes the charter roles and their current agents');
+  const choices=page.getByRole('list',{name:'Residents and visitors'}).getByRole('button');assert.ok(await choices.count()>=24,'the roster includes the charter roles and their current agents');
   const jiao=page.getByRole('button',{name:/^Jiao, orchestrator, Codex/});await jiao.focus();await page.keyboard.press('Enter');
   const profile=page.locator('.forest-profile');assert.match(await profile.innerText(),/Jiao/);assert.match(await profile.innerText(),/orchestrator · Codex/);assert.match(await profile.innerText(),/Project identity unavailable/);
   assert.equal(await profile.getByRole('button',{name:'Talk to Jiao'}).isDisabled(),true);assert.match(await profile.innerText(),/Codex conversations and tasks are unavailable/);
