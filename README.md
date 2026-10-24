@@ -83,6 +83,8 @@ Open <http://127.0.0.1:4317/>. With no agents running, add `?demo=den` to watch 
 
 ### Run it as a service (Linux and WSL, systemd and bubblewrap)
 
+The resource launcher requires systemd 254 or newer. It disables systemd's argument expansion so shell variables and literal dollar signs reach the agent unchanged. Sandbox CI runs on Ubuntu 24.04 and requires the launcher's enforcement probe to pass; Ubuntu 26.04's AppArmor policy can prevent nested bubblewrap sandboxes from starting.
+
 ```sh
 npm run den:install     # once: packages, first release, the service; the den then answers on 4317
 npm run den:update      # after merging a change to `main`: new release, links switched, service restarted

@@ -154,7 +154,7 @@ describe("refusal: nothing builds outside the box", () => {
 
   test("a launcher that returns no group is not trusted: its child is killed and the build refused", async () => {
     const launcher = { ...unconfinedLauncher(), enforced: true };
-    const result = await createBuildBox({ launcher, bwrap: "/bin/sleep", node: process.execPath }).build({ folder, packages });
+    const result = await createBuildBox({ launcher, bwrap: process.execPath, node: process.execPath }).build({ folder, packages });
     assert.match(result.reason, /no resource group/);
     untouched();
   });

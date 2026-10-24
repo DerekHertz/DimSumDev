@@ -89,6 +89,14 @@ describe("the scope argv and the values it must produce", () => {
   const limit = { memoryMiB: 2048, cpuPercent: 100, tasks: 256 };
   const argv = buildScopeArgv({ unit: "den-run-abc.scope", slice: "den-agents", limit, fileBytes: 4096 * MIB, bin: "claude", args: ["-p", "--agent", "sre"] });
 
+  test("systemd cannot expand dollars in the start gate or the command's arguments", () => {
+    const script='printf "%s\\n" "$$" "$HOME" "${literal}"';
+    const command=buildScopeArgv({unit:"den-run-literal.scope",slice:"den-agents",limit,fileBytes:4096*MIB,bin:"sh",args:["-c",script]});
+    assert.ok(command.indexOf("--expand-environment=no")>=0&&command.indexOf("--expand-environment=no")<command.indexOf("--"));
+    assert.equal(command[command.indexOf("den-gate")-1],START_GATE);
+    assert.equal(command.at(-1),script);
+  });
+
   test("a user scope in the agents slice with memory, no swap, CPU and process limits", () => {
     assert.deepEqual(argv.slice(0, 8), ["--user", "--scope", "--quiet", "--collect", "--unit", "den-run-abc.scope", "--slice", "den-agents.slice"]);
     const props = argv.filter((_, i) => argv[i - 1] === "-p" && i < argv.indexOf("--"));

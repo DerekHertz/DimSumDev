@@ -116,10 +116,10 @@ describe("the Claude runtime behind the enforced launcher (live)", { skip: enfor
     const t = await boot({ mode: "hang", grandchild: "detached", ignoreTerm: true }, live());
     const res = await t.post("/agents", { ref: DISPATCH_REF, role: "architect" });
     assert.equal(res.status, 201, res.text);
-    const { id, sessionId } = res.body.agent;
+    const { id } = res.body.agent;
     const gc = await until(() => t.stub.grandchildPid(), { ms: 5000, what: "the grandchild pid" });
     const ns = await until(() => t.stub.start(), { what: "the child to start" });
-    const scope = `/${LIVE_SLICE}.slice/den-run-${sessionId}.scope`;
+    const scope = `/${LIVE_SLICE}.slice/den-run-${id}.scope`;
     // The stub reports its pid inside the run's pid namespace; the host knows it by another (den-mvp/35).
     const [pid, gcHost] = [ns.pid, gc].map((n) => hostPid(n, scope) ?? assert.fail(`no host process is pid ${n} in ${scope}`));
     for (const p of [pid, gcHost]) assert.ok((cgroupOf(p) ?? "").endsWith(scope), `pid ${p} is in ${cgroupOf(p)}`);
@@ -135,12 +135,12 @@ describe("the Claude runtime behind the enforced launcher (live)", { skip: enfor
     const t = await boot({ mode: "hog" }, live());
     const res = await t.post("/agents", { ref: DISPATCH_REF, role: "developer" });
     assert.equal(res.status, 201, res.text);
-    const { id, sessionId } = res.body.agent;
+    const { id } = res.body.agent;
     await until(async () => (await t.agent(id)).state === "failed", { ms: 20000, what: "the agent to fail" });
     assert.equal((await t.agent(id)).reason, "resource-limit: memory");
     const { pid } = await t.stub.start();
     // pid is the stub's number inside its run's namespace: gone means no process of that number is left in the run's scope (den-mvp/35).
-    await until(() => hostPid(pid, `/${LIVE_SLICE}.slice/den-run-${sessionId}.scope`) === null, { ms: 3000, what: "the child to be gone" });
+    await until(() => hostPid(pid, `/${LIVE_SLICE}.slice/den-run-${id}.scope`) === null, { ms: 3000, what: "the child to be gone" });
     assert.equal((await t.state()).agents.filter((a) => LIVE_STATES.includes(a.state)).length, 0, "nothing restarted it");
   });
 });
@@ -191,8 +191,8 @@ describe("the production entry (node apps/bridge/server.mjs)", () => {
     assert.ok([201, 202].includes(res.status), `dispatch answered ${res.status} ${res.text}`);
     await until(async () => (await stub.start()) !== undefined, { ms: 5000, what: "the stub binary named by DEN_CLAUDE_BIN to be launched" });
     const { pid } = await stub.start();
-    // Only this run's own scope (its session id names it): the real den-agents.slice may hold a live agent whose namespace pid is the same number.
-    const scope = `/den-agents.slice/den-run-${res.body.agent.sessionId}.scope`;
+    // Only this run's own scope: the real den-agents.slice may hold a live agent whose namespace pid is the same number.
+    const scope = `/den-agents.slice/den-run-${res.body.agent.id}.scope`;
     const host = hostPid(pid, scope); // the stub's pid is its number inside the run's namespace (den-mvp/35)
     assert.ok(host !== null, "the CLI runs in its own scope under the agents slice");
     assert.ok((cgroupOf(host) ?? "").endsWith(scope), `pid ${host} is in ${cgroupOf(host)}`);

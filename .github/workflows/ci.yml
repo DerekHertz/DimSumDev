@@ -12,7 +12,8 @@ permissions:
 jobs:
   test:
     name: test
-    runs-on: ubuntu-latest
+    # Ubuntu 26.04's bwrap AppArmor profile strips capabilities from nested sandboxes.
+    runs-on: ubuntu-24.04
     timeout-minutes: 15 # ci-cd/07: everything except the browser files (see scripts/test-split.mjs)
     permissions:
       contents: read
@@ -26,6 +27,14 @@ jobs:
           cache: "npm"
       - name: Install dependencies
         run: npm ci
+      - name: Require the enforced sandbox host
+        timeout-minutes: 1
+        run: |
+          node --input-type=module <<'JS'
+          import { createResourceLauncher } from './apps/bridge/agents/resource-group.mjs';
+          const result = await createResourceLauncher({ slice: 'den-ci-preflight' }).preflight();
+          if (!result.ok) throw new Error('CI cannot exercise the sandbox tests: ' + result.reason);
+          JS
       - name: Run tests (everything but the browser files, plus the BOM check)
         run: npm run test:rest
 

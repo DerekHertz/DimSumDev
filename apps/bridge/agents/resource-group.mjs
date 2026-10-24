@@ -92,7 +92,7 @@ export function buildScopeArgv({ unit, slice, limit, fileBytes, bin, args, wrapp
   // namespace with its own /proc keeps /proc/<pid>/root of the host's processes (which see the unwrapped mounts) out of reach.
   const wrap = [wrapper, "--dev-bind", "/", "/", "--unshare-pid", "--proc", "/proc", "--ro-bind", CGROUP_ROOT, CGROUP_ROOT, ...hide.flatMap((d) => ["--tmpfs", d]), ...hideSockets.flatMap((f) => ["--ro-bind", "/dev/null", f]), "--die-with-parent", "--"];
   return [
-    "--user", "--scope", "--quiet", "--collect", "--unit", unit, "--slice", `${slice}.slice`,
+    "--user", "--scope", "--quiet", "--collect", "--unit", unit, "--slice", `${slice}.slice`, "--expand-environment=no",
     ...[...groupProperties(limit), "OOMPolicy=continue"].flatMap((p) => ["-p", p]),
     "--", "env", "-u", "XDG_RUNTIME_DIR", "-u", "DBUS_SESSION_BUS_ADDRESS",
     "prlimit", `--fsize=${fileBytes}:${fileBytes}`, "--", "/bin/sh", "-c", START_GATE, "den-gate", ...wrap, bin, ...args,
