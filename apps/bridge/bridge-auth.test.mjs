@@ -47,6 +47,7 @@ const BODIES = {
   "POST /admission/reconcile": { real: { id: "i-crashed00000000", outcome: "ended" }, bogus: { id: "i-none", outcome: "ended" } },
   // hardening/16: the bridge below has a stand-in proxy that knows the accounts a and b.
   "POST /accounts/active": { real: { name: "a" }, bogus: { name: "nobody" } },
+  "POST /profile": { real: { name: "full" }, bogus: { name: "turbo" } },
   "POST /projects/active": { real: { slug: "den" }, bogus: { slug: "nope" } },
   "POST /requests": {
     real: { kind: "dispatch-approve", ref: DISPATCH_REF },
