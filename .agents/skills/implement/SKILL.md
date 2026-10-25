@@ -11,11 +11,17 @@ If the user passes a ticket reference, fetch it from the issue tracker and state
 
 Claim the ticket first, following the `team-protocol` skill. Stop and hand off if the ticket is already claimed or blocked.
 
+Before editing, state the observable outcome, acceptance criteria, scope exclusions, and covering checks. Reuse an already-approved scope and test seams. Keep this brief in the ticket or handoff rather than creating another planning artifact.
+
 Call the Skill tool with "tdd" where possible, at pre-agreed seams.
 
-Run required typechecking and literal covering test files with bounded concurrency and timeouts, including affected existing callers. In resource-limited den agents, leave full suites and browser workloads to designated checks/CI or a separately authorized capable environment. Delegate only independent checkable work when permitted; report exact evidence and remaining checks.
+Run required typechecking and literal covering test files, including affected existing callers, within the runtime's time and concurrency bounds. Full suites and browser workloads belong to designated checks/CI unless separately authorized. Keep one verification record: candidate or working diff, command, result, and relevant environment. Reuse a result while those inputs remain unchanged; rerun an affected check after a relevant edit, changed environment, or new failure evidence, or when a required independent gate calls for it. A status update, handoff, or reviewer return alone is not a reason to repeat passing checks.
+
+Fix an unmet criterion or material safety, correctness, or truthful-presentation risk in this outcome. Record unrelated defects and nonblocking polish as follow-ups. If the same failure survives a targeted fix, or a correction reveals a different failure class, pause edits and consolidate the evidence, cause, smallest useful remaining scope, and next discriminating check into one recovery plan. Continue only within the approved scope and attempt limits; a twice-failed ticket follows team-protocol's human gate.
 
 Once done, call the Skill tool with "code-review" to review the work.
+
+Address review findings together, identifying which block the criteria or a material risk. Allow at most one fix round for nonblocking findings; leave remaining polish as follow-ups. Stop implementation when the criteria and required gates pass.
 
 Commit your work to the current branch (your agent's worktree branch). Never merge to main: merging is a pass gate.
 
