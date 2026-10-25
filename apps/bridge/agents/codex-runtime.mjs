@@ -10,10 +10,12 @@ import { fileURLToPath } from "node:url";
 import { openCodexAppServer } from "./codex-adapter.mjs";
 import { findCodexNative } from "./codex-sandbox-plan.mjs";
 import { compileCodexPermissions, renderCodexConfig } from "./codex-permissions.mjs";
-import { GOVERNED_BASES, ceilingOf, isWorktreePath } from "./claude-adapter.mjs";
+import { prepareGovernedPaths } from "./codex-governed-paths.mjs";
+import { GOVERNED_BASES, GOVERNED_ENTRIES, ceilingOf, isWorktreePath } from "./claude-adapter.mjs";
 import { createChannel } from "./claude-runtime.mjs";
 import { slotClassOf, definitionOf, UUID_RE, MESSAGE_MAX_BYTES } from "./policy.mjs";
 import { validRuntimeSession } from "./identity.mjs";
+import { executionSettings } from "./orchestration.mjs";
 import { EnforcementError, createResourceLauncher } from "./resource-group.mjs";
 
 const MODULE_CONTROL_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
@@ -78,7 +80,7 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
     },
     stillRunning: (id) => (typeof launcher.active === "function" ? launcher.active(id) : Promise.resolve(false)),
     resumeCommand: () => null,
-    async spawn({ role, cwd, prompt, sessionId, runId, model, effort, ticketFile, mainGit, project, resume, runtimeSessionId, promptId, openingMessage, deskInstructions } = {}) {
+    async spawn({ role, cwd, prompt, sessionId, runId, model, effort, execution, delegate, ticketFile, mainGit, project, resume, runtimeSessionId, promptId, openingMessage, deskInstructions } = {}) {
       if (!isWorktreePath(cwd) || typeof prompt !== "string" || prompt.trim() === "") throw new TypeError("codex runtime: a worktree and a prompt are required");
       if (openingMessage !== undefined && (resume === true || typeof openingMessage?.text !== "string" || !openingMessage.text.trim() || Buffer.byteLength(openingMessage.text) > MESSAGE_MAX_BYTES || !UUID_RE.test(openingMessage.messageId))) {
         throw new TypeError("codex runtime: invalid opening message");
@@ -92,6 +94,11 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
       if (!existsSync(recipeFile)) throw new EnforcementError(`the ${role} role has no Codex recipe`);
       const recipe = readRecipe(recipeFile);
       recipe.instructions += `\n\n${conventions}`;
+      if (execution !== undefined) {
+        const selected = executionSettings('codex', role, Object.fromEntries(Object.entries(execution).filter(([k]) => k !== 'provider')));
+        recipe.model = selected.model;
+        recipe.effort = selected.reasoning;
+      }
       if (effort !== undefined) {
         if (!['medium', 'high'].includes(effort)) throw new TypeError('Invalid meeting effort');
         recipe.effort = effort;
@@ -115,12 +122,15 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
       if (exposed) throw new EnforcementError(`the read root ${exposed} is or contains the home or a credentials folder`);
       const session = privateDir(`${stateRoot}/${sessionId}`);
       let original;
+      let retireGoverned = () => {};
       const cleanup = () => {
         saveRefreshedLogin({ copy: `${nativeStore}/auth.json`, original, target: authSource });
         rmSync(`${nativeStore}/auth.json`, { force: true });
+        retireGoverned();
         rmSync(session, { recursive: true, force: true });
       };
       try {
+        if (writes) retireGoverned = prepareGovernedPaths(cwd, GOVERNED_ENTRIES);
         privateDir(`${nativeRoot}/${sessionId}`);
         privateDir(nativeStore);
         const tmp = privateDir(`${session}/tmp`);
@@ -135,14 +145,14 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
           },
         });
         const path_ = `${path.dirname(process.execPath)}:/usr/bin:/bin`;
-        const config = { ...compiled.config, model: recipe.model, model_reasoning_effort: recipe.effort, cli_auth_credentials_store: "file",
+        const config = { ...compiled.config, model: recipe.model, model_reasoning_effort: recipe.effort, service_tier: "default", cli_auth_credentials_store: "file",
           shell_environment_policy: { inherit: "none", set: { PATH: path_, HOME: tmp, TMPDIR: tmp } } };
         writeFileSync(`${nativeStore}/config.toml`, renderCodexConfig(config), { mode: 0o600 });
         original = readFileSync(authSource);
         writeFileSync(`${nativeStore}/auth.json`, original, { mode: 0o600 });
         const launched = await launcher.launch({ slotClass: slotClassOf(role), id: runId ?? sessionId, bin: codexBin, args: codexArgs, cwd,
           env: { PATH: path_, HOME: privateDir(`${session}/home`), CODEX_HOME: nativeStore, XDG_CONFIG_HOME: privateDir(`${session}/xdg`), TMPDIR: tmp, LANG: "C.UTF-8" } });
-        return await attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup,
+        return await attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup, delegate,
           resumeThreadId: resume === true ? runtimeSessionId : undefined, promptId, openingMessage, deskInstructions,
           rememberThread: thread => writeFileSync(binding, JSON.stringify({ thread, cwd, role, model: recipe.model }), { mode: 0o600 }) });
       } catch (err) {
@@ -153,12 +163,12 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
   };
 }
 
-async function attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup, resumeThreadId, promptId, openingMessage, deskInstructions, rememberThread }) {
+async function attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup, delegate, resumeThreadId, promptId, openingMessage, deskInstructions, rememberThread }) {
   const { child, group } = launched;
   child.on("error", () => {});
   child.stdin.on("error", () => {});
   child.stderr.resume();
-  const protocol = openCodexAppServer({ child, ...(killGraceMs === undefined ? {} : { killGraceMs }),
+  const protocol = openCodexAppServer({ child, delegate, ...(killGraceMs === undefined ? {} : { killGraceMs }),
     authorizeExecution: async () => ({ profileId: compiled.profileId, cwd, developerInstructions: `${recipe.instructions}\n\nProduct worktree: ${cwd}.${deskInstructions ? `\n\n${deskInstructions}` : ""}` }) });
   const killAll = () => {
     group?.kill();

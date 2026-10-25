@@ -1,0 +1,58 @@
+{
+  "ok": true,
+  "provider": "claude",
+  "calls": 2,
+  "delegations": 1,
+  "agents": [
+    {
+      "id": "c-bda3167078a99a3b",
+      "parent": null,
+      "role": "orchestrator",
+      "state": "done",
+      "model": "claude-sonnet-5-5",
+      "execution": {
+        "provider": "claude",
+        "tier": "standard",
+        "model": "sonnet",
+        "reasoning": "medium",
+        "speed": "standard",
+        "reason": "default standard task"
+      },
+      "usage": {
+        "input": 4,
+        "cacheWrite": 2425,
+        "cacheRead": 5016,
+        "output": 383,
+        "final": true
+      },
+      "costUsd": 0.0145412,
+      "reply": "LIVE DELEGATION OK claude 907211",
+      "reason": null
+    },
+    {
+      "id": "c-a8ce1da1f5d5c07a",
+      "parent": "c-bda3167078a99a3b",
+      "role": "developer",
+      "state": "done",
+      "model": "claude-haiku-5-5",
+      "execution": {
+        "provider": "claude",
+        "tier": "bounded",
+        "model": "haiku",
+        "reasoning": "low",
+        "speed": "standard",
+        "reason": "default bounded task"
+      },
+      "usage": {
+        "input": 4,
+        "cacheWrite": 2270,
+        "cacheRead": 3960,
+        "output": 416,
+        "final": true
+      },
+      "costUsd": 0.0007019999999999999,
+      "reply": "The exact contents of `smoke-marker.txt` are: ``` LIVE DELEGATION OK claude 907211 ``` I read only that file, with no edits, commits, other files, or checks. I didn't open the ticket file or run any board commands, since the brief limited the work to this one read.",
+      "reason": null
+    }
+  ]
+}

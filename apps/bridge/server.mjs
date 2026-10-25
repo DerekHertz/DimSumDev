@@ -242,6 +242,11 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     },
     lockedRefs: async ({ project }) => (await buildSnapshot((await projects.get(project)).root, 0)).tickets.filter((t) => t.holder && !meetings?.snapshot().some(m => m.held && m.ref === t.ref && m.project === project && t.holder.role === 'chief-of-staff' && t.holder.since === m.holdSince)).map((t) => t.ref),
     openDesk: (runtime) => ensureDesk(root, runtime),
+    createDelegatedTicket: async ({ parent, role, brief }) => createTicket((await projects.get(parent.project)).root, {
+      feature: DEN_FEATURE, slug: role, title: `Delegated ${role}: ${brief.task}`.slice(0, 100),
+      text: `${brief.task}\n\nConstraints: ${brief.constraints.join('; ')}\n\n## Acceptance criteria\n\n${brief.acceptance.map(a => `- [ ] ${a}`).join('\n')}`,
+      source: `delegated by ${parent.id}`,
+    }),
     // F34: a batch the bridge would refuse is denied when it asks, with the reason, so the user is not asked for it.
     checkCall: (tool, input) => (tool === "mcp__den__board_file" ? checkFileBatch(input).error ?? null : null),
   });
@@ -692,7 +697,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   async function postAgent(req, res) {
     const body = await readJsonObject(req, res);
     if (!body) return;
-    const result = await host.dispatch({ ref: body.ref, role: body.role, mode: body.mode, runtime: body.runtime, project: body.project });
+    const result = await host.dispatch({ ref: body.ref, role: body.role, mode: body.mode, runtime: body.runtime, project: body.project, execution: body.execution, orchestration: body.orchestration });
     if (!result.ok) return reply(res, result.status, { error: result.error });
     hold(result.agent, { task: false });
     reply(res, result.status, { agent: result.agent, ...(result.usageUnknown ? { usageUnknown: true } : {}) });
@@ -708,10 +713,12 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     if (Buffer.byteLength(text) > TASK_MAX_BYTES) return reply(res, 400, { error: `text must be at most ${TASK_MAX_BYTES} bytes` });
     if (hasSecret(text)) return reply(res, 400, { error: "text looks like it holds a secret; nothing was written" });
     const result = await host.direct({
-      role: body.role,
+      role: body.role ?? "developer",
       runtime: body.runtime,
       project: body.project,
       grants: body.grants,
+      execution: body.execution,
+      orchestration: body.orchestration,
       createTicket: async (role, { project }) => createTicket((await projects.get(project)).root, { feature: DEN_FEATURE, slug: role, title: `Den task for ${role}`, text, source: "den" }),
     });
     const ticket = result.ticket ? { ticket: result.ticket } : {};
@@ -816,6 +823,12 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     const agent = host.runAgent(bearerOf(req));
     if (!agent) return reply(res, 401, { error: "unauthorized" });
     const tool = new URL(req.url, "http://x").pathname.split("/")[2];
+    if (tool === 'delegate') {
+      const body = await readJsonObject(req, res, DEN_TOOL_MAX_BODY);
+      if (!body) return;
+      const result = await host.delegate(agent.id, body);
+      return reply(res, result.status ?? 200, { text: JSON.stringify(result), ...(!result.ok ? { error: result.error } : {}) });
+    }
     const verdict = library.decide(agent.role, `mcp__den__${tool}`, {});
     if (!verdict || verdict.kind === "refuse") return reply(res, 403, { error: "the den's catalog does not give this run that tool" });
     const body = await readJsonObject(req, res, DEN_TOOL_MAX_BODY);

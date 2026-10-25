@@ -86,7 +86,8 @@ const baseOf = (entry) => entry.replace(/\/\*\*$/, "");
 /** The credential stores of governance.json. The runtime passes the ones that exist to compileCeiling: a deny target must exist. */
 export const CREDENTIAL_PATHS = Object.freeze([...GOVERNANCE.credentialPaths]);
 /** The governed paths of a checkout (guardrail and CI), relative and without a trailing /** (agent-os/07: a path grant on one is a 400). */
-export const GOVERNED_BASES = Object.freeze([...new Set([...GOVERNANCE.guardrailPaths, ...GOVERNANCE.ciPaths].map(baseOf))]);
+export const GOVERNED_ENTRIES = Object.freeze([...GOVERNANCE.guardrailPaths, ...GOVERNANCE.ciPaths]);
+export const GOVERNED_BASES = Object.freeze([...new Set(GOVERNED_ENTRIES.map(baseOf))]);
 
 // agent-os/02 (ADR 0021 decision 3): task grants, data in a fixed shape: { kind: "host", value: <host name> } or
 // { kind: "path", value: <absolute or ~/ path of plain segments> }, at most six. Nothing else is accepted, and the error
@@ -153,7 +154,7 @@ const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit
   ];
   const denyPaths = (forbid?.write ?? []).flatMap((p) => [p, ...(worktree === undefined ? [] : [`/${worktree}/${p}`])]);
   const deny = [
-    ...DENY_RULES,
+    ...DENY_RULES, "Agent", "Task",
     ...denyPaths.flatMap((p) => [`Write(${p})`, `Edit(${p})`]),
     ...(denyAbs ?? []).flatMap((p) => [`Write(${ruleForm(p)})`, `Edit(${ruleForm(p)})`]),
     ...(credentials ?? []).flatMap((p) => [`Read(${p})`, `Read(${p}/**)`, `Edit(${p})`, `Edit(${p}/**)`]),
@@ -165,6 +166,7 @@ const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit
     // den-mvp/03 (live probe, 2026-10-13): the CLI runs the hooks and the status line of the worktree's own settings,
     // outside the sandbox, from scripts in that worktree, which the agent can write. A bridge agent runs none of them.
     disableAllHooks: true,
+    fastMode: false, fallbackModel: [], switchModelsOnFlag: false,
     permissions: { deny: [...new Set(deny)], ...(allow.length === 0 ? {} : { allow }), ...(readLimit === true ? { blockReadsOutsideWorkingDirectories: true, ...(ticketFile === undefined ? {} : { additionalDirectories: [ticketFile.slice(0, ticketFile.lastIndexOf("/"))] }) } : {}) },
     ...(wall === undefined ? {} : { sandbox: sandboxFor(wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials) }),
   });
@@ -360,10 +362,12 @@ const MCP_CONFIG_FILE_RE = /^\/[A-Za-z0-9._@+-]+(?:\/[A-Za-z0-9._@+-]+)*\.json$/
 export function buildClaudeArgs(options) {
   if (!isPlainObject(options)) throw new TypeError("buildClaudeArgs needs { sessionId, agent, model?, ticketFile?, wall?, worktree? }");
   for (const key of Object.keys(options)) {
-    if (!["sessionId", "resume", "agent", "model", "effort", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
+    if (!["sessionId", "resume", "agent", "model", "effort", "managedDelegation", "delegationRole", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
   }
   const { sessionId, resume, agent, model, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
-  if (options.effort !== undefined && !['medium', 'high'].includes(options.effort)) throw new TypeError('Invalid meeting effort');
+  if (options.effort !== undefined && !['low', 'medium', 'high'].includes(options.effort)) throw new TypeError('Invalid meeting effort');
+  if (options.managedDelegation !== undefined && options.managedDelegation !== true) throw new TypeError("Invalid managed delegation flag");
+  if (options.delegationRole !== undefined && !(options.managedDelegation && isPlainObject(options.delegationRole) && typeof options.delegationRole.prompt === "string" && (options.delegationRole.tools === undefined || Array.isArray(options.delegationRole.tools)))) throw new TypeError("Invalid managed role");
   const target = project !== undefined && project.control === false;
   if (project !== undefined && (!isPlainObject(project) || typeof project.control !== "boolean")) throw new TypeError("buildClaudeArgs: project must be { control: boolean, root, pluginDir? }");
   if (target && !isWorktreePath(project.pluginDir)) throw new TypeError("buildClaudeArgs: a target project needs pluginDir, a plain absolute path");
@@ -394,7 +398,9 @@ export function buildClaudeArgs(options) {
     "--permission-prompt-tool", "stdio",
     // den-mvp outcome 2: a follow-up continues the earlier session under the same id; everything else is built afresh.
     ...(resume === true ? ["--resume", sessionId] : ["--session-id", sessionId]),
-    "--agent", target ? `den:${definitionOf(agent)}` : definitionOf(agent),
+    ...(options.managedDelegation ? ["--allowedTools", "mcp__delegation__delegate"] : []),
+    ...(options.delegationRole ? ["--agents", JSON.stringify({ [definitionOf(agent)]: options.delegationRole })] : []),
+    "--agent", target && !options.delegationRole ? `den:${definitionOf(agent)}` : definitionOf(agent),
     ...(model === undefined ? [] : ["--model", model]),
     ...(options.effort === undefined ? [] : ['--effort', options.effort]),
     // den-mvp/48: a target project loads nothing from its own .claude/: no settings, and the den's role definitions come in as a plugin.

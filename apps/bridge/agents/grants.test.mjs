@@ -221,9 +221,9 @@ describe("the ceilings deny the governance paths and commands (one test per entr
   test("the four original deny rules stay beside the governance ones", () => {
     for (const role of [...ROLES_WITH_GRANTS, "chief-of-staff"]) for (const rule of FOUR) assert.ok(settingsFor(role).permissions.deny.includes(rule), `${role} ${rule}`);
   });
-  test("a role with no ceiling is untouched: buildClaudeArgs alone still gives only the four deny rules", () => {
+  test("a role with no ceiling is untouched: buildClaudeArgs alone still gives only the four deny rules and the native delegation tools", () => {
     const s = settingsOf(need("buildClaudeArgs")({ sessionId: SID, agent: "architect" }));
-    assert.deepEqual(s.permissions.deny, FOUR);
+    assert.deepEqual(s.permissions.deny, [...FOUR, "Agent", "Task"]);
   });
   test("security may write a CI path only under a task grant that covers it, and never a guardrail path", () => {
     const withGrant = settingsFor("security", [{ kind: "path", value: `${WT}/.github/workflows` }]);

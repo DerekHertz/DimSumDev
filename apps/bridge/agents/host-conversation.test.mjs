@@ -397,7 +397,7 @@ describe("what an ask and a stop leave in the thread (organism-infra/230)", () =
 describe("Bao's desk: talking to Bao with no ticket", () => {
   const DESK = path.join(".scratch", "den", "issues", "00-bao.md");
 
-  test("the first message starts a walled orchestrator run on the parked desk ticket; the text is a message, not the prompt", async () => {
+  test("the first message starts a walled orchestrator run on the parked desk ticket; the first user message is present before the model can act", async () => {
     const t = await setup();
     const res = await t.say("orchestrator", { text: "What is red on CI right now?" });
     assert.equal(res.status, 201, JSON.stringify(res.body));
@@ -406,8 +406,10 @@ describe("Bao's desk: talking to Bao with no ticket", () => {
     assert.deepEqual([rec.args.role, rec.args.ref], ["orchestrator", "den/00-bao"]);
     assert.match(rec.args.prompt, /You are Bao, the chief of staff, at your desk/);
     assert.match(rec.args.prompt, /change no file/);
-    assert.doesNotMatch(rec.args.prompt, /red on CI/, "no client string reaches the prompt");
-    assert.deepEqual(rec.sent.map((m) => m.text), ["What is red on CI right now?"]);
+    assert.match(rec.args.prompt, /User request:\nWhat is red on CI right now\?/);
+    assert.equal(rec.args.promptId, res.body.messageId);
+    assert.deepEqual(rec.sent, [], 'no separate bootstrap turn or second user send');
+    assert.equal((await t.thread('orchestrator')).entries.filter(e => e.role === 'user')[0].text, 'What is red on CI right now?');
     const ticket = await readFile(path.join(t.fx.root, DESK), "utf8");
     assert.match(ticket, /^\*\*Status:\*\* parked$/m);
     assert.equal(((await t.state()).frontier ?? []).includes("den/00-bao"), false, "the desk is in no queue");
@@ -419,11 +421,11 @@ describe("Bao's desk: talking to Bao with no ticket", () => {
     const rec = t.fake.spawns.at(-1);
     const live = await t.say("orchestrator", { text: "second" });
     assert.equal(live.body.resumed, false);
-    assert.deepEqual(rec.sent.map((m) => m.text), ["first", "second"]);
+    assert.match(rec.args.prompt, /User request:\nfirst$/);
+    assert.deepEqual(rec.sent.map((m) => m.text), ["second"]);
     assert.equal(t.fake.spawns.length, 1);
     for (const m of rec.sent) rec.emit({ type: "message-applied", id: m.id });
-    rec.emit({ type: "done", ok: true });
-    await t.ended(first.body.runId);
+    await t.finish({ id: first.body.runId, rec });
     const next = await t.say("orchestrator", { text: "third" });
     assert.equal(next.body.resumed, true);
     const again = t.fake.spawns.at(-1);
@@ -455,13 +457,13 @@ test("a desk session whose worktree is gone starts a fresh desk run instead of a
   const t = await setup();
   const first = await t.say("orchestrator", { text: "first" });
   const rec = t.fake.spawns.at(-1);
-  for (const m of rec.sent) rec.emit({ type: "message-applied", id: m.id });
-  rec.emit({ type: "done", ok: true });
-  await t.ended(first.body.runId);
+  await t.finish({ id: first.body.runId, rec });
   await rm(rec.args.cwd, { recursive: true, force: true });
   const res = await t.say("orchestrator", { text: "again", runId: first.body.runId });
   assert.equal(res.status, 201, JSON.stringify(res.body));
   const fresh = t.fake.spawns.at(-1);
   assert.deepEqual([fresh.args.ref, fresh.args.resume ?? false], ["den/00-bao", false]);
-  assert.deepEqual(fresh.sent.map((m) => m.text), ["again"]);
+  assert.match(fresh.args.prompt, /User request:\nagain$/);
+  assert.equal(fresh.args.promptId, res.body.messageId);
+  assert.deepEqual(fresh.sent, []);
 });

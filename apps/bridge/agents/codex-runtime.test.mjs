@@ -312,3 +312,27 @@ test("the Codex runtime is registered only with DEN_CODEX=1, and then beside Cla
   assert.equal(on.runtimes.claude, claude);
   assert.equal(on.runtimes.codex.id, "codex");
 });
+
+
+test('tier routing reaches the native thread and turn with standard speed and overrides', async () => {
+  const t = setup({ mode: 'settings' });
+  for (const [model, reasoning] of [['gpt-6-luna', 'medium'], ['gpt-6.1-sol', 'low'], ['gpt-6-astra', 'high']]) {
+    const proc = await t.spawn({ execution: { model, reasoning, speed: 'standard', reason: 'Explicit bounded routing probe' } });
+    const events = await collect(proc);
+    const settings = JSON.parse(events.find(e => e.type === 'tool-result').text);
+    assert.deepEqual(settings, { model, reasoning, serviceTier: 'default', threadModel: model });
+    proc.closeInput();
+    await proc.exited;
+  }
+});
+
+test('writer setup supplies missing governed mount targets and removes only its unchanged scaffolding on exit', async () => {
+  const t = setup();
+  const proc = await t.spawn();
+  assert.ok(existsSync(`${t.cwd}/.github/workflows`), 'native sandbox requires the missing CI parent and mount target');
+  assert.equal(statSync(`${t.cwd}/.github/CODEOWNERS`).mode & 0o777, 0o400);
+  assert.match(readFileSync(`${t.store()}/config.toml`, 'utf8'), /CODEOWNERS" = "read"/);
+  proc.closeInput();
+  await proc.exited;
+  assert.equal(existsSync(`${t.cwd}/.github`), false);
+});

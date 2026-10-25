@@ -24,6 +24,7 @@ import { realpath } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { hasSecret } from "../../../scripts/exposure.mjs";
 import { safeToolInput } from "../../shared/safe-text.mjs";
 import {
@@ -39,6 +40,7 @@ import { createLibrary } from "../library/library.mjs";
 import { grantRefusal } from "./grant-policy.mjs";
 import { capacity as capacityOf } from "./capacity.mjs";
 import { runtimeId, runtimeRegistry, validProject, validRuntimeSession } from "./identity.mjs";
+import { executionSettings, delegation, checkDelegation, delegationPrompt, RUN_RULES, canDelegate, delegateRequest, scopesOverlap } from "./orchestration.mjs";
 import { createSessions } from "./sessions.mjs";
 import { createAdmission } from "./admission.mjs";
 import { createConversations } from "./conversations.mjs";
@@ -111,7 +113,7 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, createDelegatedTicket }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -131,12 +133,14 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   // A run's project, fixed when it starts: a desk, meeting or orchestrator run is the den's; any other takes the active project.
   const isControl = (a) => a.role === "orchestrator" || isDeskRef(a.ref);
   const workspacesOf = async (slug) => (slug === undefined || slug === "den" ? workspaces : (await projects.get(slug))?.workspaces ?? null);
+  const delegationAttempts = new Map();
   const agents = new Map(); // id -> record; insertion order is snapshot order
   const liveByRef = new Map(); // project/ref -> record, for every reserved or running agent
   const pending = new Set(); // spawns in flight
   // codex-residents/05: leaving the live map also settles the attempt in the admission journal, so the work can start again.
   const drop = (agent) => {
     liveByRef.delete(refKey(agent));
+    if (!agent.delegationRoot) for (const key of delegationAttempts.keys()) if (key.startsWith(`${agent.id}/`)) delegationAttempts.delete(key);
     if (agent.intentId) {
       const id = agent.intentId;
       agent.intentId = null;
@@ -151,6 +155,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     id: a.id, ref: a.ref, role: a.role, mode: a.mode, runtime: a.runtimeId, sessionId: a.sessionId, runtimeSessionId: a.runtimeSessionId ?? null, state: a.state,
     startedAt: a.startedAt, lastEventAt: a.lastEventAt, tool: a.meeting ? null : a.tool, tokens: a.tokens, capabilities: a.capabilities,
     resume: a.resume, reason: a.reason, project: a.project ?? "den", worktree: a.worktree ?? null, branch: a.branch ?? null,
+    execution: a.execution ?? null, orchestration: a.orchestration ?? null,
     model: a.model ?? null, usage: a.usage ?? null, costUsd: a.costUsd ?? null, reply: a.meeting ? null : a.reply ?? null, durationMs: a.durationMs ?? null,
     resumeOf: a.resumeOf ?? null, followUp: canContinue(a) && END_STATES.includes(a.state),
     parent: a.parent ?? null, wall: wallView(a),
@@ -340,6 +345,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         capabilities: { stop: false, approve: false, send: false, handover: runtime?.capabilities?.handover === true },
         resume: resumeFor({ runtimeId: h.runtime, runtimeSessionId: h.runtimeSessionId }), reason: h.reason, worktree: h.worktree, branch: h.branch, proc: null,
         ...(h.origin ? { origin: h.origin, resumeOf: h.resumeOf } : {}), ...(h.project ? { project: h.project } : {}),
+        parent: h.parent, execution: h.execution, orchestration: h.orchestration,
         model: h.model, usage: h.usage, costUsd: h.costUsd, durationMs: h.durationMs,
       });
     }
@@ -440,10 +446,15 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const { ref, role } = input;
     const selected = captured ?? await select(input);
     if (selected.ok === false) return selected;
+    let execution, orchestration;
+    try {
+      orchestration = delegation(input.orchestration);
+      execution = executionSettings(selected.runtime, role, input.execution ?? (orchestration?.kind === "manager" ? { tier: "standard" } : undefined));
+    } catch (err) { return refuse(400, err.message); }
     const heldByMeeting = input.meeting ? null : meetingHold(ref, selected.project);
     if (heldByMeeting) return refuse(409, `Meeting ${heldByMeeting} holds this task while its response is running`);
     const runtime = adapters[selected.runtime];
-    const mode = entry === "direct" ? DIRECT_MODE : input.mode ?? null;
+    const mode = ["direct", "delegated"].includes(entry) ? DIRECT_MODE : input.mode ?? null;
     // A delivery step is the internal entry's alone: no route reads these fields.
     let step = null;
     if (entry === "start" && input.delivery !== undefined) {
@@ -459,6 +470,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       if (!['medium', 'high'].includes(effort) || !['bao', 'jiao'].includes(moderator) || typeof standalone !== 'boolean') return refuse(400, 'invalid meeting settings');
       if (taskRef !== null && !REF_RE.test(taskRef)) return refuse(400, 'invalid meeting task');
       meeting = { part, file, effort, moderator, standalone, taskRef };
+      execution = { ...execution, reasoning: effort, reason: "explicit meeting effort" };
     }
     const notUp = down(runtime, { step: Boolean(step || meeting) });
     if (notUp) return notUp;
@@ -485,14 +497,79 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (liveByRef.has(refKey({ ...selected, ref }))) return unhold(refuse(409, "this ticket already has a live agent"));
     const noRoom = full(locked, role, selected.project);
     if (noRoom) return unhold(noRoom);
-    const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}) });
+    if (entry === 'delegated' && ![...liveByRef.values()].some(a => a.id === input.delegatedBy && !a.stopRequested && !a.exited && !a.releasing)) return unhold(refuse(409, 'delegator ended before admission'));
+    if (entry === 'delegated' && orchestration?.kind !== 'manager' && [...liveByRef.values()].some(a =>
+      a.delegationRoot === input.delegationRoot && a.orchestration?.kind !== 'manager' && scopesOverlap(a.orchestration?.files ?? [], orchestration.files))) return unhold(refuse(409, 'delegated work overlaps another live child in this run'));
+    let managedParent;
+    try { managedParent = checkDelegation(orchestration, { provider: selected.runtime, project: selected.project, live: [...liveByRef.values()] }); }
+    catch (err) { return unhold(refuse(409, err.message)); }
+    const agent = newAgent({ execution, orchestration, ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}) });
     agent.intentId = ticket.intent.id;
     if (openingMessage) agent.openingMessage = openingMessage;
     // team-and-den-ux/19: a relay's worker is a child of its ticket's owner, Bao or Jiao. A direct task stands outside a tree.
     if (entry !== "direct" && entry !== "desk" && !meeting) agent.parent = ticket.intent.owner;
+    if (managedParent) agent.parent = managedParent;
+    if (entry === 'delegated') {
+      agent.delegatedBy = input.delegatedBy;
+      agent.delegationRoot = input.delegationRoot;
+      agent.delegatedAt = input.delegatedAt;
+      agent.parent = input.delegatedBy;
+    }
     if (entry === "dispatch") agent.claimed = true; // den-mvp/89: a Run holds the board claim for its whole run; spawnAgent makes it
-    return launch(agent, ENTRY_ROUTES[entry], usage === null);
+    return launch(agent, ENTRY_ROUTES[entry] ?? "delegate()", usage === null);
   }
+  async function delegateFrom(parent, input) {
+    const live = () => liveByRef.get(refKey(parent)) === parent && !parent.stopRequested && !parent.exited && !parent.releasing && !shuttingDown;
+    if (!live()) return refuse(409, 'delegating run has ended or is stopping');
+    let request;
+    try { request = delegateRequest(input, parent); } catch (err) { return refuse(400, err.message); }
+    const { issue, role, spec, settings } = request;
+    const rootId = parent.delegationRoot ?? parent.id;
+    const key = `${rootId}/${issue}`;
+    const checked = await admission.checkScopes(spec.files);
+    if (!checked.ok) return checked;
+    spec.files = checked.scopes;
+    const parentScopes = admission.intentOf(parent.intentId)?.scopes ?? parent.orchestration?.files;
+    if (parentScopes && checked.scopes.some(f => !parentScopes.some(p => p === '.' || f === p || f.startsWith(`${p}/`)))) return refuse(403, 'delegation exceeds the parent file scope');
+    if (!live()) return refuse(409, 'delegating run stopped');
+    if (typeof createDelegatedTicket !== 'function') return refuse(503, 'delegated ticket writer is unavailable');
+    const prior = delegationAttempts.get(key);
+    if (prior?.running) return refuse(409, 'this issue already has a running delegation');
+    if (prior?.complete) return refuse(409, 'this issue is complete; reuse its returned evidence');
+    if ((prior?.failures ?? 0) >= 2) return refuse(409, 'two failed attempts: stop; report confirmed root cause, remaining uncertainty and next options');
+    const attempt = prior ?? { failures: 0 };
+    if (attempt.running) return refuse(409, 'this issue already has a running delegation');
+    attempt.running = true;
+    delegationAttempts.set(key, attempt);
+    try {
+      const locked = await readLocked(parent.project);
+      if (locked === null) return unreadable();
+      const noRoom = full(locked, role, parent.project);
+      if (noRoom) return noRoom;
+      const { args: gitArgs, env: gitEnv } = worktreeGit(parent.workspace.dir, await gitCommonDir(worktreeRoot(parent.workspace.dir)));
+      const delegatedAt = await new Promise((resolve, reject) => execFile('git', [...gitArgs, 'rev-parse', 'HEAD'], { env: gitEnv }, (err, out) => err ? reject(err) : resolve(out.trim())));
+      const { ref } = await createDelegatedTicket({ parent: view(parent), role, brief: spec });
+      if (!live()) return refuse(409, 'delegating run stopped');
+      const owned = await admission.approve(ref, { owner: parent.runtimeId === 'codex' ? 'jiao' : 'bao' });
+      if (!owned.ok) return owned;
+      const started = await admit({ ref, role, runtime: parent.runtimeId, project: parent.project, execution: Object.fromEntries(Object.entries(settings).filter(([k]) => k !== "provider")),
+        orchestration: spec, scopes: checked.scopes, delegatedAt, delegatedBy: parent.id, delegationRoot: rootId }, { entry: 'delegated' });
+      if (!started.ok) return started;
+      const child = agents.get(started.agent.id);
+      // A model call made during spawn can reach here before its parent's spawn acknowledgement.
+      if (!live()) terminate(child, 'delegator-stopped');
+      const deadline = setTimeout(() => terminate(child, 'delegation-timeout'), 300_000);
+      deadline.unref?.();
+      try { await child.finished; } finally { clearTimeout(deadline); }
+      const ok = child.state === 'done';
+      if (ok) attempt.complete = true;
+      else attempt.failures += 1;
+      return { ok, agentId: child.id, parent: parent.id, state: child.state, sha: child.sha ?? null, branch: child.branch,
+        execution: child.execution, usage: child.usage ?? null, report: cleanBody(child.report ?? child.reply ?? '', 8000),
+        ...(ok ? {} : { error: child.reason ?? 'child failed', failures: attempt.failures, ...(attempt.failures >= 2 ? { next: 'Stop. Report root cause, uncertainty and next options.' } : {}) }) };
+    } catch { return refuse(503, 'managed delegation could not start; no automatic retry'); } finally { attempt.running = false; }
+  }
+
   // A new run's record. Called inside the synchronous step; launch() registers it and starts the spawn.
   function newAgent({ ref, role, mode, grants, sessionId, runtimeId, ...follows }) {
     const runtime = adapters[runtimeId];
@@ -573,6 +650,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (selected.ok === false) return selected;
     const badGrants = await grantsRefused(role, grants);
     if (badGrants) return badGrants;
+    try {
+      executionSettings(selected.runtime, role, input.execution);
+      checkDelegation(delegation(input.orchestration), { provider: selected.runtime, project: selected.project, live: [...liveByRef.values()] });
+    }
+    catch (err) { return refuse(400, err.message); }
     const runtime = adapters[selected.runtime];
     const early = down(runtime) ?? overUsage(await readUsage(selected.runtime)) ?? (await unenforced(runtime));
     if (early) return early;
@@ -587,7 +669,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       console.error(`bridge: could not write a ticket for a ${role} task: ${err?.message ?? err}`);
       return refuse(500, "could not write the task's ticket");
     }
-    return { ...(await admit({ ref, role, grants: grants === undefined ? undefined : grants.map((g) => ({ kind: g.kind, value: g.value })) }, { entry: "direct", selected })), ticket: { ref } };
+    return { ...(await admit({ ref, role, execution: input.execution, orchestration: input.orchestration, grants: grants === undefined ? undefined : grants.map((g) => ({ kind: g.kind, value: g.value })) }, { entry: "direct", selected })), ticket: { ref } };
   }
 
   // den-mvp/89: a Run's claim is made here, after the gate and before anything starts, and given back on every refusal after it.
@@ -641,7 +723,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     try {
       workspace = agent.resumeOf
         ? await workspaces.reopen({ ref: agent.ref, agentId: agent.id, origin: agent.origin, catchUp: isDeskRef(agent.ref) })
-        : await workspaces.create({ ref: agent.ref, agentId: agent.id, ...(agent.delivery ? { base: agent.delivery.at } : {}) });
+        : await workspaces.create({ ref: agent.ref, agentId: agent.id, ...(agent.delivery || agent.delegatedAt ? { base: agent.delivery?.at ?? agent.delegatedAt } : {}) });
     } catch (err) {
       drop(agent);
       console.error(`bridge: could not ${agent.resumeOf ? "reopen the" : "create a"} worktree for ${agent.ref}: ${err?.message ?? err}`);
@@ -690,11 +772,14 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       return refuse(502, "the repository's git directory is not ready for the agent");
     }
     const connections = await library.connectionsFor(agent.role);
+    if (canDelegate(agent) && agent.runtimeId === 'claude') connections.push({ name: 'delegation', script: fileURLToPath(new URL('../library/servers/delegation.mjs', import.meta.url)), credential: 'run' });
     const args = {
       role: agent.role, ...(agent.mode ? { mode: agent.mode } : {}), ref: agent.ref, cwd: workspace.dir, sessionId: agent.sessionId, runId: agent.id, ...(agent.runtimeSessionId ? { runtimeSessionId: agent.runtimeSessionId } : {}),
-      prompt: agent.followUp ? agent.followUp.text : promptFor(agent), ticketFile: ticketFile(agent.ref, project.root), mainGit,
-      ...(isDeskRef(agent.ref) ? { deskInstructions: promptFor(agent) } : {}),
-      ...(agent.openingMessage ? { openingMessage: agent.openingMessage } : {}),
+      prompt: agent.followUp ? agent.followUp.text : `${RUN_RULES}\n${delegationPrompt(agent.orchestration)}${promptFor(agent)}${agent.openingMessage && agent.runtimeId === "claude" ? `\nUser request:\n${agent.openingMessage.text}` : ""}`, ticketFile: ticketFile(agent.ref, project.root), mainGit,
+      ...(isDeskRef(agent.ref) ? { deskInstructions: `${RUN_RULES}\n${promptFor(agent)}` } : {}),
+      ...(agent.openingMessage ? { openingMessage: agent.openingMessage, promptId: agent.openingMessage.messageId } : {}),
+      ...(agent.execution ? { execution: agent.execution } : {}),
+      ...(canDelegate(agent) ? { delegate: input => delegateFrom(agent, input) } : {}),
       ...(agent.meeting ? { effort: agent.meeting.effort } : {}),
       // den-mvp/49: derived here, from the bridge's own root and the run's project; never from a request. The runtime refuses a spawn without it outside the control checkout.
       project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent) },
@@ -714,6 +799,12 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     }
     let proc;
     try {
+      if (agent.stopRequested) {
+        await workspaces.remove(workspace);
+        drop(agent);
+        if (agent.runTokenHash) runTokens.delete(agent.runTokenHash);
+        return refuse(409, 'the delegator stopped before the agent launched');
+      }
       proc = await runtime.spawn(args);
     } catch (err) {
       await workspaces.remove(workspace);
@@ -753,6 +844,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     try {
       await sessions.append({
         event: "spawn", agentId: agent.id, ref: agent.ref, role: agent.role, sessionId: agent.sessionId, runtime: agent.runtimeId, runtimeSessionId: agent.runtimeSessionId, resourceId: agent.id, route: routeName, project: agent.project, worktree: agent.worktree, branch: agent.branch,
+        execution: agent.execution ?? null, orchestration: agent.orchestration ?? null, delegatedBy: agent.delegatedBy ?? null, usage: agent.usage ?? null,
         ...(agent.parent ? { parent: agent.parent } : {}),
         ...(agent.resumeOf ? { resumeOf: agent.resumeOf, origin: agent.origin } : {}),
       });
@@ -764,7 +856,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       return refuse(500, "could not record the agent; it was stopped");
     }
     publish(agent);
-    if (shuttingDown) terminate(agent, "bridge-shutdown");
+    if (shuttingDown || agent.stopRequested) terminate(agent, shuttingDown ? "bridge-shutdown" : "manager-stopped");
     return { ok: true, status: 201, agent: view(agent), ...(usageUnknown ? { usageUnknown: true } : {}) };
   }
 
@@ -818,6 +910,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     agent.exitCode = info?.code ?? null;
     noteLimit(agent, info?.resourceLimit);
     agent.exited = true;
+    for (const child of liveByRef.values()) if (child.parent === agent.id || child.delegatedBy === agent.id) {
+      child.stopRequested = true;
+      child.reason ??= 'manager-ended';
+      if (child.proc) terminate(child, 'manager-ended');
+    }
     await Promise.race([consume, sleep(EVENT_DRAIN_MS)]);
     // agent-os/09: the agent committed on a detached HEAD; the bridge, not the agent, creates its branch at the final commit.
     if (agent.workspace) {
@@ -850,6 +947,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // The run record (den-v1 loop S4): on the end line, then as one ledger row. Neither write can undo the end.
     const run = {
       agentId: agent.id, ref: agent.ref, role: agent.role, runtime: agent.runtimeId, project: agent.project, runtimeSessionId: agent.runtimeSessionId, mode: agent.mode ?? null, state: agent.state, reason: agent.reason ?? null,
+      parent: agent.parent ?? null, execution: agent.execution ?? null, orchestration: agent.orchestration ?? null,
       model: agent.model ?? null, usage: agent.usage ?? null, costUsd: agent.costUsd ?? null, durationMs: agent.durationMs,
       cliMs: agent.cliMs ?? null, turns: agent.turns ?? null,
     };
@@ -971,6 +1069,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       // role is refused here and never becomes a question, and so is a call whose input looks like a secret; a read with a
       // short input is allowed; any other is asked as usual.
       let verdict = library.decide(agent.role, event.tool, event.input);
+      if (event.tool === 'mcp__delegation__delegate' && canDelegate(agent)) verdict = { kind: 'allow', bytes: Buffer.byteLength(JSON.stringify(event.input ?? {})), connection: 'delegation', tool: 'delegate' };
       if (verdict !== null) {
         if (verdict.kind === "allow") {
           // The bridge allows nothing once a stop was asked for, and only so much per run: past the bound a read is asked.
@@ -1085,6 +1184,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   function terminate(agent, reason = "stopped") {
     if (agent.killing) return agent.killing;
     agent.stopRequested = true;
+    for (const child of liveByRef.values()) if (child.parent === agent.id || child.delegatedBy === agent.id) {
+      child.stopRequested = true;
+      child.reason ??= 'manager-stopped';
+      if (child.proc) terminate(child, 'manager-stopped');
+    }
     agent.reason ??= reason;
     agent.killing = (async () => {
       approvals.settleAgent(agent.id, reason === "bridge-shutdown" ? "bridge-shutdown" : "agent-stopped"); // answers deny while the child can hear
@@ -1254,12 +1358,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       console.error(`bridge: could not write Bao's desk ticket: ${err?.message ?? err}`);
       return refuse(500, "could not write Bao's desk ticket");
     }
-    const openingMessage = selected.runtime === "codex" ? { text, messageId: randomUUID() } : null;
+    const openingMessage = { text, messageId: randomUUID() };
     const started = await admit({ ref: deskRefOf(selected.runtime), role }, { entry: "desk", selected, openingMessage });
     if (!started.ok) return started;
-    if (openingMessage) return { ...started, runId: started.agent.id, messageId: openingMessage.messageId, resumed: false };
-    const sent = await message(started.agent.id, { text }, CONVERSE_ROUTE);
-    return sent.ok ? { ...started, runId: started.agent.id, resumed: true } : sent;
+    return { ...started, runId: started.agent.id, messageId: openingMessage.messageId, resumed: selected.runtime === "claude" };
   }
 
   async function followUp(prev, text) {
@@ -1301,9 +1403,12 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // the ticket once, whoever holds its lock, and the earlier run usually left the lock there itself.
     const noRoom = full(locked.filter((ref) => ref !== prev.ref), prev.role, selected.project);
     if (noRoom) return unhold(noRoom);
+    try { checkDelegation(prev.orchestration, { provider: prev.runtimeId, project: prev.project, live: [...liveByRef.values()] }); }
+    catch (err) { return unhold(refuse(409, err.message)); }
     const messageId = randomUUID();
     const agent = newAgent({
       ref: prev.ref, role: prev.role, mode: prev.mode ?? null, runtimeId: prev.runtimeId, runtimeSessionId: prev.runtimeSessionId, grants, sessionId: prev.sessionId,
+      execution: prev.execution, orchestration: prev.orchestration,
       resumeOf: prev.id, origin: prev.origin ?? prev.id, project: prev.project ?? "den", followUp: { text, messageId },
     });
     agent.intentId = ticket.intent.id;
@@ -1354,6 +1459,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
 
   return {
     ready,
+    delegate: (id, input) => { const a = agents.get(id); return a ? delegateFrom(a, input) : Promise.resolve(refuse(404, "no such delegating agent")); },
     dispatch: (input) => admit(input, { entry: "dispatch" }),
     start: (input) => admit(input, { entry: "start" }),
     direct,

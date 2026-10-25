@@ -15,6 +15,7 @@ import { buildClaudeArgs } from "./claude-adapter.mjs";
 import { createClaudeRuntime } from "./claude-runtime.mjs";
 import { makeStub, alive } from "./claude-stub.mjs";
 import { unconfinedLauncher } from "./launcher-test-helpers.mjs";
+import { executionSettings } from "./orchestration.mjs";
 
 const run = promisify(execFile);
 const git = async (root, ...args) => (await run("git", ["-C", root, ...args])).stdout;
@@ -77,9 +78,10 @@ describe("the child's working directory", () => {
     // path in it is the agent's own ticket file in the main checkout, inside the inline settings (amendment 13).
     const ticketFile = path.join(t.fx.root, ".scratch", "fx", "issues", "02-ready-p0.md");
     // den-mvp outcome 1: an architect starts behind the wall and may write in its own worktree, so the settings name it.
+    const route = executionSettings("claude", "architect"); // the tier route adds --model and --effort
     const at = start.argv.indexOf("--settings") + 1;
     const settings = JSON.parse(start.argv[at]);
-    assert.deepEqual(start.argv.filter((_, i) => i !== at), buildClaudeArgs({ sessionId, agent: "architect", ticketFile }).filter((_, i) => i !== at));
+    assert.deepEqual(start.argv.filter((_, i) => i !== at), buildClaudeArgs({ sessionId, agent: "architect", model: route.model, effort: route.reasoning, ticketFile }).filter((_, i) => i !== at));
     assert.ok(settings.permissions.allow.includes(`Read(/${ticketFile})`));
     assert.equal(settings.sandbox?.enabled, true);
     assert.ok(!start.argv.some((a, i) => i !== at && a.includes(worktree)), "the worktree path is in the settings and nowhere else in argv");

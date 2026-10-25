@@ -1,0 +1,3 @@
+{"agentId":"c-5a960e23f233267c","parent":null,"runtime":"claude","execution":{"provider":"claude","tier":"standard","model":"sonnet","reasoning":"medium","speed":"standard","reason":"default standard task"},"kind":"lead"}
+{"agentId":"c-df64d62a1301afaa","parent":"c-5a960e23f233267c","runtime":"claude","execution":{"provider":"claude","tier":"standard","model":"sonnet","reasoning":"medium","speed":"standard","reason":"default standard task"},"kind":"manager"}
+{"agentId":"c-98bd3dffc2c0b950","parent":"c-df64d62a1301afaa","runtime":"claude","execution":{"provider":"claude","tier":"bounded","model":"haiku","reasoning":"low","speed":"standard","reason":"default bounded task"},"kind":"child"}

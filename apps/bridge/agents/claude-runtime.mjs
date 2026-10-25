@@ -4,6 +4,7 @@
 // permission requests until the host decides, and signals the whole group so no grandchild outlives a kill.
 // den-mvp outcome 1: the child is started by a launcher (resource-group.mjs) inside a resource group with hardware
 // limits; a kill goes to that group, and a hard limit that is hit ends the run with the limit named.
+import { executionSettings } from "./orchestration.mjs";
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
@@ -13,7 +14,7 @@ import {
   parseClaudeLine, CREDENTIAL_PATHS, webRefusal,
 } from "./claude-adapter.mjs";
 import { snapshotPlaceholders, sweepPlaceholders } from "./placeholders.mjs";
-import { UUID_RE, slotClassOf } from "./policy.mjs";
+import { UUID_RE, slotClassOf, definitionOf } from "./policy.mjs";
 import { EnforcementError, createResourceLauncher, watchStorage } from "./resource-group.mjs";
 
 // The Node install this bridge runs from, which an agent's npm and node are too (the den's PATH): reopened under the read limit.
@@ -88,7 +89,12 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
     // first message an id, and a message-applied event with that id follows once the child takes it.
     // den-mvp outcome 4: `connections` are the catalog's targets for this role; a list the adapter cannot write refuses the spawn.
     // den-mvp/38: `runCredential` ({ url, token }) is what a "run" connection's script is given to call the bridge back.
-    async spawn({ role, cwd, prompt, sessionId, model, effort, ticketFile, grants, root, mainGit, resume, runId, promptId, connections, runCredential, project } = {}) {
+    async spawn({ role, cwd, prompt, sessionId, model, effort, execution, delegate, ticketFile, grants, root, mainGit, resume, runId, promptId, connections, runCredential, project } = {}) {
+      if (execution !== undefined) {
+        const selected = executionSettings('claude', role, Object.fromEntries(Object.entries(execution).filter(([k]) => k !== 'provider')));
+        model = selected.model;
+        effort ??= selected.reasoning;
+      }
       if (typeof cwd !== "string" || cwd === "") throw new TypeError("claude runtime: cwd must be a path");
       if (typeof prompt !== "string") throw new TypeError("claude runtime: prompt must be a string");
       // den-mvp/49: fail closed. A spawn with no project handle is the den's own, so its cwd must be inside the control checkout;
@@ -114,6 +120,17 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       // den-mvp/33: a connection that holds a credential gets its token from the den's credentials folder (outside every
       // worktree, a governance credential path), and its config goes to a 0600 file there, removed when the run ends.
       // With no token saved the connection is left out and the run still starts.
+      let delegationRole;
+      if (typeof delegate === 'function') {
+        const recipe = readFileSync(path.join(control, '.claude', 'agents', `${definitionOf(role)}.md`), 'utf8');
+        const front = /^---\r?\n([\s\S]*?)\r?\n---\r?\n/.exec(recipe);
+        if (!front) throw new EnforcementError('the delegating role has no trusted frontmatter');
+        const toolsLine = /^tools:[ \t]*(.*)$/m.exec(front[1])?.[1];
+        const tools = toolsLine === undefined ? null : toolsLine.split(',').map(t => t.trim()).filter(Boolean);
+        const skillsBlock = /^skills:\s*\r?\n((?:[ \t]+-[^\n]*\r?\n?)*)/m.exec(front[1])?.[1] ?? '';
+        const skills = [...skillsBlock.matchAll(/^[ \t]+-[ \t]+([^\r\n]+)/gm)].map(m => m[1].trim());
+        delegationRole = { description: `Bridge-managed ${definitionOf(role)}`, prompt: recipe.slice(front[0].length), ...(tools ? { tools: [...tools, 'mcp__delegation__delegate'] } : {}), ...(skills.length ? { skills } : {}) };
+      }
       const secured = Array.isArray(connections) ? connections.filter((c) => c.credential !== undefined) : [];
       let mcpConfigFile;
       let usable = connections;
@@ -144,7 +161,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       const removeConfig = () => {
         if (mcpConfigFile !== undefined) rmSync(mcpConfigFile, { force: true });
       };
-      const args = buildClaudeArgs({ sessionId, ...(effort === undefined ? {} : { effort }), ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
+      const args = buildClaudeArgs({ sessionId, ...(delegationRole ? { managedDelegation: true, delegationRole } : {}), ...(effort === undefined ? {} : { effort }), ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
       // den-mvp/48: for every project the bridge passes in its CLAUDE.md or AGENTS.md as committed at HEAD of the main checkout.
       const guide = project === undefined ? null : readProjectGuide(project.root);
       const guideText = guide === null ? "" : `Project guide (${guide.file}, committed at HEAD):\n\n${guide.text}`;

@@ -4,6 +4,7 @@
 // child the caller already started. The protected execution seam (`authorizeExecution`) must supply the
 // compiled profile and working directory; a fixture returning values proves protocol behavior, never
 // confinement.
+import { DELEGATE_TOOL } from "./orchestration.mjs";
 import { TextDecoder, isDeepStrictEqual } from "node:util";
 import { hasSecret } from "../../../scripts/exposure.mjs";
 import { cleanText } from "../../shared/safe-text.mjs";
@@ -30,11 +31,21 @@ const clipped = (raw) => {
 const CONFIG_KEYS = Object.freeze(["model_verbosity", "model_reasoning_summary"]);
 const safeConfig = (config) => Object.entries(config).every(([key, value]) => CONFIG_KEYS.includes(key) && text(value, 64));
 
+function diagnosticCategory(message) {
+  if (typeof message !== 'string') return 'unknown';
+  if (/app-server socket directory/i.test(message)) return 'native-socket-permissions';
+  if (/failed to (?:refresh|renew)|refresh token/i.test(message)) return 'authentication-refresh';
+  if (/model.*(?:not supported|not found|unavailable|does not exist)/i.test(message)) return 'model-unavailable';
+  if (/failed to load AGENTS\.md/i.test(message)) return 'project-instructions';
+  if (/permission profile/i.test(message)) return 'permission-profile';
+  return 'unknown';
+}
+
 export class CodexProtocolError extends Error {
   constructor(reason) { super(`Codex protocol: ${reason}`); this.name = "CodexProtocolError"; }
 }
 
-export function createCodexProtocol({ write, close: closeTransport = () => {}, authorizeExecution, limits: requested = {} } = {}) {
+export function createCodexProtocol({ write, close: closeTransport = () => {}, authorizeExecution, delegate, limits: requested = {} } = {}) {
   if (typeof write !== "function" || typeof closeTransport !== "function") throw new TypeError("Codex protocol needs a transport writer and closer");
   const limits = { ...DEFAULTS };
   for (const [name, value] of Object.entries(requested)) {
@@ -60,6 +71,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
   const seenTurns = new Set(); // Never evict: an old native identity must never become current again.
   const questions = new Map();
   const earlyEvents = [];
+  const earlyRequests = [];
   const events = [];
   const readers = [];
   const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -73,6 +85,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     for (const question of questions.values()) clearTimeout(question.timer);
     questions.clear();
     earlyEvents.length = 0;
+    earlyRequests.length = 0;
     try { closeTransport(); } catch { /* closing an already-failed transport cannot reopen it */ }
     for (const resolve of readers.splice(0)) resolve({ value: undefined, done: true });
     return closed;
@@ -98,7 +111,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     const requestId = `client-${++sequence}`;
     return new Promise((resolve, reject) => {
       const timer = setTimeout(() => fail("request timed out; outcome is uncertain"), limits.requestTimeoutMs);
-      pending.set(requestId, { resolve, reject, timer });
+      pending.set(requestId, { resolve, reject, timer, method });
       try { send({ id: requestId, method, params }); } catch (err) { reject(err); }
     });
   }
@@ -113,6 +126,13 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
   }
 
   function serverRequest(message) {
+    // A tool call can arrive in the same read as the turn/start acknowledgement, before that acknowledgement names the turn.
+    // Hold it, like the early notifications, and answer it once the turn is known.
+    if (message.method === 'item/tool/call' && startingTurn && !turnId) {
+      if (earlyRequests.length >= limits.events) return fail("early request queue limit reached");
+      earlyRequests.push(message);
+      return;
+    }
     const requestKey = `${typeof message.id}:${message.id}`;
     if (serverIds.has(requestKey) || serverIds.size >= limits.serverRequests) return fail("duplicate server request or request limit reached");
     serverIds.add(requestKey);
@@ -120,6 +140,19 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     // admitted through authorizeExecution instead.
     if (["item/commandExecution/requestApproval", "item/fileChange/requestApproval"].includes(message.method)) {
       send({ id: message.id, result: { decision: "decline" } });
+      return;
+    }
+    if (message.method === 'item/tool/call') {
+      const p = message.params;
+      if (!active(p) || !nativeId(p.callId) || p.tool !== 'delegate' || p.namespace != null || typeof delegate !== 'function' || !object(p.arguments)) return errorReply(message.id, -32602, 'Unsupported or stale managed delegation');
+      emit({ type: 'tool-start', id: p.callId, name: 'delegate', summary: 'bridge-managed delegation' });
+      Promise.resolve().then(() => delegate(p.arguments)).then(result => {
+        if (closed || !active(p)) return;
+        const output = clipped(JSON.stringify(result));
+        send({ id: message.id, result: { success: result.ok === true, contentItems: [{ type: 'inputText', text: output.text }] } });
+        emit({ type: 'tool-result', id: p.callId, ok: result.ok === true, ...output });
+        emit({ type: 'tool-end', id: p.callId });
+      }).catch(() => { if (!closed && active(p)) errorReply(message.id, -32000, 'Managed delegation failed'); });
       return;
     }
     if (message.method !== "item/tool/requestUserInput") return errorReply(message.id, -32601, "Unsupported native request");
@@ -202,7 +235,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     const call = pending.get(message.id);
     pending.delete(message.id);
     clearTimeout(call.timer);
-    if (owns(message, "error")) call.reject(new CodexProtocolError("RPC failed; native diagnostics withheld"));
+    if (owns(message, "error")) call.reject(new CodexProtocolError(`RPC failed during ${call.method} (code ${Number.isSafeInteger(message.error?.code) ? message.error.code : "unknown"}; category ${diagnosticCategory(message.error?.message)}); native diagnostics withheld`));
     else call.resolve(message.result);
   }
 
@@ -284,6 +317,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       if (!(await supportsModel({ model, effort }))) throw new CodexProtocolError("configured model or effort is unavailable; no fallback");
       const response = await rpc(resumeThreadId === undefined ? "thread/start" : "thread/resume", {
         model, cwd: policy.cwd, permissions: policy.profileId, approvalPolicy: "never", approvalsReviewer: "user",
+        ...(resumeThreadId === undefined && typeof delegate === "function" ? { dynamicTools: [{ type: "function", ...DELEGATE_TOOL }] } : {}),
         allowProviderModelFallback: false, multiAgentMode: "explicitRequestOnly",
         ...(policy.config === undefined ? {} : { config: policy.config }),
         ...(policy.developerInstructions === undefined ? {} : { developerInstructions: policy.developerInstructions }),
@@ -305,7 +339,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     try {
       const policy = await authorize({ phase: "turn", ...thread });
       if (policy.profileId !== thread.profileId || policy.cwd !== thread.cwd) throw new CodexProtocolError("turn policy changed; fresh admission is required");
-      const response = await rpc("turn/start", { threadId: thread.id, input: [{ type: "text", text: input }], model: thread.model, effort: thread.effort,
+      const response = await rpc("turn/start", { threadId: thread.id, input: [{ type: "text", text: input }], model: thread.model, effort: thread.effort, serviceTierForTurn: "default",
         cwd: thread.cwd, permissions: thread.profileId, approvalPolicy: "never", approvalsReviewer: "user", multiAgentMode: "explicitRequestOnly" });
       if (!object(response) || !nativeId(response.turn?.id) || !["inProgress", "completed", "failed", "interrupted"].includes(response.turn.status)) throw fail("invalid turn acknowledgement");
       if (seenTurns.has(response.turn.id)) throw fail("reused turn identity");
@@ -314,6 +348,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       endedTurn = null;
       startingTurn = false;
       for (const event of earlyEvents.splice(0)) notification(event.method, event.params);
+      for (const request of earlyRequests.splice(0)) serverRequest(request);
       if (response.turn.status !== "inProgress") notification("turn/completed", { threadId: thread.id, turn: response.turn });
       ensureOpen();
       return response.turn.id;

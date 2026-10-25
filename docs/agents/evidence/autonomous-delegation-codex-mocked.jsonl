@@ -1,0 +1,3 @@
+{"agentId":"c-78b8a8d868088768","parent":null,"runtime":"codex","execution":{"provider":"codex","tier":"standard","model":"gpt-6.1-sol","reasoning":"medium","speed":"standard","reason":"default standard task"},"kind":"lead"}
+{"agentId":"c-0a10a96c934802fb","parent":"c-78b8a8d868088768","runtime":"codex","execution":{"provider":"codex","tier":"standard","model":"gpt-6.1-sol","reasoning":"medium","speed":"standard","reason":"default standard task"},"kind":"manager"}
+{"agentId":"c-983ed6243871b1d8","parent":"c-0a10a96c934802fb","runtime":"codex","execution":{"provider":"codex","tier":"bounded","model":"gpt-6-luna","reasoning":"medium","speed":"standard","reason":"default bounded task"},"kind":"child"}
