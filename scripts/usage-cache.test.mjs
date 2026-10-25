@@ -272,7 +272,7 @@ test("AC4: persistent failure with no cache exits nonzero with a sanitized messa
   }
 });
 
-test("AC5: the statusline makes no network call of its own when the shared cache is fresh", () => {
+test("AC5: the statusline makes no network call and starts no usage.mjs of its own: it shows the snapshot usage.mjs left", () => {
   const h = harness();
   try {
     h.set({ status: 200, body: OK_BODY });
@@ -284,36 +284,26 @@ test("AC5: the statusline makes no network call of its own when the shared cache
       assert.match(s.out, /5h 42%/);
       assert.match(s.out, /wk 10%/);
     }
-    assert.equal(h.calls(), 1, "statusline refreshes must be served from the shared cache");
+    assert.equal(h.calls(), 1, "the status line must not read usage itself (hardening/17)");
   } finally {
     h.cleanup();
   }
 });
 
-test("AC5: repeated statusline refreshes on a cold cache make at most one network call", () => {
-  const h = harness();
-  try {
-    h.set({ status: 200, body: OK_BODY });
-    for (let i = 0; i < 3; i++) assert.match(h.statusline().out, /5h 42%/);
-    assert.equal(h.calls(), 1);
-  } finally {
-    h.cleanup();
-  }
-});
-
-test("AC5: during a 429 cooldown the statusline keeps showing the cached reading and makes no calls", () => {
+test("AC5: during a 429 cooldown the statusline keeps showing the snapshot while it is fresh and makes no calls", () => {
   const h = harness();
   try {
     const env = { USAGE_CACHE_TTL_MS: "0" };
     h.set({ status: 200, body: OK_BODY });
     h.usage(env);
     h.set({ status: 429, headers: { "Retry-After": "600" }, body: {} });
+    h.usage(env); // meets the 429 and writes the cooldown
     for (let i = 0; i < 4; i++) {
       const s = h.statusline(env);
       assert.equal(s.status, 0);
       assert.match(s.out, /5h 42%/, "stale cached reading, not '5h ?'");
     }
-    assert.equal(h.calls(), 2, "one call that met the 429; every later refresh stayed off the network");
+    assert.equal(h.calls(), 2, "one call that met the 429; the status line never reaches the network");
   } finally {
     h.cleanup();
   }

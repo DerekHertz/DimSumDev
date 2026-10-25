@@ -3,17 +3,17 @@
 // stdin and these env seams (no real Claude Code session, network or credentials needed):
 //   DEN_ROOT              board root: .scratch/*/issues/*.lock (in-flight relay) and
 //                              .scratch/_requests/requests.jsonl (pending gate requests)
-//   STATUSLINE_USAGE_SCRIPT    a node script that prints usage JSON like scripts/usage-claude.mjs
-//                              (default scripts/usage.mjs); the ONLY external read
-//   STATUSLINE_CACHE           file caching the usage read; fresh for 60 s by file mtime
-//   STATUSLINE_USAGE_TIMEOUT_MS  bound on the usage read (default is the developer's choice)
+//   rate_limits (stdin)        the documented five_hour / seven_day { used_percentage, resets_at } (hardening/17)
+//   STATUSLINE_CACHE           the usage snapshot file (default ~/.claude/usage-cache.json): written from rate_limits,
+//                              read back for up to 5 minutes when the input carries none
+//   STATUSLINE_USAGE_SCRIPT    a recorder that must never run: the status line no longer starts scripts/usage.mjs
 //   HOME                       ~/.claude/... transcript lookups and the shared context state
 // Output is one line; colour is ANSI yellow (\x1b[33m) / red (\x1b[31m) around the segment.
 // Criterion -> test map: see the "AC" tags in each test name.
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, utimesSync, realpathSync } from "node:fs";
+import fs, { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, existsSync, realpathSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -23,12 +23,14 @@ const SCRIPT = path.join(ROOT, "scripts", "statusline.mjs");
 const ANSI = /\x1b\[[0-9;]*m/g;
 const strip = (s) => s.replace(ANSI, "");
 
-const USAGE = {
-  "5-hour": { percent: 11, resets_at: "2026-10-02T19:59:00.000Z" },
-  weekly: { percent: 51, resets_at: "2026-10-06T00:00:00.000Z" },
-};
+const EPOCH_5H = 1790971140; // 2026-10-02T19:59:00Z
+const EPOCH_WK = 1791244800; // 2026-10-06T00:00:00Z
+const rateLimits = (five = 11, week = 51) => ({
+  five_hour: { used_percentage: five, resets_at: EPOCH_5H },
+  seven_day: { used_percentage: week, resets_at: EPOCH_WK },
+});
 
-function fixture({ usage = USAGE, usageExit = 0, usageHang = false } = {}) {
+function fixture() {
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "statusline-")));
   const home = path.join(dir, "home");
   const root = path.join(dir, "root");
@@ -42,18 +44,17 @@ function fixture({ usage = USAGE, usageExit = 0, usageHang = false } = {}) {
     [
       `import { appendFileSync } from "node:fs";`,
       `appendFileSync(${JSON.stringify(count)}, "x\\n");`,
-      usageHang ? `await new Promise((r) => setTimeout(r, 15000));` : "",
-      usageExit ? `console.error("usage: boom"); process.exit(${usageExit});` : "",
-      `console.log(${JSON.stringify(JSON.stringify(usage))});`,
+      `console.log("{}");`,
     ].join("\n"),
   );
   const cache = path.join(dir, "usage-cache.json");
   return { dir, home, root, count, usageScript, cache };
 }
 
+const snapshot = (f) => JSON.parse(readFileSync(f.cache, "utf8"));
 const calls = (f) => (existsSync(f.count) ? readFileSync(f.count, "utf8").split("\n").filter(Boolean).length : 0);
 
-function input({ tokens = 64_010, session = "sess-1", extra = {} } = {}) {
+function input({ tokens = 64_010, session = "sess-1", rate = rateLimits(), extra = {} } = {}) {
   const ctx =
     tokens === null
       ? { context_window_size: 200000, current_usage: null }
@@ -61,7 +62,7 @@ function input({ tokens = 64_010, session = "sess-1", extra = {} } = {}) {
           context_window_size: 200000,
           current_usage: { input_tokens: 10, output_tokens: 7777, cache_creation_input_tokens: 0, cache_read_input_tokens: tokens - 10 },
         };
-  return { session_id: session, cwd: "/tmp/x", context_window: ctx, ...extra };
+  return { session_id: session, cwd: "/tmp/x", context_window: ctx, ...(rate ? { rate_limits: rate } : {}), ...extra };
 }
 
 function run(f, stdin, env = {}) {
@@ -146,68 +147,125 @@ test("AC2: context at 70k is yellow, at 80k is red with '→ /compact', and just
 });
 
 test("AC2: 5-hour usage is yellow at 80% and red at 90%; weekly follows the same thresholds", () => {
-  const mk = (five, week) => ({ "5-hour": { percent: five, resets_at: "2026-10-02T19:59:00.000Z" }, weekly: { percent: week, resets_at: "2026-10-06T00:00:00.000Z" } });
-  const y = fixture({ usage: mk(80, 10) });
-  assert.match(run(y, input()).stdout, /\x1b\[33m[^\x1b]*5h 80%/);
-
-  const below = fixture({ usage: mk(79, 79) });
-  assert.ok(!/\x1b\[(33|31)m/.test(run(below, input({ tokens: 1000 })).stdout));
-
-  const red = fixture({ usage: mk(90, 10) });
-  assert.match(run(red, input()).stdout, /\x1b\[31m[^\x1b]*5h 90%/);
-
-  const wk = fixture({ usage: mk(10, 91) });
-  assert.match(run(wk, input()).stdout, /\x1b\[31m[^\x1b]*wk 91%/);
+  assert.match(run(fixture(), input({ rate: rateLimits(80, 10) })).stdout, /\x1b\[33m[^\x1b]*5h 80%/);
+  assert.ok(!/\x1b\[(33|31)m/.test(run(fixture(), input({ tokens: 1000, rate: rateLimits(79, 79) })).stdout));
+  assert.match(run(fixture(), input({ rate: rateLimits(90, 10) })).stdout, /\x1b\[31m[^\x1b]*5h 90%/);
+  assert.match(run(fixture(), input({ rate: rateLimits(10, 91) })).stdout, /\x1b\[31m[^\x1b]*wk 91%/);
 });
 
-test("AC3: the usage read is cached on disk: a second run within 60 s does not call the usage script", () => {
+const writeSnapshot = (f, snap) => writeFileSync(f.cache, JSON.stringify(snap));
+const OLD = { "5-hour": { percent: 32, resets_at: "2026-10-02T19:59:00.000Z" }, weekly: { percent: 44, resets_at: "2026-10-06T00:00:00.000Z" } };
+
+test("17-AC1: with rate_limits in the input the snapshot holds both windows, their reset times and a timestamp", () => {
   const f = fixture();
-  const first = run(f, input());
-  assert.equal(calls(f), 1);
-  const second = run(f, input());
-  assert.equal(calls(f), 1, "warm cache must not re-read usage");
-  assert.equal(second.text, first.text);
-  assert.ok(existsSync(f.cache));
-});
-
-test("AC3: a cache older than 60 s (by mtime) is refreshed", () => {
-  const f = fixture();
-  run(f, input());
-  const old = Date.now() / 1000 - 120;
-  utimesSync(f.cache, old, old);
-  run(f, input());
-  assert.equal(calls(f), 2);
-});
-
-test("AC3: a failing usage read prints '5h ?' and still exits 0 with the rest of the line", () => {
-  const f = fixture({ usageExit: 1 });
-  lock(f, "123-demo.lock", "qa 2026-10-02T17:13:04.772Z verify");
+  const before = Date.now();
   const r = run(f, input());
   assert.equal(r.status, 0, r.stderr);
-  assert.ok(r.text.includes("5h ?"), r.text);
-  assert.ok(r.text.includes("ctx 64k/80k"), r.text);
-  assert.ok(r.text.includes("123: qa verify"), r.text);
-  assert.ok(r.text.includes("gates 0"), r.text);
+  const snap = snapshot(f);
+  assert.ok(snap.at >= before && snap.at <= Date.now(), `at ${snap.at}`);
+  assert.deepEqual(snap.windows, {
+    "5-hour": { percent: 11, resets_at: "2026-10-02T19:59:00.000Z" },
+    weekly: { percent: 51, resets_at: "2026-10-06T00:00:00.000Z" },
+  });
 });
 
-test("AC3: a hanging usage read is cut off by STATUSLINE_USAGE_TIMEOUT_MS and prints '5h ?'", () => {
-  const f = fixture({ usageHang: true });
-  const r = run(f, input(), { STATUSLINE_USAGE_TIMEOUT_MS: "300" });
-  assert.equal(r.status, 0, r.stderr);
-  assert.ok(r.text.includes("5h ?"), r.text);
-  assert.ok(r.ms < 5000, `took ${r.ms} ms`);
-});
-
-test("AC4: a warm-cache run finishes in under 300 ms (best of 5)", () => {
+test("17-AC1: without rate_limits the snapshot does not claim a reading, and the line says '5h ?' / 'wk ?'", () => {
   const f = fixture();
-  const cold = run(f, input()); // warm the cache
-  assert.equal(cold.status, 0, cold.stderr);
+  const r = run(f, input({ rate: null }));
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(!existsSync(f.cache), "no snapshot file may be written without a reading");
+  assert.ok(r.text.startsWith("5h ? · wk ? · "), r.text);
+});
+
+test("17-AC1: a window absent from the input is absent from the snapshot, never guessed; zero is a reading", () => {
+  const f = fixture();
+  const r = run(f, input({ rate: { five_hour: { used_percentage: 0, resets_at: EPOCH_5H } } }));
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(Object.keys(snapshot(f).windows), ["5-hour"]);
+  assert.equal(snapshot(f).windows["5-hour"].percent, 0);
+  assert.ok(r.text.startsWith("5h 0% → 19:59Z · wk ? · "), r.text);
+});
+
+test("17-AC1: a window with no usable percentage is treated as absent", () => {
+  const f = fixture();
+  const r = run(f, input({ rate: { five_hour: { used_percentage: "lots", resets_at: EPOCH_5H }, seven_day: { used_percentage: null } } }));
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(!existsSync(f.cache));
+  assert.ok(r.text.startsWith("5h ? · wk ? · "), r.text);
+});
+
+test("17-AC1: resets_at as epoch seconds, epoch milliseconds or an ISO string all land as one ISO string", () => {
+  for (const at of [EPOCH_5H, EPOCH_5H * 1000, "2026-10-02T19:59:00Z"]) {
+    const f = fixture();
+    run(f, input({ rate: { five_hour: { used_percentage: 11, resets_at: at } } }));
+    assert.equal(snapshot(f).windows["5-hour"].resets_at, "2026-10-02T19:59:00.000Z", String(at));
+  }
+});
+
+test("17-AC1: a missing resets_at keeps the percentage and stores no reset time", () => {
+  const f = fixture();
+  const r = run(f, input({ rate: { five_hour: { used_percentage: 12 } } }));
+  assert.equal(snapshot(f).windows["5-hour"].percent, 12);
+  assert.equal(snapshot(f).windows["5-hour"].resets_at, null);
+  assert.ok(r.text.startsWith("5h 12% · wk ? · "), r.text);
+});
+
+test("17-AC1: writing keeps the cooldown_until that scripts/usage-claude.mjs keeps, and leaves no temp file behind", () => {
+  const f = fixture();
+  writeSnapshot(f, { at: Date.now() - 1000, windows: OLD, cooldown_until: 4_000_000_000_000 });
+  run(f, input());
+  const snap = snapshot(f);
+  assert.equal(snap.cooldown_until, 4_000_000_000_000);
+  assert.equal(snap.windows["5-hour"].percent, 11);
+  assert.deepEqual(readdirSync(path.dirname(f.cache)).filter((n) => n.startsWith("usage-cache.json")), ["usage-cache.json"]);
+});
+
+test("17-AC1: an input without rate_limits does not clobber a snapshot written a minute ago, and the line shows it", () => {
+  const f = fixture();
+  const snap = { at: Date.now() - 60_000, windows: OLD, cooldown_until: 0 };
+  writeSnapshot(f, snap);
+  const r = run(f, input({ rate: null }));
+  assert.ok(r.text.startsWith("5h 32% → 19:59Z · wk 44% · "), r.text);
+  assert.deepEqual(snapshot(f), snap);
+});
+
+test("17-AC1: a snapshot older than 5 minutes is not shown: '5h ?' / 'wk ?', file untouched", () => {
+  const f = fixture();
+  const snap = { at: Date.now() - 6 * 60_000, windows: OLD, cooldown_until: 0 };
+  writeSnapshot(f, snap);
+  const r = run(f, input({ rate: null }));
+  assert.ok(r.text.startsWith("5h ? · wk ? · "), r.text);
+  assert.deepEqual(snapshot(f), snap);
+});
+
+test("17-AC1: a corrupt snapshot file is no reading and does not break the line", () => {
+  const f = fixture();
+  writeFileSync(f.cache, "{not json");
+  const r = run(f, input({ rate: null }));
+  assert.equal(r.status, 0, r.stderr);
+  assert.ok(r.text.startsWith("5h ? · wk ? · "), r.text);
+});
+
+test("17-AC3: the status line never starts scripts/usage.mjs: not with a reading, not without one, not with a stale snapshot", () => {
+  const f = fixture();
+  run(f, input());
+  run(f, input({ rate: null }));
+  fs.rmSync(f.cache);
+  run(f, input({ rate: null }));
+  writeSnapshot(f, { at: Date.now() - 3_600_000, windows: OLD, cooldown_until: 0 });
+  run(f, input({ rate: null }));
+  assert.equal(calls(f), 0, "STATUSLINE_USAGE_SCRIPT must not run");
+  const src = readFileSync(SCRIPT, "utf8");
+  assert.ok(!/usage\.mjs|runUsage|defaultUsageScript|STATUSLINE_USAGE_SCRIPT/.test(src), "statusline.mjs still names the usage script");
+});
+
+test("AC4: a run with a warm snapshot finishes in under 300 ms (best of 5)", () => {
+  const f = fixture();
   const runs = Array.from({ length: 5 }, () => run(f, input()));
   for (const r of runs) {
     assert.equal(r.status, 0, r.stderr);
     assert.ok(r.text.includes("5h 11%"), r.text);
   }
-  assert.equal(calls(f), 1, "the timed runs must be warm-cache runs");
   const best = Math.min(...runs.map((r) => r.ms));
   assert.ok(best < 300, `best warm run ${best.toFixed(0)} ms`);
 });
@@ -232,6 +290,14 @@ test("AC5-input: without current_usage it falls back to the last assistant usage
   const r = run(f, input({ tokens: null, extra: { transcript_path: tx } }));
   assert.equal(r.status, 0, r.stderr);
   assert.ok(r.text.includes("ctx 47k/80k"), r.text);
+});
+
+test("17-ctx: with no current_usage, context_window.used_percentage of the window size is the ctx reading; current_usage still wins", () => {
+  const f = fixture();
+  const pctOnly = { context_window_size: 200000, current_usage: null, used_percentage: 25 };
+  assert.ok(run(f, input({ tokens: null, extra: { context_window: pctOnly } })).text.includes("ctx 50k/80k"));
+  const both = { ...pctOnly, current_usage: { input_tokens: 10_000, cache_creation_input_tokens: 0, cache_read_input_tokens: 0 } };
+  assert.ok(run(f, input({ tokens: null, extra: { context_window: both } })).text.includes("ctx 10k/80k"));
 });
 
 test("AC5-input: no context numbers anywhere prints 'ctx ?' and exits 0", () => {
