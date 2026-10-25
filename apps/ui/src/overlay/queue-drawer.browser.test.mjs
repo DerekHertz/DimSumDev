@@ -32,7 +32,7 @@ const snapshot = {
   capacity: { max: 2, cap: 8, load: 0, live: 0, room: 2, refs: [], reserved: { bao: { max: 1, refs: [] }, scout: { max: 1, refs: [] } } },
 };
 
-async function open({ width = 1280 } = {}) {
+async function open({ width = 1280, state = snapshot } = {}) {
   const server = await createServer({ configFile: 'apps/ui/vite.config.mjs', configLoader: 'native', server: { port: 0, host: '127.0.0.1' }, logLevel: 'silent' });
   await server.listen();
   const browser = await chromium.launch(buildLaunchOptions());
@@ -41,8 +41,8 @@ async function open({ width = 1280 } = {}) {
   const page = await context.newPage();
   const errors = [];
   page.on('pageerror', (e) => errors.push(e.message));
-  await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(snapshot)}\n\n` }));
-  await page.route('**/state', (r) => r.fulfill({ json: snapshot }));
+  await page.route('**/events', (r) => r.fulfill({ contentType: 'text/event-stream', body: `event: snapshot\ndata: ${JSON.stringify(state)}\n\n` }));
+  await page.route('**/state', (r) => r.fulfill({ json: state }));
   await page.route('**/metrics', (r) => r.fulfill({ json: { throughput: { windows: [] }, tokensByRole: {}, incidentsByTool: {} } }));
   await page.goto(server.resolvedUrls.local[0]);
   await page.waitForFunction(() => document.querySelector('.den-entry button')?.getAttribute('aria-disabled') !== 'true');
@@ -97,6 +97,38 @@ test('the queue drawer at 375px fits the screen', { timeout: 90000 }, async () =
     assert.ok(box.x >= 0 && box.x + box.width <= 375.5, `the drawer is inside the screen (${box.x} + ${box.width})`);
     assert.equal(await t.page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth), true, 'no sideways scroll');
     await shot(t.page, 'queue-375.png');
+  } finally {
+    await t.close();
+  }
+});
+
+test('the queue list scrolls inside the sheet while the header stays put', { timeout: 90000 }, async () => {
+  const many = Array.from({ length: 60 }, (_, i) => ticket(`den-mvp/${100 + i}-filler`, { name: `Filler ${i}`, goal: 'routing' }));
+  const t = await open({ state: { ...snapshot, tickets: [...snapshot.tickets, ...many] } });
+  try {
+    const { page } = t;
+    await page.locator('[data-rail=queue]').click();
+    const drawer = page.locator('#queue-drawer');
+    await drawer.waitFor({ state: 'visible' });
+    const body = drawer.locator('.queue-body');
+    const m = await body.evaluate((el) => ({ scroll: el.scrollHeight, client: el.clientHeight, overflowY: getComputedStyle(el).overflowY, overscroll: getComputedStyle(el).overscrollBehaviorY }));
+    assert.ok(m.scroll > m.client, `the list overflows its region (${m.scroll} > ${m.client})`);
+    assert.equal(m.overflowY, 'auto', 'the list region is the scroll container');
+    assert.equal(m.overscroll, 'contain', 'wheel at the end does not chain to the scene');
+    const headTop = await page.locator('#sheet-topic').boundingBox();
+    await body.hover();
+    await page.mouse.wheel(0, 400);
+    await page.waitForFunction(() => document.querySelector('#queue-drawer .queue-body').scrollTop > 0);
+    assert.equal(await page.evaluate(() => document.querySelector('.den-sheet').scrollTop), 0, 'the sheet itself never scrolls');
+    assert.equal((await page.locator('#sheet-topic').boundingBox()).y, headTop.y, 'the header stays pinned');
+    await body.evaluate((el) => { el.scrollTop = el.scrollHeight; });
+    const last = await body.evaluate((el) => {
+      const rows = el.getBoundingClientRect();
+      const lastEl = el.lastElementChild.getBoundingClientRect();
+      return rows.bottom - lastEl.bottom;
+    });
+    assert.ok(last >= 16 - 0.5, `the last card clears the bottom edge by 16px (${last})`);
+    assert.deepEqual(t.errors, []);
   } finally {
     await t.close();
   }
