@@ -1,0 +1,9 @@
+{
+  "name": "den",
+  "steps": [
+    { "goto": "/#code={launchCode}" },
+    { "click": "[data-rail=work]" },
+    { "waitFor": "[data-overlay=teams] .queue-row" },
+    { "screenshot": "work-queue" }
+  ]
+}

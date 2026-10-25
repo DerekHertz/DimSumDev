@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>verifier fixture: good</title>
+</head>
+<body>
+  <h1>Good page</h1>
+  <input id="name" />
+  <button id="add" type="button">Add</button>
+  <p id="result"></p>
+  <script>
+    document.getElementById("add").addEventListener("click", async () => {
+      const data = await (await fetch("/apps/ci-cd/fixtures/verifier/data.json")).json();
+      document.getElementById("result").textContent = `${data.greeting}, ${document.getElementById("name").value}`;
+    });
+  </script>
+</body>
+</html>

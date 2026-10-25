@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: "Compact the current work into a handoff for the next agent. Use at the end of every agent's task (hand off and exit), or when the user asks."
+description: "Compact the current work into a handoff for the next agent. Use at the end of every agent's task, or when the user asks."
 argument-hint: "What will the next agent be used for?"
 ---
 

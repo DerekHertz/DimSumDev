@@ -1,6 +1,6 @@
 ---
 name: usage-watch
-description: "Check plan usage before a dispatch or merge decision and wind work down before the limit. At 90% or more of the 5-hour window, wrap up."
+description: "Check plan usage before a dispatch or merge decision. At 90% or more of the 5-hour window, wrap up."
 ---
 
 ## Codex sessions

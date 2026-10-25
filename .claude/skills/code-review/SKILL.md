@@ -1,6 +1,6 @@
 ---
 name: code-review
-description: "Review changes since a fixed point on two axes, Standards and Spec, in parallel sub-agents, reported side by side. Use to review a branch, PR or work in progress."
+description: "Review changes since a fixed point on two axes, Standards and Spec, in parallel sub-agents. Use to review a branch, PR or work in progress."
 ---
 
 Two-axis review of the diff between `HEAD` and a fixed point the user supplies:

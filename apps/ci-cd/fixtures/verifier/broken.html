@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>verifier fixture: broken</title>
+</head>
+<body>
+  <h1>Broken page</h1>
+  <button id="boom" type="button">Boom</button>
+  <button id="load" type="button">Load</button>
+  <script>
+    document.getElementById("boom").addEventListener("click", () => {
+      throw new Error("boom from fixture");
+    });
+    document.getElementById("load").addEventListener("click", () => {
+      fetch("/apps/ci-cd/fixtures/verifier/missing.json").catch(() => {});
+      fetch("http://127.0.0.1:9/dead").catch(() => {});
+    });
+  </script>
+</body>
+</html>

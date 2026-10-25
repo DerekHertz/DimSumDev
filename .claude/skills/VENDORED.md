@@ -36,6 +36,7 @@ Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with 
 | code-review | **adapted** | Adds a Pro token-budget note (sonnet sub-agents, diff command not pasted, current ticket only). Points at `docs/agents/issue-tracker.md`, not the upstream setup command (hardening/02). |
 | team-protocol | **new** | Shared agent rules: board, claims, gates, hand off and exit, token hygiene. |
 | asset-critique | **new** | Visual critique rounds for rigged glb assets; `scripts/measure-glb.mjs` measures per-bone proportions. |
+| browser-verify | **new** | Drives the den in a real browser with `npm run verify:ui` (trust-ladder/02); returns screenshots, errors, a perf trace and findings with repro steps. |
 
 ### Merged since the pin (2026-10-22)
 
@@ -57,7 +58,7 @@ Source: https://github.com/cursor/plugins, folder `pstack/` (MIT, Lauren Tan / p
 | no-comments | **adapted** | The `comment-sicko` agent and its `how`/`why`/`architect` dependencies are folded into one self-contained skill. | developer, before committing a large diff |
 | (ideas, not files) | folded | `team-protocol` lines (fresh subagent per round, idempotent retries, prove it by running) and qa's blast-radius step (den-mvp/90) | all roles |
 
-Descriptions of the adopted skills, and of `code-review`, `automate-me`, `asset-critique`, `pipeline-retro` and `to-tickets`, were shortened so every Codex role stays under its 16 KB preload budget (the Codex test counts all skill descriptions).
+Descriptions of the adopted skills, and of `code-review`, `automate-me`, `asset-critique`, `browser-verify`, `pipeline-retro` and `to-tickets`, were shortened so every Codex role stays under its 16 KB preload budget (the Codex test counts all skill descriptions).
 
 Not taken: the other 36 pstack skills (the `principle-*` set beyond the two above, `poteto-mode`, `statechart`, `swarm`, `arena` and the rest).
 
