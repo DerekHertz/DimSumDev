@@ -3,14 +3,17 @@
 import { compareRefs } from "../../../../packages/board-refs/src/compare-refs.mjs";
 import { needsYouModel, shortRef } from "./overlay-model.mjs";
 
+const OFF_RELAY = new Set(["resolved", "closed", "parked"]);
 const YOU = new Set(["ready-for-human", "needs-triage", "needs-design"]);
 const MAX_DEPTH = 3;
 const NEXT_MAX = 2;
 
 export function queueDrawerModel(snapshot, nowMs) {
-  const tickets = snapshot?.tickets ?? [];
-  const byRef = new Map(tickets.map((t) => [t.ref, t]));
-  const openBlockers = (t) => (t.blockedBy ?? []).map((b) => b.ref).filter((ref) => byRef.has(ref));
+  const all = snapshot?.tickets ?? [];
+  const tickets = all.filter(t => !OFF_RELAY.has(t.status));
+  const byRef = new Map(all.map((t) => [t.ref, t]));
+  const openBlockers = (t) => (t?.blockedBy ?? [])
+    .filter(b => !OFF_RELAY.has(byRef.get(b.ref)?.status ?? b.status)).map(b => b.ref);
   const depths = new Map();
   const depthOf = (ref, seen = new Set()) => {
     if (depths.has(ref)) return depths.get(ref);

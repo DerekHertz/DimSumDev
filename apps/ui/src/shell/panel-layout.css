@@ -1,0 +1,122 @@
+.forest-shell {
+  --panel-padding: 24px;
+  --panel-gap: 24px;
+  --row-gap: 12px;
+  --card-padding: 20px;
+}
+.den-shell { --rail-w: 64px; }
+.forest-shell.den-shell { --bar-h: 64px; }
+.forest-shell .den-bar { padding: 8px 16px; }
+.forest-shell .den-bar-talk { height: 44px; min-height: 44px; padding: 6px 16px; font-weight: 600; }
+.forest-shell .den-sheet-wide { width: min(760px, calc(100% - 2 * var(--space-3))); }
+.forest-shell .den-sheet-head { padding: var(--panel-padding); gap: var(--row-gap); }
+.forest-shell .den-sheet-body { padding: var(--panel-padding); }
+.forest-shell .den-meeting-sheet .den-sheet-body { padding: 0; }
+.forest-shell .meeting-workspace { flex: 1 0 auto; }
+.forest-shell .meeting-columns { flex: 1 0 320px; min-height: 320px; }
+.forest-shell .den-sheet :is(.card-in-sheet, .queue-drawer) { border: 0 !important; background: none !important; box-shadow: none; padding: 0; }
+.forest-shell .den-sheet :is(.card-in-sheet, .queue-drawer)::before,
+.forest-shell .den-sheet :is(.card-in-sheet, .queue-drawer)::after { display: none; }
+.forest-shell .den-sheet .card-body { gap: var(--row-gap); font-size: 14px; line-height: 1.6; }
+.den-sheet-body :is(p, h3, h4, small, label, code, pre) { overflow-wrap: anywhere; }
+.forest-shell .den-sheet :is(button, input:not([type="checkbox"]):not([type="radio"]), select) { min-height: 44px; }
+.forest-shell .den-sheet :is(input:not([type="checkbox"]):not([type="radio"]), textarea, select) {
+  box-sizing: border-box; max-width: 100%; min-width: 0; padding: 10px 12px;
+  border: 1px solid var(--line-strong); border-radius: 12px;
+  background: var(--surface-100); color: var(--ink); font: inherit;
+}
+.forest-shell .den-sheet-close { width: 44px; height: 44px; padding: 0; }
+.forest-shell .den-sheet :is(.decision-buttons, .gate-actions, .run-actions, .deliver-actions) { flex-wrap: wrap; gap: var(--row-gap); }
+.forest-shell .den-sheet .needs-head { align-items: flex-start; gap: var(--row-gap); }
+.forest-shell .den-sheet .needs-title { font-size: 17px; line-height: 1.45; margin-top: 8px; }
+.forest-shell .den-sheet .needs-reason { line-height: 1.65; }
+.forest-shell .den-sheet .code-well { padding: 14px; max-height: 240px; overflow: auto; white-space: pre-wrap; }
+.forest-shell .den-sheet :is(.needs-list, .queue-rows, .library-list) { display: flex; flex-direction: column; gap: var(--row-gap); }
+.forest-shell .den-sheet :is(.queue-row, .library-row) { padding: 14px; min-width: 0; }
+.forest-shell .den-sheet .queue-body { padding: 0; gap: var(--panel-gap); overflow: visible; }
+.forest-shell .den-sheet .queue-goals { display: flex; flex-direction: column; gap: var(--row-gap); }
+.forest-shell .den-sheet .queue-goal-head { padding: var(--card-padding); gap: var(--row-gap); grid-template-columns: minmax(0, 1fr); }
+.forest-shell .den-sheet :is(.queue-goal-head, .queue-ticket-row, .queue-need) {
+  border: 1px solid var(--line) !important; border-radius: 12px;
+  background: var(--glass-reading) !important; box-shadow: none;
+}
+.forest-shell .den-sheet :is(.queue-goal-head, .queue-ticket-row, .queue-need)::before,
+.forest-shell .den-sheet :is(.queue-goal-head, .queue-ticket-row, .queue-need)::after { display: none; }
+.forest-shell .den-sheet :is(.queue-goal-head, .queue-ticket-row, .queue-need):hover { background: var(--surface-300) !important; }
+.forest-shell .den-sheet .queue-goal { border-radius: 14px; padding: 8px; }
+.forest-shell .den-sheet :is(.queue-goal-why, .queue-bar) { grid-column: 1 / -1; }
+.forest-shell .den-sheet .queue-goal-count { justify-self: start; white-space: normal; }
+.forest-shell .den-sheet .queue-tickets { padding: 0 12px 16px; }
+.forest-shell .den-sheet .queue-ticket-row { padding: 16px; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "ref state" "title title" "waits waits"; gap: 8px 12px; }
+.forest-shell .den-sheet .queue-ticket-ref { grid-area: ref; }
+.forest-shell .den-sheet .queue-state { grid-area: state; justify-self: end; align-self: start; }
+.forest-shell .den-sheet .queue-waits { grid-area: waits; }
+.forest-shell .den-sheet .queue-ticket-title { grid-area: title; white-space: normal; overflow-wrap: anywhere; }
+.forest-shell .den-sheet .queue-ticket-actions { padding: 0 12px 12px; gap: var(--row-gap); }
+.forest-shell .den-sheet .queue-need { padding: 12px; overflow-wrap: anywhere; }
+.forest-shell .den-sheet .queue-need-text { white-space: normal; line-height: 1.5; font-weight: 500; }
+.queue-needs-summary > summary { cursor: pointer; padding: 12px 0; font-weight: 600; }
+.queue-needs-summary > button { margin: 4px 0 12px; }
+.forest-shell .den-sheet .library-rows.queue-rows-scroll { max-height: none; }
+.forest-shell .meeting-history-filters { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--row-gap); margin: 12px 0 var(--panel-gap); }
+.meeting-history-filters > :first-child, .meeting-history-filters > :last-child { grid-column: 1 / -1; }
+.forest-shell .meeting-history-filters :is(input, select) { width: 100%; }
+.meeting-history { display: flex; flex-direction: column; gap: var(--row-gap); }
+.forest-shell .meeting-history-row { padding: var(--card-padding); display: flex; flex-direction: column; gap: var(--row-gap); min-width: 0; }
+.meeting-history-row > p { margin: 0; }
+.meeting-history-row > small { line-height: 1.6; overflow-wrap: anywhere; }
+.meeting-history-summary { max-width: 100%; }
+.meeting-history-summary > summary { cursor: pointer; padding: 8px 0; color: var(--qi); }
+.meeting-history-summary .agent-md { max-height: 320px; overflow: auto; padding: 0 8px 0 0; }
+.forest-shell .meeting-history + button { margin-top: var(--panel-gap); }
+.forest-shell .den-rail-list { padding: 0 8px; gap: 8px; }
+.forest-shell .den-rail { scrollbar-width: none; }
+.forest-shell .den-rail::-webkit-scrollbar { display: none; }
+.forest-shell .den-rail-entry { padding: 0 10px; min-width: 44px; }
+.forest-shell .den-rail:not(.is-expanded) .den-rail-entry { justify-content: center; padding: 0; }
+.forest-shell .den-rail-badge { left: auto; right: 0; top: 0; max-width: 32px; padding: 0 3px; }
+.forest-shell .den-rail-dot { left: auto; right: 3px; top: 4px; }
+.forest-shell .den-rail-entry::after { display: none; }
+@keyframes den-icon-bubble {
+  0%, 100% { transform: translate(0, 0) rotate(-.4deg); border-radius: 48% 52% 49% 51%; }
+  33% { transform: translate(.8px, -1.5px) rotate(.5deg); border-radius: 52% 48% 51% 49%; }
+  66% { transform: translate(-.8px, -.5px) rotate(-.2deg); border-radius: 49% 51% 47% 53%; }
+}
+@keyframes den-icon-surface {
+  0%, 100% { border-radius: 48% 52% 49% 51%; }
+  33% { border-radius: 52% 48% 51% 49%; }
+  66% { border-radius: 49% 51% 47% 53%; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry { animation: den-icon-surface var(--bubble-period, 6.4s) ease-in-out var(--bubble-delay, -1s) infinite; }
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry::before,
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry .den-rail-icon { animation: den-icon-bubble var(--bubble-period, 6.4s) ease-in-out var(--bubble-delay, -1s) infinite; }
+  .den-rail-list > li:nth-child(3n + 1) { --bubble-period: 5.8s; --bubble-delay: -2.3s; }
+  .den-rail-list > li:nth-child(3n + 2) { --bubble-period: 7.1s; --bubble-delay: -4.7s; }
+  .den-rail-list > li:nth-child(3n) { --bubble-period: 6.6s; --bubble-delay: -1.4s; }
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry:is(:hover, :focus-visible, :active),
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry:is(:hover, :focus-visible, :active)::before,
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry:is(:hover, :focus-visible, :active) .den-rail-icon { animation: none; transform: none; }
+}
+.den-rail-tooltip { position: fixed; z-index: 100; pointer-events: none; padding: 8px 12px; border-radius: 10px; background: var(--ink, #344b35); color: var(--surface-200, #fffef9); font: 13px/1.4 "Segoe UI", system-ui, sans-serif; max-width: 240px; }
+.forest-shell .forest-legend { gap: 12px; padding: 10px 14px; max-width: calc(100% - 32px); box-sizing: border-box; }
+.forest-legend > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.forest-legend > span + span { padding-left: 12px; border-left: 1px solid var(--line-strong); }
+.forest-shell .meeting-feed { top: 80px; }
+.den-scene-controls { position: absolute; bottom: var(--space-3); left: var(--space-3); z-index: 4; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: calc(100% - 32px); pointer-events: none; }
+.den-scene-controls .den-camera-controls { position: static; max-width: 100%; pointer-events: auto; }
+.forest-shell .scene-activity { position: relative; pointer-events: auto; width: min(320px, 100%); box-sizing: border-box; padding: 12px 16px; font: 12px/1.6 var(--font-sans); }
+.scene-activity > summary { cursor: pointer; overflow-wrap: anywhere; }
+.scene-activity ul { list-style: none; max-height: min(240px, 35vh); overflow-y: auto; margin: 12px 0 0; padding: 0 4px 0 0; }
+.forest-shell .scene-activity button { width: 100%; display: flex; flex-direction: column; align-items: flex-start; text-align: left; padding: 10px 14px; margin: 4px 0; min-height: 44px; overflow-wrap: anywhere; }
+.scene-activity button > small { color: var(--ink-muted); }
+@media (max-width: 640px) {
+  .forest-shell { --panel-padding: 18px; --card-padding: 16px; }
+  .den-shell { --rail-w: 56px; }
+  .forest-shell .den-rail-list { padding: 0 4px; }
+  .forest-shell .den-rail.is-expanded .den-rail-entry { justify-content: center; padding: 0; }
+  .forest-shell .den-rail.is-expanded .den-rail-badge { position: absolute; right: 0; top: 0; }
+  .forest-shell .meeting-history-filters { grid-template-columns: minmax(0, 1fr); }
+  .forest-shell .forest-legend { gap: 8px 12px; font-size: 11px; }
+  .forest-shell .meeting-feed { top: 112px; }
+}

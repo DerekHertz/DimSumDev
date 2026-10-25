@@ -49,6 +49,10 @@ export function QueueDrawer({ snapshot, now, open, onClose, onOpenNeeds, onOpenT
         <section aria-label="Needs you">
           <p className="ov">Needs you</p>
           {model.needs.length === 0 ? <p className="muted small">Nothing waits on you.</p> : (
+            <div className="queue-requests">
+            <button type="button" className="btn" onClick={onOpenNeeds}>Review {model.needs.length} waiting {model.needs.length === 1 ? 'request' : 'requests'}</button>
+            <details className="queue-needs-summary">
+            <summary>Show request list</summary>
             <ul className="queue-needs">
               {model.needs.map((n) => (
                 <li key={n.key}>
@@ -59,6 +63,8 @@ export function QueueDrawer({ snapshot, now, open, onClose, onOpenNeeds, onOpenT
                 </li>
               ))}
             </ul>
+            </details>
+            </div>
           )}
         </section>
         <section aria-label="Goals">

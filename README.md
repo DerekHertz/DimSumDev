@@ -24,10 +24,10 @@ and show up as animal residents in a 3D bamboo garden, so you can see who is doi
 npm ci && npm run ui    # then open http://127.0.0.1:4317/?demo=den
 ```
 
-[![DimSumDev: a living world for your AI dev team, showing the global garden view and your desk](docs/images/dimsumdev-preview.png)](docs/videos/dimsumdev-linkedin.mp4)
+![DimSumDev: the garden and Queue in the near-black glass interface](docs/images/dimsumdev-preview.png)
 
 
-*Captured from the running app in Demo mode (`?demo=den`). The preview uses the demo's recorded and staged events; steering actions are disabled.*
+*Screenshots and GIFs show the current app with built-in demo/sample work (`?demo=den`). Counts and events are illustrative, not production metrics; steering actions are disabled.*
 
 </div>
 
@@ -35,14 +35,14 @@ npm ci && npm run ui    # then open http://127.0.0.1:4317/?demo=den
 
 ## What it is
 
-- **A team, not a swarm.** Fourteen roles, each a Claude Code agent running one ticket in its own git worktree. A role is a markdown file in `.claude/agents/` that fixes its model, tools, skills and done criteria. Bao, the orchestrator, sits at the root; Sonnet managers do the work under it; Haiku runners (`runner`, `scout`) do checkable leaf work and start no agent.
+- **A team, not a swarm.** Twelve continuing roles, each working one ticket in its own git worktree. Role definitions fix the model, tools, skills and done criteria. Bao and Jiao share the chief-of-staff role at the root; runners do checkable leaf work and start no agent ([resident inventory](apps/ui/src/shell/resident-inventory.mjs), [team charter](docs/agents/team-charter.md)).
 - **A kitchen, roughly.** Roles sit at teams named for a dim sum kitchen ([team charter](docs/agents/team-charter.md)):
-  - **The Pass** (`orchestrator`, `product`, `architect`, `release-manager`) decides, specs, designs and ships.
-  - **Steamers** (`developer`, `scout`, `runner`) build and dig.
+  - **The Pass** (`chief-of-staff`, `product`, `architect`, `release-manager`) decides, specs, designs and ships.
+  - **Steamers** (`developer`, `runner`) build and dig.
   - **Tea & Pantry** (`code-reviewer`, `qa`, `security`, `sre`) review, test, guard and watch the den's health.
-  - **Front of House** (`designer`, `technical-writer`, `herald`) keeps things looking right, keeps the docs true and drafts public posts for you to publish.
+  - **Front of House** (`designer`, `technical-writer`) keeps things looking right, keeps the docs true and drafts public posts for you to publish.
 
-  `orchestrator`, `herald` and `scout` are retiring into Bao and Jiao (a second executive, on Codex), the technical writer and the runner.
+  The former orchestrator, herald and scout responsibilities now belong to the chief of staff, technical writer and runner.
 - **Independent review on every code ticket.** The developer writes failing tests and then the change, and never reviews its own work. A code reviewer reads the diff while qa checks the behaviour at the same commit, a risk check decides whether security joins, and the release manager's steps open the PR and merge on green CI ([ADR 0029](docs/adr/0029-team-charter-and-the-task-tree.md)).
 - **Gates you can't miss.** Agents stop before adding a dependency, or editing an ADR, `CLAUDE.md` or their own role files, and a change to the bridge, a guardrail or CI is yours to merge. You approve a ticket once; the relay runs end to end and only comes back for a visual verdict, an open scope question, a ticket that failed twice, an environment problem, usage at 90%, or a red merge.
 - **A board you can diff.** Tickets are markdown under `.scratch/`, claimed with lock files and handed off through a `board` CLI ([ADR 0003](docs/adr/0003-local-file-board.md), [ADR 0008](docs/adr/0008-board-service.md)). No database, no hosted service.
@@ -51,7 +51,7 @@ npm ci && npm run ui    # then open http://127.0.0.1:4317/?demo=den
 - **More than one project.** The den works for other repos too, like an agency: `npm run den:project -- add <slug> <path>` onboards one with its own board and queue, and you pick the active project in the den ([ADR 0021](docs/adr/0021-agent-wall-grants-and-the-bridge-as-kernel.md)).
 - **Cheap decisions, proved before used.** Small routine choices can go to Jev, a typed-decision model, from the bridge. A use case goes live only after a labelled eval of its real job passes, and every live call logs the rule-based decision beside it for comparison ([ADR 0010](docs/adr/0010-jev-precheck-tier-and-verify-depth.md), Amendment 3).
 
-The garden shows **24 resident identities with permanent desks**: 22 specialists at team desks, plus Bao and Jiao at separate desks in the jade executive pavilion. Each keeps its owned desk while away. The office has independently reserved visitor places for each executive, with a center aisle for meeting travel. Team still lists **32 role and runtime profiles**; this scene change does not retire callable roles or enable Codex dispatch ([placement](apps/ui/src/scene/meshy/approved-plan.mjs), [office ownership and routes](apps/ui/src/scene/meshy/office-56.test.mjs), [inventory and runtime availability](apps/ui/src/shell/resident-inventory.mjs), [roster tests](apps/ui/src/scene/meshy/residents-55.test.mjs)).
+The garden and Team show **24 continuing role and runtime profiles**: 22 specialists at team desks, plus Bao and Jiao at separate desks in the jade executive pavilion. Each keeps its owned desk while away. The office has independently reserved visitor places for each executive, with a center aisle for meeting travel. Debugger, Librarian, Painter, Cub, scout and herald are retired from the active roster. Historical records keep their original authorship, and ended retired-role conversations stay readable without offering a restart. Codex dispatch remains unavailable ([placement](apps/ui/src/scene/meshy/approved-plan.mjs), [office ownership and routes](apps/ui/src/scene/meshy/office-56.test.mjs), [inventory and runtime availability](apps/ui/src/shell/resident-inventory.mjs), [conversation controls](apps/ui/src/overlay/thread-model.mjs), [roster tests](apps/ui/src/shell/paired-residents.test.mjs)).
 
 Idle specialists may reserve a destination for tea, pond watching, rest, mahjong or a cross-team friend visit. At most three outings run at once, including travel and return. Residents walk at 3.6 scene units/sec and return to work at 4.8, including physical meeting journeys. Local leisure routes are capped at 60 scene units and a planned 20 seconds one way on a clear route; obstructions can delay travel. Settled activities last 45–90 seconds, followed by a 2–4 minute cooldown after returning home. If no safe place is available, the resident stays home. Friends face each other; mahjong uses real paired residents and ends when a partner leaves ([behavior and timing](apps/ui/src/scene/meshy/daily-routines.mjs), [behavior tests](apps/ui/src/scene/meshy/residents-55.test.mjs)).
 
@@ -113,12 +113,12 @@ npm run next-session            # prints the command to resume from the latest h
 
 | Visit an agent | Enter the den |
 | --- | --- |
-| ![DimSumDev agent view: a developer panda at Steamers with its tool calls and message exchange open at your desk](docs/images/dimsumdev-agents.png) | ![DimSumDev first-person view: visiting the pandas at the Steamers workstations after touring the tea garden and Bao's courtyard](docs/images/dimsumdev-walk.png) |
+| ![DimSumDev agent view: a developer conversation with Summary collapsed](docs/images/dimsumdev-agents.png) | ![DimSumDev first-person view approaching the Library from the garden entrance](docs/images/dimsumdev-walk.png) |
 
 <details>
 <summary>Preview the first-person view</summary>
 
-![A first-person tour past the tea garden, Bao's courtyard and the Steamers workstations](docs/images/dimsumdev-walk.gif)
+![A short first-person walk from the garden entrance toward the Library](docs/images/dimsumdev-walk.gif)
 
 </details>
 
@@ -142,13 +142,17 @@ npm run next-session            # prints the command to resume from the latest h
 | Arrows / drag | Orbit and tilt the overview camera |
 | Shift + arrows / Shift + drag / right-drag | Pan the overview camera |
 
-The **Den** camera button restores the original target, tilt and zoom. First-person walking moves at 5 scene units/sec, or 9 while holding Shift; residents retain their own pacing. Floating exterior panels use subtle frosted glass in the current palette, with solid surfaces when backdrop filtering is unsupported, reduced transparency is requested, or forced colors are active.
+The **Den** camera button restores the original target, tilt and zoom. First-person walking moves at 5 scene units/sec, or 9 while holding Shift; residents retain their own pacing. Floating panels use translucent glass with rainbow edges and near-black dark-mode surfaces, with solid surfaces when backdrop filtering is unsupported, reduced transparency is requested, or forced colors are active. Collapsed sidebar icon bubbles gently bob and wobble; they settle during hover, keyboard focus or pressing, and stay still with reduced motion ([material](apps/ui/src/shell/glass.css), [layout and motion](apps/ui/src/shell/panel-layout.css)).
 
 Beside the camera controls, **Roof visibility** offers **Full roofs** and **Cutaway**. Full roofs is the first-use default; the choice is saved in this browser, with Full roofs as the fallback when storage is invalid or unavailable. Cutaway retains the rear roof section and frame to reveal interiors ([controls](apps/ui/src/App.jsx), [preference and tests](apps/ui/src/scene/meshy/residents-55.test.mjs), [roof construction](apps/ui/src/scene/meshy/approved/approved-structures.mjs)).
 
 **Frame rate** beside those controls offers 30, 60, and 120 FPS targets, saved in this browser. The default is 30 FPS, including when storage is unavailable or invalid. Higher targets depend on display refresh rate and available rendering time. Badge visibility uses grouped obstacle bounds to avoid scanning the whole garden for each panda. The garden prepares full-roof and cutaway shaders before reporting ready; resident and meeting route searches share a 2 ms frame budget rather than blocking a departure frame.
 
 In **Team**, selecting a resident opens its profile with role, runtime, real work state and any scene note. Use the keyboard-operable **Talk**, **View work** and active-tool inspection buttons; unavailable actions show a reason. Codex Talk/tasks remain disabled until runtime support is enabled ([Team actions](apps/ui/src/shell/Residents.jsx), [runtime availability](apps/ui/src/shell/resident-inventory.mjs)).
+
+**Queue** counts active tickets, including work in review, and excludes resolved, closed and parked tickets. Those off-relay tickets also stop blocking active work; missing dependencies remain visibly waiting. Pending user requests remain available through a counted review action and an expandable request list ([snapshot](apps/bridge/snapshot.mjs), [Queue model](apps/ui/src/overlay/queue-drawer-model.mjs), [drawer](apps/ui/src/overlay/QueueDrawer.jsx)).
+
+**Run activity** groups routine scene labels into an expandable list. Each row selects its exact run; selected runs and Needs you, Blocked and Failed markers remain visible over the scene ([activity model](apps/ui/src/scene/chip-model.mjs), [controls](apps/ui/src/scene/ChipLayer.jsx)).
 
 ## How it works
 
@@ -170,9 +174,9 @@ The relay is sized to risk: a ticket on a risk path (the wall, CI, hooks, the se
 
 - **Agents from the den.** Press T beside a resident panda that has no agent and type a task. The bridge writes a ticket under `.scratch/den/` and starts that role's Claude Code agent in its own git worktree. Its tool calls, permission requests, final reply and cost show on the panda's card, and you can message it while it works. A permission request also shows in the Needs you card and in the transcript, with Deny and Allow ([ADR 0016](docs/adr/0016-ui-steering-channel.md)).
 
-  ![DimSumDev in motion: the global garden view, opening a developer panda's conversation, and walking through the den](docs/images/dimsumdev-preview.gif)
+  ![The current DimSumDev glass interface in motion with built-in demo work](docs/images/dimsumdev-preview.gif)
 
-  *Demo mode in the running app, moving from the global view to a developer's card and conversation, then taking a first-person tour past the tea garden, Bao's courtyard and Steamers. The scout's events are from a recorded run; the developer and qa storylines are staged. Steering actions are disabled. [Download the MP4 with captions and an original soundtrack](docs/videos/dimsumdev-linkedin.mp4).*
+  *Current screenshots and GIFs use the demo's recorded and staged sample work, not production metrics. The first-person clip is a short walk from the entrance toward the courtyard. Steering actions are disabled. [Download the earlier MP4 recording with captions and an original soundtrack](docs/videos/dimsumdev-linkedin.mp4); this video has not been refreshed for the current interface.*
 
 - **The router.** The router follows the bridge's `/events` and starts deliveries for `ready-for-agent` tickets from the top of a work order file, two at a time when their files don't overlap. It looks again every few minutes at a delivery paused on your merge (`guardrail`) or on checks (`ci-pending`): once you have merged the pull request on GitHub the ticket resolves with no click, and the router never merges a change that is yours to merge. It also resolves an `in-review` ticket whose branch was merged outside a delivery. It starts nothing at 90% usage, and sends every stop to Needs you and to your phone ([ADR 0027](docs/adr/0027-a-router-beside-the-bridge.md)).
 - **Delivery from the den.** Deliver on a ticket runs the developer, the code reviewer and qa's verify, the scripted checks and, on a hit, security; then the bridge pushes, opens the PR and merges on green checks ([ADR 0024](docs/adr/0024-delivery-jobs.md)). A change to the bridge, a guardrail or CI is left for you to merge.

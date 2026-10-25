@@ -6,12 +6,12 @@ import { activeResidents, workDocks, OFFICE_PLOT, leisurePlaces } from './approv
 import { routeLength, routeSeconds, createDailyRoutines } from './daily-routines.mjs';
 import { createRoofPreference } from './roof-preference.mjs';
 
-test('55-B/K: 22 unique team docks plus two staged executive homes; legacy authority remains in inventory',()=>{
+test('55-B/K: 22 unique team docks plus two staged executive homes match the continuing inventory',()=>{
  const roster=activeResidents(RESIDENTS),docks=workDocks(roster);
  assert.equal(roster.length,24);assert.equal(docks.length,24);
  assert.equal(docks.filter(d=>!d.staged).length,22);
  assert.equal(new Set(docks.map(d=>d.slotId)).size,24);
- assert.ok(RESIDENTS.length>roster.length);
+ assert.deepEqual(RESIDENTS,roster,'Team and the active cast share the complete continuing inventory');
  assert.deepEqual(OFFICE_PLOT,{x:0,z:-32,width:26,depth:17});
  for(const d of docks){assert.equal(d.slotId,'work:'+d.id);assert.ok(d.approach.length>=1);}
  assert.equal(leisurePlaces().length,20);

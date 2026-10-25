@@ -8,15 +8,13 @@ import {liveActorsFromSnapshot} from '../review/live-actors.mjs';
 import {actorBindings} from '../scene/meshy/layout.mjs';
 import {agentFor,pickedCard} from '../overlay/proximity-card.mjs';
 
-// orchestrator is Bao's desk on the chief of staff's recipe; scout and herald keep their homes until the UI drops them.
-const RETIRED_RESIDENTS=['herald','scout'];
-test('one inventory covers every trusted recipe in both runtimes and four scenery residents',()=>{
- const recipes=readdirSync(new URL('../../../../.codex/agents/',import.meta.url)).filter(f=>f.endsWith('.toml')).map(f=>f.slice(0,-5)).filter(r=>!['default','explorer','worker'].includes(r)).map(r=>r==='chief-of-staff'?'orchestrator':r).concat(RETIRED_RESIDENTS);
+test('one inventory covers every continuing recipe in both runtimes',()=>{
+ const recipes=readdirSync(new URL('../../../../.codex/agents/',import.meta.url)).filter(f=>f.endsWith('.toml')).map(f=>f.slice(0,-5)).filter(r=>!['default','explorer','worker'].includes(r)).map(r=>r==='chief-of-staff'?'orchestrator':r);
  for(const runtime of ['claude','codex'])assert.deepEqual(RESIDENTS.filter(r=>r.runtime===runtime&&r.dispatchable).map(r=>r.role).sort(),recipes.sort());
- assert.equal(RESIDENTS.length,32);assert.equal(new Set(RESIDENTS.map(r=>r.id)).size,32);
- assert.equal(RESIDENTS.filter(r=>!r.dispatchable).length,4);
+ assert.equal(RESIDENTS.length,24);assert.equal(new Set(RESIDENTS.map(r=>r.id)).size,24);
+ assert.equal(RESIDENTS.filter(r=>!r.dispatchable).length,0);
  assert.equal(RESIDENTS.find(r=>r.id==='codex:orchestrator').name,'Jiao');
- assert.equal(deskResidents(null).length,32);assert.equal(deskActivity(null).resting,32);
+ assert.equal(deskResidents(null).length,24);assert.equal(deskActivity(null).resting,24);
 });
 
 test('live takeover, visitors and tasks isolate runtime, role and project; unknown and ended runs stay idle',()=>{
@@ -35,7 +33,7 @@ test('live takeover, visitors and tasks isolate runtime, role and project; unkno
  assert.equal(bindings.get('codex:developer#same/02').agentId,'c');
  assert.equal(live.length,3);
  const rows=deskResidents(snapshot);assert.equal(rows.find(r=>r.id==='codex:runner').ref,null);
- assert.deepEqual(deskActivity(snapshot),{working:2,waiting:1,blocked:0,resting:30,visitors:1});
+ assert.deepEqual(deskActivity(snapshot),{working:2,waiting:1,blocked:0,resting:22,visitors:1});
  const selected=liveActorsFromSnapshot(snapshot,{projectId:'other'});
  assert.deepEqual(selected.map(a=>a.agentId),['elsewhere']);
  const old=new Map([['codex:developer',bindings.get('codex:developer#same/02')]]);
@@ -99,4 +97,12 @@ test('a holder lock without a matching recognized live process keeps its residen
  assert.equal(agentFor({role:'developer'},[mystery]),mystery);
  const card=pickedCard([{id:'developer',role:'developer',agent:mystery}],[],'developer');
  assert.equal(card.agentId,null);assert.ok(Object.values(card.actions).every(a=>!a.enabled));
+});
+
+test('retired roles cannot reappear as Team residents or live visitors in either runtime',()=>{
+ const roles=['scout','herald','debugger','knowledge-keeper','docs-writer','stem-cub'];
+ const agents=roles.flatMap(role=>['claude','codex'].map(runtime=>({id:runtime+role,role,runtime,ref:'history/01',state:'working'})));
+ assert.deepEqual(liveActorsFromSnapshot({agents}),[]);
+ assert.ok(deskResidents({agents}).every(row=>!roles.includes(row.role)));
+ assert.equal(deskActivity({agents}).resting,24);
 });

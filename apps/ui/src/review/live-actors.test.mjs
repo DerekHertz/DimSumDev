@@ -92,12 +92,12 @@ test("the ticket's pose maps to the actor state: a gate or ready-for-human waits
   const s = snap([
     ticket("fx/01-a", "claimed", "developer", { gate: "merge" }),
     ticket("fx/02-b", "blocked", "qa"),
-    ticket("fx/03-c", "claimed", "scout"),
+    ticket("fx/03-c", "claimed", "runner"),
   ]);
   const actors = liveActorsFromSnapshot(s, { now: T0 });
   assert.equal(byRole(actors, "developer")[0].state, "needs-you");
   assert.equal(byRole(actors, "qa")[0].state, "blocked");
-  assert.equal(byRole(actors, "scout")[0].state, "working");
+  assert.equal(byRole(actors, "runner")[0].state, "working");
 });
 
 test("a second live agent of the same role is a split-off actor; the first stays the primary", () => {
@@ -128,7 +128,7 @@ test("a ticket with no lock is not a live agent: in-review and ready-for-human w
   assert.deepEqual(liveActorsFromSnapshot(s, { now: T0 }), []);
 });
 
-test("the 4 scenery pandas never come from live state, even if a holder names one", () => {
+test("retired roles never come from live state, even if a holder names one", () => {
   const s = snap([
     ticket("fx/01-a", "claimed", "debugger"),
     ticket("fx/02-b", "claimed", "knowledge-keeper"),
@@ -137,11 +137,11 @@ test("the 4 scenery pandas never come from live state, even if a holder names on
     ticket("fx/05-e", "claimed", "herald"),
   ]);
   const actors = liveActorsFromSnapshot(s, { now: T0 });
-  assert.deepEqual(actors.map((a) => a.role), ["herald"]);
+  assert.deepEqual(actors.map((a) => a.role), []);
 });
 
-test("each of the 9 placement types binds to the matching role", () => {
-  const roles = ["orchestrator", "product", "architect", "developer", "scout", "qa", "security", "designer", "herald"];
+test("each continuing placement type binds to the matching role", () => {
+  const roles = ["orchestrator", "product", "architect", "developer", "runner", "qa", "security", "designer", "technical-writer"];
   const s = snap(roles.map((r, i) => ticket(`fx/${String(i + 1).padStart(2, "0")}-x`, "claimed", r)));
   const actors = liveActorsFromSnapshot(s, { now: T0 });
   assert.deepEqual(actors.map((a) => a.role).sort(), [...roles].sort());
@@ -179,39 +179,39 @@ const agentRow = (ref, role, extra = {}) => ({
 const live = (tickets, agents, placements = []) => ({ tickets, placements, agents });
 
 test("a bridge agent on a ticket nobody has claimed binds its role's panda, working, with the ticket as its task", () => {
-  const actors = liveActorsFromSnapshot(live([ticket("den/01-scout", "ready-for-agent", null)], [agentRow("den/01-scout", "scout")]), { now: T0 + 1000 });
+  const actors = liveActorsFromSnapshot(live([ticket("den/01-runner", "ready-for-agent", null)], [agentRow("den/01-runner", "runner")]), { now: T0 + 1000 });
   assert.deepEqual(actors.map(({ role, ref, split, state, activity }) => ({ role, ref, split, state, activity })), [
-    { role: "scout", ref: "den/01-scout", split: false, state: "working", activity: "Working" },
+    { role: "runner", ref: "den/01-runner", split: false, state: "working", activity: "Working" },
   ]);
-  assert.equal(actors[0].task, "den/01-scout · den/01-scout title");
+  assert.equal(actors[0].task, "den/01-runner · den/01-runner title");
 });
 
 test("while that agent waits on the user (a held permission request) its panda needs you", () => {
-  const [a] = liveActorsFromSnapshot(live([ticket("den/01-scout", "ready-for-agent", null)], [agentRow("den/01-scout", "scout", { state: "waiting_on_user" })]), { now: T0 });
+  const [a] = liveActorsFromSnapshot(live([ticket("den/01-runner", "ready-for-agent", null)], [agentRow("den/01-runner", "runner", { state: "waiting_on_user" })]), { now: T0 });
   assert.equal(a.state, "needs-you");
   assert.equal(a.activity, "Needs your answer");
 });
 
 test("a claimed ticket whose bridge agent waits on the user needs you too, as one actor", () => {
-  const s = live([ticket("den/01-scout", "claimed", "scout")], [agentRow("den/01-scout", "scout", { state: "waiting_on_user" })]);
+  const s = live([ticket("den/01-runner", "claimed", "runner")], [agentRow("den/01-runner", "runner", { state: "waiting_on_user" })]);
   const actors = liveActorsFromSnapshot(s, { now: T0 });
   assert.equal(actors.length, 1);
   assert.equal(actors[0].state, "needs-you");
-  const working = liveActorsFromSnapshot(live([ticket("den/01-scout", "claimed", "scout")], [agentRow("den/01-scout", "scout")]), { now: T0 });
+  const working = liveActorsFromSnapshot(live([ticket("den/01-runner", "claimed", "runner")], [agentRow("den/01-runner", "runner")]), { now: T0 });
   assert.deepEqual(working.map((a) => a.state), ["working"]);
 });
 
 test("agent.tool alone does not assert a live bubble", () => {
-  const s = live([ticket("den/01-scout", "ready-for-agent", null)], [agentRow("den/01-scout", "scout", { tool: { name: "Bash", summary: "node --version" } })]);
+  const s = live([ticket("den/01-runner", "ready-for-agent", null)], [agentRow("den/01-runner", "runner", { tool: { name: "Bash", summary: "node --version" } })]);
   assert.equal(liveActorsFromSnapshot(s, { now: T0 + 1000 })[0].bubble, "");
   assert.equal(liveActorsFromSnapshot(s, { now: T0 + 86_400_000 })[0].bubble, "");
-  const claimed = live([ticket("den/01-scout", "claimed", "scout")], [agentRow("den/01-scout", "scout", { tool: { name: "Grep", summary: "TODO" } })]);
+  const claimed = live([ticket("den/01-runner", "claimed", "runner")], [agentRow("den/01-runner", "runner", { tool: { name: "Grep", summary: "TODO" } })]);
   assert.equal(liveActorsFromSnapshot(claimed, { now: T0 + 1000 })[0].bubble, "", "a snapshot tool without correlated activity is suppressed");
 });
 
 test("an ended bridge agent binds nothing, and neither does one with no id, no ref or an unknown role", () => {
   const rows = [
-    ...["done", "failed", "terminated"].map((state, i) => agentRow(`den/0${i + 1}-scout`, "scout", { state })),
+    ...["done", "failed", "terminated"].map((state, i) => agentRow(`den/0${i + 1}-runner`, "runner", { state })),
     agentRow("den/05-x", "debugger"),
     { ...agentRow("den/06-qa", "qa"), id: undefined },
     { ...agentRow("den/07-qa", "qa"), ref: undefined },

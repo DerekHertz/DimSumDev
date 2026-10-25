@@ -5,9 +5,8 @@ import { RESIDENTS, RUNTIME_UNAVAILABLE } from './resident-inventory.mjs';
 
 const STATES = { resident: 'At home', working: 'Working', 'needs-you': 'Needs you', blocked: 'Blocked',idle:'Idle',throttled:'Throttled' };
 const BADGES = {
-  orchestrator: 'B', product: 'P', architect: 'A', developer: 'M', scout: 'S', runner:'R', debugger: 'D',
-  qa: 'T', security: 'G', designer: 'S', herald: 'H', 'release-manager': 'R', 'code-reviewer': 'C', sre: 'S', 'technical-writer': 'W',
-  'knowledge-keeper': 'L', 'docs-writer': 'P', 'stem-cub': 'C',
+  orchestrator: 'B', product: 'P', architect: 'A', developer: 'M', runner:'R',
+  qa: 'T', security: 'G', designer: 'S', 'release-manager': 'R', 'code-reviewer': 'C', sre: 'S', 'technical-writer': 'W',
 };
 
 function Portrait({ row, large = false }) {
@@ -31,7 +30,7 @@ export function Residents({ snapshot, now, bindings, scenePresentations, onTalk,
   const visitors = rows.filter(row => row.visitor).length;
 
   return <section className="forest-residents" aria-label="Panda profiles">
-    <p className="forest-muted forest-residents-intro">{RESIDENTS.length} role and runtime profiles{visitors ? ` · ${visitors} ${visitors === 1 ? 'visitor' : 'visitors'}` : ''}. Legacy roles remain available in Team while the garden shows its active residents.</p>
+    <p className="forest-muted forest-residents-intro">{RESIDENTS.length} role and runtime profiles{visitors ? ` · ${visitors} ${visitors === 1 ? 'visitor' : 'visitors'}` : ''}. Continuing residents across both runtimes.</p>
     <section className="forest-profile" aria-labelledby={profileId}>
       <header className="forest-profile-heading">
         <Portrait row={selected} large />

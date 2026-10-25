@@ -17,9 +17,9 @@ const REPO_ROOT = path.resolve(fileURLToPath(new URL("../../", import.meta.url))
 
 // Expected values are literals worked out from the fixture (see bridge-fixture.mjs), not
 // recomputed from the snapshot.
-//  Scene: one chip per active ticket (04 in-review, 05 blocked, 06 ready-for-human) plus one "Queued" chip per
-//  frontier basket on the table (02, 07, 08; den-v1, kept by the user 2026-10-03) = 6; the tally chip is not an agent chip.
-const EXPECTED_CHIPS = 6;
+// Six fixture runs remain inspectable; the merge gate, blocked ticket and human gate keep visible alert markers.
+const EXPECTED_ACTIVITY_REFS = ['02-ready-p0', '04-review', '05-blocked', '06-human', '07-bumpable', '08-plain'].map(ticket => `${FEATURE}/${ticket}`);
+const EXPECTED_MARKER_REFS = ['04-review', '05-blocked', '06-human'].map(ticket => `${FEATURE}/${ticket}`);
 //  Queue: frontier by priority. 02 is P0; 07 is P1 (no aging bump since queue/06,
 //  so it follows 02 by priority); 08 has no priority (P2).
 const EXPECTED_QUEUE_HEAD = ["02: Ready P0", "07: Bumpable", "08: Plain"];
@@ -123,12 +123,13 @@ async function main() {
       return "bundled woff2, 0 Google requests";
     });
 
-    await check("scene: one chip per active ticket", async () => {
-      await page
-        .waitForFunction((n) => document.querySelectorAll(".chip-layer .chip:not(.chip-tally)").length === n, EXPECTED_CHIPS, { timeout: 10000 })
-        .catch(() => {});
-      expectEqual(await page.locator(".chip-layer .chip:not(.chip-tally)").count(), EXPECTED_CHIPS, "chips");
-      return `${EXPECTED_CHIPS} chips`;
+    await check("scene: every run is inspectable and genuine alerts retain markers", async () => {
+      await page.waitForFunction(n => document.querySelectorAll('.scene-activity li button').length === n, EXPECTED_ACTIVITY_REFS.length, { timeout: 10000 });
+      const rows = await page.locator('.scene-activity li button small').allTextContents();
+      expectEqual(rows.map(text => text.split(' · ')[0]).sort(), [...EXPECTED_ACTIVITY_REFS].sort(), 'inspectable run identities');
+      const markers = await page.locator('.chip-layer .chip[data-ref]').evaluateAll(nodes => nodes.map(node => node.dataset.ref));
+      expectEqual(markers.sort(), [...EXPECTED_MARKER_REFS].sort(), 'alert marker identities');
+      return `${rows.length} inspectable runs, ${markers.length} alert markers`;
     });
 
     await check("queue: frontier in priority order", async () => {

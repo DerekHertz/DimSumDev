@@ -33,7 +33,7 @@ test("tickets group under their goal, in goals.md order, with counts by state", 
   assert.equal(m.openCount, 4);
 });
 
-test("a ticket waits only on a blocker still on the board; depth follows the chain, capped at 3", () => {
+test("active and missing blockers hold a ticket; depth follows the chain, capped at 3", () => {
   const m = queueDrawerModel(snapshot([
     t("f/01"),
     t("f/02", { blockedBy: [{ ref: "f/01", status: "ready-for-agent" }] }),
@@ -46,7 +46,22 @@ test("a ticket waits only on a blocker still on the board; depth follows the cha
   assert.deepEqual([1, 2, 3, 4, 5].map((n) => by[`f/0${n}`].depth), [0, 1, 2, 3, 3]);
   assert.equal(by["f/02"].state, "waiting");
   assert.deepEqual(by["f/02"].waitsOn, ["01"]);
-  assert.equal(by["f/06"].state, "ready", "a blocker that is not on the board does not hold the ticket in the drawer");
+  assert.equal(by["f/06"].state, "waiting", "a missing dependency remains waiting as reported by the snapshot");
+  assert.deepEqual(by["f/06"].waitsOn, ["99"]);
+});
+
+test('mixed historical input excludes closed, parked and resolved from counts, goals and next rows',()=>{
+ const tickets=[
+  t('f/01',{status:'closed'}),t('f/02',{status:'parked'}),t('f/03',{status:'resolved'}),
+  t('f/04',{blockedBy:[{ref:'f/01'},{ref:'f/02'},{ref:'f/03'},{ref:'f/98',status:'closed'}]}),
+  t('f/05',{status:'in-review'}),t('f/06',{blockedBy:[{ref:'f/05',status:'in-review'}]}),
+ ];
+ const m=queueDrawerModel(snapshot(tickets));
+ assert.equal(m.openCount,3);
+ assert.deepEqual(m.goals[0].counts,{open:3,ready:1,review:1,you:0,waiting:1});
+ assert.deepEqual(m.goals[0].next,['f/04']);
+ assert.deepEqual(m.goals[0].tickets.map(r=>r.ref).sort(),['f/04','f/05','f/06']);
+ assert.deepEqual(m.goals[0].tickets.find(r=>r.ref==='f/04').waitsOn,[]);
 });
 
 test("tickets are ordered by depth, then priority, then ref; next names up to two ready refs", () => {

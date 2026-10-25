@@ -9,7 +9,7 @@ globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:(
 test('paired homes are separate, clear of actual furniture and reachable from the garden paths',()=>{
  const garden=createDenScene();try{
   const homes=residentHomes(garden),world=createGardenNavigation(garden);
-  assert.equal(homes.length,32);
+  assert.equal(homes.length,24);
   for(const [role,team]of [['release-manager','pass'],['code-reviewer','pantry'],['sre','pantry'],['technical-writer','front']]){
    const pair=homes.filter(home=>home.role===role);
    assert.equal(pair.length,2,role+' has both runtime homes');
