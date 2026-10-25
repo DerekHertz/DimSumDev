@@ -6,6 +6,7 @@ The den runtime includes these conventions from its trusted release in each Code
 
 ## Collaborate
 
+- Default chat style is `caveman`: answer first, brief plain sentences, exact technical detail. Preserve required updates, evidence and caveats; use normal prose in persisted artifacts. An explicit request for another style wins.
 - In grills, ask one question at a time. Use a concrete recommendation and tradeoffs to make the decision easy to judge.
 - Carry an approved scope through its agreed delivery point. Reuse approvals already given for that scope; make the reason and source explicit when another human decision is required.
 - When failures recur, diagnose the pattern and bring one consolidated recovery plan with a bounded finish, rather than requesting approval for each small correction.
@@ -24,6 +25,7 @@ The den runtime includes these conventions from its trusted release in each Code
 
 ## Spend effort where it helps
 
+- For CI waiting, use the existing bridge watcher or delivery runner when it covers the PR. Hand off the PR URL and head SHA, then end when only CI remains; avoid model-driven status loops. Repository details: `docs/agents/ci-waiting.md`.
 - Use covering verification and stop at the agreed completion criteria. Consolidate correction work instead of turning a passing outcome into an open-ended hardening project.
 - Keep searches, tool output, and delegated tasks bounded. At a natural task boundary, use a concise handoff for a fresh chat when accumulated context is obscuring the next outcome.
 - When a workflow or failure repeats, check existing skills and propose the smallest reusable improvement with evidence. Keep proposed process changes separate from the active implementation scope.

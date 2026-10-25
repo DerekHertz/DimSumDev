@@ -1,5 +1,19 @@
 # Vendored skills
 
+## Caveman
+
+Source: https://github.com/JuliusBrussee/caveman, `skills/caveman/`, pinned at `2178ed6495c3c0ecd7d037e60acf3b1d0c554b97` (adopted 2026-10-24). Apache-2.0; upstream LICENSE, NOTICE, LICENSE-MIT and LICENSING.md are retained in `caveman/`.
+
+Default chat style, per user request. Local adaptations: short description, default-on integration note preserving required updates and evidence, removal of unavailable companion-mode/hook instructions, and a README note distinguishing the installed subset. The skill only changes communication; no hooks, runtime, compressor or companion skills are installed. CLAUDE.md and Codex working conventions establish the default; persisted artifacts retain normal prose. Changes to SKILL.md and README.md are local adaptations from the pinned upstream source.
+
+## Cloudflare security-audit
+
+Source: https://github.com/cloudflare/security-audit-skill, `skills/security-audit/`, pinned at `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8` (adopted 2026-10-24). MIT; the upstream root license is retained in `security-audit/LICENSE`.
+
+Optional, user-invoked workflow; no role preload or mandatory audit stage. Local changes: shorten the description, set `disable-model-invocation: true`, and add the Den integration paragraph linking usage and existing authority boundaries; in `MEMORY-SAFETY-AND-BINARY.md`, one line says "interactive debugging" instead of the retired role's name (`role-definition-trim.test.mjs` forbids it). Companion references, schema, validators and their tests are unchanged. Update by diffing against the pin and reviewing changes; do not auto-update. See `docs/agents/security-audit.md`.
+
+## mattpocock
+
 Source: https://github.com/mattpocock/skills (MIT, see `MATTPOCOCK-LICENSE`)
 Upstream commit: `c55ee46073ed923f86ce59a5eb3b6d895095d1b7` (2026-09-18); selected changes through `5beb35b` (2026-10-22) merged by hand on 2026-10-22, see "Merged since the pin".
 Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with `git -C vendor/mattpocock-skills pull`, then diff each skill against this folder.

@@ -33,6 +33,8 @@ Environment setup for cloud containers (browser path, proxy, usage readings) liv
 
 ## Agent skills
 
+Chat defaults to `caveman`; explicit style requests win.
+
 ### Issue tracker
 
 The board is local markdown under `.scratch/` in the main checkout, with lock-file claims. `.scratch/` is its own private git repo, ignored by this one. See `docs/agents/issue-tracker.md`.

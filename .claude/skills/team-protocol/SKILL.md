@@ -94,7 +94,7 @@ An agent does one ticket or one task, then ends. When your role definition's `do
 - Read only what the ticket needs. Use Grep/Glob before Read, and read line ranges of large files. If your tool list has no Grep or Glob, use `grep -rn` and `find` through Bash.
 - Delegate verbose work (full test runs, log digging, broad searches, doc fetching) to the `runner` subagent; it returns a summary.
 - Don't paste diffs or files into prompts: pass paths and commands. Prefer CLI tools (`git`, `gh`, `npm`) over MCP tools.
-- Never poll or loop while waiting. End your turn instead.
+- For CI waiting, follow `docs/agents/ci-waiting.md`: hand status monitoring to the existing bridge watcher or delivery runner, and end when only CI remains. For other waits, end your turn rather than polling or looping.
 - Start a fresh subagent for each round; resume one only for costly local state (a warm build, a long-lived server). A retry brief holds the ticket, the cause note and a failure summary of at most ~10 lines, never transcript excerpts.
 - Make every operation safe to repeat on a retry (idempotent): check for the result before redoing it.
 - Prove it works by running it (a test, the command, the page), not by reading the code.
