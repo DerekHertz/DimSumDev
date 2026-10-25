@@ -1,17 +1,18 @@
-// Friction F19: the den's usage reading. The snapshot's `usage` came only from `usage` rows in .scratch/usage.jsonl,
-// which the terminal relay's hooks wrote when an agent returned; runs the bridge starts never write one, so the reading
-// stopped on 2026-10-12. Now the bridge reads the plan-usage cache that scripts/usage.mjs keeps
-// (~/.claude/usage-cache.json: { at, windows: { "5-hour": { percent }, weekly: { percent } } }; it never holds the
-// token), and when that reading is older than REFRESH_MS it starts scripts/usage.mjs once, in the background, to
-// refresh it. That script owns the network call, its lock and the 429 cooldown, so the bridge adds no call of its own.
-//   createUsageReading({ cacheFile?, refresh?, now? }) -> () => { fiveHour, weekly, sampledAt } | null
+// Friction F19, hardening/17: the den's usage reading. The source is the snapshot scripts/statusline.mjs writes from the
+// status line's documented `rate_limits` (~/.claude/usage-cache.json: { at, windows: { "5-hour": { percent }, weekly: { percent } } };
+// it never holds the token). A snapshot older than STALE_MS is "unknown" (the reading carries `stale: true` and no
+// percent), never the old number. A bridge-started run emits no status line (claude -p, disableAllHooks), so the snapshot is
+// only as fresh as the terminal sessions on the box. scripts/usage.mjs is the headless fallback: it starts once, in the
+// background, only when there is no usable snapshot file (missing, unreadable or unparseable). That script owns the network call, its lock and the 429 cooldown,
+// so the bridge adds no call of its own.
+//   createUsageReading({ cacheFile?, refresh?, now? }) -> () => { fiveHour, weekly, sampledAt, stale? } | null
 import { readFileSync } from "node:fs";
 import { spawn } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-export const REFRESH_MS = 5 * 60_000;
+export const STALE_MS = 5 * 60_000;
 const USAGE_SCRIPT = fileURLToPath(new URL("../../scripts/usage.mjs", import.meta.url));
 const pct = (w) => (Number.isFinite(w?.percent) ? w.percent : null);
 
@@ -21,7 +22,7 @@ function startRefresh() {
     child.on("error", () => {});
     child.unref();
   } catch {
-    // no reading this time; the next snapshot tries again after REFRESH_MS
+    // no reading this time; the next snapshot tries again after STALE_MS
   }
 }
 
@@ -32,16 +33,19 @@ export function createUsageReading({ cacheFile = path.join(os.homedir(), ".claud
     try {
       cache = JSON.parse(readFileSync(cacheFile, "utf8"));
     } catch {
-      // no cache yet
+      cache = null;
     }
-    const at = Number.isFinite(cache?.at) ? cache.at : null;
-    if ((at === null || now() - at > REFRESH_MS) && now() - lastRefresh > REFRESH_MS) {
+    const missing = cache === null || typeof cache !== "object";
+    if (missing && now() - lastRefresh > STALE_MS) {
       lastRefresh = now();
       refresh();
     }
+    const at = Number.isFinite(cache?.at) ? cache.at : null;
     const fiveHour = pct(cache?.windows?.["5-hour"]);
     if (at === null || fiveHour === null) return null;
-    return { fiveHour, weekly: pct(cache.windows.weekly), sampledAt: new Date(at).toISOString() };
+    const sampledAt = new Date(at).toISOString();
+    if (now() - at > STALE_MS) return { fiveHour: null, weekly: null, sampledAt, stale: true };
+    return { fiveHour, weekly: pct(cache.windows.weekly), sampledAt };
   };
 }
 

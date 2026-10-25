@@ -2,25 +2,27 @@
 // organism-infra/109: Claude Code `statusLine` command. One line, no model or network call:
 //   5h 11% → 19:59Z · wk 51% · ctx 64k/80k · v1 ████░░ 8/12 · 4 to go · 123: qa verify · gates 2
 // Input: the status-line JSON on stdin (Claude Code docs, statusline page:
-// session_id, transcript_path, context_window.current_usage). Plan usage comes from
-// scripts/usage.mjs through a 60 s on-disk cache (it only saves a spawn: the 5 minute shared cache
-// and the 429 cooldown live in usage-claude.mjs, so a refresh never adds a network call);
-// everything else is local files.
+// session_id, transcript_path, context_window.current_usage, rate_limits.five_hour / seven_day
+// { used_percentage, resets_at }, present for Pro/Max after the first API response). Plan usage is that
+// input, written to the snapshot ~/.claude/usage-cache.json (hardening/17) for the bridge; with no
+// rate_limits the line shows the snapshot while it is under STALE_MS old, else "?". It never starts
+// the usage script; everything else is local files.
 // Always prints one line and exits 0.
-import { mkdirSync, readdirSync, readFileSync, statSync, writeFileSync, openSync, readSync, closeSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, openSync, readSync, closeSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
-import { readStdinJson, boardRoot, runUsage, usageWindow, defaultUsageScript } from "./hook-io.mjs";
+import { readStdinJson, boardRoot, usageWindow } from "./hook-io.mjs";
+import { STALE_MS } from "../apps/bridge/usage-reading.mjs";
 import { saveContextTokens } from "./context-state.mjs";
 import { readRequestRows, foldRequests } from "../apps/bridge/requests-log.mjs";
 import { readNorthStar } from "./north-star.mjs";
 import { CHIEF_OF_STAFF, budgetFor } from "./context-budget.mjs";
+import { toLocalReset } from "./usage-local-time.mjs";
 
 // organism-infra/220: the line shows the orchestrator budget; the numbers come from scripts/context-budget.json.
 const { warn: CTX_YELLOW, stop: CTX_LIMIT } = budgetFor(CHIEF_OF_STAFF);
 const PCT_YELLOW = 80;
 const PCT_RED = 90;
-const CACHE_TTL_MS = 60_000;
 const V1_BAR = 6;
 const YELLOW = "\x1b[33m";
 const RED = "\x1b[31m";
@@ -68,28 +70,56 @@ function transcriptTokens(file) {
   return null;
 }
 
-function usageData() {
-  const cache = process.env.STATUSLINE_CACHE || path.join(home, ".claude", "statusline-usage.json");
+// resets_at is documented as epoch seconds; milliseconds and ISO strings are accepted too. An ISO string or null out.
+function resetIso(v) {
+  const t = typeof v === "number" ? (v < 1e12 ? v * 1000 : v) : typeof v === "string" && v.trim() !== "" ? (Number.isFinite(Number(v)) ? (Number(v) < 1e12 ? Number(v) * 1000 : Number(v)) : Date.parse(v)) : NaN;
+  return Number.isFinite(t) ? new Date(t).toISOString() : null;
+}
+
+// The windows the input carries, in the snapshot's shape. A window it lacks is absent, never guessed.
+function windowsFromInput(rate) {
+  const out = {};
+  for (const [key, label] of [["five_hour", "5-hour"], ["seven_day", "weekly"]]) {
+    const w = rate?.[key];
+    if (typeof w?.used_percentage === "number" && Number.isFinite(w.used_percentage)) {
+      const resets_at = resetIso(w.resets_at);
+      out[label] = { percent: w.used_percentage, resets_at, resets_local: toLocalReset(resets_at) };
+    }
+  }
+  return out;
+}
+
+function readSnapshot(file) {
   try {
-    if (Date.now() - statSync(cache).mtimeMs < CACHE_TTL_MS) {
-      const v = JSON.parse(readFileSync(cache, "utf8"));
-      if (v && typeof v === "object") return v;
-    }
+    const v = JSON.parse(readFileSync(file, "utf8"));
+    return v && typeof v === "object" ? v : null;
   } catch {
-    // no usable cache: read fresh
+    return null;
   }
-  const timeout = Number(process.env.STATUSLINE_USAGE_TIMEOUT_MS) || 4000;
-  const fresh = runUsage(process.env.STATUSLINE_USAGE_SCRIPT || defaultUsageScript, timeout);
-  if (fresh && (usageWindow(fresh, "5-hour") || usageWindow(fresh, "weekly"))) {
-    try {
-      mkdirSync(path.dirname(cache), { recursive: true });
-      writeFileSync(cache, JSON.stringify(fresh));
-    } catch {
-      // cache is best effort
-    }
-    return fresh;
+}
+
+// Atomic (tmp file, then rename) and best effort; keeps the cooldown_until scripts/usage-claude.mjs keeps in the same file.
+function writeSnapshot(file, windows) {
+  const tmp = `${file}.${process.pid}.tmp`;
+  try {
+    const keep = readSnapshot(file);
+    mkdirSync(path.dirname(file), { recursive: true });
+    writeFileSync(tmp, JSON.stringify({ at: Date.now(), windows, cooldown_until: Number.isFinite(keep?.cooldown_until) ? keep.cooldown_until : 0 }), { mode: 0o600 });
+    renameSync(tmp, file);
+  } catch {
+    rmSync(tmp, { force: true });
   }
-  return null;
+}
+
+function usageData(rate) {
+  const file = process.env.STATUSLINE_CACHE || path.join(home, ".claude", "usage-cache.json");
+  const live = windowsFromInput(rate);
+  if (Object.keys(live).length) {
+    writeSnapshot(file, live);
+    return live;
+  }
+  const snap = readSnapshot(file);
+  return Number.isFinite(snap?.at) && Date.now() - snap.at <= STALE_MS && snap.windows && typeof snap.windows === "object" ? snap.windows : null;
 }
 
 function resetTime(iso) {
@@ -152,7 +182,7 @@ function v1Segment(root) {
 }
 
 const root = boardRoot();
-const usage = usageData();
+const usage = usageData(input.rate_limits);
 const segs = [];
 
 const five = usageWindow(usage, "5-hour");
@@ -165,7 +195,9 @@ if (five) {
 const week = usageWindow(usage, "weekly");
 segs.push(week ? paint(pctColor(week.percent), `wk ${Math.round(week.percent)}%`) : "wk ?");
 
-const fromInput = sumUsage(input.context_window?.current_usage);
+const cw = input.context_window;
+const fromPercent = Number.isFinite(cw?.used_percentage) && Number.isFinite(cw?.context_window_size) ? Math.round((cw.used_percentage / 100) * cw.context_window_size) : null;
+const fromInput = sumUsage(cw?.current_usage) ?? fromPercent;
 if (fromInput !== null && typeof input.session_id === "string") saveContextTokens(home, input.session_id, fromInput);
 const tokens = fromInput !== null ? fromInput : transcriptTokens(input.transcript_path);
 if (tokens === null) {

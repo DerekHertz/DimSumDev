@@ -1,6 +1,6 @@
 // organism-infra/134: usage-watch reads live Claude usage on macOS as well as WSL.
-// Public interface under test: `node scripts/usage.mjs` (and `node scripts/statusline.mjs`, which
-// shells out to it). No real Keychain, credential file or network is touched: HOME points at an
+// Public interface under test: `node scripts/usage.mjs` (the status line no longer starts it, hardening/17).
+// No real Keychain, credential file or network is touched: HOME points at an
 // empty temp dir, PATH holds no `security`, fetch is replaced through a --import preload.
 //
 // Env seams this file pins (names are the contract the developer implements, like NOTIFY_POWERSHELL):
@@ -22,7 +22,6 @@
 //   AC5 token never leaks     -> "AC5" tests, and the leak assertions inside every AC4 test
 //   AC6 native Windows        -> "AC6" test (pins: fails with the same clear message; supporting it
 //                                means changing this test deliberately)
-//   AC7 statusline            -> "AC7" test
 //   AC8 gated-file wording    -> human-verified (developer writes the edit into its handoff)
 //   "reports which source answered" -> human-verified (no output-contract change; internal to the lookup)
 import { test } from "node:test";
@@ -35,7 +34,6 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const USAGE = path.join(ROOT, "scripts", "usage.mjs");
-const STATUSLINE = path.join(ROOT, "scripts", "statusline.mjs");
 
 // Synthetic values, built so the literals never look like real credentials.
 const TOKEN = ["keychain", "access", "token", "synthetic"].join("-");
@@ -285,50 +283,4 @@ test("AC3: with the real platform and no override of the binary, a darwin run st
   const r = run({ platform: "darwin", noOverride: true });
   assertFailsWithDiagnostic(r, "darwin");
   assert.deepEqual(r.calls, []);
-});
-
-test("AC7: scripts/statusline.mjs shows live usage on darwin through the Keychain path, with its default usage script", () => {
-  const root = realpathSync(mkdtempSync(path.join(tmpdir(), "usage-keychain-statusline-")));
-  try {
-    const home = path.join(root, "home");
-    const board = path.join(root, "board");
-    const empty = path.join(root, "empty");
-    mkdirSync(home);
-    mkdirSync(empty);
-    mkdirSync(path.join(board, ".scratch", "organism-infra", "issues"), { recursive: true });
-    mkdirSync(path.join(board, ".scratch", "_requests"), { recursive: true });
-    const fake = path.join(root, "fake-security");
-    writeFileSync(fake, FAKE_SECURITY, { mode: 0o755 });
-    const preload = path.join(root, "preload.mjs");
-    writeFileSync(preload, `globalThis.fetch = async () => new Response(${JSON.stringify(JSON.stringify(API))}, { status: 200 });`);
-    const env = {
-      ...process.env,
-      HOME: home,
-      USERPROFILE: home,
-      PATH: empty,
-      DEN_ROOT: board,
-      STATUSLINE_CACHE: path.join(root, "usage-cache.json"),
-      STATUSLINE_USAGE_TIMEOUT_MS: "15000",
-      NODE_OPTIONS: `--import ${pathToFileURL(preload).href}`,
-      USAGE_PLATFORM: "darwin",
-      USAGE_SECURITY_BIN: fake,
-      FAKE_TRACE: path.join(root, "trace.jsonl"),
-      FAKE_PID: path.join(root, "pid"),
-      FAKE_MODE: "ok",
-      FAKE_PAYLOAD: PAYLOAD,
-      FAKE_LEAK: TOKEN,
-    };
-    delete env.STATUSLINE_USAGE_SCRIPT;
-    delete env.CLAUDE_CODE_SESSION_ID;
-    delete env.CLAUDE_CODE_REMOTE;
-    const input = { session_id: "s", cwd: root, context_window: { context_window_size: 200000, current_usage: null } };
-    const r = spawnSync(process.execPath, [STATUSLINE], { cwd: board, env, input: JSON.stringify(input), encoding: "utf8", timeout: 20000 });
-    assert.equal(r.status, 0, r.stderr);
-    const text = r.stdout.replace(/\x1b\[[0-9;]*m/g, "");
-    assert.match(text, /^5h 53% → 20:26Z · wk 22% /, text);
-    assert.ok(existsSync(path.join(root, "trace.jsonl")), "the usage read must have gone through the fake Keychain");
-    for (const s of SECRETS) assert.ok(!r.stdout.includes(s) && !r.stderr.includes(s), "a secret reached the status line output");
-  } finally {
-    rmSync(root, { recursive: true, force: true });
-  }
 });
