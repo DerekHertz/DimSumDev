@@ -10,6 +10,19 @@ import { ROAMER_TYPES } from "./roam.mjs";
 
 export const TALLY_CHIP_ID = "__tally";
 
+export function RunActivity({placements, tickets, selected, onSelect}) {
+  const activity = sceneActivityModel(placements, selected);
+  const titles = new Map((tickets ?? []).map(t => [t.ref, t.title]));
+  return activity.rows.length ? <details className="scene-activity glass">
+    <summary>Run activity · {Object.entries(activity.counts).map(([state, count]) => `${count} ${state.toLowerCase()}`).join(' · ')}</summary>
+    <ul aria-label="Run activity">{activity.rows.map(row => <li key={row.ref}>
+      <button type="button" aria-pressed={selected === row.ref} onClick={() => onSelect(row.ref)}>
+        <span>{titles.get(row.ref) ?? row.ref}</span><small>{row.ref} · {row.label}</small>
+      </button>
+    </li>)}</ul>
+  </details> : null;
+}
+
 // `hearts` is a Set of placement refs that just received a handoff (showcase-v1/04): a heart bubble shows.
 export function ChipLayer({ placements, tickets, selected, onSelect, stage, hearts, onToggleTally, tallyOpen = false, tally, labelsOverride }) {
   const nodes = useRef(new Map());
@@ -74,14 +87,6 @@ export function ChipLayer({ placements, tickets, selected, onSelect, stage, hear
   const activity = sceneActivityModel(placements, selected);
   return (
     <div className="chip-layer">
-      {activity.rows.length ? <details className="scene-activity glass">
-        <summary>Run activity · {Object.entries(activity.counts).map(([state, count]) => `${count} ${state.toLowerCase()}`).join(' · ')}</summary>
-        <ul aria-label="Run activity">{activity.rows.map(row => <li key={row.ref}>
-          <button type="button" aria-pressed={selected === row.ref} onClick={() => onSelect(row.ref)}>
-            <span>{titles.get(row.ref) ?? row.ref}</span><small>{row.ref} · {row.label}</small>
-          </button>
-        </li>)}</ul>
-      </details> : null}
       {labels.map((l) => (
         <span
           key={l.id}

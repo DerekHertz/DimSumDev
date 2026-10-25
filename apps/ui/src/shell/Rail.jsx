@@ -43,7 +43,7 @@ export function Rail({ topic, baoOpen, badges, onEntry, buildLabel, demoActive =
   const [open, setOpen] = useState(readOpen);
   const [tip, setTip] = useState(null);
   const showTip = (event, text) => {
-    if (open && window.innerWidth > 600) return;
+    if (open && window.innerWidth > 640) return;
     const bounds = event.currentTarget.getBoundingClientRect();
     setTip({ text, left: bounds.right + 8, top: Math.min(bounds.top, window.innerHeight - 48) });
   };
