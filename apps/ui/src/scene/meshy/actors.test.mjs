@@ -19,10 +19,10 @@ function fixture({water=false,profiles=false}={}){
  const actors=createMeshyActors(den);return{den,actors,get feeds(){return feeds;},dispose(){actors.dispose();for(const model of [...den.pandaRigs.keys()])den.destroyPanda(model);body.geometry.dispose();body.material.dispose();}};
 }
 
-test('homes-first keeps all 32 homes fixed through idle, live rebinding, tea and meeting observations',()=>{
+test('homes-first keeps all 24 continuing homes fixed through idle, live rebinding, tea and meeting observations',()=>{
  const f=fixture();try{
   const {actors,den}=f,homes=new Map([...actors.actors].map(([id,a])=>[id,a.home.clone()]));
-  assert.equal(actors.actors.size,32);
+  assert.equal(actors.actors.size,24);
   for(const a of actors.actors.values()){
    assert.equal(a.panda.model.visible,true);assert.equal(actors.places.get(a.homePlace).owner,a.identity);
    for(const b of actors.actors.values())if(a!==b)assert.ok(a.home.distanceTo(b.home)>=a.envelope.radius+b.envelope.radius+.049);
@@ -31,7 +31,7 @@ test('homes-first keeps all 32 homes fixed through idle, live rebinding, tea and
   let queries=0;den.walkWorld.navigation.groundAt=()=>{queries++;throw Error('reduced-motion home updates must not search terrain');};
   actors.applyLive(rows);actors.applyMeeting({id:'meeting',ref:'work/two',state:'running',seats:[{role:'developer'}]});
   for(let i=0;i<800;i++)actors.update(.1,true);
-  assert.equal(queries,0);assert.equal(actors.actors.size,32);assert.equal(den.pandaRigs.size,32);
+  assert.equal(queries,0);assert.equal(actors.actors.size,24);assert.equal(den.pandaRigs.size,24);
   assert.equal(actors.liveFigures().size,2,'extra run has no borrowed scene anchor');
   assert.equal(actors.seatModels().size,0);assert.equal(actors.seatOf('developer'),null);
   assert.match(actors.presentationRows().find(p=>p.ref==='work/two').presentation,/visitor deferred/);
@@ -39,7 +39,7 @@ test('homes-first keeps all 32 homes fixed through idle, live rebinding, tea and
   actors.applyLive([{role:'developer',agentId:'replacement',projectId:'other',ref:'work/new'}]);
   assert.notEqual(actors.actors.get('developer').identity,firstOwner);
   for(const [id,a]of actors.actors){assert.deepEqual(a.home,homes.get(id));assert.deepEqual(a.panda.model.position,homes.get(id));assert.equal(actors.places.get(a.homePlace).owner,a.identity);}
-  actors.applyLive([]);assert.equal(actors.actors.size,32);
+  actors.applyLive([]);assert.equal(actors.actors.size,24);
  }finally{f.dispose();assert.equal([...f.actors.places.values()].length,0);}
 });
 
