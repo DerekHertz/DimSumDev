@@ -38,16 +38,20 @@ function projectRepo() {
 
 test("a target project's chief-of-staff meeting chair remains a target run", async () => {
   const denState = realpathSync(mkdtempSync(path.join(tmpdir(), "den-state-")));
-  const t = await makeBridge({ denState });
+  const t = await makeBridge({ denState, runtimeConfig: { send: true } });
   cleanups.push(() => t.close());
   const dir = projectRepo();
   assert.deepEqual(await addProject(denState, { slug: "acme", path: dir, board: { kind: "markdown" } }), { ok: true });
+  assert.equal((await t.post("/projects/active", { slug: "acme" })).status, 200);
   const result = await t.bridge.host.start({ ref: "meetings/00-m-test", role: "chief-of-staff", project: "acme",
     meeting: { part: "chair", file: "Private meeting fixture", effort: "medium", moderator: "bao", standalone: true, taskRef: null } });
   assert.equal(result.status, 201, result.error);
   assert.equal(result.agent.project, "acme");
   assert.equal(t.fake.spawns[0].args.project.control, false);
   assert.equal(t.fake.spawns[0].args.project.root, dir);
+  const message = await t.post("/conversations/chief-of-staff/message", { project: "acme", runId: result.agent.id, text: "Keep the target context." });
+  assert.equal(message.status, 202, message.text);
+  assert.equal(t.fake.spawns[0].sent[0].text, "Keep the target context.");
 });
 
 test("the fake runtime sees a bridge-derived project on a den run, a target run and a follow-up", async () => {

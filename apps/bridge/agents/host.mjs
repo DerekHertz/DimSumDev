@@ -28,7 +28,7 @@ import { hasSecret } from "../../../scripts/exposure.mjs";
 import { safeToolInput } from "../../shared/safe-text.mjs";
 import {
   AGENT_ID_RE, KILL_GRACE_MS, LIVE_STATES, MAX_CONCURRENT_AGENTS, MODES, REF_RE, ROLES, SESSION_CAP, SLOTS, slotClassOf, UUID_RE,
-  USAGE_REFUSE_AT, APPROVAL_TTL_MS, SHUTDOWN_SPAWN_WAIT_MS, DIRECT_MODE, DESK_REF,
+  USAGE_REFUSE_AT, APPROVAL_TTL_MS, SHUTDOWN_SPAWN_WAIT_MS, DIRECT_MODE,
   TRANSCRIPT_AGENTS, TRANSCRIPT_ENTRIES, TRANSCRIPT_RESULT_MAX, TRANSCRIPT_TEXT_MAX, REPLY_EXCERPT_MAX, USAGE_MESSAGES,
   MESSAGE_MAX_BYTES, MESSAGE_QUEUE_MAX, MESSAGE_SETTLE_MS, CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS,
   definitionOf, deskRefOf, isDeskRef,
@@ -1211,7 +1211,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const runId = body?.runId;
     if (runId !== undefined && (typeof runId !== "string" || !AGENT_ID_RE.test(runId))) return refuse(400, "runId must be an agent id");
     const atDesk = role === "orchestrator" || role === "chief-of-staff";
-    const selected = await select({ ...body, role, ...(atDesk ? { ref: deskRefOf(body?.runtime) } : {}) }, { execute: false });
+    const selected = await select({ ...body, role, ...(atDesk && runId === undefined ? { ref: deskRefOf(body?.runtime) } : {}) }, { execute: false });
     if (selected.ok === false) return selected;
     const matches = (a) => a.role === role && a.runtimeId === selected.runtime && (a.project ?? "den") === selected.project;
     const isLive = (a) => !!a.proc && !a.exited;
