@@ -495,6 +495,23 @@ test('dynamic delegation registers only the bridge tool and rejects foreign or s
   fx.protocol.close();
 });
 
+test('a delegation call that arrives in the same read as the turn acknowledgement is held, then answered', async () => {
+  const calls = [];
+  let fx;
+  const handler = (message, respond) => {
+    if (message.method !== 'turn/start') return baseHandler(message, respond);
+    // Both frames land before startTurn's continuation records the turn id.
+    respond(message.id, { turn: { id: 'turn-1', status: 'inProgress' } });
+    fx.request('early', 'item/tool/call', { threadId: 'thread-1', turnId: 'turn-1', callId: 'call-1', tool: 'delegate', arguments: { task: 'focused check' } });
+  };
+  fx = fixture({ handler, delegate: async input => { calls.push(input); return { ok: true, report: 'verified result' }; } });
+  await started(fx);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls.length, 1);
+  assert.equal(fx.sent.find(m => m.id === 'early').result.success, true);
+  fx.protocol.close();
+});
+
  test('resumed managed threads use persisted tool definitions without unsupported resume fields', async () => {
   const fx = fixture({ delegate: async () => ({ ok: true }) });
   await fx.protocol.prepareThread({ model: MODEL, effort: "high", resumeThreadId: "thread-original" });

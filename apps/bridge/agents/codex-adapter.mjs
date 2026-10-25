@@ -71,6 +71,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
   const seenTurns = new Set(); // Never evict: an old native identity must never become current again.
   const questions = new Map();
   const earlyEvents = [];
+  const earlyRequests = [];
   const events = [];
   const readers = [];
   const decoder = new TextDecoder("utf-8", { fatal: true });
@@ -84,6 +85,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
     for (const question of questions.values()) clearTimeout(question.timer);
     questions.clear();
     earlyEvents.length = 0;
+    earlyRequests.length = 0;
     try { closeTransport(); } catch { /* closing an already-failed transport cannot reopen it */ }
     for (const resolve of readers.splice(0)) resolve({ value: undefined, done: true });
     return closed;
@@ -124,6 +126,13 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
   }
 
   function serverRequest(message) {
+    // A tool call can arrive in the same read as the turn/start acknowledgement, before that acknowledgement names the turn.
+    // Hold it, like the early notifications, and answer it once the turn is known.
+    if (message.method === 'item/tool/call' && startingTurn && !turnId) {
+      if (earlyRequests.length >= limits.events) return fail("early request queue limit reached");
+      earlyRequests.push(message);
+      return;
+    }
     const requestKey = `${typeof message.id}:${message.id}`;
     if (serverIds.has(requestKey) || serverIds.size >= limits.serverRequests) return fail("duplicate server request or request limit reached");
     serverIds.add(requestKey);
@@ -339,6 +348,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       endedTurn = null;
       startingTurn = false;
       for (const event of earlyEvents.splice(0)) notification(event.method, event.params);
+      for (const request of earlyRequests.splice(0)) serverRequest(request);
       if (response.turn.status !== "inProgress") notification("turn/completed", { threadId: thread.id, turn: response.turn });
       ensureOpen();
       return response.turn.id;
