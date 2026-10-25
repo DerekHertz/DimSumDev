@@ -3,7 +3,7 @@
 // it never holds the token). A snapshot older than STALE_MS is "unknown" (the reading carries `stale: true` and no
 // percent), never the old number. A bridge-started run emits no status line (claude -p, disableAllHooks), so the snapshot is
 // only as fresh as the terminal sessions on the box. scripts/usage.mjs is the headless fallback: it starts once, in the
-// background, only when there is no snapshot file at all. That script owns the network call, its lock and the 429 cooldown,
+// background, only when there is no usable snapshot file (missing, unreadable or unparseable). That script owns the network call, its lock and the 429 cooldown,
 // so the bridge adds no call of its own.
 //   createUsageReading({ cacheFile?, refresh?, now? }) -> () => { fiveHour, weekly, sampledAt, stale? } | null
 import { readFileSync } from "node:fs";
@@ -30,12 +30,12 @@ export function createUsageReading({ cacheFile = path.join(os.homedir(), ".claud
   let lastRefresh = -Infinity;
   return function read() {
     let cache = null;
-    let missing = false;
     try {
       cache = JSON.parse(readFileSync(cacheFile, "utf8"));
-    } catch (err) {
-      missing = err?.code === "ENOENT";
+    } catch {
+      cache = null;
     }
+    const missing = cache === null || typeof cache !== "object";
     if (missing && now() - lastRefresh > STALE_MS) {
       lastRefresh = now();
       refresh();

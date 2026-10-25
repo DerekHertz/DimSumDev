@@ -17,6 +17,7 @@ import fs, { mkdtempSync, mkdirSync, writeFileSync, readFileSync, readdirSync, e
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { toLocalReset } from "./usage-local-time.mjs";
 
 const ROOT = path.resolve(fileURLToPath(new URL("..", import.meta.url)));
 const SCRIPT = path.join(ROOT, "scripts", "statusline.mjs");
@@ -164,9 +165,30 @@ test("17-AC1: with rate_limits in the input the snapshot holds both windows, the
   const snap = snapshot(f);
   assert.ok(snap.at >= before && snap.at <= Date.now(), `at ${snap.at}`);
   assert.deepEqual(snap.windows, {
-    "5-hour": { percent: 11, resets_at: "2026-10-02T19:59:00.000Z" },
-    weekly: { percent: 51, resets_at: "2026-10-06T00:00:00.000Z" },
+    "5-hour": { percent: 11, resets_at: "2026-10-02T19:59:00.000Z", resets_local: toLocalReset("2026-10-02T19:59:00.000Z") },
+    weekly: { percent: 51, resets_at: "2026-10-06T00:00:00.000Z", resets_local: toLocalReset("2026-10-06T00:00:00.000Z") },
   });
+});
+
+test("17-AC1: a status-line snapshot read back through usage.mjs --provider claude carries resets_local", () => {
+  const f = fixture();
+  const cache = path.join(f.home, ".claude", "usage-cache.json");
+  assert.equal(run(f, input(), { STATUSLINE_CACHE: cache }).status, 0);
+  const r = spawnSync("node", [path.join(ROOT, "scripts", "usage.mjs"), "--provider", "claude"], { env: { ...process.env, HOME: f.home }, encoding: "utf8", timeout: 20000 });
+  assert.equal(r.status, 0, r.stderr);
+  const out = JSON.parse(r.stdout);
+  assert.equal(out.source, "cache");
+  assert.equal(out["5-hour"].percent, 11);
+  assert.equal(out["5-hour"].resets_local, toLocalReset("2026-10-02T19:59:00.000Z"));
+  assert.equal(out.weekly.resets_local, toLocalReset("2026-10-06T00:00:00.000Z"));
+});
+
+test("17-AC1: a failed rename leaves no temp file behind", () => {
+  const f = fixture();
+  mkdirSync(path.join(f.cache, "occupied"), { recursive: true });
+  const r = run(f, input());
+  assert.equal(r.status, 0, r.stderr);
+  assert.deepEqual(readdirSync(path.dirname(f.cache)).filter((n) => n.endsWith(".tmp")), []);
 });
 
 test("17-AC1: without rate_limits the snapshot does not claim a reading, and the line says '5h ?' / 'wk ?'", () => {
@@ -207,6 +229,7 @@ test("17-AC1: a missing resets_at keeps the percentage and stores no reset time"
   const r = run(f, input({ rate: { five_hour: { used_percentage: 12 } } }));
   assert.equal(snapshot(f).windows["5-hour"].percent, 12);
   assert.equal(snapshot(f).windows["5-hour"].resets_at, null);
+  assert.equal(snapshot(f).windows["5-hour"].resets_local, null);
   assert.ok(r.text.startsWith("5h 12% · wk ? · "), r.text);
 });
 

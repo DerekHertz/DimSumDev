@@ -8,7 +8,7 @@
 // rate_limits the line shows the snapshot while it is under STALE_MS old, else "?". It never starts
 // the usage script; everything else is local files.
 // Always prints one line and exits 0.
-import { mkdirSync, readdirSync, readFileSync, renameSync, statSync, writeFileSync, openSync, readSync, closeSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, openSync, readSync, closeSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { readStdinJson, boardRoot, usageWindow } from "./hook-io.mjs";
@@ -17,6 +17,7 @@ import { saveContextTokens } from "./context-state.mjs";
 import { readRequestRows, foldRequests } from "../apps/bridge/requests-log.mjs";
 import { readNorthStar } from "./north-star.mjs";
 import { CHIEF_OF_STAFF, budgetFor } from "./context-budget.mjs";
+import { toLocalReset } from "./usage-local-time.mjs";
 
 // organism-infra/220: the line shows the orchestrator budget; the numbers come from scripts/context-budget.json.
 const { warn: CTX_YELLOW, stop: CTX_LIMIT } = budgetFor(CHIEF_OF_STAFF);
@@ -80,7 +81,10 @@ function windowsFromInput(rate) {
   const out = {};
   for (const [key, label] of [["five_hour", "5-hour"], ["seven_day", "weekly"]]) {
     const w = rate?.[key];
-    if (typeof w?.used_percentage === "number" && Number.isFinite(w.used_percentage)) out[label] = { percent: w.used_percentage, resets_at: resetIso(w.resets_at) };
+    if (typeof w?.used_percentage === "number" && Number.isFinite(w.used_percentage)) {
+      const resets_at = resetIso(w.resets_at);
+      out[label] = { percent: w.used_percentage, resets_at, resets_local: toLocalReset(resets_at) };
+    }
   }
   return out;
 }
@@ -96,14 +100,14 @@ function readSnapshot(file) {
 
 // Atomic (tmp file, then rename) and best effort; keeps the cooldown_until scripts/usage-claude.mjs keeps in the same file.
 function writeSnapshot(file, windows) {
+  const tmp = `${file}.${process.pid}.tmp`;
   try {
     const keep = readSnapshot(file);
     mkdirSync(path.dirname(file), { recursive: true });
-    const tmp = `${file}.${process.pid}.tmp`;
     writeFileSync(tmp, JSON.stringify({ at: Date.now(), windows, cooldown_until: Number.isFinite(keep?.cooldown_until) ? keep.cooldown_until : 0 }), { mode: 0o600 });
     renameSync(tmp, file);
   } catch {
-    // the snapshot is best effort
+    rmSync(tmp, { force: true });
   }
 }
 

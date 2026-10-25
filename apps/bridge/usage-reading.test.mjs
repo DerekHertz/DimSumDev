@@ -57,6 +57,18 @@ test("17-AC2 missing: no snapshot is no reading, and usage.mjs starts once per S
   assert.equal(refreshed, 2);
 });
 
+test("17-AC2 an unparseable or unreadable snapshot counts as missing and starts usage.mjs", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "den-usage-"));
+  const corrupt = path.join(dir, "corrupt.json");
+  await writeFile(corrupt, "{ not json");
+  for (const cacheFile of [corrupt, dir]) {
+    let refreshed = 0;
+    const read = createUsageReading({ cacheFile, refresh: () => refreshed++, now: () => T });
+    assert.equal(read(), null);
+    assert.equal(refreshed, 1, cacheFile);
+  }
+});
+
 test("17-AC2 a snapshot with a timestamp but no five-hour window is no reading and starts nothing (the status line never saw one)", async () => {
   const file = path.join(await mkdtemp(path.join(tmpdir(), "den-usage-")), "usage-cache.json");
   await writeFile(file, JSON.stringify({ at: T - 1000, windows: { weekly: { percent: 28 } }, cooldown_until: 0 }));
