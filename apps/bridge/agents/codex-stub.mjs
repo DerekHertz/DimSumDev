@@ -6,7 +6,7 @@
 // Like Codex 0.163, the shell tool is the code-mode `exec` tool: a config with `features.code_mode_host = false` makes every command fail
 // closed ("code-mode host is disabled") instead of running (den-revival/03 1b, found by a real run).
 import { spawnSync } from "node:child_process";
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import readline from "node:readline";
 
 const MODE = process.argv[2] ?? "ok";
@@ -15,6 +15,7 @@ if (MODE === "deaf") { process.on("SIGTERM", () => {}); setInterval(() => {}, 10
 const out = (message) => process.stdout.write(JSON.stringify(message) + "\n");
 const notify = (method, params) => out({ method, params });
 let thread = null;
+let turnSequence = 0;
 
 function flood() {
   notify("turn/started", { threadId: thread.id, turn: { id: "turn-1", status: "inProgress" } });
@@ -29,15 +30,16 @@ function shellHostDisabled() {
 
 function runTurn(input) {
   if (MODE === "flood") return flood();
-  const base = { threadId: thread.id, turnId: "turn-1" };
-  notify("turn/started", { threadId: thread.id, turn: { id: "turn-1", status: "inProgress" } });
+  const turnId = `turn-${turnSequence}`;
+  const base = { threadId: thread.id, turnId };
+  notify("turn/started", { threadId: thread.id, turn: { id: turnId, status: "inProgress" } });
   notify("item/started", { ...base, item: { id: "cmd-1", type: "commandExecution", command: input } });
   const ran = MODE === "instructions" ? { status: 0, stdout: thread.instructions } : shellHostDisabled() ? { status: 1, stdout: "code-mode host is disabled" } : spawnSync("sh", ["-c", input], { encoding: "utf8", cwd: thread.cwd });
   const output = (ran.stdout ?? "") + (ran.stderr ?? "");
   notify("item/completed", { ...base, item: { id: "cmd-1", type: "commandExecution", command: input,
     status: ran.status === 0 ? "completed" : "failed", exitCode: ran.status, aggregatedOutput: output } });
   notify("item/completed", { ...base, item: { id: "msg-1", type: "agentMessage", text: `ran: ${input}` } });
-  notify("turn/completed", { threadId: thread.id, turn: { id: "turn-1", status: "completed" } });
+  notify("turn/completed", { threadId: thread.id, turn: { id: turnId, status: "completed" } });
 }
 
 readline.createInterface({ input: process.stdin }).on("line", (line) => {
@@ -49,10 +51,18 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (message.method === "model/list") return reply({ data: [{ id: MODEL, model: MODEL, supportedReasoningEfforts: [{ reasoningEffort: "high" }, { reasoningEffort: 'medium' }] }], nextCursor: null });
   if (message.method === "thread/start") {
     thread = { id: "thread-1", cwd: p.cwd, instructions: p.developerInstructions };
+    if (process.env.CODEX_HOME) writeFileSync(`${process.env.CODEX_HOME}/stub-thread.json`, JSON.stringify(thread));
+    return reply({ thread: { id: thread.id }, model: p.model, cwd: p.cwd, activePermissionProfile: { id: p.permissions } });
+  }
+  if (message.method === "thread/resume") {
+    const file = `${process.env.CODEX_HOME}/stub-thread.json`;
+    if (!existsSync(file) || JSON.parse(readFileSync(file, "utf8")).id !== p.threadId) return out({ id: message.id, error: { code: -32602, message: "unknown thread" } });
+    thread = { id: p.threadId, cwd: p.cwd, instructions: p.developerInstructions };
     return reply({ thread: { id: thread.id }, model: p.model, cwd: p.cwd, activePermissionProfile: { id: p.permissions } });
   }
   if (message.method === "turn/start") {
-    reply({ turn: { id: "turn-1", status: "inProgress" } });
+    turnSequence += 1;
+    reply({ turn: { id: `turn-${turnSequence}`, status: "inProgress" } });
     if (MODE === "crash") process.exit(3);
     return runTurn(p.input[0].text);
   }

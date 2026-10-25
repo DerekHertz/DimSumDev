@@ -28,6 +28,7 @@ function fixture({ authorizeExecution = async () => ({ profileId: PROFILE, cwd: 
           "thread/resume": threadAck({ thread: { id: message.params.threadId } }),
           "turn/start": { turn: { id: "turn-1", status: "inProgress" } },
           "turn/interrupt": {},
+          "turn/steer": { turnId: "turn-1" },
         };
         respond(message.id, results[message.method]);
       });
@@ -59,6 +60,39 @@ async function drain(protocol) {
   for await (const event of protocol.events) received.push(event);
   return received;
 }
+
+test("a conversation message steers only its admitted active turn", async () => {
+  const fx = fixture();
+  await started(fx);
+  await fx.protocol.steerTurn("Check the second case too.");
+  const request = fx.sent.find(m => m.method === "turn/steer");
+  assert.deepEqual(request.params, { threadId: "thread-1", expectedTurnId: "turn-1", input: [{ type: "text", text: "Check the second case too." }] });
+  fx.notify("turn/completed", { threadId: "thread-1", turn: { id: "turn-1", status: "completed" } });
+  await assert.rejects(fx.protocol.steerTurn("too late"), /active turn/);
+  assert.equal(fx.sent.filter(m => m.method === "turn/steer").length, 1);
+  fx.protocol.close();
+});
+
+test("steering rejects a foreign turn acknowledgement", async () => {
+  const fx = fixture({ handler(message, respond) {
+    if (message.method === "turn/start") return respond(message.id, { turn: { id: "turn-1", status: "inProgress" } });
+    if (message.method === "turn/steer") return respond(message.id, { turnId: "foreign-turn" });
+    return baseHandler(message, respond);
+  } });
+  await started(fx);
+  await assert.rejects(fx.protocol.steerTurn("do not rebind"), /acknowledgement/);
+  assert.equal(fx.protocol.state().closed, true);
+});
+
+test("steering refuses a changed permission identity before sending any message", async () => {
+  let changed = false;
+  const fx = fixture({ authorizeExecution: async () => ({ profileId: changed ? "changed-profile" : PROFILE, cwd: "/fixture" }) });
+  await started(fx);
+  changed = true;
+  await assert.rejects(fx.protocol.steerTurn("do not widen"), /policy changed/);
+  assert.ok(!fx.sent.some(m => m.method === "turn/steer"));
+  fx.protocol.close();
+});
 
 test("execution is denied without a protected integration", async () => {
   const fx = fixture({ authorizeExecution: null });

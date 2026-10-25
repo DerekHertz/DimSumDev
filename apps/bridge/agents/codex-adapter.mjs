@@ -319,6 +319,18 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
       return response.turn.id;
     } finally { startingTurn = false; }
   }
+  async function steerTurn(input) {
+    ensureOpen();
+    if (!thread || !turnId || interrupting) throw new CodexProtocolError("no active turn to steer");
+    if (typeof input !== "string" || !input.trim() || Buffer.byteLength(input) > MAX_TURN_INPUT_BYTES) throw new CodexProtocolError("invalid turn input");
+    const expectedTurnId = turnId;
+    const policy = await authorize({ phase: "turn", ...thread });
+    if (policy.profileId !== thread.profileId || policy.cwd !== thread.cwd) throw new CodexProtocolError("turn policy changed; fresh admission is required");
+    if (turnId !== expectedTurnId || interrupting) throw new CodexProtocolError("no active turn to steer");
+    const response = await rpc("turn/steer", { threadId: thread.id, expectedTurnId, input: [{ type: "text", text: input }] });
+    if (response?.turnId !== expectedTurnId) throw fail("steer acknowledgement differs from the active turn");
+    return expectedTurnId;
+  }
   function takeQuestion(publicId) {
     ensureOpen();
     const question = questions.get(publicId);
@@ -350,7 +362,7 @@ export function createCodexProtocol({ write, close: closeTransport = () => {}, a
   }
 
   return {
-    feed, initialize, supportsModel, prepareThread, startTurn, answerQuestion, rejectQuestion, interrupt,
+    feed, initialize, supportsModel, prepareThread, startTurn, steerTurn, answerQuestion, rejectQuestion, interrupt,
     close: () => fail("closed"),
     end: () => fail(buffer.length ? "transport ended with a partial frame" : "transport ended"),
     state: () => ({ initialized, closed: closed !== null, threadId: thread?.id ?? null, turnId, pending: pending.size, questions: questions.size }),
