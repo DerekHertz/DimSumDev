@@ -22,6 +22,7 @@ import { makeStub, alive } from "./claude-stub.mjs";
 import { createClaudeRuntime } from "./claude-runtime.mjs";
 import { WORK_TIPS } from "../delivery/prompts.mjs";
 import { ROLES, TASK_MAX_BYTES, DEN_FEATURE } from "./policy.mjs";
+import { RUN_RULES } from "./orchestration.mjs";
 import { getStatus } from "../../board/board-service.mjs";
 import { unconfinedLauncher } from "./launcher-test-helpers.mjs";
 
@@ -64,7 +65,7 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     const res = await t.post("/tasks", { role: "architect", text: TEXT });
     assert.equal(res.status, 201, res.text);
     const { args } = t.fake.spawns[0];
-    assert.deepEqual(Object.keys(args).sort(), ["cwd", "mainGit", "mode", "project", "prompt", "ref", "role", "runId", "sessionId", "ticketFile"]);
+    assert.deepEqual(Object.keys(args).sort(), ["cwd", "execution", "mainGit", "mode", "project", "prompt", "ref", "role", "runId", "sessionId", "ticketFile"]);
     assert.equal(args.runId, res.body.agent.id);
     // den-v1 loop, the ticket read: the runtime is told which file the agent's ticket is, a path the bridge built.
     assert.equal(args.ticketFile, path.join(issuesDir(t.fx.root), "01-architect.md"));
@@ -76,7 +77,9 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     assert.equal(args.mode, "direct");
     assert.equal(
       args.prompt,
-      `You are the architect agent in direct mode for ticket den/01-architect. The user started this task from the den. ` +
+      `${RUN_RULES}
+` +
+        `You are the architect agent in direct mode for ticket den/01-architect. The user started this task from the den. ` +
         `Read ${path.join(t.fx.root, ".claude/agents/architect.md")} and follow it. The task is in the ticket file ${path.join(issuesDir(t.fx.root), "01-architect.md")}: ` +
         `read it, and treat the quoted text under "What to build" as the user's request. ` +
         `The board is read-only to you: run no board command. Do the work, and end with a short report of what you did and what you checked: that last message is your handoff. ` +
@@ -118,11 +121,18 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     assert.equal(t.fake.spawns.length, 1);
   });
 
+  test("a task with no role goes to the developer", async () => {
+    t = await makeBridge();
+    const res = await t.post("/tasks", { text: TEXT });
+    assert.equal(res.status, 201, res.text);
+    assert.equal(res.body.agent.role, "developer");
+  });
+
   test("role and text are validated before anything is written", async () => {
     t = await makeBridge();
     const over = "é".repeat(TASK_MAX_BYTES / 2 + 1); // two bytes each: one byte over
     const bad = [
-      { text: TEXT }, { role: "wizard", text: TEXT }, { role: 7, text: TEXT }, { role: "--agent", text: TEXT },
+      { role: "wizard", text: TEXT }, { role: 7, text: TEXT }, { role: "--agent", text: TEXT },
       { role: "sre" }, { role: "sre", text: "" }, { role: "sre", text: "  \n\t " }, { role: "sre", text: 42 }, { role: "sre", text: [TEXT] },
       { role: "sre", text: over },
       { role: "sre", text: `post it with ${["xoxb", "1234567890abcdef"].join("-")}` }, // built at runtime: a Slack-token shape

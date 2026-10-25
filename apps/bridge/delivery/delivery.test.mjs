@@ -393,8 +393,10 @@ test("a red pull request from outside the den starts Bao's desk with a message a
   const desk = t.fake.spawns.filter((s) => s.args.ref === "den/00-bao");
   assert.equal(desk.length, 1);
   assert.equal(desk[0].args.role, "orchestrator");
-  assert.equal(desk[0].sent.length, 1);
-  assert.match(desk[0].sent[0].text, /pull request #40 \(outside work\) is red/);
+  // A Claude desk takes the message in its first prompt, not as a later send (tiered orchestration: no redundant bootstrap turn).
+  assert.equal(desk[0].sent.length, 0);
+  assert.match(desk[0].args.openingMessage.text, /pull request #40 \(outside work\) is red/);
+  assert.match(desk[0].args.prompt, /User request:\n[\s\S]*pull request #40 \(outside work\) is red/);
   const { ci } = await t.state();
   assert.deepEqual(ci.prs.map((p) => [p.number, p.state, p.bao]), [[40, "red", "Bao was told"]]);
 });
