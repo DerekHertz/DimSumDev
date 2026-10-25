@@ -1,6 +1,6 @@
 ---
 name: pipeline-retro
-description: "Find repeated relay hiccups (handoff, board, guard, CI) and turn each into one fix, preferring code over wording. Bao or Jiao only; after every 3 resolved tickets."
+description: "Find repeated relay hiccups and turn each into one fix, preferring code over wording. Bao or Jiao only; after every 3 resolved tickets."
 ---
 
 Run this in the main chief-of-staff session. The goal is fewer repeat failures per ticket, not a complete record. Wording has already failed twice this project: a rule that existed in a skill was still broken by most agents. So prefer a code fix whenever one exists.

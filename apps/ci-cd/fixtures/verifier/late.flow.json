@@ -1,0 +1,14 @@
+{
+  "name": "late",
+  "steps": [
+    {
+      "goto": "apps/ci-cd/fixtures/verifier/broken.html"
+    },
+    {
+      "click": "#late"
+    },
+    {
+      "wait": 900
+    }
+  ]
+}

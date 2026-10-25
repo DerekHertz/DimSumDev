@@ -1,0 +1,7 @@
+{
+  "name": "hang",
+  "steps": [
+    { "goto": "apps/ci-cd/fixtures/verifier/good.html" },
+    { "waitFor": "#never-appears" }
+  ]
+}

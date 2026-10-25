@@ -1,0 +1,11 @@
+{
+  "name": "good",
+  "steps": [
+    { "goto": "apps/ci-cd/fixtures/verifier/good.html" },
+    { "screenshot": "loaded" },
+    { "fill": { "selector": "#name", "value": "den" } },
+    { "click": "#add" },
+    { "expectText": { "selector": "#result", "text": "hello, den" } },
+    { "screenshot": "after-add" }
+  ]
+}

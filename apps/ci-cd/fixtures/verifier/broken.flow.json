@@ -1,0 +1,10 @@
+{
+  "name": "broken",
+  "steps": [
+    { "goto": "apps/ci-cd/fixtures/verifier/broken.html" },
+    { "click": "#boom" },
+    { "click": "#load" },
+    { "wait": 500 },
+    { "screenshot": "after-breakage" }
+  ]
+}

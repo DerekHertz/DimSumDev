@@ -1,6 +1,6 @@
 ---
 name: asset-critique
-description: "Visual critique of a rigged glb character (proportions, silhouette, colour, deformation, pose) with measured numbers and ranked fixes. Use before an asset ticket goes to the user."
+description: "Visual critique of a rigged glb character, with measured numbers and ranked fixes. Use before an asset ticket goes to the user."
 ---
 
 # Asset critique
