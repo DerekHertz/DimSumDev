@@ -1,7 +1,18 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
-import { chipModel, stackChips } from "./chip-model.mjs";
+import { chipModel, stackChips, sceneActivityModel } from "./chip-model.mjs";
+
+test('quiet run markers collapse into an inspectable summary while selection and genuine alerts stay visible',()=>{
+ const placements=[...Array.from({length:9},(_,i)=>({ref:`f/${i+10}`,pose:'idle'})),
+  {ref:'f/20',pose:'done'},{ref:'f/21',pose:'waiting_on_user'},{ref:'f/22',pose:'blocked'},{ref:'f/23',pose:'failed'}];
+ const m=sceneActivityModel(placements,'f/12');
+ assert.deepEqual(m.markers.map(p=>p.ref),['f/12','f/21','f/22','f/23']);
+ assert.equal(m.rows.length,13,'every exact run remains inspectable');
+ assert.deepEqual(m.counts,{Queued:9,Done:1,'Needs you':1,Blocked:1,Failed:1});
+ assert.equal(sceneActivityModel(placements,null).markers.length,3);
+ assert.equal(sceneActivityModel([],null).rows.length,0);
+});
 
 // den-v1/01 AC3: the five task states (working, waiting on user, blocked, failed, done) each read by shape or word,
 // never by colour alone. The word and tone come from chipModel; the glyph shape comes from the stylesheet rule for

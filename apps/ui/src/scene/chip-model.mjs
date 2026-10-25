@@ -35,3 +35,11 @@ export function chipModel(placement, title) {
   const chip = CHIPS[placement.pose] ?? CHIPS.idle;
   return { ...chip, ariaLabel: `${title ?? placement.ref}, ${chip.label}` };
 }
+
+export function sceneActivityModel(placements, selected) {
+  const counts = {};
+  const rows = placements.map(p => ({ ...p, ...chipModel(p) }));
+  for (const row of rows) counts[row.label] = (counts[row.label] ?? 0) + 1;
+  const markers = placements.filter(p => p.ref === selected || ['waiting_on_user', 'blocked', 'failed'].includes(p.pose));
+  return { counts, rows, markers };
+}

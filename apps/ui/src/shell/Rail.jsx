@@ -2,6 +2,7 @@
 // and the expand control. Topic entries open the topic sheet (aria-expanded); Talk to Bao opens the side sheet (aria-pressed).
 // Collapsed it shows icons with a tooltip on hover and keyboard focus; expanded (remembered per browser) it shows labels.
 import { useState } from "react";
+import { createPortal } from 'react-dom';
 import { RAIL_ENTRIES, RAIL_FOOTER, entryName } from "./rail-model.mjs";
 
 const RAIL_KEY = "den.rail-open";
@@ -29,7 +30,7 @@ const Icon = ({ name }) => (
 );
 
 function Badge({ badge }) {
-  if (badge?.count > 0) return <span className="den-rail-badge" aria-hidden="true">{badge.count}</span>;
+  if (badge?.count > 0) return <span className="den-rail-badge" aria-hidden="true">{badge.count > 99 ? '99+' : badge.count}</span>;
   if (badge?.dot) return <span className="den-rail-dot" aria-hidden="true" />;
   return null;
 }
@@ -40,6 +41,12 @@ function Badge({ badge }) {
  */
 export function Rail({ topic, baoOpen, badges, onEntry, buildLabel, demoActive = false, offline = false }) {
   const [open, setOpen] = useState(readOpen);
+  const [tip, setTip] = useState(null);
+  const showTip = (event, text) => {
+    if (open && window.innerWidth > 600) return;
+    const bounds = event.currentTarget.getBoundingClientRect();
+    setTip({ text, left: bounds.right + 8, top: Math.min(bounds.top, window.innerHeight - 48) });
+  };
   const toggle = () => setOpen((on) => { saveOpen(!on); return !on; });
   const item = (entry) => {
     const badge = badges?.[entry.id];
@@ -50,7 +57,8 @@ export function Rail({ topic, baoOpen, badges, onEntry, buildLabel, demoActive =
     return (
       <li key={entry.id}>
         <button type="button" className={`den-rail-entry${isOpen ? " is-open" : ""}`} data-rail={entry.id} aria-label={label} data-tip={name} {...state}
-          onClick={(e) => onEntry(entry.id, e.currentTarget)}>
+          onFocus={e => showTip(e, name)} onBlur={() => setTip(null)} onMouseEnter={e => showTip(e, name)} onMouseLeave={() => setTip(null)}
+          onClick={(e) => { setTip(null); onEntry(entry.id, e.currentTarget); }}>
           <Icon name={entry.icon} />
           <span className="den-rail-label">{name}</span>
           <Badge badge={badge} />
@@ -59,17 +67,18 @@ export function Rail({ topic, baoOpen, badges, onEntry, buildLabel, demoActive =
     );
   };
   return (
-    <nav className={`den-rail${open ? " is-expanded" : ""}`} aria-label="Den" data-offline={offline || undefined}>
+    <nav className={`den-rail${open ? " is-expanded" : ""}`} aria-label="Den" data-offline={offline || undefined} onScroll={() => setTip(null)}>
       <ul className="den-rail-list">{RAIL_ENTRIES.map(item)}</ul>
       <ul className="den-rail-list den-rail-footer">
         {RAIL_FOOTER.map(item)}
         <li>
-          <button type="button" className="den-rail-entry den-rail-expand" aria-expanded={open} aria-label={open ? "Hide labels" : "Show labels"} data-tip={open ? "Hide labels" : "Show labels"} onClick={toggle}>
+          <button type="button" className="den-rail-entry den-rail-expand" aria-expanded={open} aria-label={open ? "Hide labels" : "Show labels"} data-tip={open ? "Hide labels" : "Show labels"} onFocus={e => showTip(e, open ? 'Hide labels' : 'Show labels')} onBlur={() => setTip(null)} onMouseEnter={e => showTip(e, open ? 'Hide labels' : 'Show labels')} onMouseLeave={() => setTip(null)} onClick={() => { setTip(null); toggle(); }}>
             <svg className="den-rail-icon" viewBox="0 0 20 20" width="20" height="20" aria-hidden="true"><path d={open ? "M12 5l-5 5 5 5" : "M8 5l5 5-5 5"} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" /></svg>
             <span className="den-rail-label">{open ? "Hide labels" : "Show labels"}</span>
           </button>
         </li>
       </ul>
+      {tip ? createPortal(<span className="den-rail-tooltip" aria-hidden="true" style={{left:tip.left, top:tip.top}}>{tip.text}</span>, document.body) : null}
     </nav>
   );
 }

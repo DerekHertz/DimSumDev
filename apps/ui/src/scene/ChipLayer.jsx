@@ -2,7 +2,7 @@
 // every frame and written straight to each button's style, so React does not re-render per frame.
 import { useEffect, useMemo, useRef } from "react";
 import * as THREE from "three";
-import { chipModel, stackChips } from "./chip-model.mjs";
+import { chipModel, stackChips, sceneActivityModel } from "./chip-model.mjs";
 import { TALLY_ARIA_LABEL, TALLY_CARD_ID, TALLY_LABEL } from "./tally-face.mjs";
 import { teamLabels } from "./team-labels.mjs";
 import { teamOf } from "./banquet-layout.mjs";
@@ -56,7 +56,7 @@ export function ChipLayer({ placements, tickets, selected, onSelect, stage, hear
           el.style.top = `${((1 - v.y) / 2) * size.height}px`;
           el.style.visibility = v.z>=-1&&v.z<=1&&Math.abs(v.x)<=1&&Math.abs(v.y)<=1 ? "visible" : "hidden";
         }
-        const placed = stackChips(pts);
+        const placed = stackChips(pts, { width: 140, height: 40, gap: 8 });
         for (const [ref, p] of placed) {
           const el = nodes.current.get(ref);
           el.style.left = `${p.x}px`;
@@ -71,8 +71,17 @@ export function ChipLayer({ placements, tickets, selected, onSelect, stage, hear
   }, [stage]);
 
   const titles = new Map((tickets ?? []).map((t) => [t.ref, t.title]));
+  const activity = sceneActivityModel(placements, selected);
   return (
     <div className="chip-layer">
+      {activity.rows.length ? <details className="scene-activity glass">
+        <summary>Run activity · {Object.entries(activity.counts).map(([state, count]) => `${count} ${state.toLowerCase()}`).join(' · ')}</summary>
+        <ul aria-label="Run activity">{activity.rows.map(row => <li key={row.ref}>
+          <button type="button" aria-pressed={selected === row.ref} onClick={() => onSelect(row.ref)}>
+            <span>{titles.get(row.ref) ?? row.ref}</span><small>{row.ref} · {row.label}</small>
+          </button>
+        </li>)}</ul>
+      </details> : null}
       {labels.map((l) => (
         <span
           key={l.id}
@@ -112,7 +121,7 @@ export function ChipLayer({ placements, tickets, selected, onSelect, stage, hear
             />
           ))
         : null}
-      {placements.map((c) => {
+      {activity.markers.map((c) => {
         const chip = chipModel(c, titles.get(c.ref));
         return (
           <button
