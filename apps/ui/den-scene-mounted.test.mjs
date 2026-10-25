@@ -423,7 +423,7 @@ test("portrait profiles keep real work and visitor identities, and route explici
     await profiles.getByText('Read · work/02-maker tool details', { exact: true }).waitFor({ state: 'visible' });
     assert.equal(await profiles.locator('.forest-profile-tool').innerText(), 'Read · work/02-maker tool details', 'the resident shows its own correlated tool preview');
     assert.match(await profiles.locator('.forest-profile-task').innerText(), /work\/02-maker[\s\S]*Maker-specific task/);
-    assert.equal(await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 33, 'a second live role gets a distinct visitor portrait');
+    assert.equal(await profiles.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 25, '24 continuing residents plus one distinct live visitor portrait');
     await profiles.getByRole('button', { name: 'Talk to Maker', exact: true }).click();
     await page.locator('.transcript-meta code').filter({ hasText: /^c-maker-current$/ }).waitFor({ state: 'visible' });
     assert.match(await page.locator('.transcript-log').innerText(), /Conversation for c-maker-current/);
