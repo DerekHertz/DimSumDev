@@ -6,9 +6,17 @@ import { makeStateFixture } from "../bridge/bridge-fixture.mjs";
 import { startBridge } from "../bridge/server.mjs";
 import { REPO_ROOT } from "./dev-server.mjs";
 
-export function runBuild() {
+// `signal` aborts the build and kills its whole process group (npm and the vite it started), so a capped run leaves no build behind.
+export function runBuild({ signal } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn("npm", ["run", "ui:build"], { cwd: REPO_ROOT, shell: process.platform === "win32" });
+    const child = spawn("npm", ["run", "ui:build"], { cwd: REPO_ROOT, shell: process.platform === "win32", detached: process.platform !== "win32" });
+    signal?.addEventListener("abort", () => {
+      try {
+        process.kill(-child.pid, "SIGKILL");
+      } catch {
+        child.kill("SIGKILL");
+      }
+    }, { once: true });
     let out = "";
     child.stdout.on("data", (c) => (out += c));
     child.stderr.on("data", (c) => (out += c));

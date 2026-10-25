@@ -6,7 +6,8 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { describeStep, findRunPids, parseFlow, reproSteps, sweepRun } from "./verifier.mjs";
+import { describeStep, findRunPids, parseFlow, reproSteps, runVerifier, sweepRun } from "./verifier.mjs";
+import { runBuild } from "./verifier-den.mjs";
 
 const REPO_ROOT = path.resolve(fileURLToPath(new URL("../../", import.meta.url)));
 
@@ -86,6 +87,32 @@ test("sweepRun kills exactly the matched pids with SIGKILL and reports them", as
   } finally {
     await rm(procDir, { recursive: true, force: true });
   }
+});
+
+test("runVerifier caps starting the target: a start that never finishes is aborted and reported as a timeout finding", async () => {
+  const out = await mkdtemp(path.join(tmpdir(), "verifier-start-"));
+  let aborted = false;
+  const start = ({ signal }) => new Promise((_, reject) => signal.addEventListener("abort", () => ((aborted = true), reject(new Error("aborted")))));
+  try {
+    const report = await runVerifier({ flow: { name: "x", steps: [{ goto: "a.html" }] }, outDir: out, timeoutMs: 300 }, { start });
+    assert.equal(aborted, true, "the start was told to stop");
+    assert.equal(report.ok, false);
+    assert.deepEqual(report.findings.map((f) => [f.kind, f.message]), [["timeout", "the run passed its 300 ms cap while starting the server"]]);
+    assert.equal(JSON.parse(await readFile(path.join(out, "report.json"), "utf8")).findings.length, 1);
+  } finally {
+    await rm(out, { recursive: true, force: true });
+  }
+});
+
+test("runBuild aborted by its signal rejects and leaves no vite build process", async () => {
+  const abort = new AbortController();
+  const build = runBuild({ signal: abort.signal });
+  setTimeout(() => abort.abort(), 100);
+  await assert.rejects(build, /exited/);
+  await new Promise((resolve) => setTimeout(resolve, 300));
+  const { execFileSync } = await import("node:child_process");
+  const left = execFileSync("ps", ["-A", "-o", "args="], { encoding: "utf8" }).split("\n").filter((l) => l.includes("apps/ui/vite.config.mjs") && !l.includes("ps -A"));
+  assert.deepEqual(left, []);
 });
 
 test("the agent image installs Chromium and points PW_CHROMIUM_PATH at it, so a container run needs no host browser", async () => {

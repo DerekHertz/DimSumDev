@@ -137,6 +137,16 @@ test("a flow that hangs is stopped by --timeout and leaves no browser or dev ser
   });
 });
 
+test("a finding that surfaces during a later wait is attributed to the action that caused it, not the wait", async () => {
+  await withOut(async (out) => {
+    const { code, stdout, stderr } = await runCli(["--flow", `${FIXTURES}/late.flow.json`, "--out", out], { timeoutMs: 60000 });
+    assert.equal(code, 1, `stdout: ${stdout}\nstderr: ${stderr}`);
+    const late = (await readReport(out)).findings.find((f) => f.kind === "page-error");
+    assert.match(late?.message ?? "", /late boom/);
+    assert.deepEqual(late.reproduce, ["1. open apps/ci-cd/fixtures/verifier/broken.html", "2. click #late"]);
+  });
+});
+
 test("a missing flow file exits 2 and says so", async () => {
   const { code, stderr } = await runCli(["--flow", `${FIXTURES}/nope.flow.json`], { timeoutMs: 20000 });
   assert.equal(code, 2);

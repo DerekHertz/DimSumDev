@@ -121,11 +121,11 @@ async function launchBrowser(chromium, runId) {
   throw last;
 }
 
-async function startTarget({ url, den, root, skipBuild }) {
+async function startTarget({ url, den, root, skipBuild, signal }) {
   if (url) return { base: url.replace(/\/+$/, ""), close: async () => {}, vars: {} };
   if (den) {
     const { runBuild, startDenFixture } = await import("./verifier-den.mjs");
-    if (!skipBuild) await runBuild();
+    if (!skipBuild) await runBuild({ signal });
     return startDenFixture();
   }
   const server = createDevServer(root);
@@ -261,7 +261,7 @@ async function collectPerf(state, ctx) {
  * Runs `flow` against a server it starts (the repo's dev server over `root`, or the den on a fixture board with `den`) or against
  * `url`, writes `<outDir>/report.json` and returns the report. Never rejects for a finding; rejects for a bad environment.
  */
-export async function runVerifier({ flow: rawFlow, root = REPO_ROOT, url, den = false, skipBuild = false, outDir, timeoutMs = 120000, stepTimeoutMs = 15000 }) {
+export async function runVerifier({ flow: rawFlow, root = REPO_ROOT, url, den = false, skipBuild = false, outDir, timeoutMs = 120000, stepTimeoutMs = 15000 }, { start = startTarget } = {}) {
   const flow = parseFlow(rawFlow);
   const runId = `run-${randomBytes(6).toString("hex")}`;
   outDir = path.resolve(outDir ?? path.join(".verify", `${flow.name}-${runId}`));
@@ -273,21 +273,31 @@ export async function runVerifier({ flow: rawFlow, root = REPO_ROOT, url, den = 
   let perf = { loadMs: null, tracePath: null };
   let timer;
   try {
-    target = await startTarget({ url, den, root, skipBuild });
-    const ctx = { runId, base: target.base, vars: target.vars, outDir, tracePath: path.join(outDir, "perf-trace.json"), screenshots, stepTimeoutMs };
-    const work = driveFlow({ flow, ctx, state });
-    const outcome = await Promise.race([
-      work.then(() => "done"),
-      new Promise((resolve) => (timer = setTimeout(() => resolve("timeout"), timeoutMs))),
-    ]);
-    if (outcome === "timeout") {
-      state.aborted = true;
-      const at = state.current >= 0 ? `, during step ${state.current + 1} (${describeStep(flow.steps[state.current])})` : " before the first step";
-      state.findings.push({ kind: "timeout", message: `the run passed its ${timeoutMs} ms cap${at}`, step: state.current, reproduce: reproSteps(flow.steps, state.current) });
-      work.catch(() => {});
+    const deadline = new Promise((resolve) => (timer = setTimeout(() => resolve("timeout"), timeoutMs)));
+    const abort = new AbortController();
+    const starting = start({ url, den, root, skipBuild, signal: abort.signal });
+    const up = await Promise.race([starting, deadline]);
+    if (up === "timeout") {
+      abort.abort();
+      starting.then((late) => late.close(), () => {});
+      state.findings.push({ kind: "timeout", message: `the run passed its ${timeoutMs} ms cap while starting the server`, step: -1, reproduce: [] });
+    } else {
+      target = up;
+      const ctx = { runId, base: target.base, vars: target.vars, outDir, tracePath: path.join(outDir, "perf-trace.json"), screenshots, stepTimeoutMs };
+      const work = driveFlow({ flow, ctx, state });
+      const outcome = await Promise.race([
+        work.then(() => "done"),
+        deadline,
+      ]);
+      if (outcome === "timeout") {
+        state.aborted = true;
+        const at = state.current >= 0 ? `, during step ${state.current + 1} (${describeStep(flow.steps[state.current])})` : " before the first step";
+        state.findings.push({ kind: "timeout", message: `the run passed its ${timeoutMs} ms cap${at}`, step: state.current, reproduce: reproSteps(flow.steps, state.current) });
+        work.catch(() => {});
+      }
+      if (state.page) perf = await collectPerf(state, ctx);
+      if (outcome === "timeout") await bounded(work.catch(() => {}), CLOSE_BOUND_MS);
     }
-    if (state.page) perf = await collectPerf(state, ctx);
-    if (outcome === "timeout") await bounded(work.catch(() => {}), CLOSE_BOUND_MS);
   } finally {
     clearTimeout(timer);
     state.aborted = true;

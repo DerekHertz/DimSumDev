@@ -8,9 +8,13 @@
   <h1>Broken page</h1>
   <button id="boom" type="button">Boom</button>
   <button id="load" type="button">Load</button>
+  <button id="late" type="button">Late</button>
   <script>
     document.getElementById("boom").addEventListener("click", () => {
       throw new Error("boom from fixture");
+    });
+    document.getElementById("late").addEventListener("click", () => {
+      setTimeout(() => { throw new Error("late boom from fixture"); }, 300);
     });
     document.getElementById("load").addEventListener("click", () => {
       fetch("/apps/ci-cd/fixtures/verifier/missing.json").catch(() => {});
