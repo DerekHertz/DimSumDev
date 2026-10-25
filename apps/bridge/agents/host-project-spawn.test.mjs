@@ -36,6 +36,20 @@ function projectRepo() {
   return dir;
 }
 
+test("a target project's chief-of-staff meeting chair remains a target run", async () => {
+  const denState = realpathSync(mkdtempSync(path.join(tmpdir(), "den-state-")));
+  const t = await makeBridge({ denState });
+  cleanups.push(() => t.close());
+  const dir = projectRepo();
+  assert.deepEqual(await addProject(denState, { slug: "acme", path: dir, board: { kind: "markdown" } }), { ok: true });
+  const result = await t.bridge.host.start({ ref: "meetings/00-m-test", role: "chief-of-staff", project: "acme",
+    meeting: { part: "chair", file: "Private meeting fixture", effort: "medium", moderator: "bao", standalone: true, taskRef: null } });
+  assert.equal(result.status, 201, result.error);
+  assert.equal(result.agent.project, "acme");
+  assert.equal(t.fake.spawns[0].args.project.control, false);
+  assert.equal(t.fake.spawns[0].args.project.root, dir);
+});
+
 test("the fake runtime sees a bridge-derived project on a den run, a target run and a follow-up", async () => {
   const denState = realpathSync(mkdtempSync(path.join(tmpdir(), "den-state-")));
   const t = await makeBridge({ denState });

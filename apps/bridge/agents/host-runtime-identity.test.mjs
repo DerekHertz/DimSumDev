@@ -177,6 +177,9 @@ test("Jiao starts a private Codex desk conversation without binding or messaging
   assert.equal(follow.status, 201, JSON.stringify(follow.body));
   assert.equal(t.codex.spawns[1].args.runtimeSessionId, "thread_codex_01");
   assert.equal(t.codex.spawns[1].args.resume, true);
+  assert.match(run.args.deskInstructions, /You are Jiao/);
+  assert.equal(t.codex.spawns[1].args.deskInstructions, run.args.deskInstructions, "a follow-up keeps current trusted desk instructions separate from user input");
+  assert.doesNotMatch(t.codex.spawns[1].args.deskInstructions, /Continue Jiao/);
   await t.finish(follow, t.codex);
   const bao = await t.say({ runtime: "claude", text: "Hello Bao." }, "orchestrator");
   assert.equal(bao.status, 201, JSON.stringify(bao.body));

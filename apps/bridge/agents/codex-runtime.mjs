@@ -77,7 +77,7 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
     },
     stillRunning: (id) => (typeof launcher.active === "function" ? launcher.active(id) : Promise.resolve(false)),
     resumeCommand: () => null,
-    async spawn({ role, cwd, prompt, sessionId, runId, model, effort, ticketFile, mainGit, project, resume, runtimeSessionId, promptId, openingMessage } = {}) {
+    async spawn({ role, cwd, prompt, sessionId, runId, model, effort, ticketFile, mainGit, project, resume, runtimeSessionId, promptId, openingMessage, deskInstructions } = {}) {
       if (!isWorktreePath(cwd) || typeof prompt !== "string" || prompt.trim() === "") throw new TypeError("codex runtime: a worktree and a prompt are required");
       if (openingMessage !== undefined && (resume === true || typeof openingMessage?.text !== "string" || !openingMessage.text.trim() || Buffer.byteLength(openingMessage.text) > MESSAGE_MAX_BYTES || !UUID_RE.test(openingMessage.messageId))) {
         throw new TypeError("codex runtime: invalid opening message");
@@ -141,7 +141,7 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
         const launched = await launcher.launch({ slotClass: slotClassOf(role), id: runId ?? sessionId, bin: codexBin, args: codexArgs, cwd,
           env: { PATH: path_, HOME: privateDir(`${session}/home`), CODEX_HOME: nativeStore, XDG_CONFIG_HOME: privateDir(`${session}/xdg`), TMPDIR: tmp, LANG: "C.UTF-8" } });
         return await attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup,
-          resumeThreadId: resume === true ? runtimeSessionId : undefined, promptId, openingMessage,
+          resumeThreadId: resume === true ? runtimeSessionId : undefined, promptId, openingMessage, deskInstructions,
           rememberThread: thread => writeFileSync(binding, JSON.stringify({ thread, cwd, role, model: recipe.model }), { mode: 0o600 }) });
       } catch (err) {
         cleanup();
@@ -151,13 +151,13 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
   };
 }
 
-async function attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup, resumeThreadId, promptId, openingMessage, rememberThread }) {
+async function attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup, resumeThreadId, promptId, openingMessage, deskInstructions, rememberThread }) {
   const { child, group } = launched;
   child.on("error", () => {});
   child.stdin.on("error", () => {});
   child.stderr.resume();
   const protocol = openCodexAppServer({ child, ...(killGraceMs === undefined ? {} : { killGraceMs }),
-    authorizeExecution: async () => ({ profileId: compiled.profileId, cwd, developerInstructions: `${recipe.instructions}\n\nProduct worktree: ${cwd}.${openingMessage ? `\n\n${prompt}` : ""}` }) });
+    authorizeExecution: async () => ({ profileId: compiled.profileId, cwd, developerInstructions: `${recipe.instructions}\n\nProduct worktree: ${cwd}.${deskInstructions ? `\n\n${deskInstructions}` : ""}` }) });
   const killAll = () => {
     group?.kill();
     try { process.kill(-child.pid, "SIGKILL"); } catch { /* the group is already gone */ }

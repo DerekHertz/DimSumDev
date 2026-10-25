@@ -129,7 +129,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const controlHandle = { slug: "den", root, control: root, workspaces };
   const projects = projectsOption ?? { active: async () => "den", get: async (slug) => (slug === "den" ? controlHandle : null) };
   // A run's project, fixed when it starts: a desk, meeting or orchestrator run is the den's; any other takes the active project.
-  const isControl = (a) => a.role === "orchestrator" || a.role === "chief-of-staff" || isDeskRef(a.ref);
+  const isControl = (a) => a.role === "orchestrator" || isDeskRef(a.ref);
   const workspacesOf = async (slug) => (slug === undefined || slug === "den" ? workspaces : (await projects.get(slug))?.workspaces ?? null);
   const agents = new Map(); // id -> record; insertion order is snapshot order
   const liveByRef = new Map(); // project/ref -> record, for every reserved or running agent
@@ -693,6 +693,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const args = {
       role: agent.role, ...(agent.mode ? { mode: agent.mode } : {}), ref: agent.ref, cwd: workspace.dir, sessionId: agent.sessionId, runId: agent.id, ...(agent.runtimeSessionId ? { runtimeSessionId: agent.runtimeSessionId } : {}),
       prompt: agent.followUp ? agent.followUp.text : promptFor(agent), ticketFile: ticketFile(agent.ref, project.root), mainGit,
+      ...(isDeskRef(agent.ref) ? { deskInstructions: promptFor(agent) } : {}),
       ...(agent.openingMessage ? { openingMessage: agent.openingMessage } : {}),
       ...(agent.meeting ? { effort: agent.meeting.effort } : {}),
       // den-mvp/49: derived here, from the bridge's own root and the run's project; never from a request. The runtime refuses a spawn without it outside the control checkout.
@@ -1209,7 +1210,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (badText) return badText;
     const runId = body?.runId;
     if (runId !== undefined && (typeof runId !== "string" || !AGENT_ID_RE.test(runId))) return refuse(400, "runId must be an agent id");
-    const selected = await select({ ...body, role }, { execute: false });
+    const atDesk = role === "orchestrator" || role === "chief-of-staff";
+    const selected = await select({ ...body, role, ...(atDesk ? { ref: deskRefOf(body?.runtime) } : {}) }, { execute: false });
     if (selected.ok === false) return selected;
     const matches = (a) => a.role === role && a.runtimeId === selected.runtime && (a.project ?? "den") === selected.project;
     const isLive = (a) => !!a.proc && !a.exited;
@@ -1219,7 +1221,6 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       if (!target || !matches(target)) return refuse(404, `no such ${role} run`);
     } else {
       // den-mvp/30: Bao's thread with no run named is the desk's: its live run, a follow-up of its last, or a new one.
-      const atDesk = role === "orchestrator" || role === "chief-of-staff";
       const mine = [...agents.values()].filter((a) => matches(a) && (!atDesk || a.ref === deskRefOf(selected.runtime)));
       const live = mine.filter(isLive);
       if (live.length > 1) return refuse(409, `${live.length} ${role} runs are live; say which run the message is for`);

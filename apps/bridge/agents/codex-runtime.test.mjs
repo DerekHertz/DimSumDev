@@ -77,7 +77,10 @@ test("Jiao's desk uses the chief-of-staff recipe and the user message as its fir
   const proc = await t.spawn({ role: "orchestrator", prompt: "Trusted desk instructions, not shell input.", openingMessage });
   const events = await collect(proc);
   assert.equal(events.find(e => e.type === "tool-result").text, "hello-jiao");
-  assert.ok(events.findIndex(e => e.type === "message-applied" && e.id === openingMessage.messageId) < events.findIndex(e => e.type === "done"));
+  const applied = events.findIndex(e => e.type === "message-applied" && e.id === openingMessage.messageId);
+  assert.ok(applied >= 0, "the initial user message must have a real acknowledgement");
+  assert.ok(applied < events.findIndex(e => e.type === "tool-result"), "acknowledgement precedes the result");
+  assert.ok(applied < events.findIndex(e => e.type === "done"));
   assert.match(readFileSync(`${t.store()}/config.toml`, "utf8"), /default_permissions = "den-orchestrator"/);
   assert.equal(proc.runtimeSessionId, "thread-1");
 });
