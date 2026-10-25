@@ -24,10 +24,10 @@ and show up as animal residents in a 3D bamboo garden, so you can see who is doi
 npm ci && npm run ui    # then open http://127.0.0.1:4317/?demo=den
 ```
 
-[![DimSumDev: a living world for your AI dev team, showing the global garden view and your desk](docs/images/dimsumdev-preview.png)](docs/videos/dimsumdev-linkedin.mp4)
+![DimSumDev: the garden and Queue in the near-black glass interface](docs/images/dimsumdev-preview.png)
 
 
-*Captured from the running app in Demo mode (`?demo=den`). The preview uses the demo's recorded and staged events; steering actions are disabled.*
+*Screenshots and GIFs show the current app with built-in demo/sample work (`?demo=den`). Counts and events are illustrative, not production metrics; steering actions are disabled.*
 
 </div>
 
@@ -113,12 +113,12 @@ npm run next-session            # prints the command to resume from the latest h
 
 | Visit an agent | Enter the den |
 | --- | --- |
-| ![DimSumDev agent view: a developer panda at Steamers with its tool calls and message exchange open at your desk](docs/images/dimsumdev-agents.png) | ![DimSumDev first-person view: visiting the pandas at the Steamers workstations after touring the tea garden and Bao's courtyard](docs/images/dimsumdev-walk.png) |
+| ![DimSumDev agent view: a developer conversation with Summary collapsed](docs/images/dimsumdev-agents.png) | ![DimSumDev first-person view entering the den along the garden walkway](docs/images/dimsumdev-walk.png) |
 
 <details>
 <summary>Preview the first-person view</summary>
 
-![A first-person tour past the tea garden, Bao's courtyard and the Steamers workstations](docs/images/dimsumdev-walk.gif)
+![A short first-person walk from the entrance toward the courtyard](docs/images/dimsumdev-walk.gif)
 
 </details>
 
@@ -174,9 +174,9 @@ The relay is sized to risk: a ticket on a risk path (the wall, CI, hooks, the se
 
 - **Agents from the den.** Press T beside a resident panda that has no agent and type a task. The bridge writes a ticket under `.scratch/den/` and starts that role's Claude Code agent in its own git worktree. Its tool calls, permission requests, final reply and cost show on the panda's card, and you can message it while it works. A permission request also shows in the Needs you card and in the transcript, with Deny and Allow ([ADR 0016](docs/adr/0016-ui-steering-channel.md)).
 
-  ![DimSumDev in motion: the global garden view, opening a developer panda's conversation, and walking through the den](docs/images/dimsumdev-preview.gif)
+  ![The current DimSumDev glass interface in motion with built-in demo work](docs/images/dimsumdev-preview.gif)
 
-  *Demo mode in the running app, moving from the global view to a developer's card and conversation, then taking a first-person tour past the tea garden, Bao's courtyard and Steamers. The scout's events are from a recorded run; the developer and qa storylines are staged. Steering actions are disabled. [Download the MP4 with captions and an original soundtrack](docs/videos/dimsumdev-linkedin.mp4).*
+  *Current screenshots and GIFs use the demo's recorded and staged sample work, not production metrics. The first-person clip is a short walk from the entrance toward the courtyard. Steering actions are disabled. [Download the earlier MP4 recording with captions and an original soundtrack](docs/videos/dimsumdev-linkedin.mp4); this video has not been refreshed for the current interface.*
 
 - **The router.** The router follows the bridge's `/events` and starts deliveries for `ready-for-agent` tickets from the top of a work order file, two at a time when their files don't overlap. It looks again every few minutes at a delivery paused on your merge (`guardrail`) or on checks (`ci-pending`): once you have merged the pull request on GitHub the ticket resolves with no click, and the router never merges a change that is yours to merge. It also resolves an `in-review` ticket whose branch was merged outside a delivery. It starts nothing at 90% usage, and sends every stop to Needs you and to your phone ([ADR 0027](docs/adr/0027-a-router-beside-the-bridge.md)).
 - **Delivery from the den.** Deliver on a ticket runs the developer, the code reviewer and qa's verify, the scripted checks and, on a hit, security; then the bridge pushes, opens the PR and merges on green checks ([ADR 0024](docs/adr/0024-delivery-jobs.md)). A change to the bridge, a guardrail or CI is left for you to merge.
