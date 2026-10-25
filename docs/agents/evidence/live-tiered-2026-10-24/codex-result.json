@@ -1,0 +1,46 @@
+{
+  "ok": true,
+  "provider": "codex",
+  "calls": 2,
+  "delegations": 1,
+  "agents": [
+    {
+      "id": "c-907db366844834e2",
+      "parent": null,
+      "role": "orchestrator",
+      "state": "done",
+      "model": "gpt-6.1-sol",
+      "execution": {
+        "provider": "codex",
+        "tier": "standard",
+        "model": "gpt-6.1-sol",
+        "reasoning": "medium",
+        "speed": "standard",
+        "reason": "default standard task"
+      },
+      "usage": null,
+      "costUsd": null,
+      "reply": "LIVE DELEGATION OK codex 629591",
+      "reason": null
+    },
+    {
+      "id": "c-e3028256e03fd726",
+      "parent": "c-907db366844834e2",
+      "role": "developer",
+      "state": "done",
+      "model": "gpt-6-luna",
+      "execution": {
+        "provider": "codex",
+        "tier": "bounded",
+        "model": "gpt-6-luna",
+        "reasoning": "medium",
+        "speed": "standard",
+        "reason": "default bounded task"
+      },
+      "usage": null,
+      "costUsd": null,
+      "reply": "LIVE DELEGATION OK codex 629591",
+      "reason": null
+    }
+  ]
+}

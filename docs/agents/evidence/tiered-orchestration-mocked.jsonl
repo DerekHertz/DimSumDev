@@ -1,0 +1,3 @@
+{"agentId":"c-578799ee14534b32","parent":"jiao","runtime":"codex","execution":{"provider":"codex","tier":"standard","model":"gpt-6.1-sol","reasoning":"medium","speed":"standard","reason":"default standard task"},"usage":null}
+{"agentId":"c-d528c24f5ebe37b4","parent":"c-578799ee14534b32","runtime":"codex","execution":{"provider":"codex","tier":"bounded","model":"gpt-6-luna","reasoning":"medium","speed":"standard","reason":"default bounded task"},"usage":null}
+{"agentId":"c-d369be8196204255","parent":"c-578799ee14534b32","runtime":"codex","execution":{"provider":"codex","tier":"bounded","model":"gpt-6-luna","reasoning":"medium","speed":"standard","reason":"default bounded task"},"usage":null}

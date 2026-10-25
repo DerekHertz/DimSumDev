@@ -3,12 +3,13 @@
 // message per line) and does nothing itself: each tool call goes to the bridge (POST /den-tools/<tool>) with the token
 // the bridge minted for this run, and the bridge does the work with its own board and git-host rights. The address
 // and token come from this process's environment, which the bridge wrote into the run's 0600 MCP config.
+import { DELEGATE_TOOL } from "../../agents/orchestration.mjs";
 import { createInterface } from "node:readline";
 
 const BRIDGE = process.env.DEN_BRIDGE_URL ?? "";
 const TOKEN = process.env.DEN_RUN_TOKEN ?? "";
 const REF = { type: "string", description: "A ticket ref, such as den-mvp/02 or den-mvp/02-job-storage-quota." };
-const TOOLS = [
+const TOOLS = process.env.DEN_DELEGATION_ONLY === "1" ? [DELEGATE_TOOL] : [
   { name: "board_resolve", description: "Resolve a ticket whose pull request has merged. The bridge checks the merge first.",
     inputSchema: { type: "object", properties: { ref: REF, pr: { type: "integer", description: "The merged pull request's number." } }, required: ["ref", "pr"] } },
   { name: "board_comment", description: "Add a comment to a ticket, as Bao.",

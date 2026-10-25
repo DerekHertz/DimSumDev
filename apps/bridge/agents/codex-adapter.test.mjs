@@ -10,11 +10,11 @@ const PROFILE = "fixture-bounded";
 const models = (model = MODEL) => ({ data: [{ id: model, model, supportedReasoningEfforts: [{ reasoningEffort: "high" }] }], nextCursor: null });
 const threadAck = (over = {}) => ({ thread: { id: "thread-1" }, model: MODEL, cwd: "/fixture", activePermissionProfile: { id: PROFILE }, ...over });
 
-function fixture({ authorizeExecution = async () => ({ profileId: PROFILE, cwd: "/fixture", config: {} }), handler, limits } = {}) {
+function fixture({ authorizeExecution = async () => ({ profileId: PROFILE, cwd: "/fixture", config: {} }), handler, limits, delegate } = {}) {
   const sent = [];
   let closed = 0;
   const protocol = createCodexProtocol({
-    authorizeExecution, limits,
+    authorizeExecution, limits, delegate,
     write(line) {
       const message = JSON.parse(line);
       sent.push(message);
@@ -175,7 +175,7 @@ test("native RPC failures do not expose raw account or credential diagnostics", 
   const fx = fixture({ handler() {} });
   const initializing = fx.protocol.initialize();
   fx.protocol.feed(Buffer.from(JSON.stringify({ id: fx.sent[0].id, error: { code: 401, message: "secret-native-diagnostic" } }) + "\n"));
-  await assert.rejects(initializing, (err) => !err.message.includes("secret-native-diagnostic") && /RPC failed/.test(err.message));
+  await assert.rejects(initializing, (err) => !err.message.includes("secret-native-diagnostic") && /RPC failed during initialize/.test(err.message) && /code 401/.test(err.message));
   fx.protocol.close();
 });
 
@@ -464,5 +464,42 @@ test("a failed interrupt does not leave questions unanswerable", async () => {
   fx.request("q", "item/tool/requestUserInput", { threadId: "thread-1", turnId: "turn-1", itemId: "q", isBlocking: true,
     questions: [{ id: "choice", header: "Choice", question: "Which file?" }] });
   await fx.protocol.answerQuestion("q-1", { choice: { answers: ["a.txt"] } });
+  fx.protocol.close();
+});
+
+test('an unsupported reasoning override refuses before thread creation instead of substituting high', async () => {
+  const fx = fixture();
+  await assert.rejects(fx.protocol.prepareThread({ model: MODEL, effort: 'low' }), /unavailable; no fallback/);
+  assert.ok(!fx.sent.some(m => m.method === 'thread/start' || m.method === 'turn/start'));
+  fx.protocol.close();
+});
+
+
+test('dynamic delegation registers only the bridge tool and rejects foreign or stale calls', async () => {
+  const calls = [];
+  const fx = fixture({ delegate: async input => { calls.push(input); return { ok: true, report: 'verified result', sha: 'b'.repeat(40) }; } });
+  await started(fx);
+  assert.deepEqual(fx.sent.find(m => m.method === 'thread/start').params.dynamicTools.map(t => t.name), ['delegate']);
+  const params = { threadId: 'thread-1', turnId: 'turn-1', callId: 'call-1', tool: 'delegate', arguments: { task: 'focused check' } };
+  for (const [n, bad] of [{ ...params, threadId: 'foreign' }, { ...params, tool: 'spawn_agent' }, { ...params, namespace: 'other' }].entries()) {
+    fx.request(`bad-${n}`, 'item/tool/call', bad);
+    assert.equal(fx.sent.at(-1).error.code, -32602);
+  }
+  assert.equal(calls.length, 0);
+  fx.request('managed', 'item/tool/call', params);
+  await new Promise(resolve => setImmediate(resolve));
+  assert.equal(calls.length, 1);
+  const result = fx.sent.find(m => m.id === 'managed').result;
+  assert.equal(result.success, true);
+  assert.match(result.contentItems[0].text, /verified result/);
+  fx.protocol.close();
+});
+
+ test('resumed managed threads use persisted tool definitions without unsupported resume fields', async () => {
+  const fx = fixture({ delegate: async () => ({ ok: true }) });
+  await fx.protocol.prepareThread({ model: MODEL, effort: "high", resumeThreadId: "thread-original" });
+  const params = fx.sent.find(m => m.method === "thread/resume").params;
+  assert.equal(params.threadId, "thread-original");
+  assert.equal(Object.hasOwn(params, "dynamicTools"), false);
   fx.protocol.close();
 });

@@ -1,0 +1,129 @@
+{
+  "localDate": "2026-10-24",
+  "sourceHead": "706466b796e1bf1a61b92de8d67d80bbeda8defb",
+  "sourceState": "uncommitted working tree on codex/tiered-orchestration",
+  "runtimeSourceSha256": "a04f9ff8b53be52b94101bd0f8ebee9ff72e9e448582b1dacb8b7137b87eea9b",
+  "runtimeFiles": [
+    "apps/bridge/server.mjs",
+    "apps/bridge/agents/host.mjs",
+    "apps/bridge/agents/orchestration.mjs",
+    "apps/bridge/agents/claude-runtime.mjs",
+    "apps/bridge/agents/claude-adapter.mjs",
+    "apps/bridge/agents/codex-runtime.mjs",
+    "apps/bridge/agents/codex-adapter.mjs",
+    "apps/bridge/agents/codex-governed-paths.mjs",
+    "apps/bridge/agents/codex-permissions.mjs",
+    "apps/bridge/agents/resource-group.mjs",
+    "apps/bridge/library/servers/den.mjs",
+    "apps/bridge/library/servers/delegation.mjs"
+  ],
+  "sourceBinding": "Codex passed after the last runtime edit. Claude was then rerun with this digest. Only tests, evidence and the smoke harness digest field changed between these successful runs.",
+  "providers": [
+    {
+      "provider": "claude",
+      "ok": true,
+      "processes": 2,
+      "delegations": 1,
+      "agents": [
+        {
+          "id": "c-bda3167078a99a3b",
+          "parent": null,
+          "observedModel": "claude-sonnet-5-5",
+          "invocation": {
+            "provider": "claude",
+            "tier": "standard",
+            "model": "sonnet",
+            "reasoning": "medium",
+            "speed": "standard",
+            "reason": "default standard task"
+          },
+          "state": "done",
+          "usage": {
+            "input": 4,
+            "cacheWrite": 2425,
+            "cacheRead": 5016,
+            "output": 383,
+            "final": true
+          },
+          "reportedCostUsd": 0.0145412
+        },
+        {
+          "id": "c-a8ce1da1f5d5c07a",
+          "parent": "c-bda3167078a99a3b",
+          "observedModel": "claude-haiku-5-5",
+          "invocation": {
+            "provider": "claude",
+            "tier": "bounded",
+            "model": "haiku",
+            "reasoning": "low",
+            "speed": "standard",
+            "reason": "default bounded task"
+          },
+          "state": "done",
+          "usage": {
+            "input": 4,
+            "cacheWrite": 2270,
+            "cacheRead": 3960,
+            "output": 416,
+            "final": true
+          },
+          "reportedCostUsd": 0.0007019999999999999
+        }
+      ]
+    },
+    {
+      "provider": "codex",
+      "ok": true,
+      "processes": 2,
+      "delegations": 1,
+      "agents": [
+        {
+          "id": "c-907db366844834e2",
+          "parent": null,
+          "observedModel": "gpt-6.1-sol",
+          "invocation": {
+            "provider": "codex",
+            "tier": "standard",
+            "model": "gpt-6.1-sol",
+            "reasoning": "medium",
+            "speed": "standard",
+            "reason": "default standard task"
+          },
+          "state": "done",
+          "usage": null,
+          "reportedCostUsd": null
+        },
+        {
+          "id": "c-e3028256e03fd726",
+          "parent": "c-907db366844834e2",
+          "observedModel": "gpt-6-luna",
+          "invocation": {
+            "provider": "codex",
+            "tier": "bounded",
+            "model": "gpt-6-luna",
+            "reasoning": "medium",
+            "speed": "standard",
+            "reason": "default bounded task"
+          },
+          "state": "done",
+          "usage": null,
+          "reportedCostUsd": null
+        }
+      ]
+    }
+  ],
+  "nativeCanaries": {
+    "exitCode": 0,
+    "passed": 4,
+    "skipped": 0,
+    "cases": [
+      "sandbox startup",
+      "outside writes and credentials denied",
+      "outbound connections denied",
+      "native child tools absent"
+    ]
+  },
+  "claudeFinalReportedCostUsd": 0.0152432,
+  "codexCostUsd": null,
+  "scope": "Real account-backed read-only delegation, one lead and one bounded implementer per successful smoke. Not a proof of large-tree or arbitrary-write production readiness."
+}

@@ -6,6 +6,7 @@ import path from "node:path";
 import { AGENT_ID_RE, REF_RE, ROLES, UUID_RE } from "./policy.mjs";
 import { workspaceNames } from "./workspace.mjs";
 import { readCost, readCount, readModel, readTiers } from "./run-record.mjs";
+import { executionSettings, delegation } from "./orchestration.mjs";
 import { runtimeId, validProject, validRuntimeSession } from "./identity.mjs";
 
 const END_STATES = ["terminated", "done", "failed"];
@@ -27,6 +28,19 @@ function runOf(raw) {
   };
 }
 
+function orchestrationOf(raw) {
+  const parent = ['bao', 'jiao'].includes(raw.parent) || AGENT_ID_RE.test(raw.parent) ? raw.parent : null;
+  let execution = null, orchestration = null;
+  try {
+    if (isObject(raw.execution) && raw.execution.provider === runtimeId(raw.runtime)) {
+      const { provider, ...request } = raw.execution;
+      execution = executionSettings(provider, raw.role, request);
+    }
+    orchestration = delegation(raw.orchestration ?? undefined);
+  } catch { /* Invalid audit metadata grants no authority and is not replayed. */ }
+  return { ...(parent ? { parent } : {}), ...(execution ? { execution } : {}), ...(orchestration ? { orchestration } : {}) };
+}
+
 // Returns a clean line or null. Unknown keys (a pid, a command, a cwd) are not copied.
 export function validateLine(raw) {
   if (!isObject(raw) || !validTs(raw.ts) || !AGENT_ID_RE.test(raw.agentId) || typeof raw.ref !== "string" || !REF_RE.test(raw.ref)) return null;
@@ -46,7 +60,7 @@ export function validateLine(raw) {
     const follows = AGENT_ID_RE.test(raw.origin) && AGENT_ID_RE.test(raw.resumeOf) ? { origin: raw.origin, resumeOf: raw.resumeOf } : {};
     const names = { worktree: workspaceNames({ ref: raw.ref, agentId: follows.origin ?? raw.agentId }).worktree, branch: workspaceNames({ ref: raw.ref, agentId: raw.agentId }).branch };
     const own = raw.worktree === names.worktree && raw.branch === names.branch;
-    return { ...base, event: "spawn", role: raw.role, sessionId: raw.sessionId, runtime, project, runtimeSessionId, ...(resourceId ? { resourceId } : {}), worktree: own ? names.worktree : null, branch: own ? names.branch : null, ...(own ? follows : {}) };
+    return { ...base, ...orchestrationOf(raw), event: "spawn", role: raw.role, sessionId: raw.sessionId, runtime, project, runtimeSessionId, ...(resourceId ? { resourceId } : {}), worktree: own ? names.worktree : null, branch: own ? names.branch : null, ...(own ? follows : {}) };
   }
   if (raw.event === "stop") return { ...base, event: "stop" };
   if (raw.event === "end") {
@@ -111,6 +125,7 @@ export function createSessions(root) {
           if (!agents.has(line.agentId)) {
             agents.set(line.agentId, {
               agentId: line.agentId, ref: line.ref, role: line.role, sessionId: line.sessionId, runtime: line.runtime, runtimeSessionId: line.runtimeSessionId, resourceId: line.resourceId, worktree: line.worktree, branch: line.branch,
+              ...orchestrationOf(line),
               ...(line.origin ? { origin: line.origin, resumeOf: line.resumeOf } : {}), ...(line.project ? { project: line.project } : {}),
               startedAt: line.ts, endedAt: null, state: "terminated", reason: "bridge-restart-unverified",
             });

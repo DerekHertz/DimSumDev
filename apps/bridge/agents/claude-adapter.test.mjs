@@ -44,8 +44,8 @@ test('meeting effort reaches the Claude CLI through a closed Medium/High allowli
   }
   assert.throws(() => adapter.buildClaudeArgs({ sessionId: SID, agent: 'qa', effort: '--permission-mode=bypassPermissions' }), /effort/i);
 });
-const DENY_RULES = ["Write(.claude/**)", "Edit(.claude/**)", "Bash(git push:*)", "Bash(gh pr create:*)"];
-const DENY_SETTINGS = JSON.stringify({ disableAllHooks: true, permissions: { deny: DENY_RULES } });
+const DENY_RULES = ["Write(.claude/**)", "Edit(.claude/**)", "Bash(git push:*)", "Bash(gh pr create:*)", "Agent", "Task"];
+const DENY_SETTINGS = JSON.stringify({ disableAllHooks: true, fastMode: false, fallbackModel: [], switchModelsOnFlag: false, permissions: { deny: DENY_RULES } });
 
 // ---- buildClaudeArgs -----------------------------------------------------------------------
 
@@ -99,7 +99,7 @@ describe("buildClaudeArgs: the fixed argv template (ADR 0016 6.6)", () => {
       const argv = need("buildClaudeArgs")({ sessionId: SID, agent });
       const value = argv[argv.indexOf("--settings") + 1];
       const parsed = JSON.parse(value);
-      assert.deepEqual(parsed, { disableAllHooks: true, permissions: { deny: DENY_RULES } });
+      assert.deepEqual(parsed, { disableAllHooks: true, fastMode: false, fallbackModel: [], switchModelsOnFlag: false, permissions: { deny: DENY_RULES } });
       assert.deepEqual(Object.keys(parsed.permissions), ["deny"], "the inline settings never allow or ask, they only deny");
       assert.equal(argv.filter((a) => a === "--settings").length, 1);
     }
@@ -113,7 +113,7 @@ describe("buildClaudeArgs: the fixed argv template (ADR 0016 6.6)", () => {
     const plain = build({ sessionId: SID, agent: "chief-of-staff" });
     const argv = build({ sessionId: SID, agent: "chief-of-staff", ticketFile: file });
     const at = argv.indexOf("--settings") + 1;
-    assert.deepEqual(JSON.parse(argv[at]), { disableAllHooks: true, permissions: { deny: DENY_RULES, allow: [`Read(/${file})`] } });
+    assert.deepEqual(JSON.parse(argv[at]), { disableAllHooks: true, fastMode: false, fallbackModel: [], switchModelsOnFlag: false, permissions: { deny: DENY_RULES, allow: [`Read(/${file})`] } });
     assert.deepEqual(argv.toSpliced(at, 1), plain.toSpliced(at, 1), "only the --settings value differs");
   });
 
@@ -277,14 +277,14 @@ describe("buildClaudeArgs: the wall (agent-os/01 spike)", () => {
   });
 
   test("wall with no hosts: the sandbox is on, strict, with an empty host list, and the deny rules stay", () => {
-    assert.deepEqual(settingsOf(build({ wall: { hosts: [] } })), { disableAllHooks: true, permissions: { deny: DENY_RULES, allow: ["Bash"] }, sandbox: sandbox([]) });
+    assert.deepEqual(settingsOf(build({ wall: { hosts: [] } })), { disableAllHooks: true, fastMode: false, fallbackModel: [], switchModelsOnFlag: false, permissions: { deny: DENY_RULES, allow: ["Bash"] }, sandbox: sandbox([]) });
   });
 
   test("wall hosts are the allowed domains, in order, and the ticket file rule is kept beside them", () => {
     const file = "/home/u/den/.scratch/den/issues/01-scout.md";
     const got = settingsOf(build({ wall: { hosts: ["registry.npmjs.org", "example.com"] }, ticketFile: file }));
     // den-mvp outcome 1: a host the wall allows may also be fetched by the CLI's own web tool without a question.
-    assert.deepEqual(got, { disableAllHooks: true, permissions: { deny: DENY_RULES, allow: ["Bash", "WebFetch(domain:registry.npmjs.org)", "WebFetch(domain:example.com)", `Read(/${file})`] }, sandbox: sandbox(["registry.npmjs.org", "example.com"]) });
+    assert.deepEqual(got, { disableAllHooks: true, fastMode: false, fallbackModel: [], switchModelsOnFlag: false, permissions: { deny: DENY_RULES, allow: ["Bash", "WebFetch(domain:registry.npmjs.org)", "WebFetch(domain:example.com)", `Read(/${file})`] }, sandbox: sandbox(["registry.npmjs.org", "example.com"]) });
   });
 
   test("nothing but the --settings value changes", () => {
