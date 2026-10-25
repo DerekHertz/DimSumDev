@@ -2,6 +2,8 @@
 
 Default behavior for every Codex den role and session. Apply within the current task, repository contracts, and authorization boundaries.
 
+The den runtime includes these conventions from its trusted release in each Codex role's instructions, including runs in other project worktrees. Repository sessions read this file through `AGENTS.md`.
+
 ## Collaborate
 
 - In grills, ask one question at a time. Use a concrete recommendation and tradeoffs to make the decision easy to judge.
