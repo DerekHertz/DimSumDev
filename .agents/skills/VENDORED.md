@@ -1,5 +1,13 @@
 # Vendored skills
 
+## Cloudflare security-audit
+
+Source: https://github.com/cloudflare/security-audit-skill, `skills/security-audit/`, pinned at `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8` (adopted 2026-10-24). MIT; the upstream root license is retained in `security-audit/LICENSE`.
+
+Optional, user-invoked workflow; no role preload or mandatory audit stage. Local changes: shorten the description, set `disable-model-invocation: true`, and add the Den integration paragraph linking usage and existing authority boundaries. Companion references, schema, validators and their tests are unchanged. Update by diffing against the pin and reviewing changes; do not auto-update. See `docs/agents/security-audit.md`.
+
+## mattpocock
+
 Source: https://github.com/mattpocock/skills (MIT, see `MATTPOCOCK-LICENSE`)
 Upstream commit: `c55ee46073ed923f86ce59a5eb3b6d895095d1b7` (2026-09-18); selected changes through `5beb35b` (2026-10-22) merged by hand on 2026-10-22, see "Merged since the pin".
 Local clone for diffing: `vendor/mattpocock-skills/` (git-ignored). Update with `git -C vendor/mattpocock-skills pull`, then diff each skill against this folder.
