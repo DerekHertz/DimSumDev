@@ -10,7 +10,7 @@ Default chat style, per user request. Local adaptations: short description, defa
 
 Source: https://github.com/cloudflare/security-audit-skill, `skills/security-audit/`, pinned at `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8` (adopted 2026-10-24). MIT; the upstream root license is retained in `security-audit/LICENSE`.
 
-Optional, user-invoked workflow; no role preload or mandatory audit stage. Local changes: shorten the description, set `disable-model-invocation: true`, and add the Den integration paragraph linking usage and existing authority boundaries. Companion references, schema, validators and their tests are unchanged. Update by diffing against the pin and reviewing changes; do not auto-update. See `docs/agents/security-audit.md`.
+Optional, user-invoked workflow; no role preload or mandatory audit stage. Local changes: shorten the description, set `disable-model-invocation: true`, and add the Den integration paragraph linking usage and existing authority boundaries; in `MEMORY-SAFETY-AND-BINARY.md`, one line says "interactive debugging" instead of the retired role's name (`role-definition-trim.test.mjs` forbids it). Companion references, schema, validators and their tests are unchanged. Update by diffing against the pin and reviewing changes; do not auto-update. See `docs/agents/security-audit.md`.
 
 ## mattpocock
 
