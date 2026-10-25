@@ -90,6 +90,7 @@
 .forest-shell .forest-legend { gap: 12px; padding: 10px 14px; max-width: calc(100% - 32px); box-sizing: border-box; }
 .forest-legend > span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
 .forest-legend > span + span { padding-left: 12px; border-left: 1px solid var(--line-strong); }
+.forest-shell .meeting-feed { top: 80px; }
 .den-scene-controls { position: absolute; bottom: var(--space-3); left: var(--space-3); z-index: 4; display: flex; flex-direction: column; align-items: flex-start; gap: 8px; max-width: calc(100% - 32px); pointer-events: none; }
 .den-scene-controls .den-camera-controls { position: static; max-width: 100%; pointer-events: auto; }
 .forest-shell .scene-activity { position: relative; pointer-events: auto; width: min(320px, 100%); box-sizing: border-box; padding: 12px 16px; font: 12px/1.6 var(--font-sans); }
@@ -105,4 +106,5 @@
   .forest-shell .den-rail.is-expanded .den-rail-badge { position: absolute; right: 0; top: 0; }
   .forest-shell .meeting-history-filters { grid-template-columns: minmax(0, 1fr); }
   .forest-shell .forest-legend { gap: 8px 12px; font-size: 11px; }
+  .forest-shell .meeting-feed { top: 112px; }
 }
