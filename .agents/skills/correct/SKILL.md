@@ -11,7 +11,7 @@ Assume every contributor is an agent that sees only the files it opened, copies 
 
 ## Find the mistake classes
 
-First, read recent commits, reverts, review comments, agent instruction file (`CLAUDE.md`, `docs/agents/`)s, and comments that explain workarounds. Group the mistakes into classes. A class counts once it has happened twice.
+Start with the correction or friction evidence provided. Inspect related commits, reverts, review comments, and applicable instructions only as needed to identify the repeated cause. A class counts once it has happened twice. For a bounded task, select the class that affects its outcome; propose other classes as follow-ups rather than starting a repository-wide repair.
 
 ## Fix each class at the highest level that works
 
@@ -22,10 +22,10 @@ First, read recent commits, reverts, review comments, agent instruction file (`C
 
 ## Fix and prove
 
-Then fix the most frequent classes now, one commit each. Prove each new check fails on a real past mistake. Run the same command locally and in CI. Exceptions go on the offending line with a reason, an expiry date, and a human's approval.
+Fix the selected class at the smallest boundary that prevents the demonstrated mistake. Prove each new check fails on a real past mistake, then passes with the fix. Use `implement`'s verification record and recovery checkpoint; CI supplies its required independent run. Exceptions go on the offending line with a reason, an expiry date, and a human's approval.
 
 ## Keep the rule table
 
-Last, keep a table in the agent instruction file (`CLAUDE.md`, `docs/agents/`) that pairs each rule with what enforces it. When the user corrects you, fix the mistake and add the rule. If the rule was already there and nothing enforces it, that's a repeat, so fix it at the highest level in the same change. Drop a rule once its mistake can't happen.
+For judgment calls that still need a written rule, update its existing authoritative location and name the enforcement or remaining limitation. When enforcement makes a rule redundant, remove the rule. A correction does not require another instruction table or authorize an unrelated architecture change.
 
 **Reply:** each class with its evidence, the level you picked, and why a higher level didn't work.
