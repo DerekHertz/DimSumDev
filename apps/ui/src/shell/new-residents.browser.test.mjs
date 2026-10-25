@@ -55,7 +55,7 @@ test('four charter roles keep real home cards and exact runtime bindings while v
   }
   await page.locator('[data-rail=team]').click();
   const choices=page.getByRole('list',{name:'Residents and visitors'});
-  assert.equal(await choices.getByRole('button').count(),32);
+  assert.equal(await choices.getByRole('button').count(),24);
   for(const role of ROLES)for(const runtime of ['Claude','Codex']){
    const choice=choices.getByRole('button',{name:new RegExp(', '+role+', '+runtime+',')});await choice.click();
    const profile=page.locator('.forest-profile');assert.match(await profile.innerText(),new RegExp(role+' · '+runtime));

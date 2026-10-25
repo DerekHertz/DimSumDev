@@ -1,7 +1,7 @@
 import * as T from 'three';
 
 // Signed package 55-56-final-package-r1, approved 2026-10-22. This is a
-// presentation filter: callable legacy roles remain available in Team.
+// presentation filter shared with the continuing Team inventory.
 export const TEAMS=Object.freeze([
  {id:'pass',name:'The Pass',x:-30.5,z:-32,yaw:0,roles:['product','architect','release-manager']},
  {id:'pantry',name:'Tea & Pantry',x:30.5,z:-32,yaw:0,roles:['code-reviewer','qa','security','sre']},

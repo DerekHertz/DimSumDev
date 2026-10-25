@@ -14,7 +14,7 @@ import { createDenCameraStore } from "./scene/procedural/camera.mjs";
 import { TALLY_ANCHOR } from "./scene/procedural/bindings.mjs";
 import { denEvents } from "./scene/procedural/events.mjs";
 import "./scene/procedural/den.css";
-import { ChipLayer } from "./scene/ChipLayer.jsx";
+import { ChipLayer, RunActivity } from "./scene/ChipLayer.jsx";
 import { MAX_PLUSH, sceneFromState, withPassPlacement } from "./scene/scene-from-state.mjs";
 import { useLiveState } from "./live.js";
 import { demoRequested, useDemoSnapshot, useHandoffs } from "./handoff-state.js";
@@ -397,6 +397,8 @@ export function App() {
       </header>
       <Rail topic={topic} baoOpen={baoOpen} badges={badges} onEntry={onRail} buildLabel={buildLabel(snapshot?.build)} demoActive={denDemo.active} offline={!inDemo && connection.phase !== 'live'} />
       <div className="den-stage">
+        <div className="den-scene-controls">
+        <RunActivity placements={sceneChips} tickets={snapshot?.tickets} selected={selected} onSelect={selectTicket} />
         <div className="den-camera-controls">
           <ZoomSwitcher camera={camera} />
           <div role="group" aria-label="Roof visibility" className="den-roof-controls">
@@ -407,6 +409,7 @@ export function App() {
               {FPS_OPTIONS.map(value=><option key={value} value={value}>{value} FPS</option>)}
             </select>
           </label>
+        </div>
         </div>
         <main aria-label="Den scene" aria-describedby="den-navigation-hint" aria-keyshortcuts="ArrowLeft ArrowRight ArrowUp ArrowDown Shift+ArrowLeft Shift+ArrowRight Shift+ArrowUp Shift+ArrowDown + -" tabIndex={0} className="scene forest-garden">
           <div className="forest-canvas">

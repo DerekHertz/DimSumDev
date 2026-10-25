@@ -10,6 +10,7 @@ import { compareRefs } from "../../packages/board-refs/src/compare-refs.mjs";
 import { readGoals } from "../board/goals.mjs";
 
 const HANDOFF_CAP = 8192;
+const OFF_RELAY = new Set(["resolved", "closed", "parked"]);
 
 async function readText(file) {
   try {
@@ -178,12 +179,12 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
   const tickets = [];
   const candidates = [];
   for (const t of [...all.values()].sort((a, b) => compareRefs(a.ref, b.ref))) {
-    if (t.status === "resolved") continue;
+    if (OFF_RELAY.has(t.status)) continue;
     const blockedBy = [];
     for (const b of t.blockers) {
       const dep = findByNumber(b.feature ?? t.feature, b.nn);
       if (!dep) blockedBy.push({ ref: `${b.feature ?? t.feature}/${b.nn}`, status: "unknown" });
-      else if (dep.status !== "resolved") blockedBy.push({ ref: dep.ref, status: dep.status });
+      else if (!OFF_RELAY.has(dep.status)) blockedBy.push({ ref: dep.ref, status: dep.status });
     }
     const ready = t.status === "ready-for-agent" && blockedBy.length === 0;
     const priority = parsePriority(t.md);

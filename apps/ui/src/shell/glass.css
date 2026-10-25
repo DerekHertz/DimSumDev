@@ -1,8 +1,8 @@
 .forest-shell {
-  --glass-rim: conic-gradient(from 140deg, #fffef5, #a4e9ffcc 12%, #b3b2ffb0 22%, #ffd4efee 29%, #ffffffeb 36%, #ffffff99 48%, #9fe9f8df 57%, #e1b7ffdd 66%, #ffd6b8bd 72%, #ffffffed 82%, #b8d4ffba 94%, #fffef5);
-  --glass-center: color-mix(in srgb, var(--surface-200) 40%, transparent);
-  --glass-reading: color-mix(in srgb, var(--surface-200) 86%, transparent);
-  --glass-shadow: 0 18px 48px #20343926, inset 0 3px 4px #ffffffc9, inset 0 -3px 7px #99addd55;
+  --glass-rim: conic-gradient(from 132deg, #fbfeffee, #9aefffef 8%, #66eddaed 14%, #c9ef91dd 20%, #fff1a6cd 25%, #f6a9deed 31%, #c6abffeb 37%, #fafdffed 43%, #c9eeff85 48%, #56dcebd9 55%, #81c0ffed 62%, #b39afff0 69%, #eca0e9eb 77%, #fbc4c8de 84%, #fff3c7cf 89%, #aff5dbe6 94%, #fbfeffee);
+  --glass-center: linear-gradient(135deg, color-mix(in srgb, var(--surface-200) 78%, transparent), color-mix(in srgb, var(--surface-100) 74%, transparent) 56%, color-mix(in srgb, var(--surface-300) 76%, transparent));
+  --glass-reading: color-mix(in srgb, var(--surface-200) 72%, transparent);
+  --glass-shadow: 0 12px 32px #25353c18, inset 0 1px 2px #ffffff99, inset 0 -1px 3px #b8a9db26;
   --ink-faint: var(--ink-muted);
 }
 /* One material for the existing den surfaces and every native button. */
@@ -15,8 +15,8 @@
   contain: layout;
   isolation: isolate;
   box-shadow: var(--glass-shadow);
-  -webkit-backdrop-filter: blur(11px) saturate(1.25);
-  backdrop-filter: blur(11px) saturate(1.25);
+  -webkit-backdrop-filter: blur(8px) saturate(1.25);
+  backdrop-filter: blur(8px) saturate(1.25);
   color: var(--ink);
 }
 .forest-shell :is(.den-sheet, .transcript-panel, .den-rail, .den-bar, .den-header, .den-camera-controls, .forest-legend, .den-location, .den-toast, .scene-zone-notice, .proximity-card, .message-composer, .panda-detail, .approval-panel, .card, .queue-drawer, .tally-card, .forest-profile, .forest-nav, .den-statusbar, .den-breadcrumb, .run-card, .floating-card, .tooltip, .glass, button)::before {
@@ -24,8 +24,9 @@
   position: absolute;
   inset: -1px;
   border-radius: inherit;
-  padding: 2px;
+  padding: 1.75px;
   background: var(--glass-rim);
+  opacity: .85;
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
   mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
@@ -33,9 +34,25 @@
   pointer-events: none;
   z-index: 2;
 }
+.forest-shell :is(.den-sheet, .transcript-panel, .den-rail, .den-bar, .den-header, .den-camera-controls, .forest-legend, .den-location, .den-toast, .scene-zone-notice, .proximity-card, .message-composer, .panda-detail, .approval-panel, .card, .queue-drawer, .tally-card, .forest-profile, .forest-nav, .den-statusbar, .den-breadcrumb, .run-card, .floating-card, .tooltip, .glass, button)::after {
+  content: '';
+  position: absolute;
+  inset: 2px;
+  border-radius: inherit;
+  padding: 3px;
+  background: radial-gradient(ellipse at 12% 0%, #fffffff5, #ffffffb3 12%, #bfefff44 19%, transparent 31%), radial-gradient(ellipse at 92% 100%, #ffffffb0, #f6d3ff5d 10%, transparent 27%), radial-gradient(ellipse at 0% 54%, #72fff2ab, transparent 21%), radial-gradient(ellipse at 100% 40%, #dea1ff9c, transparent 22%);
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+  pointer-events: none;
+  z-index: 2;
+  opacity: .4;
+}
+.forest-shell :is(.den-sheet, .transcript-panel, .queue-drawer, [role="dialog"]) { border-radius: 30px; }
 .forest-shell button {
-  --glass-center: color-mix(in srgb, var(--surface-200) 82%, transparent);
-  --glass-shadow: 0 3px 10px #20343918, inset 0 2px 3px #ffffffc9, inset 0 -2px 3px #b0a8dc55;
+  --glass-center: color-mix(in srgb, var(--surface-200) 60%, transparent);
+  --glass-shadow: 0 2px 6px #20343912, inset 0 1px 2px #ffffff80, inset 0 -1px 2px #b0a8dc22;
   border-radius: 999px;
   min-height: 28px;
   cursor: pointer;
@@ -43,6 +60,7 @@
 .forest-shell button:hover { filter: brightness(1.045); }
 .forest-shell button:active { box-shadow: inset 0 2px 6px #5f6a7c33; }
 .forest-shell button:is(.btn-solid, [aria-pressed="true"]) { --glass-center: color-mix(in srgb, var(--qi-fill) 18%, var(--glass-reading)); font-weight: 700; }
+.forest-shell .den-roof-controls button[aria-pressed="true"] { --glass-center: var(--qi-fill); color: var(--on-qi); }
 .forest-shell button:disabled { opacity: .55; cursor: default; }
 .forest-shell .den-rail, .forest-shell .den-rail-entry { contain: none; position: relative; }
 .forest-shell .den-rail-entry, .forest-shell .den-roof-controls button { min-height: 44px; }
@@ -139,6 +157,26 @@
   .meeting-section-title small { display: none; }
   .meeting-message-actions { flex-wrap: wrap; }
 }
-@supports not (backdrop-filter: blur(1px)) { .forest-shell { --glass-center: var(--surface-200); --glass-reading: var(--surface-200); } }
+@media (prefers-color-scheme: dark) {
+  .forest-shell {
+    --surface-000: #111214; --surface-100: #17191d; --surface-200: #202328; --surface-300: #2b3036;
+    --surface-glass: var(--surface-200); --line: #3f4651; --line-strong: #8993a1;
+    --ink: #eef0f4; --ink-muted: #b9c0cc; --ink-faint: #b9c0cc; --on-qi: #17191d; --focus-ring: #aee5fa;
+    --glass-center: linear-gradient(135deg, color-mix(in srgb, var(--surface-200) 70%, transparent), color-mix(in srgb, var(--surface-100) 64%, transparent) 56%, color-mix(in srgb, var(--surface-300) 68%, transparent));
+    --glass-shadow: 0 12px 32px #0005, inset 0 1px 2px #f0fcff55, inset 0 -1px 3px #9e96e526;
+    color-scheme: dark;
+  }
+  .forest-shell button { --glass-shadow: 0 2px 6px #0003, inset 0 1px 2px #f0fcff44, inset 0 -1px 2px #9e96e522; }
+}
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .forest-shell, .forest-shell :is(button, .glass, .den-sheet, .transcript-panel, [role="dialog"]) { --glass-center: var(--surface-200); --glass-reading: var(--surface-200); }
+}
 @media (prefers-reduced-transparency: reduce), (forced-colors: active) { .forest-shell { --glass-center: var(--surface-200); --glass-reading: var(--surface-200); } .forest-shell button, .forest-shell .glass, .forest-shell .den-sheet { backdrop-filter: none; box-shadow: none; } }
+@media (prefers-reduced-transparency: reduce) {
+  .forest-shell :is(button, .glass, .den-sheet, .transcript-panel, [role="dialog"]) { --glass-center: var(--surface-200); --glass-reading: var(--surface-200); -webkit-backdrop-filter: none; }
+}
+@media (forced-colors: active) {
+  .forest-shell :is(button, .glass, .den-sheet, .transcript-panel, [role="dialog"]) { --glass-center: Canvas; --glass-reading: Canvas; border-color: CanvasText !important; color: CanvasText; }
+  .forest-shell ::before, .forest-shell ::after { background: none !important; }
+}
 @media (prefers-reduced-motion: reduce) { .meeting-workspace *, .den-meeting-sheet { animation: none !important; transition: none !important; scroll-behavior: auto !important; } }

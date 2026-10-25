@@ -18,7 +18,7 @@ The issue tracker is described in `docs/agents/issue-tracker.md`.
 
 ### 1. Pin the fixed point
 
-Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main`, `HEAD~5`, etc.). If they didn't specify one, ask for it.
+Whatever the user said is the fixed point (a commit SHA, branch name, tag, `main`, `HEAD~5`, etc.). Reuse the ticket or session's established comparison when available; ask only when no unambiguous fixed point exists.
 
 Capture the diff command once: `git diff <fixed-point>...HEAD` (three-dot, so the comparison is against the merge-base). Also note the list of commits via `git log <fixed-point>..HEAD --oneline`.
 
@@ -35,7 +35,7 @@ Look for the originating spec, in this order:
 
 ### 3. Identify the standards sources
 
-Anything in the repo that documents how code should be written, Search the repo for every file that documents how code should be written. When `CODING_STANDARDS.md` or `CONTRIBUTING.md` exists, it must be on the list.
+Read the root instructions, applicable directory instructions, and standards they reference for the changed files. Include `CODING_STANDARDS.md` and `CONTRIBUTING.md` when present. Expand the search only for an unresolved rule affecting this diff.
 
 On top of whatever the repo documents, the Standards axis always carries the **smell baseline** below: a fixed set of Fowler code smells (_Refactoring_, ch.3) that applies even when a repo documents nothing. Two rules bind it:
 
@@ -76,6 +76,8 @@ Issue both sub-agent calls together, in the foreground, and aggregate the report
 If the spec is missing, skip the Spec sub-agent and note this in the final report.
 
 ### 5. Aggregate
+
+For each finding, state whether it leaves an acceptance criterion unmet, creates a material risk, or is nonblocking polish. A baseline smell alone is a suggestion, not a reason to demand an out-of-scope refactor. Apply `implement`'s recovery checkpoint and nonblocking fix-round limit. Re-review changed hunks and affected findings after a correction; expand to the full candidate only when the correction changes its broader behavior or a required gate demands it. Reuse unchanged check evidence while preserving required independent reviews.
 
 Present the two reports under `## Standards` and `## Spec` headings, verbatim or lightly cleaned. Do **not** merge or rerank findings, because the two axes are deliberately separate (see _Why two axes_).
 

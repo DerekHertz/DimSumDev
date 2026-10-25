@@ -34,7 +34,7 @@ function runTurn(input) {
   const base = { threadId: thread.id, turnId };
   notify("turn/started", { threadId: thread.id, turn: { id: turnId, status: "inProgress" } });
   notify("item/started", { ...base, item: { id: "cmd-1", type: "commandExecution", command: input } });
-  const ran = shellHostDisabled() ? { status: 1, stdout: "code-mode host is disabled" } : spawnSync("sh", ["-c", input], { encoding: "utf8", cwd: thread.cwd });
+  const ran = MODE === "instructions" ? { status: 0, stdout: thread.instructions } : shellHostDisabled() ? { status: 1, stdout: "code-mode host is disabled" } : spawnSync("sh", ["-c", input], { encoding: "utf8", cwd: thread.cwd });
   const output = (ran.stdout ?? "") + (ran.stderr ?? "");
   notify("item/completed", { ...base, item: { id: "cmd-1", type: "commandExecution", command: input,
     status: ran.status === 0 ? "completed" : "failed", exitCode: ran.status, aggregatedOutput: output } });
@@ -50,14 +50,14 @@ readline.createInterface({ input: process.stdin }).on("line", (line) => {
   if (message.method === "initialize") return reply({ userAgent: "codex-stub/0" });
   if (message.method === "model/list") return reply({ data: [{ id: MODEL, model: MODEL, supportedReasoningEfforts: [{ reasoningEffort: "high" }, { reasoningEffort: 'medium' }] }], nextCursor: null });
   if (message.method === "thread/start") {
-    thread = { id: "thread-1", cwd: p.cwd };
+    thread = { id: "thread-1", cwd: p.cwd, instructions: p.developerInstructions };
     if (process.env.CODEX_HOME) writeFileSync(`${process.env.CODEX_HOME}/stub-thread.json`, JSON.stringify(thread));
     return reply({ thread: { id: thread.id }, model: p.model, cwd: p.cwd, activePermissionProfile: { id: p.permissions } });
   }
   if (message.method === "thread/resume") {
     const file = `${process.env.CODEX_HOME}/stub-thread.json`;
     if (!existsSync(file) || JSON.parse(readFileSync(file, "utf8")).id !== p.threadId) return out({ id: message.id, error: { code: -32602, message: "unknown thread" } });
-    thread = { id: p.threadId, cwd: p.cwd };
+    thread = { id: p.threadId, cwd: p.cwd, instructions: p.developerInstructions };
     return reply({ thread: { id: thread.id }, model: p.model, cwd: p.cwd, activePermissionProfile: { id: p.permissions } });
   }
   if (message.method === "turn/start") {

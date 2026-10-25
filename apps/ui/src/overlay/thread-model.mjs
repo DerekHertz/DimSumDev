@@ -1,3 +1,4 @@
+import { DISPATCHABLE_ROLES } from '../shell/resident-inventory.mjs';
 // den-mvp outcome 2 (and the signed-off organism-infra/230 spec): pure models for the conversation thread. The thread
 // is one role's conversation as the user reads it: what the agent said, what it asked (the reason first, the command
 // under it), the user's answers, notes, messages and stops, and a receipt under each of the user's entries.
@@ -263,6 +264,7 @@ export function footModel({ agent, connection, signedIn = true, demo = false, de
       placeholder: send ? `Message ${name}` : "", reason: send ? null : "This agent's runtime cannot take a message.",
     };
   }
+  if (!DISPATCHABLE_ROLES.includes(agent.role) && agent.role !== 'chief-of-staff') return { ...base, mode: "ended", reason: "This role is retired. Its conversation is read-only." };
   if (agent.followUp === true) return { ...base, mode: "follow-up", canSend: true, readOnly: false, placeholder: `Follow up with ${name}`, sendLabel: "Follow up", reason: "The run ended. A follow-up continues its session." };
   return { ...base, mode: "ended", reason: "The agent ended." };
 }

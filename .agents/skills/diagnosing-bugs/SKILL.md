@@ -5,7 +5,9 @@ description: Diagnosis loop for hard bugs and performance regressions. Use when 
 
 # Diagnosing Bugs
 
-A discipline for hard bugs. Skip phases only when explicitly justified.
+A discipline for hard bugs. Scale the investigation to the symptom and approved outcome; record why a phase is already satisfied rather than repeating it.
+
+Use `implement`'s verification record and recovery checkpoint for reruns and failed fixes. Start with one discriminating repro command and state the investigation's question and probe or time limit. If that pass produces neither a usable signal nor evidence distinguishing causes, report the evidence gap and next needed input instead of widening the investigation automatically. Respect stricter runtime and ticket attempt limits.
 
 When exploring the codebase, read `CONTEXT.md` (if it exists) to get a clear mental model of the relevant modules, and check ADRs in the area you're touching.
 
@@ -19,7 +21,7 @@ If the redacted output is not enough to diagnose the bug, say so and ask the use
 
 **This is the skill.** Everything else is mechanical. If you have a **tight** pass/fail signal for the bug (one that goes red on _this_ bug), you will find the cause; bisection, hypothesis-testing, and instrumentation all just consume it. If you don't have one, no amount of staring at code will save you.
 
-Spend disproportionate effort here. **Be aggressive. Be creative. Refuse to give up.**
+Choose the cheapest loop that catches the reported symptom. Once it distinguishes failure from success reliably, proceed; optimizing the harness further is separate work unless needed to diagnose this bug.
 
 ### Ways to construct one, in roughly this order
 
@@ -48,7 +50,7 @@ A 30-second flaky loop is barely better than no loop; a 2-second deterministic o
 
 ### Non-deterministic bugs
 
-The goal is not a clean repro but a **higher reproduction rate**. Loop the trigger 100×, parallelise, add stress, narrow timing windows, inject sleeps. A 50%-flake bug is debuggable; 1% is not, so keep raising the rate until it's debuggable.
+Use a bounded sample with a recorded seed or timing setup, attempt count, and failure count. Increase the sample or add stress only to distinguish a stated hypothesis, within the runtime's resource limits. A clean sample alone does not prove a flaky bug fixed.
 
 ### When you genuinely cannot build a loop
 
@@ -67,7 +69,7 @@ If you catch yourself reading code to build a theory before this command exists,
 
 ## Phase 2: Reproduce + minimise
 
-Run the loop. Watch it go red as the bug appears.
+Reuse the failing reproduction captured in Phase 1 if it already demonstrates this scenario. Run again only when reproducibility still needs confirmation.
 
 Confirm:
 
@@ -77,17 +79,17 @@ Confirm:
 
 ### Minimise
 
-Once it's red, shrink the repro to the **smallest scenario that still goes red**. Cut inputs, callers, config, data, and steps **one at a time**, re-running the loop after each cut, and keep only what's load-bearing for the failure.
+Once it's red, reduce inputs, callers, config, data, or steps that obscure the distinction between likely causes. Change one variable per probe and retain the failure signal; stop at the completion criterion below.
 
 Why bother: a minimal repro shrinks the hypothesis space in Phase 3 (fewer moving parts left to suspect) and becomes the clean regression test in Phase 5.
 
-Done when **every remaining element is load-bearing**: removing any one of them makes the loop go green.
+Done when the scenario is small enough to distinguish the likely causes and support a regression test. Further minimization needs a specific unresolved diagnostic question.
 
 Do not proceed until you have reproduced **and** minimised.
 
 ## Phase 3: Hypothesise
 
-Generate **3–5 ranked hypotheses** before testing any of them. Single-hypothesis generation anchors on the first plausible idea.
+State the leading falsifiable hypothesis and any credible alternatives the evidence leaves open. Compare alternatives before a speculative fix; direct evidence of a cause does not require inventing more hypotheses to fill a quota.
 
 Each hypothesis must be **falsifiable**: state the prediction it makes.
 
@@ -113,7 +115,7 @@ Tool preference:
 
 ### Where else does this cause exist
 
-Once a probe confirms the cause, state it as a pattern (the call, assumption or shape that is wrong) and grep the repo for it. Done when every hit is listed with its verdict: fixed in this change, filed as its own ticket, or not affected (why). A fix to one instance leaves the rest of the class.
+Once a probe confirms the cause, state the wrong assumption or call pattern and run a targeted search for other instances. Classify relevant hits as part of this outcome, separate follow-up, or unaffected. Investigate or fix another instance here only when it blocks the criteria or establishes a material risk; a similar-looking hit alone does not expand the ticket.
 
 ## Phase 5: Fix + regression test
 
@@ -137,7 +139,7 @@ If a correct seam exists:
 
 Required before declaring done:
 
-- [ ] Original repro no longer reproduces (re-run the Phase 1 loop)
+- [ ] Original repro no longer reproduces (reuse Phase 5's result if the relevant code and environment are unchanged)
 - [ ] Regression test passes (or absence of seam is documented)
 - [ ] All `[DEBUG-...]` instrumentation removed (`grep` the prefix)
 - [ ] Throwaway prototypes deleted (or moved to a clearly-marked debug location)

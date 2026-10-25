@@ -105,6 +105,28 @@ const pick = async page => {
   await page.getByRole('region', { name: 'Selected panda' }).waitFor();
 };
 const rail = (page, id) => page.locator(`[data-rail="${id}"]`);
+
+test('organic icon motion keeps the rail click targets stationary and usable', { timeout: 60000 }, async () => {
+  const t = await open();
+  try {
+    await t.page.emulateMedia({ reducedMotion: 'no-preference' });
+    await t.page.evaluate(() => document.fonts.ready);
+    const button = rail(t.page, 'work');
+    const boxes = await button.evaluate(async el => {
+      const samples = [];
+      for (let i = 0; i < 8; i++) {
+        await new Promise(requestAnimationFrame);
+        const { x, y, width, height } = el.getBoundingClientRect();
+        samples.push({ x, y, width, height });
+      }
+      return samples;
+    });
+    for (const box of boxes) assert.deepEqual(box, boxes[0], 'the hit target stays fixed while its bubble visuals move');
+    await button.click();
+    await t.page.locator('[data-sheet="topic"]').waitFor({ state: 'visible' });
+    assert.deepEqual(t.errors, []);
+  } finally { await t.close(); }
+});
 const side = page => page.locator('[data-sheet=side]');
 async function captureEvidence(page) {
   const dir = process.env.DEN_SHELL_EVIDENCE_DIR;
@@ -253,7 +275,7 @@ test('all former destinations survive, every charter role is listed, and 20 cycl
       }
       if (id === 'team' && cycle === 0) {
         const roles = await page.locator('.forest-portrait-list .forest-portrait [data-role], .forest-portrait-list [data-role]').evaluateAll(els => [...new Set(els.map(el => el.dataset.role))]);
-        for (const role of ['orchestrator', 'product', 'architect', 'designer', 'developer', 'code-reviewer', 'qa', 'security', 'release-manager', 'sre', 'technical-writer', 'runner', 'herald', 'scout']) assert.ok(roles.includes(role), role);
+        for (const role of ['orchestrator', 'product', 'architect', 'designer', 'developer', 'code-reviewer', 'qa', 'security', 'release-manager', 'sre', 'technical-writer', 'runner']) assert.ok(roles.includes(role), role);
       }
       await sheet.locator('.den-sheet-body, .transcript-log').first().evaluate(el => { el.scrollTop = 100; });
       await rail(page, id).click(); assert.equal(await page.locator('[data-sheet]').count(), 0);
@@ -268,14 +290,14 @@ test('opening or closing the other sheet preserves topic scroll, profile and con
   const t = await open(); const { page } = t;
   try {
     await rail(page, 'team').click();
-    await page.getByRole('button', { name: /^The Scout, scout, Claude/ }).click();
+    await page.getByRole('button', { name: /^The Runner, runner, Claude/ }).click();
     const body = page.locator('#sheet-topic .den-sheet-body');
     await body.evaluate(el => { el.scrollTop = 150; });
     const scroll = await body.evaluate(el => el.scrollTop);
     assert.ok(scroll > 0);
     await rail(page, 'bao').click();
     assert.equal(await body.evaluate(el => el.scrollTop), scroll);
-    assert.match(await page.locator('.forest-profile').innerText(), /The Scout/);
+    assert.match(await page.locator('.forest-profile').innerText(), /The Runner/);
     const draft = side(page).locator('.thread-box');
     await draft.fill('Keep this draft while I check the board.');
     await rail(page, 'team').click();

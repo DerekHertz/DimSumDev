@@ -55,6 +55,7 @@ const privateDir =(dir) => {
 
 export function createCodexRuntime({ env = process.env, launcher = createResourceLauncher({ env, slice: "den-codex" }), controlRoot = MODULE_CONTROL_ROOT, nodePrefix = realpathSync(path.dirname(path.dirname(process.execPath))), native, codexArgs = ["app-server", "--stdio"], killGraceMs } = {}) {
   const control = realpathSync(controlRoot);
+  const conventions = readFileSync(new URL("../../../.codex/working-conventions.md", import.meta.url), "utf8").trim();
   const home = typeof env.HOME === "string" ? env.HOME : undefined;
   const authSource = home && `${home}/.codex/auth.json`;
   const stateRoot = home && `${home}/.local/state/den/credentials/codex`;
@@ -90,6 +91,7 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
       const recipeFile = `${control}/.codex/agents/${definitionOf(role)}.toml`;
       if (!existsSync(recipeFile)) throw new EnforcementError(`the ${role} role has no Codex recipe`);
       const recipe = readRecipe(recipeFile);
+      recipe.instructions += `\n\n${conventions}`;
       if (effort !== undefined) {
         if (!['medium', 'high'].includes(effort)) throw new TypeError('Invalid meeting effort');
         recipe.effort = effort;
