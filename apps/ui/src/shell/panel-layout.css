@@ -33,7 +33,7 @@
 .forest-shell .den-sheet .code-well { padding: 14px; max-height: 240px; overflow: auto; white-space: pre-wrap; }
 .forest-shell .den-sheet :is(.needs-list, .queue-rows, .library-list) { display: flex; flex-direction: column; gap: var(--row-gap); }
 .forest-shell .den-sheet :is(.queue-row, .library-row) { padding: 14px; min-width: 0; }
-.forest-shell .den-sheet .queue-body { padding: 0; gap: var(--panel-gap); overflow: visible; }
+.forest-shell .den-sheet .queue-body { padding: 0 0 16px; gap: var(--panel-gap); overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; }
 .forest-shell .den-sheet .queue-goals { display: flex; flex-direction: column; gap: var(--row-gap); }
 .forest-shell .den-sheet .queue-goal-head { padding: var(--card-padding); gap: var(--row-gap); grid-template-columns: minmax(0, 1fr); }
 .forest-shell .den-sheet :is(.queue-goal-head, .queue-ticket-row, .queue-need) {
