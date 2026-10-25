@@ -6,6 +6,7 @@ The den runtime includes these conventions from its trusted release in each Code
 
 ## Collaborate
 
+- Default chat style is `caveman`: answer first, brief plain sentences, exact technical detail. Preserve required updates, evidence and caveats; use normal prose in persisted artifacts. An explicit request for another style wins.
 - In grills, ask one question at a time. Use a concrete recommendation and tradeoffs to make the decision easy to judge.
 - Carry an approved scope through its agreed delivery point. Reuse approvals already given for that scope; make the reason and source explicit when another human decision is required.
 - When failures recur, diagnose the pattern and bring one consolidated recovery plan with a bounded finish, rather than requesting approval for each small correction.

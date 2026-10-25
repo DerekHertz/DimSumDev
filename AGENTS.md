@@ -10,6 +10,8 @@ The den runs as a systemd user service (ADR 0026), from release folders under `~
 
 ## Agent skills
 
+Chat defaults to `caveman`; explicit style requests win.
+
 ### Issue tracker
 
 The board is local markdown under `.scratch/` in the main checkout, with lock-file claims. `.scratch/` is its own private git repo, ignored by this one. See `docs/agents/issue-tracker.md`.

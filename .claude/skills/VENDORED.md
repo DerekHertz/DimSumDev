@@ -1,5 +1,11 @@
 # Vendored skills
 
+## Caveman
+
+Source: https://github.com/JuliusBrussee/caveman, `skills/caveman/`, pinned at `2178ed6495c3c0ecd7d037e60acf3b1d0c554b97` (adopted 2026-10-24). Apache-2.0; upstream LICENSE, NOTICE, LICENSE-MIT and LICENSING.md are retained in `caveman/`.
+
+Default chat style, per user request. Local adaptations: short description, default-on integration note preserving required updates and evidence, removal of unavailable companion-mode/hook instructions, and a README note distinguishing the installed subset. The skill only changes communication; no hooks, runtime, compressor or companion skills are installed. CLAUDE.md and Codex working conventions establish the default; persisted artifacts retain normal prose. Changes to SKILL.md and README.md are local adaptations from the pinned upstream source.
+
 ## Cloudflare security-audit
 
 Source: https://github.com/cloudflare/security-audit-skill, `skills/security-audit/`, pinned at `c1c8a8c1471069fb0e188eeaff69b8e8db6564a8` (adopted 2026-10-24). MIT; the upstream root license is retained in `security-audit/LICENSE`.
