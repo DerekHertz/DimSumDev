@@ -137,6 +137,16 @@ describe("the durable conversation of a role", () => {
 });
 
 describe("a message into a role's conversation", () => {
+  test("an unbound chief-of-staff message reaches its existing task rather than opening a desk", async () => {
+    const t = await setup();
+    const run = await t.start("chief-of-staff");
+    const res = await t.say("chief-of-staff", { text: "Continue this task." });
+    assert.equal(res.status, 202, JSON.stringify(res.body));
+    assert.equal(res.body.runId, run.id);
+    assert.deepEqual(run.rec.sent.map(m => m.text), ["Continue this task."]);
+    assert.equal(t.fake.spawns.length, 1, "no additional reserved desk run is admitted");
+  });
+
   test("with one live run it is that run's message", async () => {
     const t = await setup();
     const run = await t.start();

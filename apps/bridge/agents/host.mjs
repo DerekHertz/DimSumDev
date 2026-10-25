@@ -31,7 +31,7 @@ import {
   USAGE_REFUSE_AT, APPROVAL_TTL_MS, SHUTDOWN_SPAWN_WAIT_MS, DIRECT_MODE,
   TRANSCRIPT_AGENTS, TRANSCRIPT_ENTRIES, TRANSCRIPT_RESULT_MAX, TRANSCRIPT_TEXT_MAX, REPLY_EXCERPT_MAX, USAGE_MESSAGES,
   MESSAGE_MAX_BYTES, MESSAGE_QUEUE_MAX, MESSAGE_SETTLE_MS, CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS,
-  definitionOf, deskRefOf, isDeskRef,
+  definitionOf, deskRefOf, isDeskRef, DESK_ROLE,
 } from "./policy.mjs";
 import { ceilingOf, grantContainsWorktrees, parseGrants } from "./claude-adapter.mjs";
 import { parseCatalog } from "../library/catalog.mjs";
@@ -1210,7 +1210,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (badText) return badText;
     const runId = body?.runId;
     if (runId !== undefined && (typeof runId !== "string" || !AGENT_ID_RE.test(runId))) return refuse(400, "runId must be an agent id");
-    const atDesk = role === "orchestrator" || role === "chief-of-staff";
+    const atDesk = role === DESK_ROLE;
     const selected = await select({ ...body, role, ...(atDesk && runId === undefined ? { ref: deskRefOf(body?.runtime) } : {}) }, { execute: false });
     if (selected.ok === false) return selected;
     const matches = (a) => a.role === role && a.runtimeId === selected.runtime && (a.project ?? "den") === selected.project;
