@@ -105,6 +105,28 @@ const pick = async page => {
   await page.getByRole('region', { name: 'Selected panda' }).waitFor();
 };
 const rail = (page, id) => page.locator(`[data-rail="${id}"]`);
+
+test('organic icon motion keeps the rail click targets stationary and usable', { timeout: 60000 }, async () => {
+  const t = await open();
+  try {
+    await t.page.emulateMedia({ reducedMotion: 'no-preference' });
+    await t.page.evaluate(() => document.fonts.ready);
+    const button = rail(t.page, 'work');
+    const boxes = await button.evaluate(async el => {
+      const samples = [];
+      for (let i = 0; i < 8; i++) {
+        await new Promise(requestAnimationFrame);
+        const { x, y, width, height } = el.getBoundingClientRect();
+        samples.push({ x, y, width, height });
+      }
+      return samples;
+    });
+    for (const box of boxes) assert.deepEqual(box, boxes[0], 'the hit target stays fixed while its bubble visuals move');
+    await button.click();
+    await t.page.locator('[data-sheet="topic"]').waitFor({ state: 'visible' });
+    assert.deepEqual(t.errors, []);
+  } finally { await t.close(); }
+});
 const side = page => page.locator('[data-sheet=side]');
 async function captureEvidence(page) {
   const dir = process.env.DEN_SHELL_EVIDENCE_DIR;

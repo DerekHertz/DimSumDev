@@ -206,14 +206,14 @@ test("the native approved garden loads Bao, Jiao and the active cast assets with
   } finally { await context.close(); }
 });
 
-test("phone shell keeps the scene and Team sheet within the viewport and lists all thirty-two charter roles", { timeout: 90000 }, async () => {
+test("phone shell keeps the scene and Team sheet within the viewport and lists all twenty-four continuing charter profiles", { timeout: 90000 }, async () => {
   const { context, page, errors } = await openGarden({ viewport: { width: 390, height: 844 } });
   try {
     await ready(page);
     await page.locator('[data-rail="team"]').click();
     const residents = page.getByRole('list', { name: 'Residents and visitors' });
     await residents.waitFor({ state: 'visible' });
-    assert.equal(await residents.getByRole('button').count(), 32, 'all callable role and runtime profiles remain available');
+    assert.equal(await residents.getByRole('button').count(), 24, 'all callable role and runtime profiles remain available');
     for (const role of ['The Code Reviewer', 'The Release Manager', 'The SRE', 'The Technical Writer']) {
       assert.equal(await residents.getByRole('button', { name: new RegExp(`^${role}`) }).count(), 2, `${role} is listed for both runtimes`);
     }
@@ -240,7 +240,7 @@ test("a failed required model manifest explains the garden failure and leaves th
     assert.match(await alert.innerText(), /Your board controls are still available on the rail/);
     assert.equal(await page.locator('.den-entry button').getAttribute('aria-disabled'), 'true');
     await page.locator('[data-rail="team"]').click();
-    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 32);
+    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 24);
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
@@ -346,7 +346,7 @@ test("a missing approved cast model stays labeled at its own home and leaves the
       {id:'developer',role:'developer',runtime:'claude',unavailable:true,species:null,atHome:true},
     ],'both residents are labeled unavailable at their actual homes without substituting the legacy panda');
     await page.locator('[data-rail="team"]').click();
-    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 32, 'the callable role and runtime roster remains available');
+    assert.equal(await page.getByRole('list', { name: 'Residents and visitors' }).getByRole('button').count(), 24, 'the callable role and runtime roster remains available');
     assert.equal(await page.evaluate(() => window.__eventStreams), 1);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }
@@ -380,20 +380,20 @@ test("portrait profiles keep real work and visitor identities, and route explici
   try {
     let profiles = await openProfiles(page);
     const portraits = profiles.getByRole('list', { name: 'Residents and visitors' });
-    assert.equal(await portraits.getByRole('button').count(), 32, 'all seated charter roles');
-    assert.equal(await portraits.locator('img').count(), 32, 'each resident has a portrait image');
+    assert.equal(await portraits.getByRole('button').count(), 24, 'all seated charter roles');
+    assert.equal(await portraits.locator('img').count(), 24, 'each resident has a portrait image');
     for (const name of ['Code Reviewer', 'Release Manager', 'SRE', 'Technical Writer']) {
       assert.equal(await portraits.getByRole('button', { name: new RegExp(`^The ${name},`) }).count(), 2, `${name} appears for both runtimes in the charter roster`);
     }
     await page.waitForFunction(() => [...document.querySelectorAll('.forest-portrait-choice img')].every(image => image.complete && image.naturalWidth > 0));
-    const roleIds = ['orchestrator', 'product', 'architect', 'developer', 'scout', 'debugger', 'qa', 'security', 'designer', 'herald', 'release-manager', 'code-reviewer', 'sre', 'technical-writer', 'knowledge-keeper', 'docs-writer', 'stem-cub'];
-    const codexPortraitPaths = ['/den/portraits/codex-orchestrator.webp', '/den/portraits/codex-product.webp', '/den/portraits/codex-architect.webp', '/den/portraits/codex-developer.webp', '/den/portraits/codex-scout.webp', '/den/portraits/codex-runner.webp', '/den/portraits/codex-qa.webp', '/den/portraits/codex-security.webp', '/den/portraits/codex-designer.webp', '/den/portraits/codex-herald.webp', '/den/portraits/codex-code-reviewer.webp', '/den/portraits/codex-release-manager.webp', '/den/portraits/codex-sre.webp', '/den/portraits/codex-technical-writer.webp'];
+    const roleIds = ['orchestrator', 'product', 'architect', 'developer', 'runner', 'qa', 'security', 'designer', 'release-manager', 'code-reviewer', 'sre', 'technical-writer'];
+    const codexPortraitPaths = ['/den/portraits/codex-orchestrator.webp', '/den/portraits/codex-product.webp', '/den/portraits/codex-architect.webp', '/den/portraits/codex-developer.webp', '/den/portraits/codex-runner.webp', '/den/portraits/codex-qa.webp', '/den/portraits/codex-security.webp', '/den/portraits/codex-designer.webp', '/den/portraits/codex-code-reviewer.webp', '/den/portraits/codex-release-manager.webp', '/den/portraits/codex-sre.webp', '/den/portraits/codex-technical-writer.webp'];
     const portraitPaths = await portraits.locator('img').evaluateAll(images => images.map(image => new URL(image.currentSrc).pathname));
     // team-and-den-ux/23 and 35: a species keeps one body for both runtimes, so its two residents share one portrait.
     const species = { developer: '/den/portraits/developer-red-panda.webp', 'technical-writer': '/den/portraits/technical-writer-cloud-dragon.webp', product: '/den/portraits/product-fox.webp', architect: '/den/portraits/architect-crane.webp', runner: '/den/portraits/runner-golden-monkey.webp', qa: '/den/portraits/qa-otter.webp', security: '/den/portraits/security-pangolin.webp', designer: '/den/portraits/designer-deer.webp', 'release-manager': '/den/portraits/release-manager-lucky-cat.webp', 'code-reviewer': '/den/portraits/code-reviewer-lion.webp', sre: '/den/portraits/sre-tortoise.webp' };
-    assert.equal(new Set(portraitPaths).size, 32 - Object.keys(species).length, 'each runtime resident uses its own cached portrait, except a species shared by both runtimes');
+    assert.equal(new Set(portraitPaths).size, 24 - Object.keys(species).length, 'each runtime resident uses its own cached portrait, except a species shared by both runtimes');
     const claudeOnly = { orchestrator: '/den/portraits/bao-jade.webp' }, codexOnly = { '/den/portraits/codex-orchestrator.webp': '/den/portraits/orchestrator-jiao.webp' }; // team-and-den-ux/24 and 25: Bao's and Jiao's own portraits
-    const expected = [...roleIds.map(role => claudeOnly[role] || species[role] || `/den/portraits/${role}.webp`), species.runner, ...codexPortraitPaths.map(path => codexOnly[path] || Object.entries(species).find(([role]) => path === `/den/portraits/codex-${role}.webp`)?.[1] || path)];
+    const expected = [...roleIds.map(role => claudeOnly[role] || species[role] || `/den/portraits/${role}.webp`), ...codexPortraitPaths.map(path => codexOnly[path] || Object.entries(species).find(([role]) => path === `/den/portraits/codex-${role}.webp`)?.[1] || path)];
     assert.deepEqual(portraitPaths.toSorted(), expected.toSorted());
     assert.ok(portraitPaths.includes('/den/portraits/release-manager-lucky-cat.webp'), 'the Release Manager wears the lucky cat portrait');
     await portraits.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
@@ -450,7 +450,7 @@ test("portrait profiles keep real work and visitor identities, and route explici
     const endedResidents = profiles.getByRole('list', { name: 'Residents and visitors' });
     await endedResidents.getByRole('button', { name: /^The Maker, developer, Claude, .*visitor on work\/03-visitor, Working$/ }).waitFor({ state: 'hidden' });
     await endedResidents.getByRole('button', { name: /^The Maker, developer, Claude, .*current project identity unavailable, At home$/ }).click();
-    assert.equal(await endedResidents.getByRole('button').count(), 32, 'the ended visitor is removed before opening the resident’s past conversation');
+    assert.equal(await endedResidents.getByRole('button').count(), 24, 'the ended visitor is removed before opening the resident’s past conversation');
     assert.equal(await profiles.locator('.forest-profile-tool').count(), 0, 'the terminal snapshot never revives a tool preview for the past run');
     await profiles.getByRole('button', { name: 'Talk to Maker', exact: true }).click();
     await page.locator('.transcript-meta code').filter({ hasText: /^c-maker-past$/ }).waitFor({ state: 'visible' });
@@ -461,7 +461,7 @@ test("portrait profiles keep real work and visitor identities, and route explici
   } finally { await context.close(); }
 });
 
-test("read-only and scenery-role profiles explain disabled Talk and work actions honestly", { timeout: 60000 }, async () => {
+test("read-only profiles explain disabled actions and exclude retired roles", { timeout: 60000 }, async () => {
   const { context, page, errors, mutations } = await openGarden({ snapshot: quietProfiles() });
   try {
     const profiles = await openProfiles(page);
@@ -472,9 +472,9 @@ test("read-only and scenery-role profiles explain disabled Talk and work actions
     assert.match(await profiles.innerText(), /read-only[\s\S]*Sign in to start/);
     assert.ok(await talk.getAttribute('aria-describedby'), 'disabled action has an accessible reason');
     assert.equal(await profiles.getByRole('button', { name: /View work/ }).isDisabled(), true);
-    await portraits.getByRole('button', { name: /^The Debugger,/ }).click();
-    assert.equal(await profiles.getByRole('button', { name: 'Talk to Debugger', exact: true }).isDisabled(), true);
-    assert.match(await profiles.innerText(), /does not have an agent runtime yet/);
+    for (const role of ['scout', 'herald', 'debugger', 'knowledge-keeper', 'docs-writer', 'stem-cub']) {
+      assert.equal(await portraits.locator(`button[aria-label*=", ${role},"]`).count(), 0, `${role} is retired in both runtimes`);
+    }
     assert.deepEqual(mutations, []);
     assert.deepEqual(errors, []);
   } finally { await context.close(); }

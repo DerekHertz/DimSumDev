@@ -79,12 +79,21 @@
   33% { transform: translate(.8px, -1.5px) rotate(.5deg); border-radius: 52% 48% 51% 49%; }
   66% { transform: translate(-.8px, -.5px) rotate(-.2deg); border-radius: 49% 51% 47% 53%; }
 }
+@keyframes den-icon-surface {
+  0%, 100% { border-radius: 48% 52% 49% 51%; }
+  33% { border-radius: 52% 48% 51% 49%; }
+  66% { border-radius: 49% 51% 47% 53%; }
+}
 @media (prefers-reduced-motion: no-preference) {
-  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry { animation: den-icon-bubble var(--bubble-period, 6.4s) ease-in-out var(--bubble-delay, -1s) infinite; }
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry { animation: den-icon-surface var(--bubble-period, 6.4s) ease-in-out var(--bubble-delay, -1s) infinite; }
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry::before,
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry .den-rail-icon { animation: den-icon-bubble var(--bubble-period, 6.4s) ease-in-out var(--bubble-delay, -1s) infinite; }
   .den-rail-list > li:nth-child(3n + 1) { --bubble-period: 5.8s; --bubble-delay: -2.3s; }
   .den-rail-list > li:nth-child(3n + 2) { --bubble-period: 7.1s; --bubble-delay: -4.7s; }
   .den-rail-list > li:nth-child(3n) { --bubble-period: 6.6s; --bubble-delay: -1.4s; }
-  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry:is(:hover, :focus-visible, :active) { animation: none; transform: none; }
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry:is(:hover, :focus-visible, :active),
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry:is(:hover, :focus-visible, :active)::before,
+  .forest-shell .den-rail:not(.is-expanded) .den-rail-entry:is(:hover, :focus-visible, :active) .den-rail-icon { animation: none; transform: none; }
 }
 .den-rail-tooltip { position: fixed; z-index: 100; pointer-events: none; padding: 8px 12px; border-radius: 10px; background: var(--ink, #344b35); color: var(--surface-200, #fffef9); font: 13px/1.4 "Segoe UI", system-ui, sans-serif; max-width: 240px; }
 .forest-shell .forest-legend { gap: 12px; padding: 10px 14px; max-width: calc(100% - 32px); box-sizing: border-box; }
