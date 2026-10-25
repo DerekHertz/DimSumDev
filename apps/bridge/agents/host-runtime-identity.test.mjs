@@ -154,6 +154,37 @@ test("known unconfigured Codex is 503 and never falls back to legacy Claude", as
   assert.deepEqual(await readdir(path.join(t.fx.root, ".scratch/den/issues")).catch(() => []), []);
 });
 
+test("Jiao starts a private Codex desk conversation without binding or messaging Bao's desk", async () => {
+  const t = await setup();
+  const first = await t.say({ runtime: "codex", text: "Hello Jiao." }, "orchestrator");
+  assert.equal(first.status, 201, JSON.stringify(first.body));
+  assert.equal(first.body.agent.runtime, "codex");
+  assert.equal(first.body.agent.ref, "den/00-jiao");
+  assert.equal(t.claude.spawns.length, 0);
+  const run = t.codex.spawns[0];
+  assert.match(run.args.prompt, /You are Jiao/);
+  assert.doesNotMatch(run.args.prompt, /Hello Jiao/);
+  assert.equal(run.args.openingMessage.text, "Hello Jiao.");
+  run.emit({ type: "message-applied", id: run.args.openingMessage.messageId });
+  run.emit({ type: "reply", text: "Hello from Jiao." });
+  await t.finish(first, t.codex);
+  const codex = await t.get("/conversations/orchestrator?runtime=codex");
+  assert.ok(codex.body.entries.some(e => e.role === "user" && e.text === "Hello Jiao." && e.status === "applied"));
+  assert.ok(codex.body.entries.some(e => e.role === "agent" && e.text === "Hello from Jiao."));
+  assert.deepEqual((await t.get("/conversations/orchestrator?runtime=claude")).body.entries, []);
+  assert.match(await readFile(path.join(t.fx.root, ".scratch/den/issues/00-jiao.md"), "utf8"), /Status:\*\* parked/);
+  const follow = await t.say({ runtime: "codex", text: "Continue Jiao." }, "orchestrator");
+  assert.equal(follow.status, 201, JSON.stringify(follow.body));
+  assert.equal(t.codex.spawns[1].args.runtimeSessionId, "thread_codex_01");
+  assert.equal(t.codex.spawns[1].args.resume, true);
+  await t.finish(follow, t.codex);
+  const bao = await t.say({ runtime: "claude", text: "Hello Bao." }, "orchestrator");
+  assert.equal(bao.status, 201, JSON.stringify(bao.body));
+  assert.equal(bao.body.agent.ref, "den/00-bao");
+  assert.equal(t.claude.spawns.length, 1);
+  assert.equal(t.codex.spawns.length, 2);
+});
+
 test("runtime registry rejects conflicting shorthand and unknown own keys", async () => {
   const fx = await makeStateFixture();
   cleanups.push(() => fx.cleanup());

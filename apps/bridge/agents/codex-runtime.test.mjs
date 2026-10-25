@@ -33,7 +33,7 @@ function setup({ login = true, mode = "ok", over = {} } = {}) {
     cleanups.push(async () => { proc.signal("SIGKILL"); await proc.exited; });
     return proc;
   };
-  const store = (id = ids.sessionId) => `${home}/.local/state/den/credentials/codex/${id}/native`;
+  const store = (id = ids.sessionId) => `${home}/.local/state/den/codex/sessions/${id}/native`;
   return { dir, home, cwd, control, runtime, spawn, store, ids };
 }
 
@@ -42,6 +42,45 @@ const collect = async (proc, until = "done") => {
   for await (const event of proc.events) { got.push(event); if (event.type === until) break; }
   return got;
 };
+
+test("a Codex conversation takes another message and acknowledges it before its reply", async () => {
+  const t = setup();
+  const proc = await t.spawn({ prompt: "printf first" });
+  await collect(proc);
+  const id = "22222222-2222-4222-8222-222222222222";
+  await proc.send(id, "printf second");
+  const events = await collect(proc);
+  assert.equal(events[0].type, "message-applied");
+  assert.equal(events[0].id, id);
+  assert.equal(events.find(e => e.type === "tool-result").text, "second");
+  assert.equal(events.at(-1).ok, true);
+});
+
+test("an ended Codex thread resumes from private native state with fresh credentials", async () => {
+  const t = setup();
+  const first = await t.spawn({ prompt: "printf first" });
+  await collect(first);
+  await ended(first);
+  assert.equal(existsSync(`${t.store()}/auth.json`), false, "credentials must be removed on exit");
+  const next = await t.spawn({ resume: true, runtimeSessionId: first.runtimeSessionId, prompt: "printf resumed" });
+  assert.equal(next.runtimeSessionId, first.runtimeSessionId);
+  const events = await collect(next);
+  assert.equal(events.find(e => e.type === "tool-result").text, "resumed");
+  await ended(next);
+  await assert.rejects(t.spawn({ resume: true, runtimeSessionId: "foreign-thread" }), /recorded Codex session/);
+  await assert.rejects(t.spawn({ resume: true, runtimeSessionId: first.runtimeSessionId, role: "chief-of-staff" }), /recorded Codex session/);
+});
+
+test("Jiao's desk uses the chief-of-staff recipe and the user message as its first turn", async () => {
+  const t = setup();
+  const openingMessage = { messageId: "22222222-2222-4222-8222-222222222222", text: "printf hello-jiao" };
+  const proc = await t.spawn({ role: "orchestrator", prompt: "Trusted desk instructions, not shell input.", openingMessage });
+  const events = await collect(proc);
+  assert.equal(events.find(e => e.type === "tool-result").text, "hello-jiao");
+  assert.ok(events.findIndex(e => e.type === "message-applied" && e.id === openingMessage.messageId) < events.findIndex(e => e.type === "done"));
+  assert.match(readFileSync(`${t.store()}/config.toml`, "utf8"), /default_permissions = "den-orchestrator"/);
+  assert.equal(proc.runtimeSessionId, "thread-1");
+});
 
 test('meeting Medium effort overrides the recipe and starts a native thread with that private config', async () => {
   const t = setup();
@@ -127,7 +166,7 @@ test("the write-back replaces the user's file by rename, so a reader never sees 
 
 test("the session credential folder is private while the run lives and gone after it exits", async () => {
   const t = setup();
-  const session = path.dirname(t.store());
+  const session = `${t.home}/.local/state/den/credentials/codex/${t.ids.sessionId}`;
   mkdirSync(session, { recursive: true, mode: 0o755 });
   chmodSync(session, 0o755);
   const proc = await t.spawn();
@@ -135,6 +174,8 @@ test("the session credential folder is private while the run lives and gone afte
   assert.equal(statSync(t.store()).mode & 0o777, 0o700);
   await ended(proc);
   assert.equal(existsSync(session), false);
+  assert.equal(existsSync(`${t.store()}/auth.json`), false);
+  assert.equal(statSync(t.store()).mode & 0o777, 0o700, "retained thread data stays private");
 });
 
 test("a read root that is or contains the home or the credentials folder is refused before any file is made", async () => {

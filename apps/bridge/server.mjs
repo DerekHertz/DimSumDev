@@ -30,7 +30,7 @@ import { createMeetings } from "./meetings/runner.mjs";
 import { createMeetingStore } from "./meetings/store.mjs";
 import { createMeetingLog } from "./meetings/log.mjs";
 import { TOPIC_MAX_BYTES } from "./meetings/types.mjs";
-import { DEN_FEATURE, DESK_REF, TASK_MAX_BYTES } from "./agents/policy.mjs";
+import { DEN_FEATURE, DESK_REF, TASK_MAX_BYTES, deskRefOf } from "./agents/policy.mjs";
 import { BoardError, comment, createTicket, isBoardRole, modeAllowed, resolve, resolveShortRef, setOffRelay } from "../board/board-service.mjs";
 import { appendToOrder } from "../router/order.mjs";
 import { cleanText } from "./agents/approvals.mjs";
@@ -86,11 +86,11 @@ const DESK_TICKET = `# ${DESK_REF.split("/")[1].slice(0, 2)}: Bao's desk
 
 ## Comments
 `;
-async function ensureDesk(root) {
-  const [feature, name] = DESK_REF.split("/");
+async function ensureDesk(root, runtime = "claude") {
+  const [feature, name] = deskRefOf(runtime).split("/");
   const dir = path.join(root, ".scratch", feature, "issues");
   await mkdir(dir, { recursive: true });
-  await writeFile(path.join(dir, `${name}.md`), DESK_TICKET, { flag: "wx" }).catch((err) => {
+  await writeFile(path.join(dir, `${name}.md`), runtime === "codex" ? DESK_TICKET.replaceAll("Bao", "Jiao") : DESK_TICKET, { flag: "wx" }).catch((err) => {
     if (err?.code !== "EEXIST") throw err;
   });
 }
@@ -241,7 +241,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       await runClaims.remove(agent.id);
     },
     lockedRefs: async ({ project }) => (await buildSnapshot((await projects.get(project)).root, 0)).tickets.filter((t) => t.holder && !meetings?.snapshot().some(m => m.held && m.ref === t.ref && m.project === project && t.holder.role === 'chief-of-staff' && t.holder.since === m.holdSince)).map((t) => t.ref),
-    openDesk: () => ensureDesk(root),
+    openDesk: (runtime) => ensureDesk(root, runtime),
     // F34: a batch the bridge would refuse is denied when it asks, with the reason, so the user is not asked for it.
     checkCall: (tool, input) => (tool === "mcp__den__board_file" ? checkFileBatch(input).error ?? null : null),
   });

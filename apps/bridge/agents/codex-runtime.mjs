@@ -2,7 +2,8 @@
 // resource group, hands the thread a per-role permission profile (compileCodexPermissions) that Codex's own sandbox enforces on every
 // tool command, and turns the adapter's events into the host's. The model, effort and instructions come from the role's
 // `.codex/agents/<role>.toml`. The login is copied into a private native store the profile denies to tool commands; when the run ends the copy is
-// removed, and first written back to the user's file if Codex refreshed it. No tree, no steering, no resume yet. Registration is a flag in server.mjs (DEN_CODEX=1).
+// removed, and first written back to the user's file if Codex refreshed it. Private thread data survives for conversation
+// follow-ups; every resumed run is rebound to its original role, model and worktree. Registration is a flag in server.mjs (DEN_CODEX=1).
 import { chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, renameSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,12 +12,13 @@ import { findCodexNative } from "./codex-sandbox-plan.mjs";
 import { compileCodexPermissions, renderCodexConfig } from "./codex-permissions.mjs";
 import { GOVERNED_BASES, ceilingOf, isWorktreePath } from "./claude-adapter.mjs";
 import { createChannel } from "./claude-runtime.mjs";
-import { slotClassOf } from "./policy.mjs";
+import { slotClassOf, definitionOf, UUID_RE, MESSAGE_MAX_BYTES } from "./policy.mjs";
+import { validRuntimeSession } from "./identity.mjs";
 import { EnforcementError, createResourceLauncher } from "./resource-group.mjs";
 
 const MODULE_CONTROL_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 const GROUP_SETTLE_MS = 2000;
-const CAPABILITIES = { spawn: true, stop: true, approve: true, send: false, handover: false, resume: false };
+const CAPABILITIES = { spawn: true, stop: true, approve: true, send: true, handover: false, resume: true };
 
 /** model, effort and developer instructions of a role's recipe; the recipe is the bridge's own file, never a request's. */
 function readRecipe(file) {
@@ -56,6 +58,7 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
   const home = typeof env.HOME === "string" ? env.HOME : undefined;
   const authSource = home && `${home}/.codex/auth.json`;
   const stateRoot = home && `${home}/.local/state/den/credentials/codex`;
+  const nativeRoot = home && `${home}/.local/state/den/codex/sessions`;
   const loginProblem = () => (authSource && existsSync(authSource) ? null : "no Codex login was found; run `codex login` on this host");
   const binaries = () => {
     const found = native ?? findCodexNative(env);
@@ -74,15 +77,17 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
     },
     stillRunning: (id) => (typeof launcher.active === "function" ? launcher.active(id) : Promise.resolve(false)),
     resumeCommand: () => null,
-    async spawn({ role, cwd, prompt, sessionId, runId, model, effort, ticketFile, mainGit, project, resume } = {}) {
+    async spawn({ role, cwd, prompt, sessionId, runId, model, effort, ticketFile, mainGit, project, resume, runtimeSessionId, promptId, openingMessage } = {}) {
       if (!isWorktreePath(cwd) || typeof prompt !== "string" || prompt.trim() === "") throw new TypeError("codex runtime: a worktree and a prompt are required");
-      if (resume === true) throw new TypeError("codex runtime: resume is not supported");
+      if (openingMessage !== undefined && (resume === true || typeof openingMessage?.text !== "string" || !openingMessage.text.trim() || Buffer.byteLength(openingMessage.text) > MESSAGE_MAX_BYTES || !UUID_RE.test(openingMessage.messageId))) {
+        throw new TypeError("codex runtime: invalid opening message");
+      }
       if (typeof sessionId !== "string" || !/^[0-9a-f-]{36}$/.test(sessionId)) throw new TypeError("codex runtime: sessionId must be the bridge UUID");
       const problem = loginProblem();
       if (problem) throw new EnforcementError(problem);
       if (project === undefined && !(cwd === control || cwd.startsWith(`${control}/`))) throw new TypeError("codex runtime: a spawn with no project must run inside the control checkout");
       if (typeof role !== "string" || !/^[a-z][a-z-]*$/.test(role)) throw new TypeError("codex runtime: the role must be a plain role name");
-      const recipeFile = `${control}/.codex/agents/${role}.toml`;
+      const recipeFile = `${control}/.codex/agents/${definitionOf(role)}.toml`;
       if (!existsSync(recipeFile)) throw new EnforcementError(`the ${role} role has no Codex recipe`);
       const recipe = readRecipe(recipeFile);
       if (effort !== undefined) {
@@ -90,21 +95,32 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
         recipe.effort = effort;
       }
       if (model !== undefined && model !== recipe.model) throw new TypeError("codex runtime: the model differs from the role's recipe");
+      const nativeStore = `${nativeRoot}/${sessionId}/native`;
+      const binding = `${nativeStore}/den-thread.json`;
+      if (resume === true) {
+        let saved;
+        try { saved = JSON.parse(readFileSync(binding, "utf8")); } catch {}
+        if (!validRuntimeSession(runtimeSessionId) || saved?.thread !== runtimeSessionId || saved.cwd !== cwd || saved.role !== role || saved.model !== recipe.model) {
+          throw new EnforcementError("the recorded Codex session does not match this run");
+        }
+      }
       const { codexBin, nativeHelper } = binaries();
       const writes = ceilingOf(role)?.takesGrants === true;
       const readRoots = [...new Set([nodePrefix, nativeHelper, ...(writes ? [] : [cwd]), recipeFile, ...(isWorktreePath(ticketFile) ? [ticketFile] : []), ...(isWorktreePath(mainGit) ? [mainGit] : [])])];
       const realHome = realpathSync(home);
-      const secrets = [realHome, `${realHome}/.codex`, `${realHome}/.local/state/den/credentials`];
+      const secrets = [realHome, `${realHome}/.codex`, `${realHome}/.local/state/den/credentials`, nativeRoot];
       const exposed = readRoots.find((root) => secrets.some((dir) => dir === root || dir.startsWith(root.replace(/\/?$/, "/"))));
       if (exposed) throw new EnforcementError(`the read root ${exposed} is or contains the home or a credentials folder`);
       const session = privateDir(`${stateRoot}/${sessionId}`);
       let original;
       const cleanup = () => {
-        saveRefreshedLogin({ copy: `${session}/native/auth.json`, original, target: authSource });
+        saveRefreshedLogin({ copy: `${nativeStore}/auth.json`, original, target: authSource });
+        rmSync(`${nativeStore}/auth.json`, { force: true });
         rmSync(session, { recursive: true, force: true });
       };
       try {
-        const nativeStore = privateDir(`${session}/native`);
+        privateDir(`${nativeRoot}/${sessionId}`);
+        privateDir(nativeStore);
         const tmp = privateDir(`${session}/tmp`);
         const compiled = compileCodexPermissions({
           profileId: `den-${role}`, worktree: cwd, nativeStore,
@@ -124,7 +140,9 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
         writeFileSync(`${nativeStore}/auth.json`, original, { mode: 0o600 });
         const launched = await launcher.launch({ slotClass: slotClassOf(role), id: runId ?? sessionId, bin: codexBin, args: codexArgs, cwd,
           env: { PATH: path_, HOME: privateDir(`${session}/home`), CODEX_HOME: nativeStore, XDG_CONFIG_HOME: privateDir(`${session}/xdg`), TMPDIR: tmp, LANG: "C.UTF-8" } });
-        return await attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup });
+        return await attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup,
+          resumeThreadId: resume === true ? runtimeSessionId : undefined, promptId, openingMessage,
+          rememberThread: thread => writeFileSync(binding, JSON.stringify({ thread, cwd, role, model: recipe.model }), { mode: 0o600 }) });
       } catch (err) {
         cleanup();
         throw err;
@@ -133,13 +151,13 @@ export function createCodexRuntime({ env = process.env, launcher = createResourc
   };
 }
 
-async function attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup }) {
+async function attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cleanup, resumeThreadId, promptId, openingMessage, rememberThread }) {
   const { child, group } = launched;
   child.on("error", () => {});
   child.stdin.on("error", () => {});
   child.stderr.resume();
   const protocol = openCodexAppServer({ child, ...(killGraceMs === undefined ? {} : { killGraceMs }),
-    authorizeExecution: async () => ({ profileId: compiled.profileId, cwd, developerInstructions: `${recipe.instructions}\n\nProduct worktree: ${cwd}.` }) });
+    authorizeExecution: async () => ({ profileId: compiled.profileId, cwd, developerInstructions: `${recipe.instructions}\n\nProduct worktree: ${cwd}.${openingMessage ? `\n\n${prompt}` : ""}` }) });
   const killAll = () => {
     group?.kill();
     try { process.kill(-child.pid, "SIGKILL"); } catch { /* the group is already gone */ }
@@ -158,17 +176,30 @@ async function attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cl
   // Pumped at once into an unbounded channel: the protocol queue is small and a lagging consumer would close it.
   const channel = createChannel();
   const questions = new Map();
+  let accepting = false;
+  const heldEvents = [];
+  let sendChain = Promise.resolve();
   (async () => {
     for await (const event of protocol.events) {
       if (event.type === "permission-request" && event.tool === "AskUserQuestion") questions.set(event.requestId, event.input.questions);
-      channel.push(event);
+      if (accepting) heldEvents.push(event);
+      else channel.push(event);
     }
     channel.end();
   })();
   let runtimeSessionId;
   try {
-    runtimeSessionId = await protocol.prepareThread({ model: recipe.model, effort: recipe.effort });
-    await protocol.startTurn(prompt);
+    runtimeSessionId = await protocol.prepareThread({ model: recipe.model, effort: recipe.effort, resumeThreadId });
+    rememberThread(runtimeSessionId);
+    accepting = true;
+    try {
+      await protocol.startTurn(openingMessage?.text ?? prompt);
+      const id = openingMessage?.messageId ?? promptId;
+      if (id) channel.push({ type: "message-applied", id });
+    } finally {
+      accepting = false;
+      for (const event of heldEvents.splice(0)) channel.push(event);
+    }
   } catch (err) {
     stop();
     await exited;
@@ -178,6 +209,22 @@ async function attach({ launched, cwd, prompt, recipe, compiled, killGraceMs, cl
     handle: String(child.pid), runtimeSessionId, events: channel.iterable, exited,
     closeInput: stop,
     signal(sig) { if (!stopped && (sig === "SIGTERM" || sig === "SIGKILL")) stop(); },
+    send(id, text) {
+      const sent = sendChain.catch(() => {}).then(async () => {
+        if (stopped) throw new Error("the Codex run is stopped");
+        accepting = true;
+        try {
+          if (protocol.state().turnId) await protocol.steerTurn(text);
+          else await protocol.startTurn(text);
+          channel.push({ type: "message-applied", id });
+        } finally {
+          accepting = false;
+          for (const event of heldEvents.splice(0)) channel.push(event);
+        }
+      });
+      sendChain = sent;
+      return sent;
+    },
     async decide(id, { allow, answers } = {}) {
       const qs = questions.get(id);
       if (!qs) return;

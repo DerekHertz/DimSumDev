@@ -31,7 +31,7 @@ import {
   USAGE_REFUSE_AT, APPROVAL_TTL_MS, SHUTDOWN_SPAWN_WAIT_MS, DIRECT_MODE, DESK_REF,
   TRANSCRIPT_AGENTS, TRANSCRIPT_ENTRIES, TRANSCRIPT_RESULT_MAX, TRANSCRIPT_TEXT_MAX, REPLY_EXCERPT_MAX, USAGE_MESSAGES,
   MESSAGE_MAX_BYTES, MESSAGE_QUEUE_MAX, MESSAGE_SETTLE_MS, CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS,
-  definitionOf,
+  definitionOf, deskRefOf, isDeskRef,
 } from "./policy.mjs";
 import { ceilingOf, grantContainsWorktrees, parseGrants } from "./claude-adapter.mjs";
 import { parseCatalog } from "../library/catalog.mjs";
@@ -129,7 +129,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const controlHandle = { slug: "den", root, control: root, workspaces };
   const projects = projectsOption ?? { active: async () => "den", get: async (slug) => (slug === "den" ? controlHandle : null) };
   // A run's project, fixed when it starts: a desk, meeting or orchestrator run is the den's; any other takes the active project.
-  const isControl = (a) => a.role === "orchestrator" || a.ref === DESK_REF;
+  const isControl = (a) => a.role === "orchestrator" || a.role === "chief-of-staff" || isDeskRef(a.ref);
   const workspacesOf = async (slug) => (slug === undefined || slug === "den" ? workspaces : (await projects.get(slug))?.workspaces ?? null);
   const agents = new Map(); // id -> record; insertion order is snapshot order
   const liveByRef = new Map(); // project/ref -> record, for every reserved or running agent
@@ -420,7 +420,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   async function select(input, { execute = true } = {}) {
     const selectedRuntime = runtimeId(input?.runtime);
     if (!selectedRuntime) return refuse(400, "unknown runtime");
-    const control = input.role === "orchestrator" || input.ref === DESK_REF;
+    const control = isControl(input);
     if (input.project !== undefined && !validProject(input.project)) return refuse(400, "invalid project");
     const active = await projects.active();
     const project = input.project ?? (control ? "den" : active);
@@ -434,7 +434,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   }
 
   // entry: "dispatch" | "start" | "direct" (the three entries in the header).
-  async function admit(input, { entry, selected: captured }) {
+  async function admit(input, { entry, selected: captured, openingMessage }) {
     const bad = checkShape(input);
     if (bad) return bad;
     const { ref, role } = input;
@@ -487,6 +487,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (noRoom) return unhold(noRoom);
     const agent = newAgent({ ref, role, mode, runtimeId: selected.runtime, project: selected.project, grants: Array.isArray(input.grants) ? input.grants : [], sessionId: randomUUID(), ...(step ? { delivery: step } : {}), ...(meeting ? { meeting } : {}) });
     agent.intentId = ticket.intent.id;
+    if (openingMessage) agent.openingMessage = openingMessage;
     // team-and-den-ux/19: a relay's worker is a child of its ticket's owner, Bao or Jiao. A direct task stands outside a tree.
     if (entry !== "direct" && entry !== "desk" && !meeting) agent.parent = ticket.intent.owner;
     if (entry === "dispatch") agent.claimed = true; // den-mvp/89: a Run holds the board claim for its whole run; spawnAgent makes it
@@ -639,7 +640,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const workspaces = project.workspaces; // this run's root, whatever the active project becomes later
     try {
       workspace = agent.resumeOf
-        ? await workspaces.reopen({ ref: agent.ref, agentId: agent.id, origin: agent.origin, catchUp: agent.ref === DESK_REF })
+        ? await workspaces.reopen({ ref: agent.ref, agentId: agent.id, origin: agent.origin, catchUp: isDeskRef(agent.ref) })
         : await workspaces.create({ ref: agent.ref, agentId: agent.id, ...(agent.delivery ? { base: agent.delivery.at } : {}) });
     } catch (err) {
       drop(agent);
@@ -692,6 +693,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const args = {
       role: agent.role, ...(agent.mode ? { mode: agent.mode } : {}), ref: agent.ref, cwd: workspace.dir, sessionId: agent.sessionId, runId: agent.id, ...(agent.runtimeSessionId ? { runtimeSessionId: agent.runtimeSessionId } : {}),
       prompt: agent.followUp ? agent.followUp.text : promptFor(agent), ticketFile: ticketFile(agent.ref, project.root), mainGit,
+      ...(agent.openingMessage ? { openingMessage: agent.openingMessage } : {}),
       ...(agent.meeting ? { effort: agent.meeting.effort } : {}),
       // den-mvp/49: derived here, from the bridge's own root and the run's project; never from a request. The runtime refuses a spawn without it outside the control checkout.
       project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent) },
@@ -738,12 +740,13 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // The run's marker in the role's conversation, then, for a follow-up, the user's message that started it. A runtime
     // that reports when a message is taken gets a receipt for it; one that cannot is not shown a status it could never change.
     keep(agent, { id: 0, at: agent.startedAt, kind: "run", mode: agent.mode, resumeOf: agent.resumeOf ?? null });
-    if (agent.followUp) {
-      const { text, messageId } = agent.followUp;
+    if (agent.followUp || agent.openingMessage) {
+      const { text, messageId } = agent.followUp ?? agent.openingMessage;
       const tracked = agent.capabilities.send;
       const entry = record(agent, { kind: "message", role: "user", text: cleanBody(text, TRANSCRIPT_TEXT_MAX) ?? "", messageId, ...(tracked ? { status: "queued" } : {}) });
       if (tracked) agent.messages.set(messageId, entry);
       agent.followUp = null;
+      agent.openingMessage = null;
     }
     agent.finished = watch(agent);
     try {
@@ -770,7 +773,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const ticketFile = (ref, base = root) => path.join(base, ".scratch", ref.split("/")[0], "issues", `${ref.split("/")[1]}.md`);
   const recipeOf = (a) => path.join(root, a.runtimeId === "codex" ? ".codex" : ".claude", "agents", `${definitionOf(a.role)}.${a.runtimeId === "codex" ? "toml" : "md"}`);
   const promptFor = (a) =>
-    a.ref === DESK_REF
+    isDeskRef(a.ref)
       ? `You are ${a.runtimeId === "codex" ? "Jiao" : "Bao"}, the chief of staff, at your desk in the den. Read ${recipeOf(a)} for who you are. ` +
         "Here the user talks with you with no ticket: answer their messages about the repo, the board and CI, reading what you need. " +
         "For pull requests, checks and CI logs use the GitHub connection's tools (mcp__github__*): `gh` has no login here. " +
@@ -840,7 +843,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       .catch((err) => console.error(`bridge: could not settle the run ${agent.id}: ${err?.stack ?? err}`));
     finalize(agent);
     // den-mvp/43: a meeting take has no follow-up, so its worktree goes with it; unsaved work is kept on a wip/ branch.
-    if (agent.meeting && agent.workspace && !agent.workspace.reopened && agent.ref !== DESK_REF) {
+    if (agent.meeting && agent.workspace && !agent.workspace.reopened && !isDeskRef(agent.ref)) {
       await (await workspacesOf(agent.project)).retire({ ref: agent.ref, agentId: agent.id }).catch((err) => console.error(`bridge: could not remove the worktree of ${agent.id}: ${err?.message ?? err}`));
     }
     // The run record (den-v1 loop S4): on the end line, then as one ledger row. Neither write can undo the end.
@@ -1216,12 +1219,12 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       if (!target || !matches(target)) return refuse(404, `no such ${role} run`);
     } else {
       // den-mvp/30: Bao's thread with no run named is the desk's: its live run, a follow-up of its last, or a new one.
-      const atDesk = role === "orchestrator";
-      const mine = [...agents.values()].filter((a) => matches(a) && (!atDesk || a.ref === DESK_REF));
+      const atDesk = role === "orchestrator" || role === "chief-of-staff";
+      const mine = [...agents.values()].filter((a) => matches(a) && (!atDesk || a.ref === deskRefOf(selected.runtime)));
       const live = mine.filter(isLive);
       if (live.length > 1) return refuse(409, `${live.length} ${role} runs are live; say which run the message is for`);
       target = live[0] ?? mine.at(-1);
-      if (atDesk && (!target || (!isLive(target) && !canContinue(target)))) return selected.runtime === "claude" ? desk(text) : refuse(503, "the Codex desk is not configured");
+      if (atDesk && (!target || (!isLive(target) && !canContinue(target)))) return desk(text, selected, role);
       if (!target) return refuse(404, `no ${role} run to follow up; start a task first`);
     }
     const eligible = await select({ role, ref: target.ref, runtime: selected.runtime, project: selected.project });
@@ -1236,20 +1239,24 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (isLive(target)) await target.finished;
     const followed = await followUp(target, text);
     // den-mvp/30: a desk session that cannot be continued (its worktree was cleaned up) is not a dead end: Bao starts afresh.
-    if (!followed.ok && followed.status === 409 && target.ref === DESK_REF && !liveByRef.has(refKey(target))) return selected.runtime === "claude" ? desk(text) : refuse(503, "the Codex desk is not configured");
+    if (!followed.ok && followed.status === 409 && isDeskRef(target.ref) && !liveByRef.has(refKey(target))) return desk(text, selected, role);
     return followed;
   }
 
   // den-mvp/30: a new run at Bao's desk. The user's text is its first message, never part of the prompt.
-  async function desk(text) {
+  async function desk(text, selected, role) {
+    const unavailable = down(adapters[selected.runtime]);
+    if (unavailable) return unavailable;
     try {
-      await openDesk(); // writes the desk ticket when it is missing
+      await openDesk(selected.runtime);
     } catch (err) {
       console.error(`bridge: could not write Bao's desk ticket: ${err?.message ?? err}`);
       return refuse(500, "could not write Bao's desk ticket");
     }
-    const started = await admit({ ref: DESK_REF, role: "orchestrator" }, { entry: "desk" });
+    const openingMessage = selected.runtime === "codex" ? { text, messageId: randomUUID() } : null;
+    const started = await admit({ ref: deskRefOf(selected.runtime), role }, { entry: "desk", selected, openingMessage });
     if (!started.ok) return started;
+    if (openingMessage) return { ...started, runId: started.agent.id, messageId: openingMessage.messageId, resumed: false };
     const sent = await message(started.agent.id, { text }, CONVERSE_ROUTE);
     return sent.ok ? { ...started, runId: started.agent.id, resumed: true } : sent;
   }
@@ -1350,7 +1357,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     start: (input) => admit(input, { entry: "start" }),
     direct,
     // den-mvp/43: a finished delivery asks for the worktrees of its runs to go (Bao's desk never does).
-    retire: async ({ ref, agentId, merged }) => (ref === DESK_REF ? { removed: false, saved: null } : ((await workspacesOf(agents.get(agentId)?.project)) ?? workspaces).retire({ ref, agentId, merged })),
+    retire: async ({ ref, agentId, merged }) => (isDeskRef(ref) ? { removed: false, saved: null } : ((await workspacesOf(agents.get(agentId)?.project)) ?? workspaces).retire({ ref, agentId, merged })),
     stop,
     message: (id, body) => message(id, body),
     cancel,
