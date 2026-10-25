@@ -195,6 +195,10 @@ _Avoid_: Floor model, base tier
 How hard qa verify looks at a developer's branch: `light` (run the tests, check the acceptance criteria) or `full`.
 _Avoid_: Review level
 
+**Profile**:
+The user's one `lean` or `full` setting, `full` by default. It sets concurrent workers, the leaf tier, the verifier count and ticket-size guidance together, on top of the Org limits, Minimum tier and Verify depth. The user flips it by hand; nothing switches it automatically, and the resource-group limits stay the same in both.
+_Avoid_: Mode, preset, plan
+
 **Shadow mode**:
 Jev's picks are logged next to what actually ran and never applied. A use case no longer needs its own shadow run before going live; it runs a **Trial** (ADR 0010 Amendment 1).
 _Avoid_: Dry run

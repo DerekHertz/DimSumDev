@@ -46,7 +46,7 @@ function diff(prev, next) {
 // switch reaches clients through publish() as { type: "build", build }.
 // capacity: (lockedRefs) => the snapshot's `capacity` key (organism-infra/227, ADR 0011 decision 3). The host owns the live
 // agents and the limits; the hub passes the refs of the tickets that hold a claim lock in the snapshot it is serving.
-export function createHub(root, { agents = () => [], approvals = () => [], transcripts = () => ({}), capacity = () => null, deliveries = () => [], meetings = () => [], ci = () => null, checks = async () => null, build = async () => null, release = () => null, readyRelease = () => null, update = () => null, accounts = async () => null, readUsage = () => null, wall = () => null, boardRoot = async () => root } = {}) {
+export function createHub(root, { agents = () => [], approvals = () => [], transcripts = () => ({}), capacity = () => null, deliveries = () => [], meetings = () => [], ci = () => null, checks = async () => null, build = async () => null, release = () => null, readyRelease = () => null, update = () => null, accounts = async () => null, readUsage = () => null, wall = () => null, profile = () => null, boardRoot = async () => root } = {}) {
   const scratch = path.join(root, ".scratch");
   const clients = new Set();
   let seq = 0;
@@ -122,7 +122,7 @@ export function createHub(root, { agents = () => [], approvals = () => [], trans
     async snapshot() {
       await refresh();
       const lockedRefs = current.tickets.filter((t) => t.holder).map((t) => t.ref);
-      return { ...current, agents: agents(), approvals: approvals(), transcripts: transcripts(), capacity: await capacity(lockedRefs), deliveries: deliveries(), meetings: meetings(), ci: ci(), checks: await checks(), build: await build(), release: release(), readyRelease: readyRelease(), update: update(), accounts: await accounts(), wall: wall(), seq };
+      return { ...current, agents: agents(), approvals: approvals(), transcripts: transcripts(), capacity: await capacity(lockedRefs), deliveries: deliveries(), meetings: meetings(), ci: ci(), checks: await checks(), build: await build(), release: release(), readyRelease: readyRelease(), update: update(), accounts: await accounts(), wall: wall(), profile: profile(), seq };
     },
     // An agent change goes out at once (no debounce, no 2 s net): { type: "agent", agent: object | null }; so do
     // { type: "approval", approval } and { type: "transcript", agentId, entry }.

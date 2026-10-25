@@ -28,7 +28,7 @@ import { fileURLToPath } from "node:url";
 import { hasSecret } from "../../../scripts/exposure.mjs";
 import { safeToolInput } from "../../shared/safe-text.mjs";
 import {
-  AGENT_ID_RE, KILL_GRACE_MS, LIVE_STATES, MAX_CONCURRENT_AGENTS, MODES, REF_RE, ROLES, SESSION_CAP, SLOTS, slotClassOf, UUID_RE,
+  AGENT_ID_RE, KILL_GRACE_MS, LIVE_STATES, MODES, REF_RE, ROLES, SESSION_CAP, SLOTS, slotClassOf, UUID_RE,
   USAGE_REFUSE_AT, APPROVAL_TTL_MS, SHUTDOWN_SPAWN_WAIT_MS, DIRECT_MODE,
   TRANSCRIPT_AGENTS, TRANSCRIPT_ENTRIES, TRANSCRIPT_RESULT_MAX, TRANSCRIPT_TEXT_MAX, REPLY_EXCERPT_MAX, USAGE_MESSAGES,
   MESSAGE_MAX_BYTES, MESSAGE_QUEUE_MAX, MESSAGE_SETTLE_MS, CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS,
@@ -39,6 +39,7 @@ import { parseCatalog } from "../library/catalog.mjs";
 import { createLibrary } from "../library/library.mjs";
 import { grantRefusal } from "./grant-policy.mjs";
 import { capacity as capacityOf } from "./capacity.mjs";
+import { createProfile } from "./profile.mjs";
 import { runtimeId, runtimeRegistry, validProject, validRuntimeSession } from "./identity.mjs";
 import { executionSettings, delegation, checkDelegation, delegationPrompt, RUN_RULES, canDelegate, delegateRequest, scopesOverlap } from "./orchestration.mjs";
 import { createSessions } from "./sessions.mjs";
@@ -113,11 +114,12 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, createDelegatedTicket }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, createDelegatedTicket, profile = createProfile() }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
-  const maxConcurrent = Math.min(policy.maxConcurrent ?? MAX_CONCURRENT_AGENTS, SESSION_CAP);
+  // trust-ladder/01: read per admission, so a profile flip changes the next run's allowance with no restart. A policy value (a test) wins.
+  const maxConcurrent = () => Math.min(policy.maxConcurrent ?? profile.values().maxConcurrent, SESSION_CAP);
   const sessionCap = Math.min(policy.sessionCap ?? SESSION_CAP, SESSION_CAP);
   const graceMs = policy.killGraceMs ?? KILL_GRACE_MS;
   const spawnWaitMs = Math.min(policy.spawnWaitMs ?? SHUTDOWN_SPAWN_WAIT_MS, SHUTDOWN_SPAWN_WAIT_MS);
@@ -399,7 +401,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const liveIn = (cls) => [...liveByRef.values()].filter((a) => slotClassOf(a.role) === cls);
   const capacityNow = (locked, project = "den") => {
     const reservedRefs = new Set([...liveByRef.values()].filter((a) => slotClassOf(a.role) !== "worker").map(refKey));
-    const c = capacityOf({ liveRefs: liveIn("worker").map(refKey), lockedRefs: (locked ?? []).map((ref) => refKey({ ref, project })).filter((key) => !reservedRefs.has(key)), max: maxConcurrent, cap: sessionCap });
+    const c = capacityOf({ liveRefs: liveIn("worker").map(refKey), lockedRefs: (locked ?? []).map((ref) => refKey({ ref, project })).filter((key) => !reservedRefs.has(key)), max: maxConcurrent(), cap: sessionCap });
     const reserved = Object.fromEntries(Object.keys(SLOTS).filter((cls) => cls !== "worker").map((cls) => [cls, { max: SLOTS[cls], refs: liveIn(cls).map((a) => a.ref) }]));
     const refs = c.refs.map(({ ref: key, kind }) => ({ ref: key.slice(key.indexOf("/") + 1), project: key.slice(0, key.indexOf("/")), kind }));
     return { ...c, refs, reserved };

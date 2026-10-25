@@ -4,6 +4,7 @@
 import { goalProblem } from "../board/goals.mjs";
 import http from "node:http";
 import { wallTables } from "./agents/claude-adapter.mjs";
+import { createProfile } from "./agents/profile.mjs";
 import { fileURLToPath } from "node:url";
 import { existsSync, realpathSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -135,7 +136,7 @@ function installProcessHandlers(host) {
 // The routes that start a run, a delivery or a meeting, or resume one.
 const STARTS = /^\/(?:agents|tasks|deliveries|meetings)(?:\/[^/]+\/resume)?$/;
 
-export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, proxy, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs } = {}) {
+export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, proxy, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs, profile: profileOption } = {}) {
   let actualPort = port;
   const git = gitHost ?? createGitHost(root);
   // den-mvp/10 and 11: the den's own build, when it is served from release folders: previews, go-live and roll back. The
@@ -179,6 +180,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   const usageReading = usageOption ?? (() => null);
   // den-mvp/49: the den and the projects onboarded beside it. The registry is the user's (den:project); the active project is ours.
   const projects = createProjects({ control: root, denState: denState ?? stateDir ?? path.join(root, ".scratch", "_run") });
+  // trust-ladder/01 (ADR 0032): the lean/full Profile is the user's, kept in the den's state folder beside the other settings.
+  const profile = profileOption ?? createProfile({ file: path.join(denState ?? stateDir ?? path.join(root, ".scratch", "_run"), "profile.json") });
   const hub = createHub(root, {
     agents: () => host.snapshot(), approvals: () => host.approvals(), transcripts: () => host.transcripts(), capacity: async (lockedRefs) => {
       const project = await projects.active();
@@ -194,6 +197,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     update: () => updater?.snapshot() ?? null,
     accounts: async () => (proxy ? proxy.status() : null),
     wall: () => wallTables(),
+    profile: () => profile.view(),
     readUsage: usageReading,
     boardRoot: () => projects.activeRoot(),
   });
@@ -202,6 +206,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   const library = libraryOption ?? createLibrary({ catalog: parseCatalog({ connections: [] }) });
   host = createHost({
     root,
+    profile,
     projects,
     runtime,
     runtimes,
@@ -515,6 +520,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     "POST /tickets/transfer": steerTransfer,
     "POST /admission/runtime": steerAllowlist,
     "POST /accounts/active": steerAccount,
+    "POST /profile": steerProfile,
     "POST /admission/reconcile": steerReconcile,
     "POST /tickets/decline": (req, res) => steerTicket(req, res, "decline"),
     "POST /checks": (req, res) => postChecks(req, res),
@@ -1063,6 +1069,20 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     if (!body) return;
     const result = await host.admission.setAllowlist(body.allow);
     reply(res, result.ok ? 200 : result.status, result.ok ? { allow: result.allow } : { error: result.error });
+  }
+  // POST /profile: { name: "lean" | "full" }. The user's hand flip (trust-ladder/01); nothing else calls it, and it needs no restart.
+  async function steerProfile(req, res) {
+    const body = await readJsonObject(req, res);
+    if (!body) return;
+    if (typeof body.name !== "string" || !body.name) return reply(res, 400, { error: "name must be lean or full" });
+    let view;
+    try {
+      view = await profile.set(body.name);
+    } catch (err) {
+      return reply(res, 400, { error: err.message });
+    }
+    hub.publish({ type: "profile", profile: view });
+    reply(res, 200, { profile: view });
   }
   // POST /accounts/active: { name }. The user's manual switch of the den's Claude account; nothing else calls it (hardening/16).
   async function steerAccount(req, res) {

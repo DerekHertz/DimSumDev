@@ -101,6 +101,8 @@ npm run den:account -- list         # the accounts, the active one starred
 
 The bridge reports the active account and you switch by hand (`POST /accounts/active` with `{ "name": ... }`; the den has no button for it yet); it never switches by itself when an account hits a usage limit. A running den picks a new account up within a minute.
 
+The bridge also holds one Profile, `lean` or `full` (default `full`; [ADR 0032](docs/adr/0032-lean-full-profile-switch.md)). `GET /state` reports it, and you flip it by hand with `POST /profile` and `{ "name": "lean" }` (token required; the den has no button for it yet). The next run uses the new values with no restart, and nothing flips it by itself. Both profiles run 2 workers for now and share the same resource-group limits.
+
 Run an agent as its own Claude Code session:
 
 ```sh
