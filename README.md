@@ -113,12 +113,12 @@ npm run next-session            # prints the command to resume from the latest h
 
 | Visit an agent | Enter the den |
 | --- | --- |
-| ![DimSumDev agent view: a developer conversation with Summary collapsed](docs/images/dimsumdev-agents.png) | ![DimSumDev first-person view entering the den along the garden walkway](docs/images/dimsumdev-walk.png) |
+| ![DimSumDev agent view: a developer conversation with Summary collapsed](docs/images/dimsumdev-agents.png) | ![DimSumDev first-person view approaching the Library from the garden entrance](docs/images/dimsumdev-walk.png) |
 
 <details>
 <summary>Preview the first-person view</summary>
 
-![A short first-person walk from the entrance toward the courtyard](docs/images/dimsumdev-walk.gif)
+![A short first-person walk from the garden entrance toward the Library](docs/images/dimsumdev-walk.gif)
 
 </details>
 
