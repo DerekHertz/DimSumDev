@@ -1,5 +1,22 @@
 # Live tiered delegation — 2026-10-24 Pacific
 
+## Final integrated candidate
+
+Fresh account-backed smokes passed on commit `660240a`, rebased onto `bf72c1a` (PR #420). [Claude trace](integrated/claude.jsonl), [Claude result](integrated/claude-result.json), [Codex trace](integrated/codex.jsonl), [Codex result](integrated/codex-result.json). Each trace records the runtime-source digest. Each run launched exactly one lead and one implementer, with one delegation and a 90-second deadline. Both used the same model/reasoning/Standard settings listed below. Codex usage/cost remain unknown. Claude reported $0.0146736 for the lead and $0.00071389 for the child.
+
+Integrated verification: 275 covering tests passed; 4 native sandbox canaries passed without skips; 24 JavaScript syntax checks passed. Independent Standards/security and Spec reviews passed for `660240a`. The adapter resume regression checks that unsupported dynamic-tool definitions are omitted from `thread/resume`; it does not exercise a live resumed delegation. Native resume/steer and Jiao desk identities from upstream are preserved.
+
+Commands (approved host context with the existing user-bus environment):
+
+```sh
+node scripts/smoke-tiered-live.mjs claude /tmp/den-tiered-live-integrated
+node scripts/smoke-tiered-live.mjs codex /tmp/den-tiered-live-integrated
+```
+
+## Earlier pre-integration evidence
+
+The remaining report and root-level manifest/traces below describe the earlier working tree, before integration with PR #420. Their source digest is historical and does not identify the final integrated runtime.
+
 Both account-backed smokes passed. Each successful run used one lead, one bounded implementer, one delegation, and a 90-second deadline. The child read a fresh six-digit marker from a disposable committed file; the lead returned that marker. No manager, code edit, commit, push, deployment or account setting change was requested of either model.
 
 | Provider | Lead observed model | Lead reasoning | Child observed model | Child reasoning | Speed |
@@ -57,7 +74,7 @@ Each harness invocation uses the real runtimes and their default enforced launch
 
 ## Provenance and unsuccessful attempts
 
-Base commit: `706466b796e1bf1a61b92de8d67d80bbeda8defb`; branch: `codex/tiered-orchestration`; code remains in the uncommitted working tree. The manifest identifies the runtime files and their SHA-256 digest. Runtime sources did not change between the successful Codex run and the final Claude run, which recorded that digest. Tests, evidence and the harness's digest field were the only intervening edits.
+Base commit: `706466b796e1bf1a61b92de8d67d80bbeda8defb`; branch: `codex/tiered-orchestration`; the captured code was an uncommitted working tree at that time. The manifest identifies the runtime files and their SHA-256 digest. Runtime sources did not change between the successful Codex run and the final Claude run, which recorded that digest. Tests, evidence and the harness's digest field were the only intervening edits.
 
 Earlier attempts are retained separately rather than presented as passes:
 

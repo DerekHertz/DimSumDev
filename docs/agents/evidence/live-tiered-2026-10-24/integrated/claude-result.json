@@ -1,0 +1,58 @@
+{
+  "ok": true,
+  "provider": "claude",
+  "calls": 2,
+  "delegations": 1,
+  "agents": [
+    {
+      "id": "c-0dfb4731f0c0fa35",
+      "parent": null,
+      "role": "orchestrator",
+      "state": "done",
+      "model": "claude-sonnet-5-5",
+      "execution": {
+        "provider": "claude",
+        "tier": "standard",
+        "model": "sonnet",
+        "reasoning": "medium",
+        "speed": "standard",
+        "reason": "default standard task"
+      },
+      "usage": {
+        "input": 4,
+        "cacheWrite": 2458,
+        "cacheRead": 5018,
+        "output": 383,
+        "final": true
+      },
+      "costUsd": 0.014673600000000002,
+      "reply": "LIVE DELEGATION OK claude 775479",
+      "reason": null
+    },
+    {
+      "id": "c-a5e22b073be91a8c",
+      "parent": "c-0dfb4731f0c0fa35",
+      "role": "developer",
+      "state": "done",
+      "model": "claude-haiku-5-5",
+      "execution": {
+        "provider": "claude",
+        "tier": "bounded",
+        "model": "haiku",
+        "reasoning": "low",
+        "speed": "standard",
+        "reason": "default bounded task"
+      },
+      "usage": {
+        "input": 4,
+        "cacheWrite": 2267,
+        "cacheRead": 3959,
+        "output": 441,
+        "final": true
+      },
+      "costUsd": 0.00071389,
+      "reply": "The exact contents of smoke-marker.txt are: ``` LIVE DELEGATION OK claude 775479 ``` I read only that file, with one read and no edits. I did not follow the rest of the ticket brief (the developer.md instructions, the ticket's \"What to build\" work, and the board), because the sco…",
+      "reason": null
+    }
+  ]
+}

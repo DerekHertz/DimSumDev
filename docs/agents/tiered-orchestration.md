@@ -1,3 +1,7 @@
+# Current verification
+
+Final integrated candidate `660240a`: 275 covering tests and 4 native sandbox canaries passed. Both tiny live provider smokes passed with one lead and one bounded implementer each. [Final live traces and settings](evidence/live-tiered-2026-10-24/README.md#final-integrated-candidate). Earlier environment failures below are historical; the user bus was accessed through approved host execution without weakening agent sandboxes. Independent Standards/security and Spec reviews passed.
+
 # Tiered dispatch
 
 The bridge's existing `POST /tasks`, `POST /agents` and internal `host.start()` accept optional `execution` and `orchestration` objects. Dispatch remains token-authenticated, admitted, sandboxed and resource-limited. No dashboard, account settings, automatic merge or deployment is added.
