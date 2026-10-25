@@ -11,6 +11,9 @@
 .forest-shell .den-sheet-wide { width: min(760px, calc(100% - 2 * var(--space-3))); }
 .forest-shell .den-sheet-head { padding: var(--panel-padding); gap: var(--row-gap); }
 .forest-shell .den-sheet-body { padding: var(--panel-padding); }
+.forest-shell .den-meeting-sheet .den-sheet-body { padding: 0; }
+.forest-shell .meeting-workspace { flex: 1 0 auto; }
+.forest-shell .meeting-columns { flex: 1 0 320px; min-height: 320px; }
 .forest-shell .den-sheet :is(.card-in-sheet, .queue-drawer) { border: 0 !important; background: none !important; box-shadow: none; padding: 0; }
 .forest-shell .den-sheet :is(.card-in-sheet, .queue-drawer)::before,
 .forest-shell .den-sheet :is(.card-in-sheet, .queue-drawer)::after { display: none; }
