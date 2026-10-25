@@ -63,11 +63,12 @@ describe("the scout's storyline is the recorded run", () => {
     assert.deepEqual([...new Set(rows.map((r) => r.label))], ["Allowed by you"]);
   });
 
-  test("its panda works the ticket, then the run ends done with the reply and the cost the CLI reported", () => {
-    assert.equal(seen.bound, true, "the scout panda is bound to the ticket while the agent runs");
+  test("the retired scout stays out of the active cast while its recorded run keeps its attribution, reply and cost", () => {
+    assert.equal(seen.bound, false, "historical replay must not bring the retired scout back into the active cast");
     assert.deepEqual([...new Set(seen.states)].sort(), ["done", "needs-you", "working"]);
     assert.deepEqual([seen.states[0], seen.states.at(-1)], ["working", "done"]);
     const agent = end.snapshot.agents.find((a) => a.id === SCOUT);
+    assert.equal(agent.role, "scout", "historical authorship is preserved");
     assert.equal(agent.costUsd, 0.00375692);
     assert.match(agent.reply, /^The package name is \*\*`dim-sum-dev`\*\*/);
     const card = cardsOf({ ...end.snapshot, agents: [agent] })[0];
