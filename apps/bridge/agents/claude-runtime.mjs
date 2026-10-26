@@ -164,9 +164,10 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       };
       const args = buildClaudeArgs({ sessionId, ...(delegationRole ? { managedDelegation: true, delegationRole } : {}), ...(effort === undefined ? {} : { effort }), ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
       // den-mvp/48: for every project the bridge passes in its CLAUDE.md or AGENTS.md as committed at HEAD of the main checkout.
-      // multi-project/04: the guide goes in once per session; a resumed session already holds it.
-      const guide = project === undefined || resume === true ? null : readProjectGuide(project.root);
-      const guideText = guide === null ? "" : frameProjectGuide(guide);
+      // multi-project/04: a target's guide goes in once per session, framed as untrusted; the den's own run keeps its plain header and repeats it.
+      const target = project?.control === false;
+      const guide = project === undefined || (target && resume === true) ? null : readProjectGuide(project.root);
+      const guideText = guide === null ? "" : target ? frameProjectGuide(guide) : `Project guide (${guide.file}, committed at HEAD):\n\n${guide.text ?? ""}`;
       const bin = typeof env.DEN_CLAUDE_BIN === "string" && env.DEN_CLAUDE_BIN !== "" ? env.DEN_CLAUDE_BIN : "claude";
       const placeholders = await snapshotPlaceholders({ mainGit, worktree: isWorktreePath(cwd) ? cwd : undefined });
       // The child is inside its resource group, limits read back, before this resolves; a host that cannot do that starts nothing.

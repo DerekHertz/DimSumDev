@@ -91,6 +91,15 @@ test("a lock left by a dead process does not block add", async () => {
   assert.deepEqual(await addProject(denState, { slug: "acme", path: repo(), board: md, control }), { ok: true });
 });
 
+test("several adds racing over a dead process's lock all land: taking the lock over is itself exclusive", async () => {
+  const { denState, control } = setup();
+  const slugs = ["r1", "r2", "r3", "r4", "r5", "r6"];
+  writeFileSync(path.join(denState, "projects.json.lock"), "2147483646\n");
+  const results = await Promise.all(slugs.map((slug) => addProject(denState, { slug, path: repo(), board: md, control })));
+  assert.deepEqual(results, slugs.map(() => ({ ok: true })));
+  assert.deepEqual(Object.keys(JSON.parse(readFileSync(path.join(denState, "projects.json"), "utf8"))).sort(), slugs);
+});
+
 test("a project whose .scratch is a symlink is refused at add, get and activate", async () => {
   const { denState, control, projects } = setup();
   const outside = tmp();

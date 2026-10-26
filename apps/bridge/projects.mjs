@@ -92,6 +92,22 @@ const alive = (pid) => {
     return err.code === "EPERM";
   }
 };
+// Taking over a dead holder's lock is exclusive too (a mkdir guard), and the holder is read again inside it: two waiters that both saw a dead pid
+// cannot each remove the lock, the second one deleting the first one's fresh lock.
+async function clearStale(lock) {
+  const guard = `${lock}.takeover`;
+  try {
+    await mkdir(guard);
+  } catch {
+    return;
+  }
+  try {
+    const pid = Number((await readFile(lock, "utf8").catch(() => "")).trim());
+    if (Number.isInteger(pid) && pid > 0 && !alive(pid)) await rm(lock, { force: true });
+  } finally {
+    await rm(guard, { recursive: true, force: true });
+  }
+}
 async function withRegistryLock(denState, fn) {
   await mkdir(denState, { recursive: true });
   const lock = path.join(denState, `${REGISTRY}.lock`);
@@ -104,9 +120,9 @@ async function withRegistryLock(denState, fn) {
     } catch (err) {
       if (err?.code !== "EEXIST") throw err;
       const pid = Number((await readFile(lock, "utf8").catch(() => "")).trim());
-      if (Number.isInteger(pid) && pid > 0 && !alive(pid)) await rm(lock, { force: true });
-      else if (tries > 100) throw new Error("the project registry is locked by another process");
-      else await new Promise((r) => setTimeout(r, 50));
+      if (tries > 100) throw new Error("the project registry is locked by another process");
+      await clearStale(lock);
+      await new Promise((r) => setTimeout(r, 10));
     }
   }
   try {
@@ -173,12 +189,12 @@ export async function addProject(denState, { slug, path: dir, board, toolchain =
   const resolved = await resolveToolchain(toolchain, await realpath(control).catch(() => control));
   if (resolved.reason) return { ok: false, reason: resolved.reason };
   return locked(denState, async () => {
-  const registry = await readRegistry(denState);
-  if (own(registry, slug)) return { ok: false, reason: `the slug "${slug}" is already onboarded` };
-  await excludeWorktrees(checked.root);
-  registry[slug] = { path: checked.root, board: board.kind === "github-issues" ? { kind: board.kind, repo: board.repo } : { kind: board.kind }, toolchain: resolved.toolchain, ...(checks.length > 0 ? { checks } : {}) };
-  await writeRegistry(denState, registry);
-  return { ok: true };
+    const registry = await readRegistry(denState);
+    if (own(registry, slug)) return { ok: false, reason: `the slug "${slug}" is already onboarded` };
+    await excludeWorktrees(checked.root);
+    registry[slug] = { path: checked.root, board: board.kind === "github-issues" ? { kind: board.kind, repo: board.repo } : { kind: board.kind }, toolchain: resolved.toolchain, ...(checks.length > 0 ? { checks } : {}) };
+    await writeRegistry(denState, registry);
+    return { ok: true };
   });
 }
 

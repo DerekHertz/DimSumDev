@@ -91,7 +91,8 @@ test("a direct task on an active project whose .scratch became a symlink writes 
   rmSync(path.join(dir, ".scratch"), { recursive: true });
   symlinkSync(behind, path.join(dir, ".scratch"));
   const res = await t.post("/tasks", { role: "developer", text: "write a file" });
-  assert.ok(res.status >= 400, res.text);
+  assert.equal(res.status, 409, res.text);
+  assert.match(res.body.error, /not onboarded/);
   assert.deepEqual(readdirSync(behind), []);
   assert.equal(t.fake.spawns.length, 0);
 });

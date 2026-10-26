@@ -47,7 +47,7 @@ test("a target project: den: flags, empty setting sources, and the guide ahead o
 });
 
 // multi-project/04, items 1 and 3: the guide is framed as untrusted, an oversize one is refused in the prompt, and a resume does not repeat it.
-async function firstPrompt({ guide, resume, name = "CLAUDE.md" }) {
+async function firstPrompt({ guide, resume, control = false, name = "CLAUDE.md" }) {
   const root = await mkdtemp(path.join(tmpdir(), "den-proj-root-"));
   const cwd = await mkdtemp(path.join(tmpdir(), "den-proj-cwd-"));
   const git = (...a) => execFileSync("git", ["-C", root, "-c", "user.name=t", "-c", "user.email=t@t", ...a], { stdio: "ignore" });
@@ -57,7 +57,7 @@ async function firstPrompt({ guide, resume, name = "CLAUDE.md" }) {
   git("commit", "-qm", "x");
   const stub = await makeStub({ mode: "hang" });
   const runtime = createClaudeRuntime({ launcher: unconfinedLauncher(), env: { PATH: process.env.PATH, HOME: cwd, DEN_CLAUDE_BIN: stub.bin } });
-  const proc = await runtime.spawn({ role: "developer", cwd, prompt: "do the thing", sessionId: SESSION, ...(resume ? { resume: true } : {}), project: { control: false, root, pluginDir: "/den/.claude" } });
+  const proc = await runtime.spawn({ role: "developer", cwd, prompt: "do the thing", sessionId: SESSION, ...(resume ? { resume: true } : {}), project: { control, root, pluginDir: "/den/.claude" } });
   cleanups.push(async () => {
     try { proc.signal("SIGKILL"); } catch {}
     const gc = await stub.grandchildPid();
@@ -84,6 +84,12 @@ test("an oversize guide is not sent; the prompt says why, and AGENTS.md is not r
 test("a resumed session's prompt does not repeat the guide", async () => {
   const text = await firstPrompt({ guide: "TARGET GUIDE", resume: true });
   assert.equal(text, "do the thing");
+});
+
+test("the den's own run keeps its old prompt: the plain guide header, and the guide again on resume", async () => {
+  const old = "Project guide (CLAUDE.md, committed at HEAD):\n\nDEN GUIDE\n\ndo the thing";
+  assert.equal(await firstPrompt({ guide: "DEN GUIDE", control: true }), old);
+  assert.equal(await firstPrompt({ guide: "DEN GUIDE", control: true, resume: true }), old);
 });
 
 test("a target run refuses a toolchain path inside the control checkout when control is reached through a symlink", async () => {
