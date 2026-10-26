@@ -14,7 +14,7 @@ Your final report to the chief of staff stays under about 300 words: the verdict
 ## The board
 
 - The board is the local issue tracker described in `docs/agents/issue-tracker.md`: `.scratch/<feature-slug>/` in the **main checkout**.
-- If you run in a worktree, the main checkout is at `$DEN_ROOT`. If that is unset, it is the path `git worktree list` prints first. Always read and write the board there, never in your worktree's copy.
+- In another project (no `apps/board/board.mjs`), its `CLAUDE.md` "Agents (den kit)" section maps these commands to `den`. If you run in a worktree, the main checkout is at `$DEN_ROOT`. If that is unset, it is the path `git worktree list` prints first. Always read and write the board there, never in your worktree's copy.
 - Scope added in a ticket's `## Comments` (for example "Scope added (user, ...)") counts as acceptance criteria, just like the checkboxes. qa maps every scope item to a test, and the developer covers each one.
 - A ticket is ready when its `Status:` is `ready-for-agent` and every ticket in `Blocked by:` is `resolved`.
 - Every role files discovered work as a new ticket instead of chasing it. Work you find outside your ticket becomes `.scratch/<feature>/issues/<NN>-<slug>.md` in the main checkout (next number, the format in `docs/agents/issue-tracker.md`, a one-line Why naming who filed it; `Status: ready-for-agent` only if it touches nothing on the user-merge list (bridge, guardrails, scripts, CI, dependencies, `.claude/`), otherwise `ready-for-human` with a `**Question:**` line, ADR 0029 decision 8); name it in your handoff and carry on with your own ticket.

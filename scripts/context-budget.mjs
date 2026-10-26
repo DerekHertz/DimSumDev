@@ -35,11 +35,16 @@ function loadConfig() {
 // executive session goes through here; `orchestrator` stays an alias for sessions started before the rename.
 // Its budget is still read from the config's `orchestrator` key.
 export const CHIEF_OF_STAFF = "chief-of-staff";
-export function isChiefOfStaff(role) {
+// The `den` plugin namespaces its roles (agent_type "den:qa"); the role is the part after it.
+export const bareRole = (agentType) => (typeof agentType === "string" ? agentType.replace(/^den:/, "") : agentType);
+
+export function isChiefOfStaff(agentType) {
+  const role = bareRole(agentType);
   return role === CHIEF_OF_STAFF || role === "orchestrator";
 }
 
-export function budgetFor(role) {
+export function budgetFor(agentType) {
+  const role = bareRole(agentType);
   const cfg = loadConfig();
   if (!cfg || !valid(cfg.default)) return { ...(isChiefOfStaff(role) ? BUILT_IN.orchestrator : BUILT_IN.agent) };
   const fallback = pick(cfg.default);

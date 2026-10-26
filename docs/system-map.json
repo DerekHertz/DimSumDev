@@ -7,7 +7,7 @@
     { "id": "board", "paths": ["apps/board/**", "packages/board-refs/**"] },
     { "id": "shared", "paths": ["apps/shared/**"] },
     { "id": "scripts", "paths": ["scripts/*", "scripts/jev-evals/**"] },
-    { "id": "guardrails", "paths": ["scripts/hooks/**", ".claude/settings.json", ".codex/hooks.json", ".codex/config.toml", ".gitleaks.toml"] },
+    { "id": "guardrails", "paths": ["scripts/hooks/**", ".claude/settings.json", ".claude/hooks/**", ".codex/hooks.json", ".codex/config.toml", ".gitleaks.toml"] },
     { "id": "ci-cd", "paths": ["apps/ci-cd/**", ".github/**", ".claude/launch.json"] },
     { "id": "roles", "paths": [".claude/agents/**", ".codex/agents/**", ".codex/*.md", ".claude/commands/**", "CLAUDE.md", "AGENTS.md"] },
     { "id": "skills", "paths": [".claude/skills/**", ".agents/skills/**", ".claude/.claude-plugin/**", ".claude-plugin/**", "skills-lock.json"], "folders": [".claude/skills", ".agents/skills"] },
