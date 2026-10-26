@@ -277,6 +277,58 @@ Rules, so the callers agree:
 
 **The den's bound.** `den.slice` (written by `den:install`) caps the bridge and every group it starts at 75% of RAM: the groups' own limits add up to 12 GiB, more than the 7 GiB machine. Runs raise their OOM score to 500 at the start gate, so a kill in the slice takes a run before the bridge (100). `den.service` gains `NoNewPrivileges`, `RestrictSUIDSGID` and `LockPersonality`, which the agents inherit; nested scopes and bwrap still start under them.
 
+## Amendment 7 (decided by the user 2026-10-25, in chat: "approve appending the proposed Amendment 7 (decisions 25-31)... and keep one active project until the demonstration"): what the den needs to work on another project
+
+Proposed by the architect on 2026-10-25 from a read of the code against Amendments 4 and 5. Plan and tickets: `.scratch/multi-project/design.md` and `.scratch/multi-project/issues/` (01 to 06). Amendments 4 and 5 stand; this one wires what they decided and settles what they left open. Two items stay with the user, in the tickets: the default merge rule for a target (multi-project/03) and whether to lift the one-active-project rule after the demonstration (multi-project/06).
+
+### Decision 25. One board interface, one cached instance per project, built by one module
+
+`apps/bridge/board/project-boards.mjs` (deep, small): `createProjectBoards({ projects, exec })`, `get(slug) -> Board`, one instance per root (the adapter's claim serialization is per instance, so a second instance breaks the one-holder guarantee; security 51 M2).
+
+`Board` is the delivery board's operations plus the reads: `list()`, `read(ref)`, `frontier()` (the shared `orderFrontier`), `create({ title, body, type, priority, status })`, `setStatus(ref, 'ready-for-agent' | 'closed', note)` (approve and decline), `claim`, `claimForHandoff`, `handoff`, `drop`, `resolve`. Tickets are the normalized `{ ref, title, type, status, priority, blockedBy, holder, text? }` of A5 decision 24.
+
+- The markdown adapter wraps what exists (`createDeliveryBoard`, `board-service`, the file reads of `buildSnapshot`). Its behaviour does not change.
+- The GitHub adapter gains `read`, `setStatus`, `handoff` (one comment holding the State block and the capped report, like the markdown handoff) and `drop`. **New label `den:in-review`** for a released-at-in-review ticket, so `sweep` and the queue can tell it from `den:ready-for-agent`. Security 51's two mediums are fixed here, before the wiring: claim comments count only from the bridge's login, and `comment()` refuses a body that starts with the claim marker.
+- `buildSnapshot(root, seq, { board })` takes its tickets from `board.list()`. The overlay it adds (requests, events, effective priority, gate, handoff pointer) stays in `snapshot.mjs`; for a GitHub project the file-based overlays are empty. One queue implementation, as A5 decided.
+- Every `createDeliveryBoard((await projects.get(x)).root)` and `buildSnapshot((await projects.get(x)).root)` in `server.mjs` becomes `(await boards.get(x))`. The diff is a replacement, net negative in lines, which keeps it clear of trust-ladder/08.
+- `/tickets/approve`, `/projects/:slug/board`, `POST /tasks` (createTicket) and the meeting hooks take the project's board. The hub polls only the active project's board (a 60 s interval plus a refresh after any write the bridge makes), so one project costs well under GitHub's 5,000 requests an hour; other projects are read on demand with a 30 s cache.
+
+**Test seam (one):** `createProjectBoards` through its interface, against a temp markdown project and a stubbed `exec` for `gh`. One contract test suite runs the same assertions on both adapters (list, frontier order, claim by two callers gives one holder, handoff then release, approve, resolve). One route test: `GET /projects/<github project>/board` returns a snapshot-shaped body.
+
+### Decision 26. A target run's ticket is `.den/ticket.md`, built from the board
+
+For a non-control project the bridge writes the ticket text to `<worktree>/.den/ticket.md` (A5 rule 6) and the prompt names that path; no `ticketFile` is passed to the runtime or the container, and no `.scratch/` exists in a target. Rule 7 stands: a target run makes no board call.
+
+### Decision 27. A target's toolchain is the registry's list, mounted read-only at its host path
+
+- The runtime passes `project.toolchain` to both launchers. Host: it joins `readOpen` (it already holds `<root>/node_modules` and the Node prefix; the cap of 8 paths stands). Container: it joins the `readOnly` list of `containerRunArgs`, each at its host path.
+- Node resolves `node_modules` by walking up from `<target>/.claude/worktrees/<name>`, so a read-only `<target>/node_modules` is found with nothing installed in the worktree.
+- A target run gets no network: the container joins `den-agents` with the proxy's empty host list (the Anthropic front only); the host path keeps its sandbox network rule.
+- A missing toolchain path refuses the run with a reason naming the setup step (`npm ci` in the target).
+- **Open risk to prove, not assume:** a native module in `node_modules` (OSRM) built on the WSL host may not load in the Debian bookworm image (glibc, ABI). The probe runs `npm test` in a container run and in a host run.
+
+### Decision 28. Delivery binds to a project at start; den-only machinery is keyed on it
+
+- `job.project` is fixed at start (ADR 0024 decision 6 record). The one delivery instance resolves `{ board, git, policy }` by `job.project` through `projects`/`boards`; the active project is read once at `start`, never again.
+- `policy` per project: the den keeps today's (`checks.mjs`, `build`, `ci-watch`, `release-auto`, `USER_MERGE_PATHS`, the go-live). A target's policy comes from its registry row: `checks` (the required GitHub check names), the CI-config rule (universal: a workflow change is never pushed by the bridge), and a merge rule.
+- **Merge rule for a target (proposed, the user decides in multi-project/03):** security reviews every target change (A5 rule 8, already accepted); the bridge merges on green required checks when protection is verified; a change to `package.json`, a lockfile, a dot path at the root or CI config waits for the user. This is today's list minus the den's own directories.
+- Evidence still names repo plus commit and counts only for that candidate (ADR 0024). The `sweep` and `readInReview` take a project.
+- Reconciliation on resume (no duplicate PR, claim or comment) is ADR 0024 decision 6's intent/outcome log, extended with the project; nothing new.
+
+### Decision 29. Parallel projects: keep one active project for the first demonstration; lift it by subtraction after
+
+The mutex lives in three places only: `projects.activate` (blocks a switch while runs live), `DEN_ONLY` in the runner, and the active slug as the default for a new run. Decisions 25 and 28 make a run and a delivery carry their project, so after them the mutex protects nothing. Lifting it means: `activate` stops blocking and the picker becomes "the project new work goes to"; the 2-agent cap (`max_concurrent_agents`) and one 7 GiB machine stay the shared limit. **Recommendation:** keep the mutex until the first target change merges, then lift it (multi-project/06, a user question). Cost of waiting: no den work during a client delivery; cost of lifting early: none technical, but a long client delivery can hold both worker slots.
+
+### Decision 30. Target setup: the registry says which checks are required; the bridge reads protection, never sets it
+
+- `den:project add` gains `--checks test,lint` (stored in the row) and refuses when the row's `board.repo` is not the `origin` of the path (stops a push to the wrong repo; one `gh` login reaches all of the user's repos, and the narrow argument lists are the bound, ADR 0024).
+- `den:project verify <slug>` reads the branch protection of `main` with the bridge's login and prints, if the required checks are not there, the exact `gh api -X PUT repos/<repo>/branches/main/protection` command built from `docs/agents/branch-protection-main.json` with the target's check names. Applying it is the user's step and security's doc (`docs/agents/branch-protection.md` gains a "for a target" section).
+- A delivery on a target reads the protection once at `start` and refuses with `unprotected` when the required checks are absent. No stored flag: the host is the source.
+
+### Decision 31. Sequence against trust-ladder/08 and 09
+
+`server.mjs` and `runner.mjs` are both over the cap that trust-ladder/10 will enforce, and the split tickets wait for quiet files. Order: multi-project/01 (a replacement diff in server.mjs, net negative) and den-mvp/53 first, then trust-ladder/08; for the runner, task-trace/01 then trust-ladder/09 then team-and-den-ux/05 (delivery binding restructures the runner, so it should land on the split files). If the user would rather not wait on task-trace/01, the alternative is team-and-den-ux/05 first and 09 absorbing the conflict: faster to the demo, one bigger split.
+
 ## Consequences
 
 - den-v1/14 (allowlist, then auto mode) is replaced by the wall spike. Auto mode is not adopted: inside the wall no decision is needed, and crossing it reaches the user, not a classifier.
