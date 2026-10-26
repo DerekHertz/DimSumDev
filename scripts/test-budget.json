@@ -1,0 +1,5 @@
+{
+  "cpuPercent": 500,
+  "slice": "den-tests.slice",
+  "niceness": 10
+}

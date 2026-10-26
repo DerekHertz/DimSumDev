@@ -5,6 +5,6 @@
   "type": "module",
   "main": "src/director.mjs",
   "scripts": {
-    "test": "node --test \"src/**/*.test.mjs\""
+    "test": "node ../../scripts/test-path.mjs src"
   }
 }

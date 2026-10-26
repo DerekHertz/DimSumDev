@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import assert from "node:assert/strict";
-import { allTestFiles, split, isBrowserFile, nodeTestArgs, BROWSER_FILES } from "./test-split.mjs";
+import { allTestFiles, split, isBrowserFile, BROWSER_FILES } from "./test-split.mjs";
 
 test("every test file lands in exactly one group", () => {
   const all = allTestFiles();
@@ -32,13 +32,6 @@ test("no file in rest imports playwright", () => {
   for (const f of rest) assert.equal(isBrowserFile(f), false);
   const root = path.resolve(import.meta.dirname, "..");
   for (const f of rest) assert.ok(!/from\s+["']playwright["']/.test(fs.readFileSync(path.join(root, f), "utf8")), f);
-});
-
-test("browser files run 3 at a time by default, BROWSER_FILE_CONCURRENCY overrides, rest is unbounded", () => {
-  assert.deepEqual(nodeTestArgs("browser", {}), ["--test-concurrency=3"]);
-  assert.deepEqual(nodeTestArgs("browser", { BROWSER_FILE_CONCURRENCY: "1" }), ["--test-concurrency=1"]);
-  assert.deepEqual(nodeTestArgs("browser", { BROWSER_FILE_CONCURRENCY: "abc" }), ["--test-concurrency=3"], "a bad value falls back");
-  assert.deepEqual(nodeTestArgs("rest", { BROWSER_FILE_CONCURRENCY: "1" }), []);
 });
 
 test("allTestFiles covers apps, packages and scripts, as the old npm test glob did", () => {
