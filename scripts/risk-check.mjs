@@ -16,12 +16,29 @@ import { SECRET_PATTERNS } from "./exposure.mjs";
 
 export { SECRET_PATTERNS };
 
-// The den kit (den risk-check) passes another project's .den/project.json: its code dirs and guardrail files.
-const PROJECT = process.env.DEN_PROJECT_CONFIG ? JSON.parse(process.env.DEN_PROJECT_CONFIG) : null;
+// The den kit (`den risk-check`) passes another project's config with --project-config <json>, read from the base
+// ref so a branch cannot weaken its own check. Nothing ambient: the den's own run never takes one.
+const cfgAt = process.argv.indexOf("--project-config");
+const PROJECT = cfgAt === -1 ? null : normalizeProject(JSON.parse(process.argv[cfgAt + 1]));
 const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-const CODE_PATH_RE = PROJECT?.codePaths?.length
+const CODE_PATH_RE = PROJECT
   ? new RegExp(`^(${PROJECT.codePaths.map(escapeRe).join("|")})/`)
   : /^(apps|packages|scripts)\//;
+
+// Entries are plain relative dirs: a trailing slash is dropped, and an empty or non-string list fails closed.
+export function normalizeProject(cfg) {
+  if (!cfg || typeof cfg !== "object" || Array.isArray(cfg)) throw new Error("project config must be an object");
+  const list = (v, name, { required }) => {
+    if (v === undefined && !required) return [];
+    if (!Array.isArray(v) || v.some((e) => typeof e !== "string" || !e.replace(/\/+$/, "").trim())) {
+      throw new Error(`project config ${name} must be a list of non-empty paths`);
+    }
+    return v.map((e) => e.trim().replace(/\/+$/, "").replace(/^\.\//, ""));
+  };
+  const codePaths = list(cfg.codePaths, "codePaths", { required: true });
+  if (codePaths.length === 0) throw new Error("project config codePaths is empty");
+  return { codePaths, guardrailPaths: list(cfg.guardrailPaths, "guardrailPaths", { required: false }) };
+}
 
 const CODE_RISK_PATTERNS = [
   {
@@ -92,6 +109,11 @@ function checkFile(file) {
 
   // ADR 0016 decision 6.10: a spawned agent can edit its own permission surface under .claude/, so any change
   // there (settings, role files, skills, hooks) goes to a security review.
+  // The den kit's per-project config sets the test command and these checks' paths.
+  if (/^\.den\//.test(filePath)) {
+    hits.push({ file: filePath, reason: ".den/** changed (the project's test command and risk-check paths)" });
+  }
+
   if (/^\.claude\//.test(filePath)) {
     hits.push({ file: filePath, reason: ".claude/** changed (agent permission surface)" });
   }
@@ -120,7 +142,7 @@ function checkFile(file) {
 }
 
 function main() {
-  const range = process.argv[2] || "main...HEAD";
+  const range = (process.argv[2] !== "--project-config" && process.argv[2]) || "main...HEAD";
 
   if (range.startsWith("-")) {
     console.error(

@@ -47,7 +47,7 @@ const ROLE_FLAGS = new Set(["--as", "--role", "--cell"]);
 
 function isBoardCall(seg) {
   const words = seg.map((w) => w.text);
-  if (words.some((w) => /(?:^|\/)(?:board|agent-start)\.mjs$/.test(w))) return true;
+  if (words.some((w) => /(?:^|\/)(?:board|agent-start|den-cli)\.mjs$/.test(w))) return true;
   if (commandWord(seg)?.text.split("/").at(-1) === "den" && words.includes("board")) return true;
   const run = words.findIndex((w) => w === "run" || w === "run-script");
   return commandWord(seg)?.text === "npm" && run !== -1 && words.slice(run + 1).find((w) => !w.startsWith("-")) === "board";

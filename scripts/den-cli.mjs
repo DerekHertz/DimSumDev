@@ -29,18 +29,35 @@ export function projectRoot(cwd = process.cwd()) {
   }
 }
 
-export function readConfig(root) {
-  const file = path.join(root, ".den", "project.json");
-  if (!existsSync(file)) return { ...DEFAULT_CONFIG, ...(root === DEN ? { test: "npm run test:path --" } : {}) };
+// The config a check trusts is the base ref's (default main), so a branch cannot weaken its own check; a project
+// whose base has none yet runs on the defaults, and risk-check flags the new .den/ file.
+export function readConfig(root, base = "main") {
+  let text = null;
+  try {
+    text = execFileSync("git", ["show", `${base}:.den/project.json`], { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  } catch {}
+  if (text === null) return { ...DEFAULT_CONFIG, ...(root === DEN ? { test: "npm run test:path --" } : {}) };
   let parsed;
   try {
-    parsed = JSON.parse(readFileSync(file, "utf8"));
+    parsed = JSON.parse(text);
   } catch (err) {
-    throw new Error(`.den/project.json is not valid JSON: ${err.message}`);
+    throw new Error(`.den/project.json on ${base} is not valid JSON: ${err.message}`);
   }
   if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) throw new Error(".den/project.json must be a JSON object");
   return { ...DEFAULT_CONFIG, ...parsed };
 }
+
+// The main checkout (first `git worktree list` entry): the board lives there, worktree or not.
+export function mainCheckout(cwd) {
+  try {
+    const out = execFileSync("git", ["worktree", "list", "--porcelain"], { cwd, encoding: "utf8" });
+    return out.split("\n").find((l) => l.startsWith("worktree "))?.slice(9) ?? projectRoot(cwd);
+  } catch {
+    return projectRoot(cwd);
+  }
+}
+
+const baseOf = (range) => (range && !range.startsWith("-") ? range.split(/\.{2,3}/)[0] || "main" : "main");
 
 const run = (cmd, args, opts = {}) => spawnSync(cmd, args, { stdio: "inherit", ...opts }).status ?? 1;
 
@@ -48,10 +65,14 @@ export function main(argv, cwd = process.cwd()) {
   const [cmd, ...rest] = argv;
   const root = projectRoot(cwd);
   switch (cmd) {
+    // Pinned to this project's board: an exported DEN_ROOT from a den session must not redirect it.
     case "board":
-      return run(process.execPath, [path.join(DEN, "apps/board/board.mjs"), ...rest], { cwd });
-    case "status":
-      return run(process.execPath, [path.join(DEN, "apps/board/board.mjs"), "queue", ...rest], { cwd });
+    case "status": {
+      const env = { ...process.env, DEN_ROOT: mainCheckout(cwd) };
+      delete env.ORGANISM_ROOT;
+      const args = cmd === "status" ? ["queue", ...rest] : rest;
+      return run(process.execPath, [path.join(DEN, "apps/board/board.mjs"), ...args], { cwd, env });
+    }
     case "test": {
       if (rest.length === 0) return fail("usage: den test <file|dir>...");
       const { test } = readConfig(root);
@@ -59,14 +80,11 @@ export function main(argv, cwd = process.cwd()) {
       const env = { ...process.env, INIT_CWD: cwd };
       return run(words[0], [...words.slice(1), ...rest], { cwd: root, env });
     }
-    case "risk-check":
-      return run(process.execPath, [path.join(DEN, "scripts/risk-check.mjs"), ...rest], {
-        cwd: root,
-        // The den's own run keeps its built-in paths unless it opts in with a .den/project.json.
-        env: root === DEN && !existsSync(path.join(root, ".den", "project.json"))
-          ? process.env
-          : { ...process.env, DEN_PROJECT_CONFIG: JSON.stringify(readConfig(root)) },
-      });
+    case "risk-check": {
+      const own = root === DEN && !existsSync(path.join(root, ".den", "project.json"));
+      const cfg = own ? [] : ["--project-config", JSON.stringify(readConfig(root, baseOf(rest[0])))];
+      return run(process.execPath, [path.join(DEN, "scripts/risk-check.mjs"), ...rest, ...cfg], { cwd: root });
+    }
     case "usage":
       return run(process.execPath, [path.join(DEN, "scripts/usage.mjs"), ...rest], { cwd: DEN });
     case "init":

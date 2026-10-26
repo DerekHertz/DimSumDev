@@ -45,10 +45,10 @@ test("den test runs the project's own test command with the files appended", () 
   const p = project();
   try {
     mkdirSync(path.join(p.root, ".den"));
-    writeFileSync(path.join(p.root, ".den", "project.json"), JSON.stringify({ test: `${process.execPath} -e console.log(process.argv.slice(1).join(","))` }));
-    // node -e prints argv; the file arguments follow the configured command.
     writeFileSync(path.join(p.root, ".den", "project.json"), JSON.stringify({ test: `${process.execPath} ${path.join(p.root, "echo.mjs")}` }));
     writeFileSync(path.join(p.root, "echo.mjs"), "console.log('ran:' + process.argv.slice(2).join(','));\n");
+    p.git("add", "-A");
+    p.git("commit", "-qm", "cfg");
     const r = den(p.root, "test", "a.test.js", "b.test.js");
     assert.equal(r.status, 0, r.stderr);
     assert.match(r.stdout, /ran:a\.test\.js,b\.test\.js/);
@@ -108,5 +108,81 @@ test("the plugin carries the guards as its own hooks, on paths that exist", () =
     assert.ok(h, name);
     const rel = /\$\{CLAUDE_PLUGIN_ROOT\}\/(\S+?)"/.exec(h.command)[1];
     assert.ok(existsSync(path.join(DEN, ".claude", rel)), rel);
+  }
+});
+
+// Security review of PR 439, finding 1: a branch cannot weaken its own check through .den/project.json.
+test("a branch's own .den/project.json does not weaken its risk check, and changing it is a hit", () => {
+  const p = project();
+  try {
+    p.git("checkout", "-qb", "work");
+    mkdirSync(path.join(p.root, ".den"));
+    writeFileSync(path.join(p.root, ".den", "project.json"), JSON.stringify({ test: "true", codePaths: ["nonexistent"] }));
+    mkdirSync(path.join(p.root, "src"));
+    writeFileSync(path.join(p.root, "src", "a.js"), "require('child_process').execSync('rm -rf /');\n");
+    p.git("add", "-A");
+    p.git("commit", "-qm", "weaken");
+    const r = den(p.root, "risk-check", "main...HEAD");
+    assert.notEqual(r.status, 0);
+    assert.match(r.stdout, /src\/a\.js: shelling out/);
+    assert.match(r.stdout, /\.den\/project\.json: \.den\/\*\* changed/);
+  } finally {
+    p.cleanup();
+  }
+});
+
+test("den test runs the base branch's test command, not the branch's", () => {
+  const p = project();
+  try {
+    mkdirSync(path.join(p.root, ".den"));
+    writeFileSync(path.join(p.root, "echo.mjs"), "console.log('base-ran');\n");
+    writeFileSync(path.join(p.root, ".den", "project.json"), JSON.stringify({ test: `${process.execPath} echo.mjs` }));
+    p.git("add", "-A");
+    p.git("commit", "-qm", "cfg");
+    p.git("checkout", "-qb", "work");
+    writeFileSync(path.join(p.root, ".den", "project.json"), JSON.stringify({ test: "true" }));
+    p.git("commit", "-qam", "fake");
+    assert.match(den(p.root, "test", "x.js").stdout, /base-ran/);
+  } finally {
+    p.cleanup();
+  }
+});
+
+test("project paths are normalised, and an empty or malformed list fails closed", async () => {
+  const { normalizeProject } = await import("./risk-check.mjs");
+  assert.deepEqual(normalizeProject({ codePaths: ["src/", "./server"] }).codePaths, ["src", "server"]);
+  for (const bad of [{ codePaths: [] }, { codePaths: [""] }, { codePaths: "src" }, { codePaths: ["src"], guardrailPaths: [1] }, []]) {
+    assert.throws(() => normalizeProject(bad), JSON.stringify(bad));
+  }
+});
+
+// Finding 3: an exported DEN_ROOT (a den session sets it) must not send den board to the den's own board.
+test("den board ignores an ambient DEN_ROOT", () => {
+  const p = project();
+  const other = project();
+  try {
+    mkdirSync(path.join(p.root, ".scratch", "feat", "issues"), { recursive: true });
+    writeFileSync(path.join(p.root, ".scratch", "feat", "issues", "01-thing.md"), "# 01: thing\n\nStatus: ready-for-agent\n\n## Comments\n");
+    const r = spawnSync(process.execPath, [CLI, "board", "status", "feat/01-thing"], { cwd: p.root, encoding: "utf8", env: { ...process.env, DEN_ROOT: other.root } });
+    assert.equal(r.status, 0, r.stderr);
+    assert.match(r.stdout, /ready-for-agent/);
+  } finally {
+    p.cleanup();
+    other.cleanup();
+  }
+});
+
+// Finding 2: a guard that cannot be found blocks the call instead of skipping silently.
+test("a plugin hook whose guard script is missing blocks the call", () => {
+  const hooks = JSON.parse(readFileSync(path.join(DEN, ".claude", "hooks", "hooks.json"), "utf8")).hooks.PreToolUse.flatMap((h) => h.hooks);
+  const fake = mkdtempSync(path.join(tmpdir(), "den-plugin-"));
+  try {
+    for (const h of hooks) {
+      const r = spawnSync("sh", ["-c", h.command], { env: { ...process.env, CLAUDE_PLUGIN_ROOT: path.join(fake, ".claude") }, input: "{}", encoding: "utf8" });
+      assert.equal(r.status, 2, h.command);
+      assert.match(r.stderr, /guard script missing/);
+    }
+  } finally {
+    rmSync(fake, { recursive: true, force: true });
   }
 });
