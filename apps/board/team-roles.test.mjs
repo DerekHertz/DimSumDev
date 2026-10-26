@@ -70,6 +70,52 @@ test("the code reviewer claims a ticket on the board and its verdict counts", as
   }
 });
 
+// Reviews run in parallel but a ticket has one claim lock: a reviewer's counted verdict
+// must not depend on who happens to hold it.
+test("on an in-review ticket, a reviewer's verdict counts while another reviewer holds the lock", async () => {
+  const fx = await makeBoardFixture({ status: "in-review" });
+  try {
+    const claim = await runBoard(["claim", fx.ticketRelPath, "security"], { cwd: fx.worktree });
+    assert.equal(claim.code, 0, claim.stderr);
+    for (const role of ["code-reviewer", "qa"]) {
+      const verdict = await runBoard(["comment", fx.ticketRelPath, "--as", role, "--verdict", "pass", "ok at abc123"], { cwd: fx.worktree });
+      assert.equal(verdict.code, 0, verdict.stderr);
+    }
+    const rows = readFileSync(eventsPath(fx.root), "utf8").trim().split("\n").map((l) => JSON.parse(l));
+    for (const role of ["code-reviewer", "qa"]) {
+      assert.ok(rows.some((e) => e.op === "comment" && e.verdict === "pass" && e.role === role), role);
+    }
+    const dev = await runBoard(["comment", fx.ticketRelPath, "--as", "developer", "--verdict", "pass", "self"], { cwd: fx.worktree });
+    assert.notEqual(dev.code, 0, "a non-reviewer still cannot sign past the lock");
+  } finally {
+    await fx.cleanup();
+  }
+});
+
+test("a qa lock held in specify mode still cannot post a counted qa verdict on an in-review ticket", async () => {
+  const fx = await makeBoardFixture({ status: "in-review" });
+  try {
+    const claim = await runBoard(["claim", fx.ticketRelPath, "qa", "--mode", "specify"], { cwd: fx.worktree });
+    assert.equal(claim.code, 0, claim.stderr);
+    const verdict = await runBoard(["comment", fx.ticketRelPath, "--as", "qa", "--verdict", "pass", "spec ok"], { cwd: fx.worktree });
+    assert.notEqual(verdict.code, 0);
+  } finally {
+    await fx.cleanup();
+  }
+});
+
+test("before in-review, a reviewer cannot sign past another role's lock", async () => {
+  const fx = await makeBoardFixture();
+  try {
+    const claim = await runBoard(["claim", fx.ticketRelPath, "developer"], { cwd: fx.worktree });
+    assert.equal(claim.code, 0, claim.stderr);
+    const verdict = await runBoard(["comment", fx.ticketRelPath, "--as", "code-reviewer", "--verdict", "pass", "early"], { cwd: fx.worktree });
+    assert.notEqual(verdict.code, 0);
+  } finally {
+    await fx.cleanup();
+  }
+});
+
 test("board resolve works with no orchestrator role: the chief of staff claims and resolves (team-and-den-ux/57)", async () => {
   const fx = await makeBoardFixture();
   try {

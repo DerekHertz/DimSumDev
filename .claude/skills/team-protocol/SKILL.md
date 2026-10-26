@@ -72,6 +72,8 @@ Handoffs go through `board` too. The `handoff` skill shows the State block that 
 - Never `git commit -a` in the main checkout; stage explicit paths. Give every `git push` a timeout.
 - In a worktree, one plain command per Bash call: no `cd`, no `&&` or `;` chains, no pipes into git, no heredocs, and no shell variables (`$X`) in arguments. Write literal paths. For multi-line content or a multi-step probe, Write a script into your scratchpad and run it with `node <path>`. The isolation guard rejects everything else, and each refusal costs a turn.
 - Run `npm ci` first in a fresh worktree.
+- Your worktree is the one you start in. A brief names a branch and a commit, never another worktree path: the isolation guard refuses git aimed at any other worktree. A developer runs `git switch -c <branch> <base>` (or `git switch <branch>` when a fix round continues one) in its own worktree; a reviewer runs `git switch --detach <sha>`. Hand back the branch and head SHA.
+- Reviewers sign their own verdicts: `board comment <ref> --as <role> --verdict pass|bounce`. On an `in-review` ticket this counts while another reviewer holds the claim lock, so code-reviewer, qa and security never wait on each other.
 - Give every long-running command (tests, dev servers, browser automation, installs, `gh pr checks --watch`) an explicit timeout that fits the work: a few minutes for a suite, about 15 for CI. When it fires, stop: don't retry or keep waiting. Report it under `Environment issues` with the command, the bound, and the last output.
 
 ## Context budget (organism-infra/119)

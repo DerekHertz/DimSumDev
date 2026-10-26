@@ -1504,6 +1504,7 @@ export async function getStatus(root, ref) {
   return readStatus(content);
 }
 
+const REVIEWER_ROLES = new Set(["code-reviewer", "qa", "security"]);
 const VERDICT_ROLES = new Set(["code-reviewer", "qa", "security", "chief-of-staff", "orchestrator", "designer"]);
 
 export async function comment(root, ref, text, options = {}) {
@@ -1531,12 +1532,17 @@ export async function comment(root, ref, text, options = {}) {
       const lockContent = await readFile(paths.claimLockPath, "utf8");
       const lockRole = claimingRole(lockContent);
       lockMode = claimingMode(lockContent);
-      if (role !== undefined && role !== lockRole) {
+      // Reviews run side by side on one lock: on an in-review ticket a reviewer
+      // signs its own verdict while another reviewer holds the claim.
+      const sideBySide =
+        role !== lockRole && REVIEWER_ROLES.has(role) && REVIEWER_ROLES.has(lockRole) && readStatus(await readFile(paths.ticketPath, "utf8")) === "in-review";
+      if (sideBySide) lockMode = role === "qa" ? "verify" : undefined;
+      else if (role !== undefined && role !== lockRole) {
         throw new BoardError(
           `comment rejected: --as ${role} does not match the claim lock's role (${lockRole})`
         );
       }
-      role = lockRole;
+      if (!sideBySide) role = lockRole;
     }
     if (!role) {
       throw new BoardError(
