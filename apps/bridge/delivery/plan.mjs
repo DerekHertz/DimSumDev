@@ -129,7 +129,7 @@ export function nextStep(job) {
   // den-mvp/29: a timeout is run again once; any other red goes back to the developer with the log, like a review's bounce.
   if (ci.state === "timeout") return { kind: "ci-rerun" };
   if (ci.state === "red") {
-    if (job.bounces >= MAX_BOUNCES) return pause("failed-twice", `a required check failed, and the work has now been sent back twice: ${ci.failed?.join(", ") || "see the pull request"}`, "Read the findings on the ticket, then Resume for one more round or close the delivery.");
+    if (job.bounces >= (job.verify?.cap ?? MAX_BOUNCES)) return pause("failed-twice", `a required check failed, and the work has now been sent back twice: ${ci.failed?.join(", ") || "see the pull request"}`, "Read the findings on the ticket, then Resume for one more round or close the delivery.");
     return { kind: "run", role: author, at: c.sha, since: job.base, fix: true };
   }
   if (ci.state === "none") return pause("no-checks", "no check ran on the pull request, so nothing was merged", "Resume once the checks have run.");

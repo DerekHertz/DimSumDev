@@ -3,12 +3,15 @@
 // what it recorded of the run, releases the ticket, and resolves it after the merge is confirmed. Every call names one
 // ticket, the job's own, and goes through the board service, so the board's rules (who may release at which status,
 // that a release needs a handoff) hold for the bridge too.
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
-import { claim, publishHandoff, release, resolve } from "../../board/board-service.mjs";
+import { claim, comment, publishHandoff, release, resolve } from "../../board/board-service.mjs";
 
 const REPORT_MAX = 60000; // characters of a run's report kept in a handoff (the board caps a handoff at 256 KiB)
+const EVIDENCE_FILE_RE = /[^\s,;"'()<>]+\.(?:png|jpe?g|webp|json|txt)\b/gi;
+const EVIDENCE_FILES_MAX = 12; // files of one qa run copied to the board
+const EVIDENCE_FILE_BYTES = 10_000_000;
 
 export function createDeliveryBoard(root) {
   return {
@@ -44,6 +47,35 @@ export function createDeliveryBoard(root) {
       }
       if (status === null) return;
       await release(root, ref, status, verdict ? `${role} ${verdict} at ${sha.slice(0, 12)} (${source})` : committed ? `committed ${sha.slice(0, 12)} (${source})` : `no commit (${source})`);
+    },
+    /**
+     * trust-ladder/03: the files a qa report names as verifier evidence, copied from qa's worktree (repo-relative `worktree`)
+     * into .scratch/<feature>/evidence/<ticket>/, so they outlive the worktree; a comment on the ticket lists them. Only an image,
+     * json or txt file that really lies inside that worktree is copied. -> the items, each copied path now the board's.
+     */
+    async keepEvidence(ref, { worktree, items, sha, runId }) {
+      const [feature, ticket] = ref.split("/");
+      const home = await realpath(path.join(root, worktree));
+      const dest = `.scratch/${feature}/evidence/${ticket}`;
+      const copied = [];
+      const kept = [];
+      for (const item of items) {
+        let text = item;
+        for (const token of new Set(item.match(EVIDENCE_FILE_RE) ?? [])) {
+          const real = await realpath(path.resolve(home, token)).catch(() => null);
+          if (!real || !real.startsWith(home + path.sep) || copied.length >= EVIDENCE_FILES_MAX) continue;
+          const info = await stat(real);
+          if (!info.isFile() || info.size > EVIDENCE_FILE_BYTES) continue;
+          const rel = `${dest}/${runId.slice(2, 10)}-${path.basename(real).replace(/[^\w.-]/g, "_")}`;
+          await mkdir(path.join(root, dest), { recursive: true });
+          await copyFile(real, path.join(root, rel));
+          copied.push(rel);
+          text = text.split(token).join(rel);
+        }
+        kept.push(text);
+      }
+      if (copied.length) await comment(root, ref, `verifier evidence at ${sha.slice(0, 12)}: ${copied.join(", ")}`);
+      return kept;
     },
     /** den-v1/15: a den task's ticket is claimed at its end, so the handoff that follows can release it at in-review. */
     claimForHandoff: (ref, { role }) => claim(root, ref, role, role === "qa" ? { mode: "verify" } : {}),

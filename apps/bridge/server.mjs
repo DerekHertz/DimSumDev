@@ -258,7 +258,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   await host.ready;
   await recoverRunClaims();
   delivery = createDelivery({
-    host: { start: host.start, stop: host.stop, retire: host.retire },
+    host: { start: host.start, stop: host.stop, retire: host.retire, worktreeOf: (id) => host.snapshot().find((a) => a.id === id)?.worktree ?? null },
     board: createDeliveryBoard(root),
     activeProject: () => projects.active(),
     profile,

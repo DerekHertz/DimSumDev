@@ -411,7 +411,10 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
       const passes = role === "qa" ? { passes: verdict === "pass" && prev?.sha === run.startSha && prev.verdict === "pass" ? (prev.passes ?? 1) + 1 : 1 } : {};
       job.evidence[EVIDENCE_OF[role]] = { sha: run.startSha, runId, verdict, ...passes };
       if (role === "qa") {
-        const items = readVerifierEvidence(run.report).map((s) => (hasSecret(s) ? "[masked: possible secret]" : s));
+        let items = readVerifierEvidence(run.report).map((s) => (hasSecret(s) ? "[masked: possible secret]" : s));
+        // The files are in qa's worktree, which goes with the delivery: they are copied to the board now, while qa's claim is held.
+        const worktree = host.worktreeOf?.(runId);
+        if (items.length && worktree && board.keepEvidence) items = await board.keepEvidence(job.ref, { worktree, items, sha: run.startSha, runId }).catch((err) => (console.error(`bridge: could not keep the verifier evidence of ${job.ref}: ${err?.message ?? err}`), items));
         job.verifierEvidence = { sha: run.startSha, items: [...(job.verifierEvidence?.sha === run.startSha ? job.verifierEvidence.items : []), ...items].slice(0, 12) };
       }
       if (verdict === "bounce") {

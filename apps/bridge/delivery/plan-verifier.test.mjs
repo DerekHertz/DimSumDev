@@ -4,6 +4,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { nextStep } from "./plan.mjs";
+import { validateJob } from "./jobs.mjs";
 
 const BASE = "a".repeat(40), SHA = "b".repeat(40), MAIN = "d".repeat(40);
 const risk = { sha: SHA, clean: true, hits: 0, secret: false, security: false, userMerge: false, floor: { roles: ["code-reviewer", "qa"], why: {} } };
@@ -33,4 +34,23 @@ test("the loop cap replaces the second-bounce stop, and the pause says what stil
   assert.match(stopped.reason, /cap of 3/);
   assert.match(stopped.reason, /click on #save shows a blank panel/);
   assert.equal(nextStep(job({ qa: { sha: SHA, verdict: "bounce" } }, { bounces: 2, verify: { count: 1 } })).pause, "failed-twice", "a job with no cap keeps the second-bounce stop");
+});
+
+test("a red check on a job with a loop cap stops at the cap, not at the second bounce", () => {
+  const red = job({ qa: qaPass(1), sync: synced, pr: { sha: SHA, state: "OPEN", mergeable: "MERGEABLE" }, ci: { sha: SHA, state: "red", failed: ["test"] } }, { verify: { count: 1, cap: 4 } });
+  assert.deepEqual(nextStep({ ...red, bounces: 2 }), fixRun, "the third round is still allowed at cap 4");
+  assert.equal(nextStep({ ...red, bounces: 4 }).pause, "failed-twice");
+  assert.equal(nextStep({ ...red, verify: { count: 1 }, bounces: 2 }).pause, "failed-twice", "a job with no cap keeps the second-bounce stop");
+});
+
+test("the pass count and the verifier evidence of a record read back after a restart", () => {
+  const RUN = "c-0123456789abcdef";
+  const record = { id: "d-0123456789abcdef", ref: "fx/08-plain", title: "t", type: "feature", state: "running", base: BASE, startedAt: "2026-10-25T00:00:00.000Z",
+    candidate: { sha: SHA, runId: RUN }, evidence: { qa: { sha: SHA, runId: RUN, verdict: "pass", passes: 2 } },
+    verifierEvidence: { sha: SHA, items: ["screenshot loaded: .scratch/fx/evidence/08-plain/loaded.png", "perf: load 80 ms"], evil: 1 } };
+  const back = validateJob(record);
+  assert.equal(back.evidence.qa.passes, 2, "a count-N job does not start qa from pass 1 again");
+  assert.deepEqual(back.verifierEvidence, { sha: SHA, items: ["screenshot loaded: .scratch/fx/evidence/08-plain/loaded.png", "perf: load 80 ms"] });
+  assert.equal(validateJob({ ...record, evidence: { qa: { sha: SHA, runId: RUN, verdict: "pass", passes: "many" } } }).evidence.qa.passes, undefined, "a bad count is dropped: one pass, as before");
+  assert.equal(validateJob({ ...record, verifierEvidence: { sha: "main", items: ["x"] } }).verifierEvidence, null);
 });

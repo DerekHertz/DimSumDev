@@ -4,7 +4,7 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { makeBridge, until, FEATURE } from "../agents/host-test-helpers.mjs";
 import { createProfile } from "../agents/profile.mjs";
@@ -52,9 +52,10 @@ async function setup(name, files) {
   const drive = async (reply) => {
     const seen = {};
     const roles = [];
+    const from = t.fake.spawns.length;
     for (;;) {
       const next = await until(async () => {
-        if (t.fake.spawns.length > roles.length) return { rec: t.fake.spawns[roles.length] };
+        if (t.fake.spawns.length > from + roles.length) return { rec: t.fake.spawns[from + roles.length] };
         const j = await job();
         return j && j.state !== "running" && !j.live ? { stop: j } : null;
       }, { what: "the next spawn or the end", ms: 5000 });
@@ -91,11 +92,13 @@ test("lean and full run different verifier counts for the same kind of ticket", 
   }
 });
 
-test("flipping the Profile changes the next delivery's verifier count with no restart", async () => {
+test("flipping the Profile changes the next delivery's verifier count on the same bridge, with no restart", async () => {
   const t = await setup("full", ["apps/ui/panel.txt"]);
-  await t.profile.set("lean");
   assert.equal((await t.post("/deliveries", { ref: REF })).status, 201);
-  assert.equal(count((await t.drive()).roles, "qa"), 1);
+  assert.equal(count((await t.drive()).roles, "qa"), 3, "the first delivery runs under full");
+  await t.profile.set("lean");
+  assert.equal((await t.post("/deliveries", { ref: `${FEATURE}/07-bumpable` })).status, 201);
+  assert.equal(count((await t.drive()).roles, "qa"), 1, "the second delivery, on the same bridge, reads lean");
 });
 
 test("a finding goes to the developer's fix round with its repro steps, and the loop stops at the profile's cap with what still fails", async () => {
@@ -122,14 +125,29 @@ test("qa is told to run the verifier for criteria that need the running app, and
   const t = await setup("lean", ["apps/ui/panel.txt"]);
   await t.post("/deliveries", { ref: REF });
   let prompt;
+  const outside = path.join(t.fx.root, "outside-secret.png");
+  writeFileSync(outside, "not qa's to copy");
   const { job } = await t.drive((role, n, rec) => {
     if (role !== "qa") return "VERDICT: pass";
     prompt = rec.args.prompt;
-    return "Ran the flow.\nVerifier evidence:\n- screenshot work-queue: .verify/work-queue-1/work-queue.png\n- perf trace: .verify/work-queue-1/perf-trace.json\nVERDICT: pass";
+    const out = path.join(rec.args.cwd, ".verify", "work-queue-1");
+    mkdirSync(out, { recursive: true });
+    writeFileSync(path.join(out, "work-queue.png"), "PNGDATA");
+    writeFileSync(path.join(out, "perf-trace.json"), "{}");
+    return `Ran the flow.\nVerifier evidence:\n- screenshot work-queue: ${out}/work-queue.png\n- perf: load 80 ms, trace .verify/work-queue-1/perf-trace.json\n- leaked: ${outside}\nVERDICT: pass`;
   });
   assert.match(prompt, /npm run verify:ui/);
   assert.match(prompt, /Verifier evidence:/);
-  assert.deepEqual(job.verifierEvidence, ["screenshot work-queue: .verify/work-queue-1/work-queue.png", "perf trace: .verify/work-queue-1/perf-trace.json"]);
+  const kept = `.scratch/${FEATURE}/evidence/08-plain`;
+  assert.equal(job.verifierEvidence.length, 3);
+  assert.match(job.verifierEvidence[0], new RegExp(`^screenshot work-queue: ${kept}/[\\w.-]+work-queue\\.png$`), "the delivery row points at the board copy");
+  assert.match(job.verifierEvidence[1], new RegExp(`^perf: load 80 ms, trace ${kept}/[\\w.-]+perf-trace\\.json$`), "a path relative to the worktree is copied too");
+  assert.equal(job.verifierEvidence[2], `leaked: ${outside}`, "a file outside qa's worktree is not copied");
+  const copy = path.join(t.fx.root, job.verifierEvidence[0].split(": ")[1]);
+  assert.equal(readFileSync(copy, "utf8"), "PNGDATA", "the screenshot lives on the board, beside the ticket");
+  assert.deepEqual(readdirSync(path.join(t.fx.root, kept)).length, 2, "only the two files in the worktree");
+  const ticket = readFileSync(path.join(t.fx.root, ".scratch", FEATURE, "issues", "08-plain.md"), "utf8");
+  assert.match(ticket, /qa, [\d-]+:\*\* verifier evidence at [0-9a-f]{12}: .*work-queue\.png/, "the ticket carries a comment naming the copied files");
   const dir = path.join(t.fx.root, ".scratch", FEATURE, "handoffs");
   const qaHandoff = readdirSync(dir).find((f) => /-qa-verify-/.test(f));
   assert.match(readFileSync(path.join(dir, qaHandoff), "utf8"), /perf-trace\.json/, "the handoff on the ticket carries the evidence");

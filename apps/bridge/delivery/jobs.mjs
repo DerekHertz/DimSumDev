@@ -38,7 +38,7 @@ const floorOf = (raw) => (isObject(raw) && Array.isArray(raw.roles) ? {
   roles: FLOOR_ROLES.filter((r) => raw.roles.includes(r)),
   why: Object.fromEntries(FLOOR_ROLES.filter((r) => raw.roles.includes(r) && typeof raw.why?.[r] === "string").map((r) => [r, line(raw.why[r], 300)])),
 } : null);
-const verdictOf = (raw) => forSha(raw, (r) => (["pass", "bounce"].includes(r.verdict) && AGENT_ID_RE.test(r.runId) ? { runId: r.runId, verdict: r.verdict } : null));
+const verdictOf = (raw) => forSha(raw, (r) => (["pass", "bounce"].includes(r.verdict) && AGENT_ID_RE.test(r.runId) ? { runId: r.runId, verdict: r.verdict, ...(Number.isInteger(r.passes) && r.passes >= 1 && r.passes < 1000 ? { passes: r.passes } : {}) } : null));
 
 /** A clean job record, or null. Unknown keys are not copied. */
 export function validateJob(raw) {
@@ -66,6 +66,7 @@ export function validateJob(raw) {
       sync: null,
       verdict: forSha(ev.verdict, (r) => ({ ok: r.ok === true })),
     },
+    verifierEvidence: forSha(raw.verifierEvidence, (r) => ({ items: lines(r.items, 12, 300) })),
     bounces: count(raw.bounces), declines: count(raw.declines), findings: typeof raw.findings === "string" ? raw.findings.slice(0, 16000) : null,
     // den-mvp/29: the commit whose timed-out checks were run again, and the commit whose red checks were counted as a bounce.
     ciRerun: sha(raw.ciRerun), ciBounced: sha(raw.ciBounced),
