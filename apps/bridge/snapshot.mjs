@@ -2,9 +2,10 @@
 // and returns the GET /state payload. Read-only: no Board write paths.
 import { newerUsage } from "./usage-reading.mjs";
 import { roleOf } from "../board/legacy-terms.mjs";
+import { createMarkdownBoard } from "./board/markdown-board.mjs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
-import { parsePriority, orderFrontier } from "../board/priority.mjs";
+import { orderFrontier } from "../board/priority.mjs";
 import { buildRequests } from "./requests-log.mjs";
 import { compareRefs } from "../../packages/board-refs/src/compare-refs.mjs";
 import { readGoals } from "../board/goals.mjs";
@@ -44,35 +45,6 @@ async function readJsonl(file) {
   return rows;
 }
 
-const headerValue = (md, label) => {
-  const m = new RegExp(`^\\*\\*${label}:\\*\\*[ \\t]*(.*?)[ \\t]*$`, "m").exec(md);
-  return m ? m[1] : null;
-};
-
-function parseTicket(md) {
-  const title = /^#[ \t]+(.+?)[ \t]*$/m.exec(md)?.[1] ?? "";
-  const typeRaw = headerValue(md, "Type");
-  const type = typeRaw ? (typeRaw.split(/\s+/)[0] || "").toLowerCase() || null : null;
-  const status = headerValue(md, "Status") ?? "unknown";
-  const goal = headerValue(md, "Goal") || null;
-  const blockedByRaw = headerValue(md, "Blocked by") ?? "";
-  const blockers = [];
-  for (const tok of blockedByRaw.split(",")) {
-    const m = /^\s*(?:([a-z0-9-]+)\/)?(\d+)/.exec(tok);
-    if (m) blockers.push({ feature: m[1] ?? null, nn: m[2] });
-  }
-  let blockedReason = null;
-  const ci = md.search(/^## Comments\s*$/m);
-  if (ci >= 0) {
-    const bullets = md
-      .slice(ci)
-      .split("\n")
-      .filter((l) => /^- /.test(l));
-    if (bullets.length) blockedReason = bullets[bullets.length - 1].slice(2).trim();
-  }
-  return { title, type, status, goal, blockers, blockedReason, md };
-}
-
 const TICKET_TEXT_CAP = 6000;
 
 function capText(buf) {
@@ -108,7 +80,9 @@ async function newestHandoff(scratch, feature, nn) {
 
 // den-mvp/49: `boardRoot` is the active project's root when it is not the den's. Its tickets, their handoffs and their events
 // are read from there; usage, requests and the orchestrator's handoffs stay the den's (control-keyed).
-export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boardRoot = root } = {}) {
+// multi-project/01: the tickets come from `board.list()` (the project's Board, markdown or GitHub); with no `board` the markdown
+// board of `boardRoot` reads them, as before. The overlay below (requests, events, effective priority, gate, handoff) stays here.
+export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boardRoot = root, board = null } = {}) {
   const control = path.join(root, ".scratch");
   const scratch = path.join(boardRoot, ".scratch");
   const [events, usageRows, requestRows] = await Promise.all([
@@ -131,27 +105,9 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
 
   // all tickets, resolved included (blocker lookup)
   const all = new Map();
-  const featureNames = [];
-  for (const feature of await listDir(scratch)) {
-    const issues = path.join(scratch, feature, "issues");
-    const names = await listDir(issues);
-    if (!names.length) continue;
-    featureNames.push(feature);
-    for (const name of names) {
-      const m = /^(\d+)-.*\.md$/.exec(name);
-      if (!m) continue;
-      const file = path.join(issues, name);
-      const md = await readText(file);
-      if (md === null) continue;
-      const st = await stat(file);
-      const t = parseTicket(md);
-      t.ref = `${feature}/${name.slice(0, -3)}`;
-      t.feature = feature;
-      t.nn = m[1];
-      t.mtimeMs = st.mtimeMs;
-      t.locked = (await readText(path.join(issues, `${name.slice(0, -3)}.lock`))) ?? null;
-      all.set(t.ref, t);
-    }
+  for (const t of await (board ?? createMarkdownBoard(boardRoot)).list()) {
+    const [feature] = t.ref.split("/");
+    all.set(t.ref, { ...t, feature: t.feature ?? feature, nn: t.nn ?? /^\/?(\d+)/.exec(t.ref.slice(feature.length + 1))?.[1] });
   }
   const findByNumber = (feature, nn) => {
     for (const t of all.values()) if (t.feature === feature && Number(t.nn) === Number(nn)) return t;
@@ -181,19 +137,16 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
   for (const t of [...all.values()].sort((a, b) => compareRefs(a.ref, b.ref))) {
     if (OFF_RELAY.has(t.status)) continue;
     const blockedBy = [];
-    for (const b of t.blockers) {
-      const dep = findByNumber(b.feature ?? t.feature, b.nn);
-      if (!dep) blockedBy.push({ ref: `${b.feature ?? t.feature}/${b.nn}`, status: "unknown" });
+    for (const b of t.blockedBy) {
+      const [bFeature, bNn] = [b.slice(0, b.lastIndexOf("/")), b.slice(b.lastIndexOf("/") + 1)];
+      const dep = findByNumber(bFeature, bNn);
+      if (!dep) blockedBy.push({ ref: b, status: "unknown" });
       else if (!OFF_RELAY.has(dep.status)) blockedBy.push({ ref: dep.ref, status: dep.status });
     }
     const ready = t.status === "ready-for-agent" && blockedBy.length === 0;
-    const priority = parsePriority(t.md);
-    const readySince = ready ? readyAt.get(t.ref) ?? new Date(t.mtimeMs).toISOString() : null;
-    let holder = null;
-    if (t.locked !== null) {
-      const [role, since] = t.locked.trim().split(/\s+/);
-      holder = { role: role ?? null, since: since ?? null };
-    }
+    const priority = t.priority ?? "P2";
+    const readySince = ready ? readyAt.get(t.ref) ?? new Date(t.mtimeMs ?? 0).toISOString() : null;
+    const holder = t.holder ? { role: t.holder.role ?? null, since: t.holder.since ?? null, ...(t.holder.run ? { run: t.holder.run } : {}) } : null;
     const req = pendingByRef.get(t.ref);
     const verdict = lastVerdict.get(t.ref);
     const mergeGate =
@@ -204,7 +157,7 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
       title: t.title,
       type: t.type,
       status: t.status,
-      goal: t.goal,
+      goal: t.goal ?? null,
       ready,
       priority,
       effectivePriority: priority,
@@ -212,7 +165,7 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
       bumped: false,
       readySince,
       blockedBy,
-      blockedReason: t.status === "blocked" ? t.blockedReason : null,
+      blockedReason: t.status === "blocked" ? t.blockedReason ?? null : null,
       holder,
       lastRole: roleOf(lastRow.get(t.ref)) ?? null,
       gate: mergeGate ? "merge" : null,
@@ -220,7 +173,7 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
       handoff: await newestHandoff(scratch, t.feature, t.nn),
     };
     // den-mvp/13: the ticket's own text, only while it waits on the user, so Needs you can show it before Approve.
-    if (t.status === "ready-for-human") row.text = t.md.slice(0, TICKET_TEXT_CAP);
+    if (t.status === "ready-for-human") row.text = String(t.text ?? "").slice(0, TICKET_TEXT_CAP);
     tickets.push(row);
     if (ready && !holder) candidates.push({ ref: t.ref, priority, readySince });
   }

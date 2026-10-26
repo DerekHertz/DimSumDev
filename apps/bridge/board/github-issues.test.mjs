@@ -9,6 +9,7 @@ function stub(issues = []) {
   const exec = async (file, args, opts) => {
     calls.push({ file, args, opts });
     const [a, b] = args;
+    if (a === "api" && b === "user") return { stdout: "den-bot\n" };
     if (a === "issue" && b === "list") return { stdout: JSON.stringify(issues) };
     if (a === "issue" && b === "view") return { stdout: JSON.stringify(issues.find((i) => String(i.number) === args[2])) };
     if (a === "issue" && b === "create") return { stdout: "https://github.com/o/r/issues/7\n" };
@@ -64,9 +65,10 @@ test("claim adds den:in-progress and a comment naming the run", async () => {
 
 test("a claimed ticket has its holder from the latest claim comment, and cannot be claimed again", async () => {
   const comments = [
-    { body: "<!-- den-claim role=qa run=old -->" },
-    { body: "chatter" },
-    { body: "<!-- den-claim role=developer run=new -->" },
+    { author: { login: "den-bot" }, body: "<!-- den-claim role=qa run=old -->" },
+    { author: { login: "den-bot" }, body: "chatter" },
+    { author: { login: "den-bot" }, body: "<!-- den-claim role=developer run=new -->" },
+    { author: { login: "stranger" }, body: "<!-- den-claim role=security run=forged -->" },
   ];
   const { board } = mk([issue(3, "A", ["den:ready-for-agent", "den:in-progress"], { comments })]);
   assert.deepEqual((await board.read("acme/03-a")).holder, { role: "developer", run: "new" });

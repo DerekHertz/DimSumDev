@@ -18,7 +18,7 @@ import { buildSnapshot } from "./snapshot.mjs";
 import { branchesOf } from "./delivery/branches.mjs";
 import { createLedger } from "./agents/ledger.mjs";
 import { createDelivery } from "./delivery/runner.mjs";
-import { createDeliveryBoard } from "./delivery/board.mjs";
+import { createProjectBoards } from "./board/project-boards.mjs";
 import { createRunClaims, ownerGone } from "./run-claims.mjs";
 import { createReleaseDrafts } from "./delivery/release-draft.mjs";
 import { createAutoRelease } from "./delivery/release-auto.mjs";
@@ -32,7 +32,7 @@ import { createMeetingStore } from "./meetings/store.mjs";
 import { createMeetingLog } from "./meetings/log.mjs";
 import { TOPIC_MAX_BYTES } from "./meetings/types.mjs";
 import { DEN_FEATURE, DESK_REF, TASK_MAX_BYTES, deskRefOf } from "./agents/policy.mjs";
-import { BoardError, comment, createTicket, isBoardRole, modeAllowed, resolve, resolveShortRef, setOffRelay } from "../board/board-service.mjs";
+import { BoardError, comment, isBoardRole, modeAllowed, resolve, resolveShortRef } from "../board/board-service.mjs";
 import { appendToOrder } from "../router/order.mjs";
 import { cleanText } from "./agents/approvals.mjs";
 
@@ -136,7 +136,7 @@ function installProcessHandlers(host) {
 // The routes that start a run, a delivery or a meeting, or resume one.
 const STARTS = /^\/(?:agents|tasks|deliveries|meetings)(?:\/[^/]+\/resume)?$/;
 
-export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, proxy, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs, profile: profileOption } = {}) {
+export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, proxy, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs, profile: profileOption, ghExec } = {}) {
   let actualPort = port;
   const git = gitHost ?? createGitHost(root);
   // den-mvp/10 and 11: the den's own build, when it is served from release folders: previews, go-live and roll back. The
@@ -180,6 +180,9 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   const usageReading = usageOption ?? (() => null);
   // den-mvp/49: the den and the projects onboarded beside it. The registry is the user's (den:project); the active project is ours.
   const projects = createProjects({ control: root, denState: denState ?? stateDir ?? path.join(root, ".scratch", "_run") });
+  // multi-project/01 (ADR 0021 A7 decision 25): one Board per project, made in this one place; `ghExec` is the test seam for `gh`.
+  const boards = createProjectBoards({ projects, exec: ghExec });
+  const snapshotOf = async (slug, opts = {}) => { const board = await boards.get(slug); return buildSnapshot(board.root, 0, { ...opts, board }); };
   // trust-ladder/01 (ADR 0032): the lean/full Profile is the user's, kept in the den's state folder beside the other settings.
   const profile = profileOption ?? createProfile({ file: path.join(denState ?? stateDir ?? path.join(root, ".scratch", "_run"), "profile.json") });
   const hub = createHub(root, {
@@ -200,6 +203,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     profile: () => profile.view(),
     readUsage: usageReading,
     boardRoot: () => projects.activeRoot(),
+    board: async () => boards.peek(await projects.active()),
   });
   // den-mvp outcome 4: the production entry point passes the den's catalog; with none, no agent is given a connection.
   const runClaims = createRunClaims(path.join(stateDir ?? path.join(root, ".scratch", "_run"), "run-claims.json"));
@@ -221,8 +225,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     readUsage: async (runtime) => typeof usageByRuntime[runtime] === "function" ? usageByRuntime[runtime]() : runtime === "claude" ? (await hub.snapshot()).usage?.fiveHour ?? null : null,
     // organism-infra/226: a dispatch needs the ticket to be in the frontier (ready, unblocked, unlocked), not to hold the gate.
     checkGate: async (ref, { project }) => {
-      const target = await projects.get(project);
-      const snap = await buildSnapshot(target.root, 0);
+      const snap = await snapshotOf(project);
       return !snap.tickets.some((t) => t.ref === ref) ? "unknown" : snap.frontier.includes(ref) ? "ok" : "nofrontier";
     },
     // den-mvp/89: a Run's claim, made by the bridge after the gate and before the agent starts. The board's refusal is the Run's.
@@ -230,7 +233,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     claimRun: async (agent) => {
       if (!isBoardRole(agent.role)) return;
       try {
-        await createDeliveryBoard((await projects.get(agent.project)).root).claim(agent.ref, { role: agent.role, mode: boardMode(agent) });
+        await (await boards.get(agent.project)).claim(agent.ref, { role: agent.role, mode: boardMode(agent), run: agent.id });
       } catch (err) {
         if (err instanceof BoardError) throw err;
         console.error(`bridge: could not claim ${agent.ref} for a run: ${err?.message ?? err}`);
@@ -241,16 +244,16 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     // A forced release logs an override row, so a run that never started gives the claim back with a handoff saying so, the board's plain path.
     releaseRun: async (agent, reason) => {
       if (!isBoardRole(agent.role)) return;
-      const board = createDeliveryBoard((await projects.get(agent.project)).root);
+      const board = await boards.get(agent.project);
       await board.handoff(agent.ref, { role: agent.role, mode: boardMode(agent), runId: agent.id, sha: "", report: `The run did not start: ${reason}.`, committed: false, source: "den run", status: "ready-for-agent" }).catch(() => board.drop(agent.ref, { status: "ready-for-agent", reason: `${agent.role} run did not start: ${reason}` }));
       await runClaims.remove(agent.id);
     },
-    lockedRefs: async ({ project }) => (await buildSnapshot((await projects.get(project)).root, 0)).tickets.filter((t) => t.holder && !meetings?.snapshot().some(m => m.held && m.ref === t.ref && m.project === project && t.holder.role === 'chief-of-staff' && t.holder.since === m.holdSince)).map((t) => t.ref),
+    lockedRefs: async ({ project }) => (await snapshotOf(project)).tickets.filter((t) => t.holder && !meetings?.snapshot().some(m => m.held && m.ref === t.ref && m.project === project && t.holder.role === 'chief-of-staff' && t.holder.since === m.holdSince)).map((t) => t.ref),
     openDesk: (runtime) => ensureDesk(root, runtime),
-    createDelegatedTicket: async ({ parent, role, brief }) => createTicket((await projects.get(parent.project)).root, {
+    createDelegatedTicket: async ({ parent, role, brief }) => (await boards.get(parent.project)).create({
       feature: DEN_FEATURE, slug: role, title: `Delegated ${role}: ${brief.task}`.slice(0, 100),
       text: `${brief.task}\n\nConstraints: ${brief.constraints.join('; ')}\n\n## Acceptance criteria\n\n${brief.acceptance.map(a => `- [ ] ${a}`).join('\n')}`,
-      source: `delegated by ${parent.id}`,
+      source: `delegated by ${parent.id}`, status: "ready-for-agent",
     }),
     // F34: a batch the bridge would refuse is denied when it asks, with the reason, so the user is not asked for it.
     checkCall: (tool, input) => (tool === "mcp__den__board_file" ? checkFileBatch(input).error ?? null : null),
@@ -259,7 +262,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
   await recoverRunClaims();
   delivery = createDelivery({
     host: { start: host.start, stop: host.stop, retire: host.retire, worktreeOf: (id) => host.snapshot().find((a) => a.id === id)?.worktree ?? null },
-    board: createDeliveryBoard(root),
+    board: await boards.get("den"),
     activeProject: () => projects.active(),
     profile,
     git,
@@ -267,13 +270,9 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     checks,
     log: createJobLog(stateDir ?? path.join(root, ".scratch", "_run")),
     onChange: (change) => hub.publish(change),
-    readInReview: async () => {
-      const rows = (await buildSnapshot(root, 0)).tickets.filter((t) => t.status === "in-review" && !t.holder);
-      return Promise.all(rows.map(async (t) => ({ ref: t.ref, branches: await branchesOf(root, t.ref) })));
-    },
+    readInReview: async () => Promise.all((await snapshotOf("den")).tickets.filter((t) => t.status === "in-review" && !t.holder).map(async (t) => ({ ref: t.ref, branches: await branchesOf(root, t.ref) }))),
     readTicket: async (ref, { project = "den" } = {}) => {
-      const snap = await buildSnapshot((await projects.get(project)).root, 0);
-      const ticket = snap.tickets.find((t) => t.ref === ref);
+      const snap = await snapshotOf(project), ticket = snap.tickets.find((t) => t.ref === ref);
       return ticket ? { title: ticket.title, type: ticket.type, frontier: snap.frontier.includes(ref) } : null;
     },
   });
@@ -287,24 +286,22 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     onChange: (change) => hub.publish(change),
     readUsage: async () => (await hub.snapshot()).usage?.fiveHour ?? null,
     readTicket: async (ref, { project = "den" } = {}) => {
-      const ticket = (await buildSnapshot((await projects.get(project)).root, 0)).tickets.find((t) => t.ref === ref);
+      const ticket = (await snapshotOf(project)).tickets.find((t) => t.ref === ref);
       return ticket ? { title: ticket.title, status: ticket.status, owner: host.admission.ownerOf(ref).owner, project } : null;
     },
     // The work a chosen option proposes: a ticket at ready-for-human, so it is in no queue until the user approves it.
-    proposeTicket: async ({ title, text, project }) => createTicket((await projects.get(project)).root, { feature: DEN_FEATURE, slug: "proposed", title, text, source: "den meeting", status: "ready-for-human" }),
+    proposeTicket: async ({ title, text, project }) => (await boards.get(project)).create({ feature: DEN_FEATURE, slug: "proposed", title, text, source: "den meeting", status: "ready-for-human" }),
     claimTicket: async m => {
-      const target = (await projects.get(m.project)).root;
-      const before = (await buildSnapshot(target)).tickets.find(t => t.ref === m.ref);
-      await createDeliveryBoard(target).claim(m.ref, { role: 'chief-of-staff' });
-      m.holdSince = (await buildSnapshot(target)).tickets.find(t => t.ref === m.ref)?.holder?.since;
+      const before = (await snapshotOf(m.project)).tickets.find(t => t.ref === m.ref);
+      await (await boards.get(m.project)).claim(m.ref, { role: 'chief-of-staff' });
+      m.holdSince = (await snapshotOf(m.project)).tickets.find(t => t.ref === m.ref)?.holder?.since;
       m.ticketStatus = before?.status ?? m.ticketStatus;
     },
     releaseTicket: async m => {
-      const target = (await projects.get(m.project)).root;
-      const holder = (await buildSnapshot(target)).tickets.find(t => t.ref === m.ref)?.holder;
+      const holder = (await snapshotOf(m.project)).tickets.find(t => t.ref === m.ref)?.holder;
       if (!holder) return;
       if (holder.role !== 'chief-of-staff' || holder.since !== m.holdSince) return;
-      await createDeliveryBoard(target).drop(m.ref, { status: m.ticketStatus ?? 'ready-for-agent', reason: 'Meeting stopped starting work' });
+      await (await boards.get(m.project)).drop(m.ref, { status: m.ticketStatus ?? 'ready-for-agent', reason: 'Meeting stopped starting work' });
     },
   });
   await meetings.ready;
@@ -425,10 +422,9 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     },
     "GET /projects/:slug/board": async (req, res) => {
       const slug = new URL(req.url, "http://x").pathname.split("/")[2];
-      const project = await projects.get(slug);
-      if (!project) return reply(res, 404, { error: "no such project" });
-      if (project.board.kind !== "markdown") return reply(res, 501, { error: `a ${project.board.kind} board cannot be read yet` });
-      reply(res, 200, await buildSnapshot(project.root, 0, { readUsage: usageReading }));
+      const board = await boards.get(slug);
+      if (!board) return reply(res, 404, { error: "no such project" });
+      reply(res, 200, await buildSnapshot(board.root, 0, { readUsage: usageReading, board }));
     },
     "POST /agents": (req, res) => postAgent(req, res),
     "POST /tasks": (req, res) => postTask(req, res),
@@ -662,9 +658,8 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     const { ref, role, mode, task, project } = entry;
     let runBoard = null;
     try {
-      const target = await projects.get(project);
-      if (!target) throw new Error("the run's project is no longer onboarded");
-      runBoard = createDeliveryBoard(target.root);
+      runBoard = await boards.get(project);
+      if (!runBoard) throw new Error("the run's project is no longer onboarded");
       if (run.state !== "done") {
         if (!task) await giveBack(runBoard, run.agentId, ref, `${role} run ${run.state === "terminated" ? "stopped" : "failed"}${run.reason ? ` (${run.reason})` : ""}`);
         return;
@@ -691,10 +686,10 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     for (const entry of (await runClaims.list()).filter(ownerGone)) {
       const { id, ref, project, role } = entry;
       try {
-        const target = await projects.get(project);
-        if (!target) continue;
-        const holder = (await buildSnapshot(target.root, 0)).tickets.find((t) => t.ref === ref)?.holder;
-        if (holder?.role === role) await giveBack(createDeliveryBoard(target.root), id, ref, `${role} run: the bridge stopped while it ran; the claim was given back at boot`);
+        const board = await boards.get(project);
+        if (!board) continue;
+        const holder = (await snapshotOf(project)).tickets.find((t) => t.ref === ref)?.holder;
+        if (holder?.role === role) await giveBack(board, id, ref, `${role} run: the bridge stopped while it ran; the claim was given back at boot`);
         else await runClaims.remove(id);
       } catch (err) {
         console.error(`bridge: could not give back the claim on ${ref}: ${err?.message ?? err}`);
@@ -726,7 +721,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       grants: body.grants,
       execution: body.execution,
       orchestration: body.orchestration,
-      createTicket: async (role, { project }) => createTicket((await projects.get(project)).root, { feature: DEN_FEATURE, slug: role, title: `Den task for ${role}`, text, source: "den" }),
+      createTicket: async (role, { project }) => (await boards.get(project)).create({ feature: DEN_FEATURE, slug: role, title: `Den task for ${role}`, text, source: "den", status: "ready-for-agent" }),
     });
     const ticket = result.ticket ? { ticket: result.ticket } : {};
     if (!result.ok) return reply(res, result.status, { error: result.error, ...ticket });
@@ -874,7 +869,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
         const refs = [];
         for (const d of drafts) {
           const blockers = d.blockedBy.map((b) => (Number.isInteger(b) ? refs[b - 1] : fullRef(b)));
-          const { ref } = await createTicket(root, { feature, slug: d.slug, title: d.title, text: d.text, priority: d.priority, form: "ticket", type: d.type, blockedBy: blockers, goal: d.goal, source: "den desk", status: "ready-for-human" }).catch((err) => {
+          const { ref } = await (await boards.get("den")).create({ feature, slug: d.slug, title: d.title, text: d.text, priority: d.priority, form: "ticket", type: d.type, blockedBy: blockers, goal: d.goal, source: "den desk", status: "ready-for-human" }).catch((err) => {
             // Checked above, so this is the board changing underneath: say what was already filed.
             throw new BoardError(`${err.message}${refs.length ? ` (already filed: ${refs.join(", ")})` : ""}`);
           });
@@ -925,7 +920,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       if (Buffer.byteLength(text) > TASK_MAX_BYTES) return reply(res, 400, { error: `text must be at most ${TASK_MAX_BYTES} bytes` });
       if (hasSecret(text) || hasSecret(title)) return reply(res, 400, { error: "text looks like it holds a secret; nothing was written" });
       try {
-        ({ ref } = await createTicket(root, { feature: DEN_FEATURE, slug: "delivery", title, text, source: "den" }));
+        ({ ref } = await (await boards.get("den")).create({ feature: DEN_FEATURE, slug: "delivery", title, text, source: "den" }));
       } catch (err) {
         console.error(`bridge: could not write a ticket for a delivery: ${err?.message ?? err}`);
         return reply(res, 400, { error: "could not write the ticket: the title must be one short line" });
@@ -1026,13 +1021,15 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       if (note.length > 500) return reply(res, 400, { error: "note must be at most 500 characters" });
       if (hasSecret(note)) return reply(res, 400, { error: "note looks like it holds a secret; nothing was written" });
     }
-    const ticket = (await hub.snapshot()).tickets.find((t) => t.ref === body.ref);
+    const board = await boards.get(typeof body.project === "string" ? body.project : await projects.active());
+    if (!board) return reply(res, 404, { error: "no such project" });
+    const ticket = await board.read(body.ref).catch(() => null);
     if (ticket?.status !== "ready-for-human") return reply(res, 409, { error: "the ticket is not waiting for you" });
     // codex-residents/05: the user picks the coordinator at approval; no choice is Bao, as every earlier ticket was.
     const owner = body.owner === undefined ? "bao" : body.owner;
     if (action === "approve" && !COORDINATORS.includes(owner)) return reply(res, 400, { error: `owner must be one of: ${COORDINATORS.join(", ")}` });
     try {
-      await setOffRelay(root, [body.ref], action === "approve" ? "approve" : "close", { reason: note });
+      await board.setStatus(body.ref, action === "approve" ? "ready-for-agent" : "closed", note);
     } catch (err) {
       if (!(err instanceof BoardError)) throw err;
       return reply(res, 409, { error: `not changed: ${err.message}` });
@@ -1045,7 +1042,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       if (!owned.ok) console.error(`bridge: could not record the owner of ${body.ref}: ${owned.error}`);
     }
     let ordered = false;
-    if (action === "approve" && ticket.type !== "user") {
+    if (action === "approve" && ticket.type !== "user" && board.root === root) {
       try {
         const next = appendToOrder(await readFile(orderFile, "utf8").catch((err) => (err.code === "ENOENT" ? "" : Promise.reject(err))), body.ref);
         if (next !== null) await writeFile(orderFile, next);

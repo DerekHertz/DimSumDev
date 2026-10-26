@@ -6,9 +6,9 @@
 import { copyFile, mkdir, mkdtemp, realpath, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
+import { handoffNote, handoffRecord } from "../board/handoff-body.mjs";
 import { claim, comment, publishHandoff, release, resolve } from "../../board/board-service.mjs";
 
-const REPORT_MAX = 60000; // characters of a run's report kept in a handoff (the board caps a handoff at 256 KiB)
 const EVIDENCE_FILE_RE = /[^\s,;"'()<>]+\.(?:png|jpe?g|webp|json|txt)\b/gi;
 const EVIDENCE_FILES_MAX = 12; // files of one qa run copied to the board
 const EVIDENCE_FILE_BYTES = 10_000_000;
@@ -24,21 +24,10 @@ export function createDeliveryBoard(root) {
     // den-mvp/23: a Run from the den hands off the same way; `committed: false` says it left no commit, `source` names it.
     // `status: null` publishes the handoff and leaves the ticket alone (a Run holds no claim to release).
     async handoff(ref, { role, mode, runId, sha, branch, verdict, report, committed = true, source = "den delivery", status = "in-review" }) {
-      const [feature, ticket] = ref.split("/");
-      const nn = /^(\d{2,})-/.exec(ticket)[1];
-      const state = {
-        ticket: ref, role, ...(mode ? { mode } : {}),
-        current_step: verdict ? `${role} ${verdict === "pass" ? "passed" : "bounced"} commit ${sha.slice(0, 12)}` : committed ? `${role} committed ${sha.slice(0, 12)}` : `${role} made no commit`,
-        artifacts: committed ? [...(branch ? [`branch ${branch}`] : []), `commit ${sha}`] : [], decisions: [], failures: [],
-        pending: verdict === "bounce" ? [{ item: "fix the findings below", owner: "developer" }] : [],
-      };
-      const body =
-        `# ${role} handoff for ${feature}/${ticket}\n\nWritten by the den's bridge for run ${runId}. The State block is the bridge's record; the report is the agent's last message.\n\n` +
-        `## State\n\n\`\`\`json\n${JSON.stringify(state, null, 2)}\n\`\`\`\n\n## Report\n\n${String(report ?? "(the run left no report)").slice(0, REPORT_MAX).replace(/```/g, "'''")}\n`;
+      const { name, body } = handoffRecord(ref, { role, mode, runId, sha, branch, verdict, report, committed });
       // The board refuses a draft that lies inside a worktree, so the draft is written in a directory of its own.
       const dir = await mkdtemp(path.join(tmpdir(), "den-handoff-"));
       try {
-        const name = `${nn}-${role}${mode ? `-${mode}` : ""}-${runId.slice(2, 10)}.md`;
         const draft = path.join(dir, name);
         await writeFile(draft, body, { mode: 0o600 });
         await publishHandoff(root, ref, draft, { name });
@@ -46,7 +35,7 @@ export function createDeliveryBoard(root) {
         await rm(dir, { recursive: true, force: true }).catch(() => {});
       }
       if (status === null) return;
-      await release(root, ref, status, verdict ? `${role} ${verdict} at ${sha.slice(0, 12)} (${source})` : committed ? `committed ${sha.slice(0, 12)} (${source})` : `no commit (${source})`);
+      await release(root, ref, status, handoffNote({ role, sha, verdict, committed, source }));
     },
     /**
      * trust-ladder/03: the files a qa report names as verifier evidence, copied from qa's worktree (repo-relative `worktree`)
