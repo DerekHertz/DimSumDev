@@ -86,3 +86,7 @@ test("line continuations, quoted words and launchers do not hide a board call (s
   }
   assert.match(check(bash("timeout 5 jg q")) ?? "", /raw jg/);
 });
+
+test("a board call inside bash -c is checked", () => {
+  assert.match(check(bash(`bash -c "npm run board -- comment f/01-x --as qa x"`, "security")) ?? "", /own role/);
+});

@@ -27,7 +27,11 @@ export function segments(command) {
     else (word ??= { text: "", quoted: false }).text += ch;
   }
   end();
-  return out.filter((s) => s.length);
+  // `bash -c "<script>"`: the script's own segments count too.
+  return out.filter((s) => s.length).flatMap((seg) => {
+    const c = seg.findIndex((w) => w.text === "-c");
+    return /^(?:ba|z|da)?sh$/.test(seg[0].text.split("/").at(-1)) && c !== -1 && seg[c + 1] ? [seg, ...segments(seg[c + 1].text)] : [seg];
+  });
 }
 
 const base = (w) => w.text.split("/").at(-1);
