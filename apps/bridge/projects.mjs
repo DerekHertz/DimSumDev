@@ -56,7 +56,7 @@ async function excludeWorktrees(root) {
   await appendFile(file, `${text === "" || text.endsWith("\n") ? "" : "\n"}${line}\n`);
 }
 
-async function readRegistry(denState) {
+export async function readRegistry(denState) {
   try {
     const data = JSON.parse(await readFile(path.join(denState, REGISTRY), "utf8"));
     return data && typeof data === "object" && !Array.isArray(data) ? data : {};

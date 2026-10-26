@@ -15,14 +15,19 @@ export async function protectionBody(checks) {
   return body;
 }
 
-/** -> { ok: true } when main requires every check, else { ok: false, missing, command }. */
+/** -> { ok: true } when main requires every check, else { ok: false, missing, command }. Only a 404 means unprotected; any other gh error throws. */
 export async function verifyProtection({ repo, checks }, { gh = (args) => execFileP("gh", args).then((r) => String(r.stdout)) } = {}) {
   let have = [];
+  let out;
   try {
-    const data = JSON.parse(await gh(["api", `repos/${repo}/branches/main/protection/required_status_checks`]));
+    out = await gh(["api", `repos/${repo}/branches/main/protection/required_status_checks`]);
+  } catch (err) {
+    if (!/HTTP 404/.test(`${err?.message ?? ""}\n${err?.stderr ?? ""}`)) throw new Error(`could not read branch protection for ${repo}: ${String(err?.stderr || err?.message || err).trim()}`, { cause: err });
+    out = null; // 404: main is not protected
+  }
+  if (out !== null) {
+    const data = JSON.parse(out);
     have = [...(data.contexts ?? []), ...(data.checks ?? []).map((c) => c.context)];
-  } catch {
-    have = []; // 404: main is not protected
   }
   const missing = checks.filter((c) => !have.includes(c));
   if (missing.length === 0) return { ok: true };

@@ -25,3 +25,11 @@ test("a partly protected stub names the missing check", async () => {
   const gh = async () => JSON.stringify({ contexts: ["build"] });
   assert.deepEqual((await verifyProtection(row, { gh })).missing, ["test"]);
 });
+test("a gh error that is not a 404 (auth, network) throws instead of reading as unprotected", async () => {
+  const gh = async () => { throw Object.assign(new Error("Command failed: gh api"), { stderr: "gh: To use GitHub CLI, run: gh auth login" }); };
+  await assert.rejects(verifyProtection(row, { gh }), /could not read branch protection for acme\/web: gh: To use GitHub CLI/);
+});
+test("a 404 carried in stderr still means unprotected", async () => {
+  const gh = async () => { throw Object.assign(new Error("Command failed"), { stderr: "gh: Not Found (HTTP 404)" }); };
+  assert.equal((await verifyProtection(row, { gh })).ok, false);
+});
