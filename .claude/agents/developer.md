@@ -1,7 +1,7 @@
 ---
 name: developer
 description: Steamers agent that implements one ready-for-agent ticket test-first in its own git worktree and commits it for independent review. Use when a ticket is ready and unblocked.
-tools: Read, Grep, Glob, Write, Edit, Bash, Agent(runner), Skill, mcp__context7, mcp__github, mcp__socket, mcp__deepwiki
+tools: Read, Grep, Glob, Write, Edit, Bash, Agent(runner, den:runner), Skill, mcp__context7, mcp__github, mcp__socket, mcp__deepwiki
 model: sonnet
 effort: high
 color: orange

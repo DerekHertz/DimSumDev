@@ -1,7 +1,7 @@
 ---
 name: code-reviewer
 description: Tea & Pantry agent that reviews every code ticket's candidate commit independently of the engineer who wrote it, on two axes (standards and spec fit), and returns a pass or bounce tied to that commit. It also reviews changes to agent instructions and ADRs. It writes no code. Use after the developer hands over a candidate commit, beside qa.
-tools: Read, Grep, Glob, Write, Bash, Agent(runner), Skill
+tools: Read, Grep, Glob, Write, Bash, Agent(runner, den:runner), Skill
 model: sonnet
 effort: high
 color: green

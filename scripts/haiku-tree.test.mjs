@@ -26,7 +26,8 @@ function front(name) {
     body: m[2],
   };
 }
-const agentTargets = (tools) => tools.filter((t) => /^Agent\(/.test(t)).flatMap((t) => t.slice(6, -1).split(",").map((x) => x.trim()));
+// A plugin load names each role den:<role>; the allow-lists carry both spellings of the same role.
+const agentTargets = (tools) => tools.filter((t) => /^Agent\(/.test(t)).flatMap((t) => t.slice(6, -1).split(",").map((x) => x.trim().replace(/^den:/, "")));
 
 test("runner is a Haiku leaf: model haiku, no Agent tool", () => {
   assert.ok(existsSync(path.join(ROOT, ".claude/agents/runner.md")), "runner.md is missing");
