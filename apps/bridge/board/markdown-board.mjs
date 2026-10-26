@@ -71,7 +71,7 @@ export function createMarkdownBoard(root) {
     async read(ref) {
       const t = (await list()).find((x) => x.ref === ref);
       if (!t) throw new Error("markdown board: no such ticket");
-      return t;
+      return { ...t, text: await readText(path.join(scratch, t.feature, "issues", `${t.ref.slice(t.feature.length + 1)}.md`)) ?? "" };
     },
     /** Ready, unclaimed, unblocked tickets in the den's queue order. */
     async frontier() {

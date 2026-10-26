@@ -263,7 +263,7 @@ function governedUnder(grant, root, worktree) {
  * worktree undefined leaves the write rules out (the wall stays, the Write request stays). Any grant outside the fixed shape,
  * any grant for a role that cannot write, and a path grant that contains the worktree are TypeErrors.
  */
-export function compileCeiling(role, { worktree, grants, root, home, mainGit, credentials, remote, toolchain } = {}) {
+export function compileCeiling(role, { worktree, grants, root, home, mainGit, credentials, remote, toolchain, target = false, projectToolchain = [] } = {}) {
   const { hosts: grantHosts, paths } = parseGrants(grants);
   if (credentials !== undefined && !(isDense(credentials) && credentials.every((p) => CREDENTIAL_PATHS.includes(p)))) throw new TypeError("compileCeiling: credentials must be paths from governance.json");
   if (root !== undefined && !isWorktreePath(root)) throw new TypeError("compileCeiling: root must be a plain absolute path");
@@ -271,6 +271,9 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
   if (home !== undefined && !isWorktreePath(home)) throw new TypeError("compileCeiling: home must be a plain absolute path");
   if (toolchain !== undefined && !isWorktreePath(toolchain)) throw new TypeError("compileCeiling: toolchain must be a plain absolute path");
   if (remote !== undefined && typeof remote !== "boolean") throw new TypeError("compileCeiling: remote must be a boolean");
+  // multi-project/02 (decision 27): a target run has no network, so no host grant; its registry toolchain paths are reopened for reads.
+  if (!isDense(projectToolchain) || !projectToolchain.every(isWorktreePath)) throw new TypeError("compileCeiling: projectToolchain must be plain absolute paths");
+  if (target === true && grantHosts.length > 0) throw new TypeError("compileCeiling: a target run takes no host grants");
   const ceiling = Object.hasOwn(CEILINGS, role) ? CEILINGS[role] : undefined;
   if (ceiling === undefined) {
     if (grantHosts.length + paths.length > 0) throw new TypeError("compileCeiling: this role takes no grants");
@@ -296,11 +299,12 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
     ...(root === undefined ? [] : paths.flatMap((g) => governedUnder(expandHome(g, home), root, worktree))),
     ...(mainGit === undefined ? [] : MAIN_GIT_DENIED.map((name) => (name === "refs" ? `${mainGit}/refs/**` : `${mainGit}/${name}`))),
   ])];
-  const hosts = [...new Set([...ceiling.hosts, ...grantHosts])];
-  const readLimit = hosts.length > 0 || remote === true;
+  const hosts = target === true ? [] : [...new Set([...ceiling.hosts, ...grantHosts])];
+  const readLimit = hosts.length > 0 || remote === true || target === true;
   // What the work reads outside the worktree: the project's node_modules and main .git, node and npm, git's identity, the browsers.
   // Never the project root itself: it holds the worktree, and reopening it re-mounts the worktree read-only (live probe, 2026-10-18).
-  const readOpen = !readLimit ? [] : [...new Set([root === undefined ? undefined : `${root}/node_modules`, mainGit, toolchain, ...(home === undefined ? [] : [`${home}/.gitconfig`, `${home}/.cache/ms-playwright`])].filter((p) => p !== undefined))];
+  const readOpen = !readLimit ? [] : [...new Set([root === undefined ? undefined : `${root}/node_modules`, mainGit, toolchain, ...projectToolchain, ...(home === undefined ? [] : [`${home}/.gitconfig`, `${home}/.cache/ms-playwright`])].filter((p) => p !== undefined))];
+  if (readOpen.length > 8) throw new TypeError("compileCeiling: the read limit reopens at most eight paths; shorten the project's toolchain list");
   if (readOpen.some((p) => grantTouchesCredential(p, home))) throw new TypeError("compileCeiling: a path the read limit reopens may not reach a credential store");
   return {
     wall: { hosts },

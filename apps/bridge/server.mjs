@@ -212,6 +212,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     root,
     profile,
     projects,
+    readTicket: async (project, ref) => (await boards.get(project)).read(ref),
     runtime,
     runtimes,
     bridgeUrl: () => `http://127.0.0.1:${actualPort}`,

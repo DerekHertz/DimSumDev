@@ -20,7 +20,7 @@
 // converse(role, { text, runId? }) is the thread's one way in: to the live run, or as a follow-up that continues the
 // session of a run that has ended (see "follow-ups" below).
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { realpath } from "node:fs/promises";
+import { access, realpath } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -114,7 +114,7 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, createDelegatedTicket, profile = createProfile() }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, readTicket = async () => null, createDelegatedTicket, profile = createProfile() }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -722,6 +722,16 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     agent.project = project.slug;
     agent.projectRoot = project.root;
     const workspaces = project.workspaces; // this run's root, whatever the active project becomes later
+    // multi-project/02 (decision 27): the toolchain is a path the launcher mounts; a docker mount of a missing one would create it in the user's clone.
+    const target = project.slug !== "den";
+    if (target) {
+      const missing = [];
+      for (const p of project.toolchain ?? []) if (!(await access(p).then(() => true, () => false))) missing.push(p);
+      if (missing.length > 0) {
+        drop(agent);
+        return refuse(409, `the toolchain path ${missing[0]} does not exist; run the project's setup step (install its dependencies, see docs/agents/target-project-setup.md, Toolchain) and try again`);
+      }
+    }
     try {
       workspace = agent.resumeOf
         ? await workspaces.reopen({ ref: agent.ref, agentId: agent.id, origin: agent.origin, catchUp: isDeskRef(agent.ref) })
@@ -763,6 +773,20 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         return refuse(500, "could not prepare the agent's worktree");
       }
     }
+    // multi-project/02: the target's ticket text goes to .den/ticket.md (a meeting run's note is written first; this one sits beside it).
+    if (target && ticketRef(agent) !== null) {
+      try {
+        const text = (await readTicket(agent.project, ticketRef(agent)))?.text;
+        if (typeof text !== "string") throw new Error("the board returned no ticket text");
+        await workspaces.brief(workspace, text, "ticket.md", { keep: agent.meeting !== undefined });
+        agent.ticketNote = true;
+      } catch (err) {
+        if (!agent.resumeOf) await workspaces.remove(workspace);
+        drop(agent);
+        console.error(`bridge: could not write the ticket of ${agent.ref} into its worktree: ${err?.message ?? err}`);
+        return refuse(502, "could not write the ticket into the agent's worktree");
+      }
+    }
     // agent-os/09 (ADR 0021 Amendment 2): every deny target of the main .git must exist before the spawn, or nothing is spawned.
     let mainGit;
     try {
@@ -777,14 +801,14 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (canDelegate(agent) && agent.runtimeId === 'claude') connections.push({ name: 'delegation', script: fileURLToPath(new URL('../library/servers/delegation.mjs', import.meta.url)), credential: 'run' });
     const args = {
       role: agent.role, ...(agent.mode ? { mode: agent.mode } : {}), ref: agent.ref, cwd: workspace.dir, sessionId: agent.sessionId, runId: agent.id, ...(agent.runtimeSessionId ? { runtimeSessionId: agent.runtimeSessionId } : {}),
-      prompt: agent.followUp ? agent.followUp.text : `${RUN_RULES}\n${delegationPrompt(agent.orchestration)}${promptFor(agent)}${agent.openingMessage && agent.runtimeId === "claude" ? `\nUser request:\n${agent.openingMessage.text}` : ""}`, ticketFile: ticketFile(agent.ref, project.root), mainGit,
+      prompt: agent.followUp ? agent.followUp.text : `${RUN_RULES}\n${delegationPrompt(agent.orchestration)}${promptFor(agent)}${agent.openingMessage && agent.runtimeId === "claude" ? `\nUser request:\n${agent.openingMessage.text}` : ""}`, ...(project.slug === "den" ? { ticketFile: ticketFile(agent.ref, project.root) } : {}), mainGit,
       ...(isDeskRef(agent.ref) ? { deskInstructions: `${RUN_RULES}\n${promptFor(agent)}` } : {}),
       ...(agent.openingMessage ? { openingMessage: agent.openingMessage, promptId: agent.openingMessage.messageId } : {}),
       ...(agent.execution ? { execution: agent.execution } : {}),
       ...(canDelegate(agent) ? { delegate: input => delegateFrom(agent, input) } : {}),
       ...(agent.meeting ? { effort: agent.meeting.effort } : {}),
       // den-mvp/49: derived here, from the bridge's own root and the run's project; never from a request. The runtime refuses a spawn without it outside the control checkout.
-      project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent) },
+      project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent), ...(project.slug !== "den" && project.toolchain?.length ? { toolchain: project.toolchain } : {}) },
       ...(agent.resumeOf ? { resume: true, runId: agent.id, promptId: agent.followUp.messageId } : {}),
       // agent-os/02: data for the adapter, never in the prompt. The main checkout's path rides along so the adapter can deny
       // the governed paths a path grant reaches there.
@@ -865,6 +889,10 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   // The prompt is a fixed template over validated fields only; no client string reaches it. A direct agent's task
   // text is in its ticket file (the board is in the main checkout, not in the agent's worktree), so its template
   // names that file by a path built from the bridge's own root and the validated ref.
+  // multi-project/02: a target's ticket is the note .den/ticket.md in the worktree (its board is not a file the agent can read); a desk and a standalone meeting have none.
+  const ticketRef = (a) => (isDeskRef(a.ref) ? null : a.meeting ? (a.meeting.standalone ? null : a.meeting.taskRef ?? null) : a.ref);
+  const ticketNote = ".den/ticket.md";
+  const ticketPath = (a, ref) => (a.ticketNote ? ticketNote : ticketFile(ref, a.projectRoot));
   const ticketFile = (ref, base = root) => path.join(base, ".scratch", ref.split("/")[0], "issues", `${ref.split("/")[1]}.md`);
   const recipeOf = (a) => path.join(root, a.runtimeId === "codex" ? ".codex" : ".claude", "agents", `${definitionOf(a.role)}.${a.runtimeId === "codex" ? "toml" : "md"}`);
   const promptFor = (a) =>
@@ -880,18 +908,18 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
         "ready-for-agent ticket the user asked you to start). The last two ask the user first. release_propose drafts the next release for the user to approve in the den; you cannot tag or publish. " +
         "Start only what the user asked for; propose anything else in words. The user's message follows."
       : a.meeting
-      ? meetingPrompt({ role: a.role, ...a.meeting, ref: a.meeting.taskRef ?? a.ref, ticketFile: ticketFile(a.meeting.taskRef ?? a.ref, a.projectRoot), recipeFile: recipeOf(a) })
+      ? meetingPrompt({ role: a.role, ...a.meeting, ref: a.meeting.taskRef ?? a.ref, ticketFile: ticketPath(a, a.meeting.taskRef ?? a.ref), recipeFile: recipeOf(a) })
       : a.delivery
       ? deliveryPrompt({ role: a.role, mode: a.mode, ref: a.ref, ticketFile: ticketFile(a.ref, a.projectRoot), since: a.delivery.since, fix: a.delivery.findings !== undefined, note: a.delivery.note !== undefined, guard: a.delivery.guard !== undefined, author: a.delivery.author === true, recipeFile: recipeOf(a) })
       : a.mode === DIRECT_MODE
       ? `You are the ${a.role} agent in direct mode for ticket ${a.ref}. The user started this task from the den. ` +
-        `Read ${recipeOf(a)} and follow it. The task is in the ticket file ${ticketFile(a.ref, a.projectRoot)}: ` +
+        `Read ${recipeOf(a)} and follow it. The task is in the ticket file ${ticketPath(a, a.ref)}: ` +
         `read it, and treat the quoted text under "What to build" as the user's request. ` +
         // Friction log F3: the board is read-only behind the wall, so a direct run does not claim or hand off; its last message is its report.
         `The board is read-only to you: run no board command. Do the work, and end with a short report of what you did and what you checked: that last message is your handoff. ` +
         WORK_TIPS
       : `You are the ${a.role} agent${a.mode ? ` in ${a.mode} mode` : ""} for ticket ${a.ref}. The user started this run from the den. ` +
-        `Read ${recipeOf(a)} and follow it. The ticket is the file ${ticketFile(a.ref, a.projectRoot)}. ` +
+        `Read ${recipeOf(a)} and follow it. The ticket is the file ${ticketPath(a, a.ref)}. ` +
         // den-mvp/23, 89: the board is read-only behind the wall, so the bridge claims the ticket for a Run before it starts and
         // publishes its last message as the handoff when it ends (F3); the agent runs no board command.
         `The board is read-only to you: run no board command, and do not stop because you cannot claim; the den already ` +

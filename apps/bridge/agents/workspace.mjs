@@ -107,7 +107,7 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
     // den-mvp outcome 3: the bridge's note to a delivery step (a review's findings for a fix round), written to
     // <worktree>/.den/findings.md. `.den/` is added once to the repository's own exclude file, so no commit carries it.
     // den-mvp outcome 4: a meeting run's note (the topic, the takes) is written the same way, as .den/meeting.md.
-    async brief({ dir } = {}, text, name = "findings.md") {
+    async brief({ dir } = {}, text, name = "findings.md", { keep = false } = {}) {
       if (!BRIEF_NAMES.includes(name)) throw new TypeError("workspace: unknown note name");
       const exclude = path.join(await commonDir(), "info", "exclude");
       const current = await readFile(exclude, "utf8").catch(() => "");
@@ -118,8 +118,13 @@ export function createWorkspaces(root, { exec = execFileP } = {}) {
       // The worktree is at a commit an agent made, which may carry its own `.den`, a link out of the worktree included.
       // Whatever is there is removed without being followed, and the file is created new, never opened through a link.
       const den = path.join(dir, ".den");
-      await rm(den, { recursive: true, force: true });
-      await mkdir(den);
+      // keep: a second note beside one this same call sequence just wrote (a target run's ticket beside its meeting note); .den must be the plain directory that note left.
+      if (keep) {
+        if (!(await lstat(den)).isDirectory()) throw new Error("workspace: .den is not a directory");
+      } else {
+        await rm(den, { recursive: true, force: true });
+        await mkdir(den);
+      }
       await writeFile(path.join(den, name), text, { mode: 0o600, flag: "wx" });
     },
     // den-mvp outcome 2: the worktree of an earlier run (`origin`), reopened for a follow-up by a new run. Nothing is created:
