@@ -100,7 +100,7 @@ describe("createProxyService", () => {
       assert.ok(mountOf(args, TOKEN_MOUNT), "no token directory is mounted");
       assert.ok(mountOf(args, SECRETS_MOUNT), "no secrets directory is mounted");
       const env = flag(args, "-e");
-      assert.ok(env.includes(`DEN_PROXY_ROLES=${JSON.stringify(roleHosts(CEILINGS))}`), env.join(" "));
+      assert.ok(env.includes(`DEN_PROXY_ROLES=${JSON.stringify({ ...roleHosts(CEILINGS), target: [] })}`), env.join(" "));
       assert.ok(env.some((e) => e.startsWith("DEN_PROXY_SECRETS_FILE=")), env.join(" "));
       assert.equal(args.at(-3), "den-agent:test"); // image, then `node /den-proxy/den-proxy.mjs`
     });

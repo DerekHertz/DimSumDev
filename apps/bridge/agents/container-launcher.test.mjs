@@ -36,7 +36,7 @@ function setup({ proxyUp = true, running = true, oom = { killed: false }, intern
   };
   const minted = [];
   const retired = [];
-  const proxy = { ports: { developer: 8080 }, mintRunSecret: async ({ role }) => (minted.push(role), { secret: "s".repeat(32) }), retireRunSecret: async (s) => { retired.push(s); } };
+  const proxy = { ports: { developer: 8080, target: 8081 }, mintRunSecret: async ({ role }) => (minted.push(role), { secret: "s".repeat(32) }), retireRunSecret: async (s) => { retired.push(s); } };
   return { calls, spawned, minted, retired, launcher: createContainerLauncher({ env: { PATH: "/usr/bin" }, image: "den-agent:0123456789ab", docker, spawn, proxy, limits: LIMITS, startWaitMs: 50, sessionsDir }) };
 }
 
@@ -227,4 +227,13 @@ test("a synchronous throw from the proxy env or the spawn retires the secret and
   } finally {
     await rm(root, { recursive: true, force: true });
   }
+});
+
+test("multi-project/02: a target run mints the empty-allowlist identity and mounts its toolchain read-only at its host path", async () => {
+  const { launcher, spawned, minted } = setup();
+  await launcher.launch({ ...run, container: { ...run.container, target: true, toolchain: ["/h/acme/node_modules"] } });
+  assert.deepEqual(minted, ["target"]);
+  const argv = spawned[0].argv;
+  assert.ok(argv.some((a, i) => a === "/h/acme/node_modules:/h/acme/node_modules:ro" && argv[i - 1] === "-v"));
+  assert.ok(!argv.some((a) => a.includes("ticket")), "no ticket file is mounted");
 });
