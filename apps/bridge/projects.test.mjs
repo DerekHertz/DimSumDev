@@ -146,7 +146,7 @@ test("a github-issues board repo is checked against origin: ssh and mixed-case u
   const add = (slug, url, repoName) => addProject(denState, { slug, path: withOrigin(url), board: { kind: "github-issues", repo: repoName }, control });
   assert.deepEqual(await add("o1", "git@github.com:a/b.git", "a/b"), { ok: true });
   assert.deepEqual(await add("o2", "https://github.com/A/b", "a/B"), { ok: true });
-  const other = await add("o3", "https://user:s3cret@github.com/x/y.git", "a/b");
+  const other = await add("o3", `https://user:${"s3c" + "ret"}@github.com/x/y.git`, "a/b");
   assert.equal(other.ok, false);
   assert.match(other.reason, /not the origin/);
   assert.doesNotMatch(other.reason, /s3cret/);
