@@ -4,6 +4,7 @@
 // browser cap: an unbounded glob started about 85 Chromium processes (7 GB) on 2026-10-23.
 //   node scripts/test-split.mjs browser|rest|all
 import { spawnSync } from "node:child_process";
+import { runForwarded, runNodeTests } from "./test-budget.mjs";
 import { readFileSync, readdirSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -44,22 +45,14 @@ export function split(files = allTestFiles()) {
   return { browser: files.filter((f) => isBrowserFile(f)), rest: files.filter((f) => !isBrowserFile(f)) };
 }
 
-// Each browser file loads the complete garden. Bound file concurrency so
-// model decoding and Chromium contexts do not exhaust the CI runner (ci-cd/08).
-export function nodeTestArgs(mode, env = process.env) {
-  if (mode !== "browser") return [];
-  const n = Number(env.BROWSER_FILE_CONCURRENCY);
-  return [`--test-concurrency=${Number.isInteger(n) && n > 0 ? n : 3}`];
-}
-
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   const mode = process.argv[2];
   const groups = split();
   if (mode === "all") {
     let status = 0;
     for (const m of ["rest", "browser"]) {
-      const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url), m], { cwd: ROOT, stdio: "inherit" });
-      if (r.status !== 0) status = r.status ?? 1;
+      const code = await runForwarded([process.execPath, fileURLToPath(import.meta.url), m], { cwd: ROOT });
+      if (code !== 0) status = code;
     }
     process.exit(status);
   }
@@ -72,6 +65,5 @@ if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.me
     const bom = spawnSync(process.execPath, ["scripts/bom-check.mjs"], { cwd: ROOT, stdio: "inherit" });
     if (bom.status !== 0) process.exit(bom.status ?? 1);
   }
-  const r = spawnSync(process.execPath, ["--test", ...nodeTestArgs(mode), ...groups[mode]], { cwd: ROOT, stdio: "inherit" });
-  process.exit(r.status ?? 1);
+  process.exit(await runNodeTests(groups[mode], { mode, cwd: ROOT }));
 }
