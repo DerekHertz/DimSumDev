@@ -12,7 +12,7 @@ export function segments(command) {
   let word = null;
   let quote = null;
   const end = () => { if (word) out.at(-1).push(word); word = null; };
-  for (const ch of command) {
+  for (const ch of command.replace(/\\\n/g, " ")) {
     if (quote) {
       if (ch === quote) quote = null;
       else word.text += ch;
@@ -33,18 +33,18 @@ export function segments(command) {
 const base = (w) => w.text.split("/").at(-1);
 
 // jg (or its package name) in command position, bare or by path; scripts/jg.mjs does not match.
-const LAUNCHERS = new Set(["npx", "env", "exec", "command", "nohup", "time", "sudo"]);
-const commandWord = (seg) => seg.find((w) => !LAUNCHERS.has(w.text) && !w.text.startsWith("-") && !/^\w+=/.test(w.text));
+const LAUNCHERS = new Set(["npx", "env", "exec", "command", "nohup", "time", "timeout", "sudo", "xargs"]);
+const commandWord = (seg) => seg.find((w) => !LAUNCHERS.has(w.text) && !w.text.startsWith("-") && !/^\w+=/.test(w.text) && !/^\d+[smhd]?$/.test(w.text));
 const rawJg = (segs) => segs.some((s) => { const w = commandWord(s); return w && /^(?:jg|jevgrep)$/.test(base(w)); });
 
 const VALUE_FLAGS = new Set(["--as", "--role", "--cell", "--mode", "--ticket", "--status", "--pr"]);
 const ROLE_FLAGS = new Set(["--as", "--role", "--cell"]);
 
 function isBoardCall(seg) {
-  const words = seg.filter((w) => !w.quoted).map((w) => w.text);
+  const words = seg.map((w) => w.text);
   if (words.some((w) => /(?:^|\/)(?:board|agent-start)\.mjs$/.test(w))) return true;
   const run = words.findIndex((w) => w === "run" || w === "run-script");
-  return words[0] === "npm" && run !== -1 && words.slice(run + 1).find((w) => !w.startsWith("-")) === "board";
+  return commandWord(seg)?.text === "npm" && run !== -1 && words.slice(run + 1).find((w) => !w.startsWith("-")) === "board";
 }
 
 // Roles a board call signs as: --as/--role/--cell values, and claim/reclaim's role positional.
@@ -53,7 +53,6 @@ function signedRoles(seg) {
   const positionals = [];
   for (let i = 0; i < seg.length; i++) {
     const w = seg[i];
-    if (w.quoted) { positionals.push(w.text); continue; }
     const [flag, value] = w.text.split(/=(.*)/s);
     if (VALUE_FLAGS.has(flag)) {
       const v = value ?? seg[++i]?.text;

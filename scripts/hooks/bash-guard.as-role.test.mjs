@@ -71,3 +71,18 @@ test("jg is blocked only in command position", () => {
     assert.match(check(bash(cmd)) ?? "", /raw jg/, cmd);
   }
 });
+
+test("line continuations, quoted words and launchers do not hide a board call (security re-check, PR 438)", () => {
+  for (const cmd of [
+    "node apps/board/board.mjs \\\ncomment f/01-x --as qa x",
+    'node "apps/board/board.mjs" comment f/01-x --as qa x',
+    'npm run "board" -- comment f/01-x --as qa x',
+    '"npm" run board -- comment f/01-x --as qa x',
+    'npm run board -- comment f/01-x "--as" qa x',
+    "env X=1 npm run board -- comment f/01-x --as qa x",
+    "timeout 5 npm run board -- comment f/01-x --as qa x",
+  ]) {
+    assert.match(check(bash(cmd, "security")) ?? "", /own role/, JSON.stringify(cmd));
+  }
+  assert.match(check(bash("timeout 5 jg q")) ?? "", /raw jg/);
+});
