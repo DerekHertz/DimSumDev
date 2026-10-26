@@ -6,34 +6,78 @@ import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isBoardRole } from "../../apps/board/board-service.mjs";
 
+// Shell segments split on unquoted ; & | ( ) and newlines; each word keeps whether it was quoted.
+export function segments(command) {
+  const out = [[]];
+  let word = null;
+  let quote = null;
+  const end = () => { if (word) out.at(-1).push(word); word = null; };
+  for (const ch of command) {
+    if (quote) {
+      if (ch === quote) quote = null;
+      else word.text += ch;
+    } else if (ch === "'" || ch === '"') {
+      word ??= { text: "", quoted: false };
+      word.quoted = true;
+      quote = ch;
+    } else if (/[;&|()\n]/.test(ch)) {
+      end();
+      if (out.at(-1).length) out.push([]);
+    } else if (/\s/.test(ch)) end();
+    else (word ??= { text: "", quoted: false }).text += ch;
+  }
+  end();
+  return out.filter((s) => s.length);
+}
+
+const base = (w) => w.text.split("/").at(-1);
+
 // jg (or its package name) in command position, bare or by path; scripts/jg.mjs does not match.
-const RAW_JG = /(?:^|[\s;&|()`'"])(?:\S*\/)?(?:jg|jevgrep)(?=$|[\s;&|()`])/;
+const LAUNCHERS = new Set(["npx", "env", "exec", "command", "nohup", "time", "sudo"]);
+const commandWord = (seg) => seg.find((w) => !LAUNCHERS.has(w.text) && !w.text.startsWith("-") && !/^\w+=/.test(w.text));
+const rawJg = (segs) => segs.some((s) => { const w = commandWord(s); return w && /^(?:jg|jevgrep)$/.test(base(w)); });
 
-const BOARD_CALL = /(?:board\.mjs|npm run board)(?=\s)/;
+const VALUE_FLAGS = new Set(["--as", "--role", "--cell", "--mode", "--ticket", "--status", "--pr"]);
+const ROLE_FLAGS = new Set(["--as", "--role", "--cell"]);
 
-// Roles a board call signs as: each --as value, and a claim's role argument.
-function signedRoles(command) {
-  const words = command.slice(command.search(BOARD_CALL)).split(/\s+/).map((w) => w.replace(/^["']|["']$/g, ""));
+function isBoardCall(seg) {
+  const words = seg.filter((w) => !w.quoted).map((w) => w.text);
+  if (words.some((w) => /(?:^|\/)(?:board|agent-start)\.mjs$/.test(w))) return true;
+  const run = words.findIndex((w) => w === "run" || w === "run-script");
+  return words[0] === "npm" && run !== -1 && words.slice(run + 1).find((w) => !w.startsWith("-")) === "board";
+}
+
+// Roles a board call signs as: --as/--role/--cell values, and claim/reclaim's role positional.
+function signedRoles(seg) {
   const roles = [];
-  words.forEach((w, i) => {
-    if (w === "--as") roles.push(words[i + 1]);
-    else if (w.startsWith("--as=")) roles.push(w.slice(5));
-  });
-  const claim = words.indexOf("claim");
-  if (claim !== -1 && words[claim + 2] && !words[claim + 2].startsWith("-")) roles.push(words[claim + 2]);
+  const positionals = [];
+  for (let i = 0; i < seg.length; i++) {
+    const w = seg[i];
+    if (w.quoted) { positionals.push(w.text); continue; }
+    const [flag, value] = w.text.split(/=(.*)/s);
+    if (VALUE_FLAGS.has(flag)) {
+      const v = value ?? seg[++i]?.text;
+      if (ROLE_FLAGS.has(flag)) roles.push(v);
+    } else if (!w.text.startsWith("-")) positionals.push(w.text);
+  }
+  const verb = positionals.findIndex((p) => p === "claim" || p === "reclaim");
+  if (verb !== -1 && positionals[verb + 2] !== undefined) roles.push(positionals[verb + 2]);
   return roles;
 }
+
+const signsAsOther = (segs, role) =>
+  segs.some((seg) => isBoardCall(seg) && signedRoles(seg).some((r) => r !== role));
 
 const RULES = [
   {
     // A worker signs board writes as its own role; the board trusts --as, so identity is checked here.
     // String check like the jg rule: indirection can bypass it.
     test: (command, input) =>
-      isBoardRole(input.agent_type) && BOARD_CALL.test(command) && signedRoles(command).some((r) => r !== input.agent_type),
+      isBoardRole(input.agent_type) && signsAsOther(segments(command), input.agent_type),
     reason: "bash-guard: a board call signs as your own role only (--as and claim must name your agent_type). Relay another role's verdict through the chief of staff as a plain comment.",
   },
   {
-    test: (command) => RAW_JG.test(command),
+    test: (command) => rawJg(segments(command)),
     reason: "bash-guard: raw jg calls are blocked. Use the wrapper: node scripts/jg.mjs \"<question>\" [root] (organism-infra/80).",
   },
 ];

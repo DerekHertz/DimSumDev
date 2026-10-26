@@ -33,3 +33,41 @@ test("the guard is wired as a PreToolUse Bash hook", () => {
   const bashHooks = (settings.hooks?.PreToolUse ?? []).filter((h) => h.matcher === "Bash").flatMap((h) => h.hooks);
   assert.ok(bashHooks.some((h) => /scripts\/hooks\/bash-guard\.mjs/.test(h.command)), JSON.stringify(settings.hooks?.PreToolUse));
 });
+
+test("claim and identity flags in every spelling are checked (security review, PR 438)", () => {
+  for (const cmd of [
+    "npm run board -- claim f/01-x --role qa",
+    "npm run board -- claim f/01-x --cell qa",
+    "npm run board -- claim f/01-x --role=qa",
+    "npm run board -- claim f/01-x --mode verify qa",
+    "npm run board -- reclaim f/01-x qa",
+    "node scripts/agent-start.mjs --ticket f/01-x --role qa",
+    "npm  run board -- comment f/01-x --as qa x",
+    "npm run -s board -- comment f/01-x --as qa x",
+    "npm run-script board -- comment f/01-x --as qa x",
+    "npm --silent run board -- comment f/01-x --as qa x",
+  ]) {
+    assert.match(check(bash(cmd, "security")) ?? "", /own role/, cmd);
+  }
+});
+
+test("quoted text and later commands are not read as roles", () => {
+  for (const cmd of [
+    'npm run board -- comment f/01-x --as security "claim this ticket now"',
+    'npm run board -- comment f/01-x --as security "pass --as qa to sign"',
+    'npm run board -- release f/01-x --status in-review && git commit -m "fix --as qa bug"',
+    'git add apps/board/board.mjs && git commit -m "x --as qa"',
+    "npm run board -- claim f/01-x security; echo done",
+  ]) {
+    assert.equal(check(bash(cmd, "security")), null, cmd);
+  }
+});
+
+test("jg is blocked only in command position", () => {
+  for (const cmd of ['git commit -m "fix jg wrapper"', "rg jg scripts", "grep -rn jg docs", "ls .agents/skills/jevgrep", "node scripts/jg.mjs \"where\""]) {
+    assert.equal(check(bash(cmd)), null, cmd);
+  }
+  for (const cmd of ["jg where", "cd x && jg where", "echo a | ~/.local/bin/jevgrep q", "(jg q)"]) {
+    assert.match(check(bash(cmd)) ?? "", /raw jg/, cmd);
+  }
+});
