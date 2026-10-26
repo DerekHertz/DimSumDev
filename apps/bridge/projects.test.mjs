@@ -139,3 +139,40 @@ test("add stores the real path of a symlink and refuses links to the control che
     assert.match(r.reason, re, name);
   }
 });
+
+test("a github-issues board repo is checked against origin: ssh and mixed-case urls pass, another repo is refused, a token is not printed", async () => {
+  const { denState, control } = setup();
+  const withOrigin = (url) => { const d = repo(); sh(d, "remote", "set-url", "origin", url); return d; };
+  const add = (slug, url, repoName) => addProject(denState, { slug, path: withOrigin(url), board: { kind: "github-issues", repo: repoName }, control });
+  assert.deepEqual(await add("o1", "git@github.com:a/b.git", "a/b"), { ok: true });
+  assert.deepEqual(await add("o2", "https://github.com/A/b", "a/B"), { ok: true });
+  const other = await add("o3", "https://user:s3cret@github.com/x/y.git", "a/b");
+  assert.equal(other.ok, false);
+  assert.match(other.reason, /not the origin/);
+  assert.doesNotMatch(other.reason, /s3cret/);
+  const none = repo();
+  sh(none, "remote", "remove", "origin");
+  const r = await addProject(denState, { slug: "o4", path: none, board: { kind: "github-issues", repo: "a/b" }, control });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /origin/);
+});
+
+test("the credential guard compares real paths: a home credential dir that is a symlink is refused", async () => {
+  const { denState, control } = setup();
+  const q = repo();
+  const home = tmp();
+  const outside = tmp();
+  mkdirSync(path.join(home, ".ssh"));
+  symlinkSync(outside, path.join(home, ".aws"));
+  const prev = process.env.HOME;
+  process.env.HOME = home;
+  try {
+    for (const [name, entry] of [["ssh", path.join(home, ".ssh")], ["aws", outside], ["awslink", path.join(home, ".aws")]]) {
+      const r = await addProject(denState, { slug: `c${name}`, path: q, board: { kind: "markdown" }, toolchain: [entry], control });
+      assert.equal(r.ok, false, name);
+      assert.match(r.reason, /credential store/, name);
+    }
+  } finally {
+    if (prev === undefined) delete process.env.HOME; else process.env.HOME = prev;
+  }
+});

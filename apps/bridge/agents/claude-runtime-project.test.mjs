@@ -2,7 +2,7 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtemp, writeFile, rm } from "node:fs/promises";
+import { mkdtemp, symlink, writeFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { until } from "./host-test-helpers.mjs";
@@ -44,4 +44,17 @@ test("a target project: den: flags, empty setting sources, and the guide ahead o
   const text = (await stub.stdinLines())[0].message.content;
   assert.match(text, /TARGET GUIDE/);
   assert.ok(text.endsWith("do the thing"));
+});
+
+test("a target run refuses a toolchain path inside the control checkout when control is reached through a symlink", async () => {
+  const real = await mkdtemp(path.join(tmpdir(), "den-ctl-real-"));
+  const holder = await mkdtemp(path.join(tmpdir(), "den-ctl-link-"));
+  const root = await mkdtemp(path.join(tmpdir(), "den-proj-root-"));
+  const cwd = await mkdtemp(path.join(tmpdir(), "den-proj-cwd-"));
+  cleanups.push(async () => { for (const d of [real, holder, root, cwd]) await rm(d, { recursive: true, force: true }); });
+  const link = path.join(holder, "control");
+  await symlink(real, link);
+  const runtime = createClaudeRuntime({ launcher: unconfinedLauncher(), controlRoot: link, env: { PATH: process.env.PATH, HOME: cwd } });
+  const project = { control: false, root, pluginDir: "/den/.claude", toolchain: [path.join(real, "node_modules")] };
+  await assert.rejects(runtime.spawn({ role: "developer", cwd, prompt: "x", sessionId: SESSION, project }), (e) => e instanceof TypeError && /control checkout/.test(e.message));
 });

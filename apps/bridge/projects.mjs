@@ -8,7 +8,7 @@ import { lstat, mkdir, readFile, realpath, rename, stat, writeFile, appendFile }
 import path from "node:path";
 import { promisify } from "node:util";
 import { homedir } from "node:os";
-import { CREDENTIAL_PATHS, isWorktreePath, toolchainRefusal } from "./agents/claude-adapter.mjs";
+import { grantTouchesCredential, isWorktreePath, toolchainRefusal } from "./agents/claude-adapter.mjs";
 import { DESK_REF, WORKTREES_DIR } from "./agents/policy.mjs";
 import { createWorkspaces } from "./agents/workspace.mjs";
 
@@ -76,6 +76,9 @@ const CHECK_RE = /^[\w. /-]{1,64}$/;
 const MAX_TOOLCHAIN = 8;
 const repoOfOrigin = (url) => /github\.com[:/]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(url)?.slice(1, 3).join("/") ?? null;
 
+/** An origin URL as it may be printed: any user:token@ part is dropped. */
+const withoutCredentials = (url) => url.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]*@/i, "$1");
+
 /** Each toolchain entry must exist; the real path is stored, and checked by the run-time rules and the credential guard. */
 async function resolveToolchain(toolchain, control) {
   const out = [];
@@ -89,9 +92,7 @@ async function resolveToolchain(toolchain, control) {
     if (!isWorktreePath(real)) return { reason: `the toolchain path ${entry} must resolve to a plain absolute path` };
     const refusal = toolchainRefusal(real, control);
     if (refusal) return { reason: refusal };
-    const home = homedir();
-    const cred = CREDENTIAL_PATHS.map((c) => path.join(home, c.slice(2))).find((c) => real === c || real.startsWith(`${c}/`) || c.startsWith(`${real}/`));
-    if (cred) return { reason: `the toolchain path ${entry} resolves to or holds a credential store (${cred})` };
+    if (grantTouchesCredential(real, homedir())) return { reason: `the toolchain path ${entry} resolves to or holds a credential store` };
     out.push(real);
   }
   return { toolchain: out };
@@ -108,8 +109,13 @@ export async function addProject(denState, { slug, path: dir, board, toolchain =
   const checked = await checkProject(dir, { exec });
   if (!checked.ok) return checked;
   if (board.kind === "github-issues") {
-    const origin = await exec("git", ["-C", checked.root, "remote", "get-url", "origin"]).then((r) => String(r.stdout).trim());
-    if (repoOfOrigin(origin)?.toLowerCase() !== board.repo.toLowerCase()) return { ok: false, reason: `board.repo ${board.repo} is not the origin of the path (${origin})` };
+    let origin;
+    try {
+      origin = String((await exec("git", ["-C", checked.root, "remote", "get-url", "origin"])).stdout).trim();
+    } catch {
+      return { ok: false, reason: `board.repo ${board.repo} needs the path to have an origin remote` };
+    }
+    if (repoOfOrigin(origin)?.toLowerCase() !== board.repo.toLowerCase()) return { ok: false, reason: `board.repo ${board.repo} is not the origin of the path (${withoutCredentials(origin)})` };
   }
   const resolved = await resolveToolchain(toolchain, await realpath(control).catch(() => control));
   if (resolved.reason) return { ok: false, reason: resolved.reason };

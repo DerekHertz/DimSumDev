@@ -26,7 +26,7 @@ async function boot() {
   cleanups.push(() => t.close());
   const dir = realpathSync(mkdtempSync(path.join(tmpdir(), "acme-")));
   sh(dir, "init", "-q", "-b", "main");
-  sh(dir, "remote", "add", "origin", dir);
+  sh(dir, "remote", "add", "origin", "https://github.com/o/r.git");
   sh(dir, "commit", "-q", "--allow-empty", "-m", "init");
   assert.deepEqual(await addProject(denState, { slug: "acme", path: dir, board: { kind: "github-issues", repo: "o/r" } }), { ok: true });
   return { t, gh, get: (p) => fetch(`${t.bridge.url}${p}`, { headers: t.headers }).then(async (r) => ({ status: r.status, body: await r.json() })) };

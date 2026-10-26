@@ -9,7 +9,7 @@
 //   encodeUserMessage a user message as one stdin line: the prompt, or (den-v1 loop S5) a message to a running child,
 //                     whose id comes back on the child's replay of it and reads as message-applied
 import { execFileSync } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { readFileSync, realpathSync } from "node:fs";
 import { StringDecoder } from "node:string_decoder";
 import { cleanText, safeToolInput } from "../../shared/safe-text.mjs";
 import { COST_MAX_USD, MODEL_RE, REQUEST_ID_MAX, REQUEST_IDS_PER_AGENT, ROLES, UUID_RE, WORKTREES_DIR, definitionOf } from "./policy.mjs";
@@ -216,15 +216,26 @@ const expandHome = (grant, home) => (grant.startsWith("~/") && home !== undefine
  * (so the main checkout, its .claude and any parent are included). Such a grant would open the main checkout and the
  * sibling worktrees, where the governance denies do not reach. A "~/" grant is checked when home is given.
  */
-/** True when a path grant is on, under or above a credential store of governance.json (any case). */
+/** The real path of a credential store under home, or null when it does not exist (a symlinked store, such as ~/.aws on WSL, resolves elsewhere). */
+const realStore = (home, c) => {
+  try {
+    return realpathSync(`${home}${c.slice(1)}`);
+  } catch {
+    return null;
+  }
+};
+
+/** True when a path grant is on, under or above a credential store of governance.json (any case), or its real path when the store is a symlink. */
 export function grantTouchesCredential(grant, home) {
   const g = grant.toLowerCase();
   // A "~/" grant is compared in that form; an absolute one against the stores under home, when home is known.
   const base = g.startsWith("~/") ? "~" : home?.toLowerCase();
   if (base === undefined) return false;
   return CREDENTIAL_PATHS.some((c) => {
-    const store = `${base}${c.slice(1).toLowerCase()}`;
-    return covers(store, g) || covers(g, store);
+    const stores = [`${base}${c.slice(1).toLowerCase()}`];
+    const real = base === "~" ? null : realStore(home, c);
+    if (real !== null) stores.push(real.toLowerCase());
+    return stores.some((store) => covers(store, g) || covers(g, store));
   });
 }
 
