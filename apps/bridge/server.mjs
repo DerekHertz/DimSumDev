@@ -261,6 +261,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     host: { start: host.start, stop: host.stop, retire: host.retire },
     board: createDeliveryBoard(root),
     activeProject: () => projects.active(),
+    profile,
     git,
     build: denBuild,
     checks,

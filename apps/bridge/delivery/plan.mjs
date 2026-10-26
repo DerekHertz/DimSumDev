@@ -84,11 +84,17 @@ export function nextStep(job) {
   if (has("code-reviewer") && !review) return { kind: "run", role: "code-reviewer", at: c.sha, since: job.base };
   // den-mvp/70: the test guard hits go to the verifier, so it runs first. A hit blocks nothing by itself.
   if (has("qa") && job.testGuard === true && !guard) return { kind: "guard" };
-  if (has("qa") && !qa) return { kind: "run", role: "qa", mode: "verify", at: c.sha, since: job.base };
+  // trust-ladder/03: the Profile's verifier count is how many independent qa verify passes a candidate needs. A code review
+  // that already bounced the commit skips the extra passes: the fix round comes first.
+  const morePasses = qa?.verdict === "pass" && review?.verdict !== "bounce" && (qa.passes ?? 1) < (job.verify?.count ?? 1);
+  if (has("qa") && (!qa || morePasses)) return { kind: "run", role: "qa", mode: "verify", at: c.sha, since: job.base };
   // A preview that did not build is a failed check, like a reviewer's bounce.
   const bounced = [review, qa, security].find((e) => e?.verdict === "bounce") ?? (preview?.ok === false ? preview : undefined) ?? (tests?.state === "red" ? tests : undefined);
   if (bounced) {
-    if (job.bounces >= MAX_BOUNCES) return pause("failed-twice", "the review sent the work back twice", "Read the findings on the ticket, then Resume for one more round or close the delivery.");
+    // trust-ladder/03: a job that drives the running app loops (verify, fix, verify) to the Profile's cap and says what still fails.
+    const cap = job.verify?.cap;
+    if (cap !== undefined && job.bounces >= cap) return pause("failed-twice", `the verify and fix loop stopped at its cap of ${cap} rounds; still failing: ${job.verify.failing || "see the findings on the ticket"}`, "Read the findings on the ticket, then Resume for one more round or close the delivery.");
+    if (cap === undefined && job.bounces >= MAX_BOUNCES) return pause("failed-twice", "the review sent the work back twice", "Read the findings on the ticket, then Resume for one more round or close the delivery.");
     return { kind: "run", role: author, at: c.sha, since: job.base, fix: true };
   }
   if (job.localChecks === true) {

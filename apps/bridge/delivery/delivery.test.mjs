@@ -15,6 +15,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { makeBridge, until, FEATURE } from "../agents/host-test-helpers.mjs";
 import { claim } from "../../board/board-service.mjs";
+import { createProfile } from "../agents/profile.mjs";
 
 const REF = `${FEATURE}/08-plain`;
 const git = (dir, ...args) =>
@@ -96,7 +97,10 @@ afterEach(async () => {
 
 async function setup(options = {}) {
   let host;
-  const t = await makeBridge({ ...options, gitHost: (root) => (host = fakeGitHost(root)) });
+  // trust-ladder/03: these rows are about the delivery path, so qa verifies once (the lean Profile); the verifier count has its own tests.
+  const profile = createProfile();
+  await profile.set("lean");
+  const t = await makeBridge({ extra: { profile }, ...options, gitHost: (root) => (host = fakeGitHost(root)) });
   cleanups.push(() => t.close());
   const root = t.fx.root;
   const job = async () => (await t.state()).deliveries?.at(-1);
