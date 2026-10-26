@@ -6,7 +6,13 @@ What a run in a target project (not the den) needs before the den starts one. De
 
 A run's shell can read only its worktree and what the registry lists as the project's `toolchain`: plain absolute host paths (a short list: the read limit reopens eight paths in all, and the run itself uses about four). The usual entry is the clone's `node_modules`, built on the host by the user.
 
-- Run `npm install` (or the project's own install) in the clone, then onboard or re-register the project with `toolchain` listing `<clone>/node_modules`.
+- Run `npm install` (or the project's own install) in the clone. `npm run den:project -- add` has no `--toolchain` flag yet, so register the project, then edit its row in the registry file `~/.local/state/den/projects.json` (`$DEN_STATE_DIR/projects.json` when that is set) and add the `toolchain` key:
+
+  ```json
+  "my-project": { "path": "/abs/path/to/clone", "board": { "kind": "file" }, "toolchain": ["/abs/path/to/clone/node_modules"] }
+  ```
+
+  Without it the list is empty and `npm test` in a run fails. `den:project add --toolchain <path>` (repeatable, at most 8, each path must exist) arrives with multi-project/03; this step then changes to use it.
 - Host mode reopens each path for reads; container mode mounts it read-only at the same host path. A run cannot write it.
 - A listed path that does not exist refuses the run, naming the path and this step. Nothing creates it.
 - A native module built on the host loads in the container image only if it fits the image's Debian bookworm libc. If one does not, the fix is a per-project image, not a change here.
