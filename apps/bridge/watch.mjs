@@ -7,6 +7,7 @@ import { buildSnapshot } from "./snapshot.mjs";
 
 const DEBOUNCE_MS = 100;
 const NET_MS = 2000;
+const BOARD_POLL_MS = 60_000; // multi-project/01: how stale the active GitHub board may be before the hub reads it again
 const PING_MS = 15000;
 const DRAIN_MS = 5000;
 
@@ -46,7 +47,7 @@ function diff(prev, next) {
 // switch reaches clients through publish() as { type: "build", build }.
 // capacity: (lockedRefs) => the snapshot's `capacity` key (organism-infra/227, ADR 0011 decision 3). The host owns the live
 // agents and the limits; the hub passes the refs of the tickets that hold a claim lock in the snapshot it is serving.
-export function createHub(root, { agents = () => [], approvals = () => [], transcripts = () => ({}), capacity = () => null, deliveries = () => [], meetings = () => [], ci = () => null, checks = async () => null, build = async () => null, release = () => null, readyRelease = () => null, update = () => null, accounts = async () => null, readUsage = () => null, wall = () => null, profile = () => null, boardRoot = async () => root } = {}) {
+export function createHub(root, { agents = () => [], approvals = () => [], transcripts = () => ({}), capacity = () => null, deliveries = () => [], meetings = () => [], ci = () => null, checks = async () => null, build = async () => null, release = () => null, readyRelease = () => null, update = () => null, accounts = async () => null, readUsage = () => null, wall = () => null, profile = () => null, boardRoot = async () => root, board = async () => null } = {}) {
   const scratch = path.join(root, ".scratch");
   const clients = new Set();
   let seq = 0;
@@ -72,7 +73,9 @@ export function createHub(root, { agents = () => [], approvals = () => [], trans
   async function doRefresh() {
     if (closed) return;
     const sig = metricsSigNow();
-    const next = await buildSnapshot(root, seq, { readUsage, boardRoot: await boardRoot() });
+    // multi-project/01: only the active project's board is polled; a GitHub board is read at most once a minute here (a bridge write drops its cache, so the next tick re-reads).
+    const active = await board();
+    const next = await buildSnapshot(root, seq, { readUsage, boardRoot: await boardRoot(), board: active && { ...active, list: () => active.list({ maxAgeMs: BOARD_POLL_MS }) } });
     if (!current) {
       current = next;
       metricsSig = sig;

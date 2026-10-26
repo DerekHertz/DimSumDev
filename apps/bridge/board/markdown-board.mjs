@@ -66,6 +66,7 @@ export function createMarkdownBoard(root) {
   return {
     ...delivery,
     kind: "markdown",
+    root,
     list,
     async read(ref) {
       const t = (await list()).find((x) => x.ref === ref);

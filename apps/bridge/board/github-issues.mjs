@@ -93,8 +93,8 @@ export function createGithubIssuesBoard({ repo, project, exec = execFileP, root 
   const read = async (ref) => toTicket(await fetchRaw(ref));
   // The list is cached for a short time so a hub poll and the per-dispatch reads cost the host little; every write made here drops it.
   let cached = null;
-  const listAll = async () => {
-    if (cached && now() - cached.at < listTtlMs) return cached.rows;
+  const listAll = async ({ maxAgeMs = listTtlMs } = {}) => {
+    if (cached && now() - cached.at < maxAgeMs) return cached.rows;
     const rows = JSON.parse(await gh("issue", "list", "--repo", repo, "--state", "all", "--limit", "200", "--json", FIELDS));
     const raws = Array.isArray(rows) ? rows : [];
     const trusted = raws.some(holdsClaim) ? await bridgeLogin() : "";
@@ -133,6 +133,7 @@ export function createGithubIssuesBoard({ repo, project, exec = execFileP, root 
 
   return {
     kind: "github-issues",
+    root,
     list: listAll,
     read,
     /** A new ticket, waiting on the user unless `ready` is given. -> the ticket */
