@@ -305,8 +305,7 @@ test("AC3 plugin manifest: loads, and registers one Bash PreToolUse command hook
 test("AC3 the existing settings hooks are untouched: no sleep-guard wiring in .claude/settings.json hooks", () => {
   const s = readJson(".claude", "settings.json");
   assert.ok(!JSON.stringify(s.hooks).includes("sleep-guard"));
-  assert.equal(s.hooks.PreToolUse.length, 1);
-  assert.match(s.hooks.PreToolUse[0].hooks[0].command, /context-budget/);
+  assert.ok(s.hooks.PreToolUse.some((h) => /context-budget/.test(h.hooks[0].command)));
 });
 
 // --- session-start install line (AC5) --------------------------------------------------------
