@@ -20,9 +20,10 @@ if (cmd === "add") {
 } else if (cmd === "remove") {
   result = await removeProject(denState, rest[0]);
 } else if (cmd === "verify") {
-  const row = (await readRegistry(denState))[rest[0]];
-  const { checks } = projectPolicy(row);
-  if (!row?.board?.repo) result = { ok: false, reason: "verify needs an onboarded project with a github-issues board (board.repo)" };
+  const row = await readRegistry(denState).then((r) => (Object.hasOwn(r, rest[0]) ? r[rest[0]] : undefined), (err) => err);
+  const { checks } = projectPolicy(row instanceof Error ? undefined : row);
+  if (row instanceof Error) result = { ok: false, reason: row.message };
+  else if (!row?.board?.repo) result = { ok: false, reason: "verify needs an onboarded project with a github-issues board (board.repo)" };
   else if (checks.length === 0) result = { ok: false, reason: "the project has no checks; onboard it with --checks" };
   else {
     try {

@@ -629,7 +629,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   };
   // agent-os/02: task grants are data in a fixed shape, checked before a ticket is written (and again before a follow-up
   // run is given the grants its session started with). The error never echoes a value. Returns a refusal or null.
-  async function grantsRefused(role, grants) {
+  async function grantsRefused(role, grants, project) {
     let checked;
     try {
       checked = parseGrants(grants);
@@ -638,13 +638,15 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     }
     if (checked.hosts.length + checked.paths.length > 0 && !ceilingOf(role)?.takesGrants) return refuse(400, `a ${role} task takes no grants`);
     // A path grant that contains the worktrees would open the main checkout and its sibling worktrees: refused here, not at spawn.
+    // multi-project/04: the project's own root counts beside the den's, so a target's governed paths are refused too.
+    const projectRoot = project === undefined || project === "den" ? null : (await projects.get(project).catch(() => null))?.root ?? null;
+    const roots = [...new Set([root, await realRoot(), ...(projectRoot === null ? [] : [projectRoot, await realpath(projectRoot).catch(() => projectRoot)])])];
     if (checked.paths.length > 0) {
-      const roots = [...new Set([root, await realRoot()])];
       if (checked.paths.some((g) => roots.some((r) => grantContainsWorktrees(g, { root: r, home: homeDir() })))) return refuse(400, "a path grant may not contain the agent's worktree");
     }
     // agent-os/07: a grant that could never be safe (a governed path, a home or system path, a GitHub host) is refused with a
     // reason, whatever its casing or symlinks. The governance denies in the adapter stay as the second layer.
-    const refusal = await grantRefusal(checked, { roots: [...new Set([root, await realRoot()])], home: homeDir() });
+    const refusal = await grantRefusal(checked, { roots, home: homeDir() });
     return refusal !== null ? refuse(400, refusal) : null;
   }
   async function directOne(input) {
@@ -652,7 +654,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (typeof role !== "string" || !ROLES.includes(role)) return refuse(400, `role must be one of: ${ROLES.join(", ")}`);
     const selected = await select(input);
     if (selected.ok === false) return selected;
-    const badGrants = await grantsRefused(role, grants);
+    const badGrants = await grantsRefused(role, grants, selected.project);
     if (badGrants) return badGrants;
     try {
       executionSettings(selected.runtime, role, input.execution);
@@ -1424,7 +1426,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       if (alive) return refuse(409, "an earlier run of this session may still be running since the bridge restarted; it must end before a follow-up");
     }
     const grants = Array.isArray(prev.grants) ? prev.grants : [];
-    const badGrants = await grantsRefused(prev.role, grants.length === 0 ? undefined : grants);
+    const badGrants = await grantsRefused(prev.role, grants.length === 0 ? undefined : grants, selected.project);
     if (badGrants) return refuse(409, `the earlier run's grants are no longer allowed (${badGrants.error}); start a new task instead`);
     const usage = await readUsage(selected.runtime);
     const over = overUsage(usage);
@@ -1521,7 +1523,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     shutdown,
     killAllSync,
     // den-mvp/49: what the project switch looks at: each run's project and whether it is the den's own (desk, meeting, orchestrator).
-    projectRuns: () => [...agents.values()].map((a) => ({ id: a.id, role: a.role, ref: a.ref, state: a.state, project: a.project ?? "den", control: isControl(a) })),
+    // A run joins `agents` only after its spawn awaits; liveByRef holds it from its reservation, so a switch sees a run that is starting.
+    projectRuns: () => [...new Set([...agents.values(), ...liveByRef.values()])].map((a) => ({ id: a.id, role: a.role, ref: a.ref, state: a.state, project: a.project ?? "den", control: isControl(a) })),
     snapshot: () => [...agents.values()].map(view),
     busy: () => liveByRef.size > 0, // den-mvp/86: any run reserved or running
     drain: (text) => void (draining = text || null), // den-mvp/86: the update's refusal text for a new run, or null to admit again

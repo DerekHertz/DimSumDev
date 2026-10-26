@@ -10,7 +10,7 @@ import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import {
-  MAX_LINE_BYTES, buildClaudeArgs, readProjectGuide, mcpConfigWithTokens, buildClaudeEnv, compileCeiling, createLineSplitter, decodeControlRequest, encodeControlResponse, encodeUserMessage, isTicketFilePath, isWorktreePath,
+  MAX_LINE_BYTES, buildClaudeArgs, frameProjectGuide, readProjectGuide, mcpConfigWithTokens, buildClaudeEnv, compileCeiling, createLineSplitter, decodeControlRequest, encodeControlResponse, encodeUserMessage, isTicketFilePath, isWorktreePath,
   parseClaudeLine, CREDENTIAL_PATHS, webRefusal,
 } from "./claude-adapter.mjs";
 import { snapshotPlaceholders, sweepPlaceholders } from "./placeholders.mjs";
@@ -164,8 +164,10 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       };
       const args = buildClaudeArgs({ sessionId, ...(delegationRole ? { managedDelegation: true, delegationRole } : {}), ...(effort === undefined ? {} : { effort }), ...(resume === true ? { resume: true } : {}), agent: role, ...(model === undefined ? {} : { model }), ...(isTicketFilePath(ticketFile) ? { ticketFile } : {}), ...(ceiling ?? {}), ...(Array.isArray(usable) && usable.length > 0 ? { connections: usable } : {}), ...(mcpConfigFile === undefined ? {} : { mcpConfigFile }), ...(project === undefined ? {} : { project }) });
       // den-mvp/48: for every project the bridge passes in its CLAUDE.md or AGENTS.md as committed at HEAD of the main checkout.
-      const guide = project === undefined ? null : readProjectGuide(project.root);
-      const guideText = guide === null ? "" : `Project guide (${guide.file}, committed at HEAD):\n\n${guide.text}`;
+      // multi-project/04: a target's guide goes in once per session, framed as untrusted; the den's own run keeps its plain header and repeats it.
+      const target = project?.control === false;
+      const guide = project === undefined || (target && resume === true) ? null : readProjectGuide(project.root);
+      const guideText = guide === null ? "" : target ? frameProjectGuide(guide) : `Project guide (${guide.file}, committed at HEAD):\n\n${guide.text ?? ""}`;
       const bin = typeof env.DEN_CLAUDE_BIN === "string" && env.DEN_CLAUDE_BIN !== "" ? env.DEN_CLAUDE_BIN : "claude";
       const placeholders = await snapshotPlaceholders({ mainGit, worktree: isWorktreePath(cwd) ? cwd : undefined });
       // The child is inside its resource group, limits read back, before this resolves; a host that cannot do that starts nothing.
