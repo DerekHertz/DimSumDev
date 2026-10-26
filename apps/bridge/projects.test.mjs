@@ -2,8 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { addProject, createProjects, removeProject } from "./projects.mjs";
 
@@ -112,4 +112,30 @@ test("an unregistered active project falls back to den; remove drops a project",
   assert.equal(await projects.active(), "den");
   assert.equal(await projects.get("acme"), null);
   rmSync(denState, { recursive: true });
+});
+
+test("add stores checks and real toolchain paths; refuses a repo that is not origin, a missing path, a ninth entry", async () => {
+  const { denState, control } = setup();
+  const p = repo();
+  const tc = tmp();
+  assert.deepEqual(await addProject(denState, { slug: "t1", path: p, board: { kind: "markdown" }, checks: ["build", "test"], toolchain: [tc], control }), { ok: true });
+  const row = JSON.parse(readFileSync(path.join(denState, "projects.json"), "utf8")).t1;
+  assert.deepEqual(row.checks, ["build", "test"]);
+  assert.deepEqual(row.toolchain, [realpathSync(tc)]);
+  const q = repo();
+  assert.match((await addProject(denState, { slug: "t2", path: q, board: { kind: "github-issues", repo: "a/b" }, control })).reason, /not the origin/);
+  assert.match((await addProject(denState, { slug: "t3", path: q, board: { kind: "markdown" }, toolchain: ["/nonexistent-zz"], control })).reason, /does not exist/);
+  assert.match((await addProject(denState, { slug: "t4", path: q, board: { kind: "markdown" }, toolchain: Array(9).fill(tc), control })).reason, /at most 8/);
+});
+
+test("add stores the real path of a symlink and refuses links to the control checkout, /etc and ~/.ssh", async () => {
+  const { denState, control } = setup();
+  const q = repo();
+  const dir = tmp();
+  const link = (name, target) => { const l = path.join(dir, name); symlinkSync(target, l); return l; };
+  for (const [name, target, re] of [["c", control, /control checkout/], ["e", "/etc", /\/etc/], ["s", path.join(homedir(), ".ssh"), /credential|does not exist/]]) {
+    const r = await addProject(denState, { slug: `l${name}`, path: q, board: { kind: "markdown" }, toolchain: [link(name, target)], control });
+    assert.equal(r.ok, false, name);
+    assert.match(r.reason, re, name);
+  }
 });
