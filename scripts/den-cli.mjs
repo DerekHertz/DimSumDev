@@ -109,7 +109,7 @@ Everything in \`den:team-protocol\` applies here; swap the den's commands for th
 | In the den | In another project |
 |---|---|
 | \`npm run board -- <cmd> ...\` | \`den board <cmd> ...\` |
-| \`npm run test:path -- <files>\`, \`node --test <files>\` | \`den test <files>\` (the project's own test command, from \`.den/project.json\`) |
+| \`npm run test:path -- <files>\` | \`den test <files>\` (the project's own test command, from \`.den/project.json\`) |
 | \`npm run risk-check\` | \`den risk-check\` |
 | \`node scripts/usage.mjs --provider claude\` | \`den usage --provider claude\` |
 
