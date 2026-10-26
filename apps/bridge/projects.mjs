@@ -7,7 +7,8 @@ import { execFile } from "node:child_process";
 import { lstat, mkdir, readFile, realpath, rename, stat, writeFile, appendFile } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
-import { isWorktreePath } from "./agents/claude-adapter.mjs";
+import { homedir } from "node:os";
+import { grantTouchesCredential, isWorktreePath, toolchainRefusal } from "./agents/claude-adapter.mjs";
 import { DESK_REF, WORKTREES_DIR } from "./agents/policy.mjs";
 import { createWorkspaces } from "./agents/workspace.mjs";
 
@@ -55,7 +56,7 @@ async function excludeWorktrees(root) {
   await appendFile(file, `${text === "" || text.endsWith("\n") ? "" : "\n"}${line}\n`);
 }
 
-async function readRegistry(denState) {
+export async function readRegistry(denState) {
   try {
     const data = JSON.parse(await readFile(path.join(denState, REGISTRY), "utf8"));
     return data && typeof data === "object" && !Array.isArray(data) ? data : {};
@@ -71,18 +72,57 @@ async function writeRegistry(denState, data) {
 }
 
 /** Onboards a project. -> { ok: true } or { ok: false, reason }. */
-export async function addProject(denState, { slug, path: dir, board, toolchain = [] } = {}, { exec } = {}) {
+const CHECK_RE = /^[\w. /-]{1,64}$/;
+const MAX_TOOLCHAIN = 8;
+const repoOfOrigin = (url) => /github\.com[:/]([\w.-]+)\/([\w.-]+?)(?:\.git)?\/?$/.exec(url)?.slice(1, 3).join("/") ?? null;
+
+/** An origin URL as it may be printed: any user:token@ part is dropped. */
+const withoutCredentials = (url) => url.replace(/^([a-z][a-z0-9+.-]*:\/\/)[^/@\s]*@/i, "$1");
+
+/** Each toolchain entry must exist; the real path is stored, and checked by the run-time rules and the credential guard. */
+async function resolveToolchain(toolchain, control) {
+  const out = [];
+  for (const entry of toolchain) {
+    let real;
+    try {
+      real = await realpath(entry);
+    } catch {
+      return { reason: `the toolchain path ${entry} does not exist` };
+    }
+    if (!isWorktreePath(real)) return { reason: `the toolchain path ${entry} must resolve to a plain absolute path` };
+    const refusal = toolchainRefusal(real, control);
+    if (refusal) return { reason: refusal };
+    if (grantTouchesCredential(real, homedir())) return { reason: `the toolchain path ${entry} resolves to or holds a credential store` };
+    out.push(real);
+  }
+  return { toolchain: out };
+}
+
+export async function addProject(denState, { slug, path: dir, board, toolchain = [], checks = [], control = process.cwd() } = {}, { exec = execFileP } = {}) {
   if (typeof slug !== "string" || !SLUG_RE.test(slug)) return { ok: false, reason: "the slug must be 1 to 32 characters of a-z, 0-9 and -, starting with a letter or digit" };
   if (slug === DEN) return { ok: false, reason: `the slug "${DEN}" is reserved for the den itself` };
   if (!board || !BOARD_KINDS.includes(board.kind)) return { ok: false, reason: `the board kind must be one of: ${BOARD_KINDS.join(", ")}` };
   if (board.kind === "github-issues" && !(typeof board.repo === "string" && /^[\w.-]+\/[\w.-]+$/.test(board.repo))) return { ok: false, reason: "a github-issues board needs repo as owner/name" };
   if (!Array.isArray(toolchain) || !toolchain.every(isWorktreePath)) return { ok: false, reason: "toolchain must be a list of plain absolute paths" };
+  if (toolchain.length > MAX_TOOLCHAIN) return { ok: false, reason: `the toolchain takes at most ${MAX_TOOLCHAIN} paths` };
+  if (!Array.isArray(checks) || !checks.every((c) => typeof c === "string" && CHECK_RE.test(c))) return { ok: false, reason: "checks must be a list of check names" };
   const checked = await checkProject(dir, { exec });
   if (!checked.ok) return checked;
+  if (board.kind === "github-issues") {
+    let origin;
+    try {
+      origin = String((await exec("git", ["-C", checked.root, "remote", "get-url", "origin"])).stdout).trim();
+    } catch {
+      return { ok: false, reason: `board.repo ${board.repo} needs the path to have an origin remote` };
+    }
+    if (repoOfOrigin(origin)?.toLowerCase() !== board.repo.toLowerCase()) return { ok: false, reason: `board.repo ${board.repo} is not the origin of the path (${withoutCredentials(origin)})` };
+  }
+  const resolved = await resolveToolchain(toolchain, await realpath(control).catch(() => control));
+  if (resolved.reason) return { ok: false, reason: resolved.reason };
   const registry = await readRegistry(denState);
   if (registry[slug]) return { ok: false, reason: `the slug "${slug}" is already onboarded` };
   await excludeWorktrees(checked.root);
-  registry[slug] = { path: checked.root, board: board.kind === "github-issues" ? { kind: board.kind, repo: board.repo } : { kind: board.kind }, toolchain };
+  registry[slug] = { path: checked.root, board: board.kind === "github-issues" ? { kind: board.kind, repo: board.repo } : { kind: board.kind }, toolchain: resolved.toolchain, ...(checks.length > 0 ? { checks } : {}) };
   await writeRegistry(denState, registry);
   return { ok: true };
 }

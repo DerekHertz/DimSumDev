@@ -726,9 +726,13 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const workspaces = project.workspaces; // this run's root, whatever the active project becomes later
     // multi-project/02 (decision 27): the toolchain is a path the launcher mounts; a docker mount of a missing one would create it in the user's clone.
     const target = project.slug !== "den";
+    let toolchainReal = project.toolchain ?? []; // a symlinked entry passes every lexical check, so the checks and the mount use the resolved paths
     if (target) {
       const missing = [];
-      for (const p of project.toolchain ?? []) {
+      toolchainReal = [];
+      for (const entry of project.toolchain ?? []) {
+        const p = await realpath(entry).catch(() => entry);
+        toolchainReal.push(p);
         const why = toolchainRefusal(p, await realpath(root).catch(() => root));
         if (why !== null) { drop(agent); return refuse(409, why); }
         if (!(await access(p).then(() => true, () => false))) missing.push(p);
@@ -815,7 +819,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       ...(canDelegate(agent) ? { delegate: input => delegateFrom(agent, input) } : {}),
       ...(agent.meeting ? { effort: agent.meeting.effort } : {}),
       // den-mvp/49: derived here, from the bridge's own root and the run's project; never from a request. The runtime refuses a spawn without it outside the control checkout.
-      project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent), ...(project.slug !== "den" && project.toolchain?.length ? { toolchain: project.toolchain } : {}) },
+      project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent), ...(project.slug !== "den" && toolchainReal.length ? { toolchain: toolchainReal } : {}) },
       ...(agent.resumeOf ? { resume: true, runId: agent.id, promptId: agent.followUp.messageId } : {}),
       // agent-os/02: data for the adapter, never in the prompt. The main checkout's path rides along so the adapter can deny
       // the governed paths a path grant reaches there.

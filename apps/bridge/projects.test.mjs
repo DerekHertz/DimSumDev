@@ -2,8 +2,8 @@
 import test from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
-import { tmpdir } from "node:os";
+import { mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import path from "node:path";
 import { addProject, createProjects, removeProject } from "./projects.mjs";
 
@@ -112,4 +112,67 @@ test("an unregistered active project falls back to den; remove drops a project",
   assert.equal(await projects.active(), "den");
   assert.equal(await projects.get("acme"), null);
   rmSync(denState, { recursive: true });
+});
+
+test("add stores checks and real toolchain paths; refuses a repo that is not origin, a missing path, a ninth entry", async () => {
+  const { denState, control } = setup();
+  const p = repo();
+  const tc = tmp();
+  assert.deepEqual(await addProject(denState, { slug: "t1", path: p, board: { kind: "markdown" }, checks: ["build", "test"], toolchain: [tc], control }), { ok: true });
+  const row = JSON.parse(readFileSync(path.join(denState, "projects.json"), "utf8")).t1;
+  assert.deepEqual(row.checks, ["build", "test"]);
+  assert.deepEqual(row.toolchain, [realpathSync(tc)]);
+  const q = repo();
+  assert.match((await addProject(denState, { slug: "t2", path: q, board: { kind: "github-issues", repo: "a/b" }, control })).reason, /not the origin/);
+  assert.match((await addProject(denState, { slug: "t3", path: q, board: { kind: "markdown" }, toolchain: ["/nonexistent-zz"], control })).reason, /does not exist/);
+  assert.match((await addProject(denState, { slug: "t4", path: q, board: { kind: "markdown" }, toolchain: Array(9).fill(tc), control })).reason, /at most 8/);
+});
+
+test("add stores the real path of a symlink and refuses links to the control checkout, /etc and ~/.ssh", async () => {
+  const { denState, control } = setup();
+  const q = repo();
+  const dir = tmp();
+  const link = (name, target) => { const l = path.join(dir, name); symlinkSync(target, l); return l; };
+  for (const [name, target, re] of [["c", control, /control checkout/], ["e", "/etc", /\/etc/], ["s", path.join(homedir(), ".ssh"), /credential|does not exist/]]) {
+    const r = await addProject(denState, { slug: `l${name}`, path: q, board: { kind: "markdown" }, toolchain: [link(name, target)], control });
+    assert.equal(r.ok, false, name);
+    assert.match(r.reason, re, name);
+  }
+});
+
+test("a github-issues board repo is checked against origin: ssh and mixed-case urls pass, another repo is refused, a token is not printed", async () => {
+  const { denState, control } = setup();
+  const withOrigin = (url) => { const d = repo(); sh(d, "remote", "set-url", "origin", url); return d; };
+  const add = (slug, url, repoName) => addProject(denState, { slug, path: withOrigin(url), board: { kind: "github-issues", repo: repoName }, control });
+  assert.deepEqual(await add("o1", "git@github.com:a/b.git", "a/b"), { ok: true });
+  assert.deepEqual(await add("o2", "https://github.com/A/b", "a/B"), { ok: true });
+  const other = await add("o3", `https://user:${"s3c" + "ret"}@github.com/x/y.git`, "a/b");
+  assert.equal(other.ok, false);
+  assert.match(other.reason, /not the origin/);
+  assert.doesNotMatch(other.reason, /s3cret/);
+  const none = repo();
+  sh(none, "remote", "remove", "origin");
+  const r = await addProject(denState, { slug: "o4", path: none, board: { kind: "github-issues", repo: "a/b" }, control });
+  assert.equal(r.ok, false);
+  assert.match(r.reason, /origin/);
+});
+
+test("the credential guard compares real paths: a home credential dir that is a symlink is refused", async () => {
+  const { denState, control } = setup();
+  const q = repo();
+  const home = tmp();
+  const outside = tmp();
+  mkdirSync(path.join(home, ".ssh"));
+  symlinkSync(outside, path.join(home, ".aws"));
+  const prev = process.env.HOME;
+  process.env.HOME = home;
+  try {
+    for (const [name, entry] of [["ssh", path.join(home, ".ssh")], ["aws", outside], ["awslink", path.join(home, ".aws")]]) {
+      const r = await addProject(denState, { slug: `c${name}`, path: q, board: { kind: "markdown" }, toolchain: [entry], control });
+      assert.equal(r.ok, false, name);
+      assert.match(r.reason, /credential store/, name);
+    }
+  } finally {
+    if (prev === undefined) delete process.env.HOME; else process.env.HOME = prev;
+  }
 });

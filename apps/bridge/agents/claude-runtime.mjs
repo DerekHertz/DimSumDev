@@ -5,7 +5,7 @@
 // den-mvp outcome 1: the child is started by a launcher (resource-group.mjs) inside a resource group with hardware
 // limits; a kill goes to that group, and a hard limit that is hit ends the run with the limit named.
 import { executionSettings } from "./orchestration.mjs";
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { randomUUID } from "node:crypto";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -72,6 +72,7 @@ const MODULE_CONTROL_ROOT = fileURLToPath(new URL("../../..", import.meta.url));
 
 export function createClaudeRuntime({ env = process.env, launcher = createResourceLauncher({ env }), controlRoot = MODULE_CONTROL_ROOT } = {}) {
   const control = path.resolve(controlRoot);
+  const controlReal = (() => { try { return realpathSync(control); } catch { return control; } })(); // a toolchain symlink to the control checkout is compared against this
   const insideControl = (dir) => {
     const rel = path.relative(control, path.resolve(dir));
     return rel === "" || (!rel.startsWith("..") && !path.isAbsolute(rel));
@@ -114,7 +115,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       const credentials = home === undefined ? [] : CREDENTIAL_PATHS.filter((p) => existsSync(`${home}${p.slice(1)}`));
       // The kernel review (2026-10-18): a remote connection reaches the network outside the wall, so it brings the read limit like a host.
       const remote = Array.isArray(connections) && connections.some((c) => typeof c?.url === "string");
-      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN, ...(project?.control === false ? { target: true, projectToolchain: project.toolchain ?? [], control } : {}) });
+      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN, ...(project?.control === false ? { target: true, projectToolchain: project.toolchain ?? [], control: controlReal } : {}) });
       // Every role has a ceiling (ceilings.json); one without would start with no wall, so it does not start.
       if (ceiling === null) throw new EnforcementError(`the ${role} role has no ceiling, so it cannot be started`);
       // den-mvp/33: a connection that holds a credential gets its token from the den's credentials folder (outside every

@@ -51,3 +51,11 @@ A 404 `Branch not protected` means protection is off. Do not verify with a live 
 ```
 gh api -X DELETE repos/DerekHertz/DimSumDev/branches/main/protection
 ```
+
+## For a target
+
+A target project's `main` needs its own protection; the den never applies it. Onboard with `--checks <names>` (the required status check names in the target's CI), then:
+
+1. `npm run den:project -- verify <slug>` reads the target's `main` protection through the bridge's `gh` login (a GET only). It passes when every named check is required.
+2. If one is missing it prints the `gh api -X PUT repos/<owner>/<name>/branches/main/protection --input -` command, built from `branch-protection-main.json` with the target's check names in place of `test` and `security`. The user reads it and runs it; the bridge never does.
+3. Merge policy (`apps/bridge/project-policy.mjs`): security reviews every change; a change to the root `package.json`, a lockfile, a root dot path or CI config waits for the user; the bridge merges the rest on green. The delivery applies it (team-and-den-ux/05).
