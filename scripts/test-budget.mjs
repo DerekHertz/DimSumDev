@@ -1,14 +1,20 @@
 // ci-cd/15: the CPU every `node --test` run started by our scripts may take, from one file:
-// scripts/test-budget.json (cpuPercent is percent of one core; 400 is half of this 8-core box).
-// `npm test`, `test:rest`, `test:browser` and `test:path` all start their tests here.
+// scripts/test-budget.json in the MAIN checkout (cpuPercent is percent of one core; 500 is five of this
+// 8-core box's cores). A worktree's own copy is read only when the main checkout has none, so a run
+// cannot raise the cap by editing its copy. `npm test`, `test:rest`, `test:browser` and `test:path`
+// all start their tests here.
 //
 // How the budget is held, best first:
 //   slice  a systemd user slice carries CPUQuota=cpuPercent and each run joins it in its own scope, so
-//          runs started together share ONE quota (two relays stay inside the budget together).
+//          runs started together share ONE quota (two relays stay inside the budget together). The
+//          slice is named den-tests.slice, so systemd nests it under den.slice: test runs count toward
+//          the den's memory bound and OOM order.
 //   nice   no usable systemd user manager (macOS, a container, a cloud box), or we already run inside a
 //          den slice (a worker's own cgroup bounds it): the run is niced and takes half the file
 //          concurrency, so two runs together fit. Not a hard cap.
-//   none   CI: the runner is dedicated, so node's defaults stay.
+//   none   GitHub Actions only (GITHUB_ACTIONS=true): the runner is dedicated, so node's defaults stay.
+//          CI=1 does not lift the cap. A process can still set GITHUB_ACTIONS itself; the bound that
+//          holds is the cap on every normal run plus the test-run-guard hook, not this check.
 // An env value (BROWSER_FILE_CONCURRENCY) can lower the file concurrency, never raise it.
 //
 // A bare `node --test <file>` typed by hand does not come through here and cannot be capped by a
@@ -21,8 +27,29 @@
 import { spawn, spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
 import os from "node:os";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
-export const BUDGET = JSON.parse(readFileSync(new URL("./test-budget.json", import.meta.url), "utf8"));
+const LOCAL_BUDGET = new URL("./test-budget.json", import.meta.url);
+
+function mainCheckout(env, git) {
+  if (env.DEN_ROOT) return env.DEN_ROOT;
+  const listed = git("git", ["worktree", "list", "--porcelain"], { encoding: "utf8", timeout: 5000, cwd: fileURLToPath(new URL(".", import.meta.url)) });
+  const first = listed.status === 0 ? String(listed.stdout).split("\n")[0] : "";
+  return first.startsWith("worktree ") ? first.slice("worktree ".length) : null;
+}
+
+export function loadBudget({ env = process.env, local = LOCAL_BUDGET, git = spawnSync } = {}) {
+  const main = mainCheckout(env, git);
+  if (main) {
+    try {
+      return JSON.parse(readFileSync(path.join(main, "scripts/test-budget.json"), "utf8"));
+    } catch {}
+  }
+  return JSON.parse(readFileSync(local, "utf8"));
+}
+
+export const BUDGET = loadBudget();
 const KILL_GRACE_MS = 5000;
 const DEN_SLICE = /\bden-[a-z]+\.slice\b/;
 
@@ -35,7 +62,7 @@ function readCgroup() {
 }
 
 export function limiterFor({ env = process.env, cgroup = readCgroup(), run = spawnSync } = {}) {
-  if (env.CI) return "none";
+  if (env.GITHUB_ACTIONS === "true") return "none";
   if (DEN_SLICE.test(cgroup)) return "nice";
   const set = run("systemctl", ["--user", "set-property", "--runtime", BUDGET.slice, `CPUQuota=${BUDGET.cpuPercent}%`], { stdio: "ignore", timeout: 5000 });
   return set.status === 0 ? "slice" : "nice";
