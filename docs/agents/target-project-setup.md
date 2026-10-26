@@ -4,7 +4,7 @@ What a run in a target project (not the den) needs before the den starts one. De
 
 ## Toolchain
 
-A run's shell can read only its worktree and what the registry lists as the project's `toolchain`: plain absolute host paths (at most four; the read limit reopens eight paths in all). The usual entry is the clone's `node_modules`, built on the host by the user.
+A run's shell can read only its worktree and what the registry lists as the project's `toolchain`: plain absolute host paths (a short list: the read limit reopens eight paths in all, and the run itself uses about four). The usual entry is the clone's `node_modules`, built on the host by the user.
 
 - Run `npm install` (or the project's own install) in the clone, then onboard or re-register the project with `toolchain` listing `<clone>/node_modules`.
 - Host mode reopens each path for reads; container mode mounts it read-only at the same host path. A run cannot write it.

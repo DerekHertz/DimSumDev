@@ -20,7 +20,7 @@
 // converse(role, { text, runId? }) is the thread's one way in: to the live run, or as a follow-up that continues the
 // session of a run that has ended (see "follow-ups" below).
 import { createHash, randomBytes, randomUUID } from "node:crypto";
-import { access, realpath } from "node:fs/promises";
+import { access, readFile, realpath } from "node:fs/promises";
 import { execFile } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -114,7 +114,7 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, readTicket = async () => null, createDelegatedTicket, profile = createProfile() }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, readTicket: readTicketOption, createDelegatedTicket, profile = createProfile() }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -131,6 +131,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   const workspaces = createWorkspaces(root);
   // den-mvp/49: the roots a run can be made under. Without a registry (a host test, `createHost({ root })`) the den is the only one.
   const controlHandle = { slug: "den", root, control: root, workspaces };
+  // A bridge passes its board; a host without one reads the project's markdown ticket file.
+  const readTicket = readTicketOption ?? (async (slug, ref) => ({ text: await readFile(ticketFile(ref, (await projects.get(slug)).root), "utf8") }));
   const projects = projectsOption ?? { active: async () => "den", get: async (slug) => (slug === "den" ? controlHandle : null) };
   // A run's project, fixed when it starts: a desk, meeting or orchestrator run is the den's; any other takes the active project.
   const isControl = (a) => a.role === "orchestrator" || isDeskRef(a.ref);
