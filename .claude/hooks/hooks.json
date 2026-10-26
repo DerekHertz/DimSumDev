@@ -1,0 +1,20 @@
+{
+  "description": "The den kit's guards, for any project that loads the den plugin: context budget, board identity and raw-jg guard, uncapped test runs, sleep chains.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/../scripts/hooks/context-budget.mjs\"", "timeout": 15 }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/../scripts/hooks/bash-guard.mjs\"", "timeout": 10 },
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/../mods/test-run-guard/hooks/test-run-guard.mjs\"", "timeout": 10 },
+          { "type": "command", "command": "node \"${CLAUDE_PLUGIN_ROOT}/../mods/sleep-guard/hooks/sleep-guard.mjs\"", "timeout": 10 }
+        ]
+      }
+    ]
+  }
+}

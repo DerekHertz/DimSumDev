@@ -4,7 +4,8 @@
   "private": true,
   "type": "module",
   "bin": {
-    "board": "apps/board/board.mjs"
+    "board": "apps/board/board.mjs",
+    "den": "scripts/den-cli.mjs"
   },
   "scripts": {
     "pretest": "npm run check:bom",
@@ -20,6 +21,7 @@
     "verify:ui": "node apps/ci-cd/verify-ui.mjs",
     "smoke:live": "node apps/bridge/agents/conformance.mjs --spike Live",
     "risk-check": "node scripts/risk-check.mjs",
+    "kit:install": "node scripts/den-cli.mjs install",
     "pr-map": "node scripts/pr-map.mjs",
     "test-guard": "node scripts/test-guard.mjs",
     "check:bom": "node scripts/bom-check.mjs",

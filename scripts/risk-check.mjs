@@ -16,7 +16,12 @@ import { SECRET_PATTERNS } from "./exposure.mjs";
 
 export { SECRET_PATTERNS };
 
-const CODE_PATH_RE = /^(apps|packages|scripts)\//;
+// The den kit (den risk-check) passes another project's .den/project.json: its code dirs and guardrail files.
+const PROJECT = process.env.DEN_PROJECT_CONFIG ? JSON.parse(process.env.DEN_PROJECT_CONFIG) : null;
+const escapeRe = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+const CODE_PATH_RE = PROJECT?.codePaths?.length
+  ? new RegExp(`^(${PROJECT.codePaths.map(escapeRe).join("|")})/`)
+  : /^(apps|packages|scripts)\//;
 
 const CODE_RISK_PATTERNS = [
   {
@@ -96,6 +101,9 @@ function checkFile(file) {
     hits.push({ file: filePath, reason: "Dockerfile changed (agent image)" });
   }
 
+  if (PROJECT?.guardrailPaths?.includes(filePath)) {
+    hits.push({ file: filePath, reason: "guardrail file changed (listed in .den/project.json)" });
+  }
   if (GUARDRAIL_PATHS.has(filePath)) {
     hits.push({ file: filePath, reason: GUARDRAIL_PATHS.get(filePath) });
   }

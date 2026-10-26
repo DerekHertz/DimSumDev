@@ -11,6 +11,21 @@ Run agents on their role definition's model (user, 2026-10-01): every agent, the
 
 Your final report to the chief of staff stays under about 300 words: the verdict, the branch, the numbers, and a pointer to the handoff for details. Claim only results you actually ran. Send verbose work (full test runs, log reading, merge checks) through `runner`, or after `04` a local model.
 
+## In another project (the den plugin)
+
+When your project root has no `apps/board/board.mjs`, you run from the `den` plugin in another project. Everything here still applies; swap the den's commands for the `den` command on PATH:
+
+| In the den | In another project |
+|---|---|
+| `npm run board -- <cmd> ...` | `den board <cmd> ...` |
+| `npm run test:path -- <files>`, `node --test <files>` | `den test <files>` (the project's own test command, from `.den/project.json`) |
+| `npm run risk-check` | `den risk-check` |
+| `node scripts/usage.mjs --provider claude` | `den usage --provider claude` |
+
+- The risk path is `.claude/`, `CLAUDE.md`, `.den/`, `.github/`, dependency and lockfile changes, secrets handling, and every file in `.den/project.json`'s `guardrailPaths`.
+- Den-only tools (`node scripts/jg.mjs`, `node scripts/test-guard.mjs`, `npm run pr-map`, `npm run -s session-check`, `npm run verify:ui`, `den:update`) don't exist there: skip them and say so in your handoff. Den docs (`docs/agents/*`, the den's ADRs) are not in that repo; the rules they back are the ones in this skill and your role.
+- Roles load as `den:<role>`; you still sign the board as the bare role (`--as qa`, `claim <ref> qa`).
+
 ## The board
 
 - The board is the local issue tracker described in `docs/agents/issue-tracker.md`: `.scratch/<feature-slug>/` in the **main checkout**.

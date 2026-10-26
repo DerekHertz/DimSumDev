@@ -5,6 +5,7 @@
 import { readFileSync, realpathSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { isBoardRole } from "../../apps/board/board-service.mjs";
+import { bareRole } from "../context-budget.mjs";
 
 // Shell segments split on unquoted ; & | ( ) and newlines; each word keeps whether it was quoted.
 export function segments(command) {
@@ -47,6 +48,7 @@ const ROLE_FLAGS = new Set(["--as", "--role", "--cell"]);
 function isBoardCall(seg) {
   const words = seg.map((w) => w.text);
   if (words.some((w) => /(?:^|\/)(?:board|agent-start)\.mjs$/.test(w))) return true;
+  if (commandWord(seg)?.text.split("/").at(-1) === "den" && words.includes("board")) return true;
   const run = words.findIndex((w) => w === "run" || w === "run-script");
   return commandWord(seg)?.text === "npm" && run !== -1 && words.slice(run + 1).find((w) => !w.startsWith("-")) === "board";
 }
@@ -76,7 +78,7 @@ const RULES = [
     // A worker signs board writes as its own role; the board trusts --as, so identity is checked here.
     // String check like the jg rule: indirection can bypass it.
     test: (command, input) =>
-      isBoardRole(input.agent_type) && signsAsOther(segments(command), input.agent_type),
+      isBoardRole(bareRole(input.agent_type)) && signsAsOther(segments(command), bareRole(input.agent_type)),
     reason: "bash-guard: a board call signs as your own role only (--as and claim must name your agent_type). Relay another role's verdict through the chief of staff as a plain comment.",
   },
   {

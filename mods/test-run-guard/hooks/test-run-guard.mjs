@@ -12,7 +12,7 @@ import path from "node:path";
 export const MAX_FILES = 3;
 export const MESSAGE =
   "test-run-guard: an uncapped `node --test` over a glob, a directory or many files runs every browser test at once " +
-  "(a Chromium each; about 85 processes and 7 GB on 2026-10-23). Use `npm run test:path -- <files|dirs>` " +
+  "(a Chromium each; about 85 processes and 7 GB on 2026-10-23). Use `npm run test:path -- <files|dirs>` (in another project, `den test <files>`) " +
   "(it caps browser files), `npm test`, or add `--test-concurrency=3`.";
 
 // Each `node ... --test ...` invocation in the command, as its argument words.
