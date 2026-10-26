@@ -252,6 +252,18 @@ function governedUnder(grant, root, worktree) {
 }
 
 /**
+ * Why a registry toolchain path may not be reopened for reads, or null. A toolchain path is read-only data a target run needs
+ * (its installed dependencies); it may not be, hold or sit inside the control checkout (the den's repo root, with its .scratch
+ * board) or /etc. The reason names the setup step so the user can fix the registry entry.
+ */
+export function toolchainRefusal(p, control) {
+  const fix = "; correct the project's toolchain list in its setup step (see docs/agents/target-project-setup.md, Toolchain)";
+  if (covers("/etc", p)) return `the toolchain path ${p} is in /etc${fix}`;
+  if (typeof control === "string" && (covers(control, p) || covers(p, control))) return `the toolchain path ${p} is, holds or sits in the control checkout${fix}`;
+  return null;
+}
+
+/**
  * The buildClaudeArgs options for a role's ceiling plus its task grants: the wall with the ceiling's hosts and the granted
  * ones, Write and Edit allow rules for the worktree when the role writes and for each granted path, and the governance
  * denies (CI and guardrail paths, and the commands). A way out (a host, or `remote`: a remote connection, which the shell
@@ -263,7 +275,7 @@ function governedUnder(grant, root, worktree) {
  * worktree undefined leaves the write rules out (the wall stays, the Write request stays). Any grant outside the fixed shape,
  * any grant for a role that cannot write, and a path grant that contains the worktree are TypeErrors.
  */
-export function compileCeiling(role, { worktree, grants, root, home, mainGit, credentials, remote, toolchain } = {}) {
+export function compileCeiling(role, { worktree, grants, root, home, mainGit, credentials, remote, toolchain, target = false, projectToolchain = [], control } = {}) {
   const { hosts: grantHosts, paths } = parseGrants(grants);
   if (credentials !== undefined && !(isDense(credentials) && credentials.every((p) => CREDENTIAL_PATHS.includes(p)))) throw new TypeError("compileCeiling: credentials must be paths from governance.json");
   if (root !== undefined && !isWorktreePath(root)) throw new TypeError("compileCeiling: root must be a plain absolute path");
@@ -271,6 +283,12 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
   if (home !== undefined && !isWorktreePath(home)) throw new TypeError("compileCeiling: home must be a plain absolute path");
   if (toolchain !== undefined && !isWorktreePath(toolchain)) throw new TypeError("compileCeiling: toolchain must be a plain absolute path");
   if (remote !== undefined && typeof remote !== "boolean") throw new TypeError("compileCeiling: remote must be a boolean");
+  // multi-project/02 (decision 27): a target run has no network, so no host grant; its registry toolchain paths are reopened for reads.
+  if (!isDense(projectToolchain) || !projectToolchain.every(isWorktreePath)) throw new TypeError("compileCeiling: projectToolchain must be plain absolute paths");
+  if (target === true && grantHosts.length > 0) throw new TypeError("compileCeiling: a target run takes no host grants");
+  // Security review of multi-project/02: the CLI calls a remote connection outside the shell sandbox, so a target run with one has a network. Fail closed.
+  if (target === true && remote === true) throw new TypeError("compileCeiling: a target run takes no remote connection");
+  if (target === true) for (const p of projectToolchain) { const why = toolchainRefusal(p, control); if (why !== null) throw new TypeError(`compileCeiling: ${why}`); }
   const ceiling = Object.hasOwn(CEILINGS, role) ? CEILINGS[role] : undefined;
   if (ceiling === undefined) {
     if (grantHosts.length + paths.length > 0) throw new TypeError("compileCeiling: this role takes no grants");
@@ -296,11 +314,12 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
     ...(root === undefined ? [] : paths.flatMap((g) => governedUnder(expandHome(g, home), root, worktree))),
     ...(mainGit === undefined ? [] : MAIN_GIT_DENIED.map((name) => (name === "refs" ? `${mainGit}/refs/**` : `${mainGit}/${name}`))),
   ])];
-  const hosts = [...new Set([...ceiling.hosts, ...grantHosts])];
-  const readLimit = hosts.length > 0 || remote === true;
+  const hosts = target === true ? [] : [...new Set([...ceiling.hosts, ...grantHosts])];
+  const readLimit = hosts.length > 0 || remote === true || target === true;
   // What the work reads outside the worktree: the project's node_modules and main .git, node and npm, git's identity, the browsers.
   // Never the project root itself: it holds the worktree, and reopening it re-mounts the worktree read-only (live probe, 2026-10-18).
-  const readOpen = !readLimit ? [] : [...new Set([root === undefined ? undefined : `${root}/node_modules`, mainGit, toolchain, ...(home === undefined ? [] : [`${home}/.gitconfig`, `${home}/.cache/ms-playwright`])].filter((p) => p !== undefined))];
+  const readOpen = !readLimit ? [] : [...new Set([root === undefined ? undefined : `${root}/node_modules`, mainGit, toolchain, ...projectToolchain, ...(home === undefined ? [] : [`${home}/.gitconfig`, `${home}/.cache/ms-playwright`])].filter((p) => p !== undefined))];
+  if (readOpen.length > 8) throw new TypeError("compileCeiling: the read limit reopens at most eight paths; shorten the project's toolchain list");
   if (readOpen.some((p) => grantTouchesCredential(p, home))) throw new TypeError("compileCeiling: a path the read limit reopens may not reach a credential store");
   return {
     wall: { hosts },

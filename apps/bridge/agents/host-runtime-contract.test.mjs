@@ -10,7 +10,7 @@ import { createWorkspaces } from "./workspace.mjs";
 import { DISPATCH_REF, makeBridge, seedSessions, until } from "./host-test-helpers.mjs";
 import { addProject } from "../projects.mjs";
 
-test("target-project prompts name the trusted control recipe and the selected board ticket", async () => {
+test("target-project prompts name the trusted control recipe and the selected board ticket as a worktree note", async () => {
   const control = await makeStateFixture({ git: true });
   const target = await makeStateFixture({ git: true });
   const runtime = createFakeRuntime();
@@ -26,7 +26,9 @@ test("target-project prompts name the trusted control recipe and the selected bo
     const recipe = path.join(control.root, ".claude/agents/architect.md");
     assert.equal(args.project.recipeFile, recipe);
     assert.ok(args.prompt.includes(`Read ${recipe} `));
-    assert.ok(args.prompt.includes(path.join(target.root, ".scratch/fx/issues/02-ready-p0.md")));
+    assert.ok(args.prompt.includes(".den/ticket.md"), "a target's ticket is the note in the worktree");
+    assert.ok(!args.prompt.includes(".scratch"));
+    assert.equal(args.ticketFile, undefined);
   } finally {
     for (const record of runtime.spawns) record.exit({ code: 1 });
     await host.shutdown();

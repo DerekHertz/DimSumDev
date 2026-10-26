@@ -6,14 +6,14 @@ import { chmod, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import { activeAccount, accountsDir, listAccounts, setActiveAccount } from "./accounts.mjs";
 import { ensureProxy } from "./container.mjs";
-import { portPlan, roleHosts } from "./proxy.mjs";
+import { TARGET_ROLE, portPlan, roleHosts } from "./proxy.mjs";
 import { mintSecret, writeSecrets } from "./secrets.mjs";
 import { TOKEN_FILE_NAME, createTokenRefresher, credentialsFileStore, oauthRefresh, writeAtomic } from "./token.mjs";
 
 const LOOK_MS = 60_000; // how often every account is looked at: a rotation or a switch reaches the proxy within a minute
 
 export function createProxyService({ stateDir, releaseDir, ceilings, docker, image, fetch, now = Date.now, log = console.error }) {
-  const roles = roleHosts(ceilings);
+  const roles = { ...roleHosts(ceilings), [TARGET_ROLE]: [] };
   const served = path.join(stateDir, "proxy", "token"); // mounted into the proxy: holds the active account's access token only
   const secretsDir = path.join(stateDir, "proxy", "secrets");
   const refreshers = new Map(); // account -> refresher; each writes its access token to <stateDir>/proxy/accounts/<name>, which no container mounts

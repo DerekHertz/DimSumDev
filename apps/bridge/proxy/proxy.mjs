@@ -8,6 +8,9 @@ import net from "node:net";
 const API_HOST = "api.anthropic.com";
 const OAUTH_BETA = "oauth-2025-04-20";
 
+// multi-project/02 (design decision 27): the identity of a run in a target project. Its allowlist is empty, so the API front is all it reaches.
+export const TARGET_ROLE = "target";
+
 export function roleHosts(ceilings) {
   const out = {};
   for (const [role, c] of Object.entries(ceilings ?? {})) if (c && Array.isArray(c.hosts)) out[role] = c.hosts;

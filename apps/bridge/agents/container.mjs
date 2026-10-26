@@ -7,6 +7,7 @@ import { chmod, lstat, mkdir, open, rmdir, unlink } from "node:fs/promises";
 import path from "node:path";
 import { isWorktreePath } from "./claude-adapter.mjs";
 import { agentProxyEnv } from "../proxy/container.mjs";
+import { TARGET_ROLE } from "../proxy/proxy.mjs";
 import { EnforcementError, LIMITS } from "./resource-group.mjs";
 
 export const AGENT_NETWORK = "den-agents";
@@ -191,7 +192,8 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
       const roots = [cwd, ...(container.grants ?? [])];
       const wanted = governedWrites(args, roots);
       for (const p of wanted) await walkGoverned(p, roots, false); // security N1: refuse a symlinked governed path before the mint
-      const { secret } = await proxy.mintRunSecret({ role: container.role });
+      const proxyRole = container.target === true ? TARGET_ROLE : container.role;
+      const { secret } = await proxy.mintRunSecret({ role: proxyRole });
       // hardening/16 F4: a run's secret is good for that run only.
       const retire = () => Promise.resolve().then(() => proxy.retireRunSecret(secret)).catch(() => {});
       const name = containerName(id);
@@ -200,14 +202,14 @@ export function createContainerLauncher({ env = process.env, limits = LIMITS, im
       // Security N2: everything between the mint and a running child sits in this try, so any throw retires the secret.
       try {
         // The proxy env carries the secret, so docker copies it from its own env (-e NAME) and it never shows in `ps` or `docker inspect` argv.
-        const secretEnv = agentProxyEnv({ role: container.role, session: container.sessionId, ports: proxy.ports, secret });
+        const secretEnv = agentProxyEnv({ role: proxyRole, session: container.sessionId, ports: proxy.ports, secret });
         // The user's call (2026-10-23): follow-ups stay under containers, so each session keeps its CLI store between runs.
         const sessionStore = `${sessionsDir}/${container.sessionId}`;
         await mkdir(sessionStore, { recursive: true, mode: 0o700 });
         await chmod(sessionStore, 0o700);
         governed = await placeGoverned(wanted, roots);
         const argv = containerRunArgs({
-          image, name, worktree: cwd, mainGit: container.mainGit, ticketFile: container.ticketFile, mcpConfigFile: container.mcpConfigFile, grants: container.grants, readOnly: governed.paths, sessionStore, limits: limit, cliArgs: containerCliArgs(args),
+          image, name, worktree: cwd, mainGit: container.mainGit, ticketFile: container.ticketFile, mcpConfigFile: container.mcpConfigFile, grants: container.grants, readOnly: [...governed.paths, ...(container.toolchain ?? [])], sessionStore, limits: limit, cliArgs: containerCliArgs(args),
           env: { HOME: "/root", CLAUDE_CODE_DISABLE_NONESSENTIAL_TRAFFIC: "1" }, passEnv: Object.keys(secretEnv),
         });
         const host = env.DOCKER_HOST || `unix://${env.XDG_RUNTIME_DIR || `/run/user/${process.getuid()}`}/docker.sock`;
