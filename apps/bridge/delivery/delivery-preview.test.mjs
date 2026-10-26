@@ -13,6 +13,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { makeBridge, until, FEATURE } from "../agents/host-test-helpers.mjs";
 import { isUiPath } from "./plan.mjs";
+import { createProfile } from "../agents/profile.mjs";
 import { createReleases, lockHash } from "../build/releases.mjs";
 
 const REF = `${FEATURE}/08-plain`;
@@ -102,7 +103,11 @@ async function setup({ root, denState, box = fakeBox(), installed = true } = {})
   let host, base;
   const again = Boolean(root);
   denState ??= await mkdtemp(path.join(tmpdir(), "den-preview-delivery-"));
+  // trust-ladder/03: these rows are about the preview, so qa verifies once (the lean Profile); the verifier count has its own tests.
+  const profile = createProfile();
+  await profile.set("lean");
   const t = await makeBridge({
+    extra: { profile },
     ...(again ? { root } : { preWrite: async (r) => void (base = await seed(r, denState, box)) }),
     ...(installed ? { denState, box } : {}),
     gitHost: (r) => (host = fakeGitHost(r)),

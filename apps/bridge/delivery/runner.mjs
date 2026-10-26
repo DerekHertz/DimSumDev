@@ -26,7 +26,7 @@ import { REF_RE } from "../agents/policy.mjs";
 import { JOB_ID_RE } from "./jobs.mjs";
 import { DELIVERABLE_TYPES, VISUAL_TYPES, authorOf, isCiPath, isUiPath, isUserMergePath, nextStep } from "./plan.mjs";
 import { FLOOR_ROLES, floor, gaps } from "./floor.mjs";
-import { readLookAt, readVerdict, readWhatChanges } from "./prompts.mjs";
+import { readLookAt, readVerdict, readVerifierEvidence, readWhatChanges } from "./prompts.mjs";
 import { classify } from "./ci-watch.mjs";
 
 const CI_RERUN_LOOKS = 20; // with ciWaitMs at 15 s, five minutes for the re-run's jobs to show
@@ -121,13 +121,22 @@ const unionRoles = (floorRoles, added) => FLOOR_ROLES.filter((r) => floorRoles?.
 // The bridge's steps that belong to the release manager (ADR 0029 decision 5).
 const RELEASE_STEPS = new Set(["push", "pr", "merge", "resolve"]);
 
-export function createDelivery({ host, board, git, log, readTicket, readInReview = async () => [], activeProject = async () => "den", onChange = () => {}, build = null, checks = null, ciWaitMs = 15000 }) {
+export function createDelivery({ host, board, git, log, readTicket, readInReview = async () => [], activeProject = async () => "den", onChange = () => {}, build = null, checks = null, ciWaitMs = 15000, profile = null }) {
   const jobs = new Map(); // id -> job; insertion order is snapshot order
   let mergeChain = Promise.resolve(); // merges go one at a time
   // The preview that is open for the job's candidate: { url, sha } | null.
   const previewOf = (j) => {
     const shown = build?.previewOf(j.id) ?? null;
     return shown && shown.sha === j.candidate?.sha ? shown : null;
+  };
+  // trust-ladder/03: what the Profile asks of this job's verify loop, read at every step so a flip counts at once. The count is the
+  // largest of the classes the candidate falls in; only a job that drives the running app (a UI ticket or UI code) has a loop cap.
+  const verifyOf = (j) => {
+    const v = profile.values();
+    const risk = j.candidate && j.evidence.risk?.sha === j.candidate.sha ? j.evidence.risk : null;
+    const ui = j.type === "ui" || risk?.ui === true;
+    const count = Math.max(v.verifiers.standard, risk?.userMerge ? v.verifiers.riskPath : 0, ui ? v.verifiers.ui : 0);
+    return { count, ...(ui ? { cap: v.verifierLoopCap, failing: j.findings ? errorText(j.findings) : "" } : {}) };
   };
   const changesUi = (j) => j.candidate && j.evidence.risk?.sha === j.candidate.sha && j.evidence.risk.ui === true;
   let closing = false; // the bridge is shutting down: nothing new is started
@@ -155,6 +164,7 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
       // verdict on this commit, how often they declined, and the release that went live for it.
       ui: risk?.ui === true, preview: previewOf(j), verdict: now(j.evidence.verdict) ? (now(j.evidence.verdict).ok ? "approved" : "declined") : null,
       lookAt: j.candidate && j.lookAt?.sha === j.candidate.sha ? [...j.lookAt.items] : [],
+      verifierEvidence: j.candidate && j.verifierEvidence?.sha === j.candidate.sha ? [...j.verifierEvidence.items] : [],
       declines: j.declines ?? 0, release: now(j.evidence.live)?.state === "live" ? now(j.evidence.live).release : null,
     };
   };
@@ -279,6 +289,7 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
   async function advance(job) {
     for (let moves = 0; job.state === "running" && !job.live && !closing; moves += 1) {
       if (moves >= PLAN_STEPS_MAX) return pause(job, "environment", "the plan did not move", "Resume to try again.");
+      if (profile) job.verify = verifyOf(job);
       const next = nextStep(job);
       if (next.kind === "pause" && next.pause === "visual-verdict" && changesUi(job) && !(await showPreview(job))) {
         job.evidence.preview = null; // its folder is gone: the plan asks for it again
@@ -395,7 +406,17 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
       const verdict = readVerdict(run.report);
       if (run.sha !== run.startSha) return giveUp("changed-commit", `the ${role} run changed the commit it was reviewing, so its verdict is not counted`, "Resume to review again.");
       if (!verdict) return giveUp("no-verdict", `the ${role} run ended without a verdict line`, "Read its report in the thread, then Resume to review again.");
-      job.evidence[EVIDENCE_OF[role]] = { sha: run.startSha, runId, verdict };
+      const prev = job.evidence[EVIDENCE_OF[role]];
+      // trust-ladder/03: each passing qa verify at one commit is one verifier pass; the plan asks for as many as the Profile's count.
+      const passes = role === "qa" ? { passes: verdict === "pass" && prev?.sha === run.startSha && prev.verdict === "pass" ? (prev.passes ?? 1) + 1 : 1 } : {};
+      job.evidence[EVIDENCE_OF[role]] = { sha: run.startSha, runId, verdict, ...passes };
+      if (role === "qa") {
+        let items = readVerifierEvidence(run.report).map((s) => (hasSecret(s) ? "[masked: possible secret]" : s));
+        // The files are in qa's worktree, which goes with the delivery: they are copied to the board now, while qa's claim is held.
+        const worktree = host.worktreeOf?.(runId);
+        if (items.length && worktree && board.keepEvidence) items = await board.keepEvidence(job.ref, { worktree, items, sha: run.startSha, runId }).catch((err) => (console.error(`bridge: could not keep the verifier evidence of ${job.ref}: ${err?.message ?? err}`), items));
+        job.verifierEvidence = { sha: run.startSha, items: [...(job.verifierEvidence?.sha === run.startSha ? job.verifierEvidence.items : []), ...items].slice(0, 12) };
+      }
       if (verdict === "bounce") {
         // ADR 0029 decision 6: the code reviewer and qa may both bounce one commit; that is one fix round, with both reports.
         if (job.bouncedAt === run.startSha && job.findings) job.findings += `\n\n---\n\n${run.report}`;

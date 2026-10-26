@@ -8,18 +8,18 @@ const DOOR_RE = /^[ \t]*\*\*Door:\*\*[ \t]*(one-way|two-way)\b[ \t.:,-]*(.*)$/i;
 
 // den-mvp: what the user should look at on a preview. A developer report ends with a `Look at:` line and a list under it.
 const LOOK_AT_RE = /^[ \t>*_`#-]*look at[ \t*_`]*:[ \t*_`]*(.*)$/im;
+const EVIDENCE_RE = /^[ \t>*_`#-]*verifier evidence[ \t*_`]*:[ \t*_`]*(.*)$/im;
 const LOOK_AT_MAX = 6; // items
 const LOOK_AT_ITEM_MAX = 200; // characters of one item
 
-/** The items of a report's last `Look at:` list, each one line of plain text; [] when there is none. */
-export function readLookAt(report) {
+const readList = (report, re) => {
   if (typeof report !== "string") return [];
   const lines = report.split(/\r?\n/);
   let at = -1;
-  lines.forEach((l, i) => { if (LOOK_AT_RE.test(l)) at = i; });
+  lines.forEach((l, i) => { if (re.test(l)) at = i; });
   if (at < 0) return [];
   const items = [];
-  const first = LOOK_AT_RE.exec(lines[at])[1].trim();
+  const first = re.exec(lines[at])[1].trim();
   if (first) items.push(first);
   for (const l of lines.slice(at + 1)) {
     const m = /^[ \t]*(?:[-*+]|\d+[.)])[ \t]+(.+)$/.exec(l);
@@ -27,7 +27,11 @@ export function readLookAt(report) {
     else if (l.trim() !== "" || items.length > (first ? 1 : 0)) break; // a blank line between the label and the list is fine
   }
   return items.slice(0, LOOK_AT_MAX).map((s) => s.replace(/[\u0000-\u001f\u007f-\u009f​-‏‪-‮⁦-⁩]/g, " ").slice(0, LOOK_AT_ITEM_MAX)).filter((s) => s.trim());
-}
+};
+/** The items of a report's last `Look at:` list, each one line of plain text; [] when there is none. */
+export const readLookAt = (report) => readList(report, LOOK_AT_RE);
+/** The items of a qa report's last `Verifier evidence:` list (screenshot, trace and perf lines); [] when there is none. */
+export const readVerifierEvidence = (report) => readList(report, EVIDENCE_RE);
 
 /**
  * The last `## What changes` section of a developer's report (the handoff skill's format): { text, door }. `text` is the
@@ -77,7 +81,7 @@ export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false
   if (role === "developer") {
     return (
       head +
-      (fix ? "A review of the last commit asked for changes: read .den/findings.md first, and fix what it names. " : "") +
+      (fix ? "A review of the last commit asked for changes: read .den/findings.md first, and fix what it names. A finding from the browser verifier comes with repro steps: follow them, run the flow again with `npm run verify:ui` (the browser-verify skill) after your fix, and name what it showed in your report. " : "") +
       "Work test-first in this worktree, run the checks that cover your change (the full suite runs on the pull request), and commit your work here: the bridge publishes the branch from your last commit, and a run that commits nothing delivers nothing. " +
       "End with a short report of what you changed and which checks you ran and what they showed: that last message is your handoff. Open it with the `## What changes` section the handoff skill describes: the bridge copies it into the pull request. " +
       "If the change alters what the den looks like, end the report with a `Look at:` line and a list under it: for each visible change, one line saying where in the den to find it and what should look different. The user reads that list beside the preview."
@@ -99,6 +103,7 @@ export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false
   const guardNote = guard ? "The bridge's test guard flagged changes that may weaken the tests: they are listed in .den/findings.md under 'Test guard'. For each one, say in your findings whether you accept it and why, or bounce it. " : "";
   const scope = {
     security: "for security: what it lets an agent, a request or untrusted text do that it could not do before",
+    qa: "against the ticket's acceptance criteria, independently of the developer's own report. For a criterion that needs the running app, run the browser verifier (the browser-verify skill: `npm run verify:ui`) instead of reading the code. Each verifier finding is a bounce: copy it into your findings with its repro steps. End your report with a `Verifier evidence:` line and a list under it: one line per screenshot path and the perf line, so the user can look at them",
     "code-reviewer": "by reading its diff for standards, design, simplicity and fit to the ticket, independently of the developer's own report (qa checks its behaviour separately)",
   }[role] ?? "against the ticket's acceptance criteria, independently of the developer's own report";
   return (
