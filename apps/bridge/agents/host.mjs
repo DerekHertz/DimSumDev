@@ -34,7 +34,7 @@ import {
   MESSAGE_MAX_BYTES, MESSAGE_QUEUE_MAX, MESSAGE_SETTLE_MS, CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS,
   definitionOf, deskRefOf, isDeskRef, DESK_ROLE,
 } from "./policy.mjs";
-import { ceilingOf, grantContainsWorktrees, parseGrants } from "./claude-adapter.mjs";
+import { ceilingOf, grantContainsWorktrees, parseGrants, toolchainRefusal } from "./claude-adapter.mjs";
 import { parseCatalog } from "../library/catalog.mjs";
 import { createLibrary } from "../library/library.mjs";
 import { grantRefusal } from "./grant-policy.mjs";
@@ -728,7 +728,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const target = project.slug !== "den";
     if (target) {
       const missing = [];
-      for (const p of project.toolchain ?? []) if (!(await access(p).then(() => true, () => false))) missing.push(p);
+      for (const p of project.toolchain ?? []) {
+        const why = toolchainRefusal(p, await realpath(root).catch(() => root));
+        if (why !== null) { drop(agent); return refuse(409, why); }
+        if (!(await access(p).then(() => true, () => false))) missing.push(p);
+      }
       if (missing.length > 0) {
         drop(agent);
         return refuse(409, `the toolchain path ${missing[0]} does not exist; run the project's setup step (install its dependencies, see docs/agents/target-project-setup.md, Toolchain) and try again`);
@@ -799,7 +803,8 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       console.error(`bridge: the main .git is not ready for ${agent.role} on ${agent.ref}: ${err?.message ?? err}`);
       return refuse(502, "the repository's git directory is not ready for the agent");
     }
-    const connections = await library.connectionsFor(agent.role);
+    // Security review of multi-project/02: a target run gets no connections. The CLI calls a remote one outside the shell sandbox, so the no-network guarantee would not hold in host mode.
+    const connections = project.slug === "den" ? await library.connectionsFor(agent.role) : [];
     if (canDelegate(agent) && agent.runtimeId === 'claude') connections.push({ name: 'delegation', script: fileURLToPath(new URL('../library/servers/delegation.mjs', import.meta.url)), credential: 'run' });
     const args = {
       role: agent.role, ...(agent.mode ? { mode: agent.mode } : {}), ref: agent.ref, cwd: workspace.dir, sessionId: agent.sessionId, runId: agent.id, ...(agent.runtimeSessionId ? { runtimeSessionId: agent.runtimeSessionId } : {}),

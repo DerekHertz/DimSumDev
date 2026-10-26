@@ -11,6 +11,8 @@ import { addProject } from "../projects.mjs";
 import { DISPATCH_REF, makeBridge } from "./host-test-helpers.mjs";
 import { createClaudeRuntime } from "./claude-runtime.mjs";
 import { compileCeiling, buildClaudeArgs } from "./claude-adapter.mjs";
+import { parseCatalog } from "../library/catalog.mjs";
+import { createLibrary } from "../library/library.mjs";
 
 const cleanups = [];
 afterEach(async () => {
@@ -34,9 +36,12 @@ function targetClone() {
   return dir;
 }
 
-async function targetBridge({ toolchain }) {
+const REMOTE = { name: "context7", title: "Docs lookup", purpose: "A remote docs service.", url: "https://mcp.example.com/mcp", credential: "none", roles: ["developer"], tools: { lookup: "read" } };
+const remoteLibrary = () => createLibrary({ catalog: parseCatalog({ connections: [REMOTE] }) });
+
+async function targetBridge({ toolchain, library }) {
   const denState = realpathSync(mkdtempSync(path.join(tmpdir(), "den-state-")));
-  const t = await makeBridge({ denState });
+  const t = await makeBridge({ denState, ...(library ? { library } : {}) });
   cleanups.push(() => t.close());
   const dir = targetClone();
   assert.deepEqual(await addProject(denState, { slug: "acme", path: dir, board: { kind: "markdown" }, toolchain: toolchain(dir) }), { ok: true });
@@ -82,10 +87,11 @@ test("a missing toolchain path refuses the run, names the setup step, and starts
 });
 
 // The real runtime, with a launcher that records what it is given.
-function recordingRuntime(root) {
+function recordingRuntime() {
+  const controlDir = realpathSync(mkdtempSync(path.join(tmpdir(), "den-control-")));
   const seen = [];
   const launcher = { enforced: true, container: true, limits: undefined, launch: async (run) => { seen.push(run); throw new Error("stop"); } };
-  return { seen, runtime: createClaudeRuntime({ launcher, controlRoot: root, env: { PATH: process.env.PATH, HOME: process.env.HOME, DEN_CLAUDE_BIN: "claude" } }) };
+  return { seen, runtime: createClaudeRuntime({ launcher, controlRoot: controlDir, env: { PATH: process.env.PATH, HOME: process.env.HOME, DEN_CLAUDE_BIN: "claude" } }) };
 }
 
 test("a target spawn: toolchain reopened for reads, no network hosts, and both launchers are told", async () => {
@@ -93,7 +99,7 @@ test("a target spawn: toolchain reopened for reads, no network hosts, and both l
   const wt = path.join(dir, ".worktrees", "w1");
   mkdirSync(wt, { recursive: true });
   const tc = path.join(dir, "node_modules");
-  const { seen, runtime } = recordingRuntime(dir);
+  const { seen, runtime } = recordingRuntime();
   await assert.rejects(runtime.spawn({ role: "developer", cwd: wt, prompt: "go", sessionId: "7f1f6f0e-0000-4000-8000-000000000001", project: { control: false, root: dir, pluginDir: path.join(dir, ".claude"), recipeFile: path.join(dir, ".claude", "agents", "developer.md"), toolchain: [tc] } }), /stop/);
   const settings = JSON.parse(seen[0].args[seen[0].args.indexOf("--settings") + 1]);
   assert.deepEqual(settings.sandbox.network.allowedDomains, [], "an empty host list: the shell has no network");
@@ -113,4 +119,62 @@ test("compileCeiling: a target gets no hosts and refuses a host grant; more than
   assert.doesNotThrow(() => buildClaudeArgs({ sessionId: "7f1f6f0e-0000-4000-8000-000000000001", agent: "developer", ...c }));
   assert.throws(() => compileCeiling("developer", { worktree: "/p/.worktrees/w", target: true, grants: [{ kind: "host", value: "example.com" }] }), /no host grants/);
   assert.throws(() => compileCeiling("developer", { worktree: "/p/.worktrees/w", target: true, projectToolchain: Array.from({ length: 9 }, (_, i) => `/t/${i}`) }), /at most eight/);
+});
+
+// Security bounce (HIGH): the CLI calls a remote connection outside the sandbox, so a target run gets no connections at all.
+test("a target developer run is started with no connections; the den's own developer run keeps its role's", async () => {
+  const { t } = await targetBridge({ toolchain: (d) => [path.join(d, "node_modules")], library: remoteLibrary() });
+  const started = await t.post("/agents", { ref: "pf/01-first", role: "developer", project: "acme" });
+  assert.equal(started.status, 201, started.text);
+  assert.equal("connections" in t.fake.spawns.at(-1).args, false, "no connection reaches a target run");
+
+  const den = await makeBridge({ library: remoteLibrary() });
+  cleanups.push(() => den.close());
+  const own = await den.post("/agents", { ref: DISPATCH_REF, role: "developer" });
+  assert.equal(own.status, 201, own.text);
+  assert.deepEqual(den.fake.spawns.at(-1).args.connections?.map((c) => c.name), ["context7"], "the den's run is unchanged");
+});
+
+test("a target spawn handed a remote connection anyway writes no connection into the settings or the mcp config, or does not start", async () => {
+  const dir = targetClone();
+  const wt = path.join(dir, ".worktrees", "w2");
+  mkdirSync(wt, { recursive: true });
+  const { seen, runtime } = recordingRuntime();
+  const project = { control: false, root: dir, pluginDir: path.join(dir, ".claude"), recipeFile: path.join(dir, ".claude", "agents", "developer.md"), toolchain: [path.join(dir, "node_modules")] };
+  await assert.rejects(runtime.spawn({ role: "developer", cwd: wt, prompt: "go", sessionId: "7f1f6f0e-0000-4000-8000-000000000002", project, connections: [{ name: "docs", url: "https://mcp.example.com/mcp" }] }), /remote connection/);
+  assert.equal(seen.length, 0, "fail closed: nothing was launched");
+  // the same spawn with no connections: the mcp config is empty
+  await assert.rejects(runtime.spawn({ role: "developer", cwd: wt, prompt: "go", sessionId: "7f1f6f0e-0000-4000-8000-000000000003", project }), /stop/);
+  assert.equal(seen[0].args.includes("--mcp-config") && seen[0].args[seen[0].args.indexOf("--mcp-config") + 1].includes("example.com"), false);
+});
+
+test("compileCeiling: a target ceiling and a remote connection together throw", () => {
+  assert.throws(() => compileCeiling("developer", { worktree: "/p/.worktrees/w", target: true, remote: true }), /target run takes no remote connection/);
+  assert.doesNotThrow(() => compileCeiling("developer", { worktree: "/p/.worktrees/w", target: true, remote: false }));
+  assert.doesNotThrow(() => compileCeiling("developer", { worktree: "/p/.worktrees/w", remote: true }), "a den run keeps remote");
+});
+
+// Security LOW 2: a toolchain entry is a read-only reopen; it may not be the control checkout, hold it, or be /etc.
+test("compileCeiling: a toolchain entry that is, holds or sits in the control checkout, or is /etc, is refused naming the setup step", () => {
+  const base = { worktree: "/p/.worktrees/w", target: true, control: "/den" };
+  for (const bad of ["/etc", "/etc/ssl", "/den", "/den/.scratch", "/den/apps/ui"]) {
+    assert.throws(() => compileCeiling("developer", { ...base, projectToolchain: [bad] }), /toolchain.*setup step|may not/, bad);
+  }
+  assert.throws(() => compileCeiling("developer", { ...base, control: "/srv/den/checkout", projectToolchain: ["/srv/den"] }), /toolchain.*setup step/);
+  assert.doesNotThrow(() => compileCeiling("developer", { ...base, projectToolchain: ["/p/node_modules", "/opt/etcetera"] }));
+  assert.doesNotThrow(() => compileCeiling("developer", { ...base, projectToolchain: ["/denim/node_modules"] }), "a sibling with the same prefix is fine");
+});
+
+test("a registry toolchain entry inside the control checkout refuses the run with a 409 that names the setup step", async () => {
+  const denState = realpathSync(mkdtempSync(path.join(tmpdir(), "den-state-")));
+  const t = await makeBridge({ denState });
+  cleanups.push(() => t.close());
+  const dir = targetClone();
+  assert.deepEqual(await addProject(denState, { slug: "acme", path: dir, board: { kind: "markdown" }, toolchain: [path.join(realpathSync(t.fx.root), ".scratch")] }), { ok: true });
+  assert.equal((await t.post("/projects/active", { slug: "acme" })).status, 200);
+  const before = t.fake.spawns.length;
+  const refused = await t.post("/agents", { ref: "pf/01-first", role: "developer", project: "acme" });
+  assert.equal(refused.status, 409, refused.text);
+  assert.match(refused.body.error ?? refused.text, /control checkout.*setup step|setup step.*control checkout/s);
+  assert.equal(t.fake.spawns.length, before);
 });

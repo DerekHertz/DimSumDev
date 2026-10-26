@@ -114,7 +114,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       const credentials = home === undefined ? [] : CREDENTIAL_PATHS.filter((p) => existsSync(`${home}${p.slice(1)}`));
       // The kernel review (2026-10-18): a remote connection reaches the network outside the wall, so it brings the read limit like a host.
       const remote = Array.isArray(connections) && connections.some((c) => typeof c?.url === "string");
-      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN, ...(project?.control === false ? { target: true, projectToolchain: project.toolchain ?? [] } : {}) });
+      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN, ...(project?.control === false ? { target: true, projectToolchain: project.toolchain ?? [], control } : {}) });
       // Every role has a ceiling (ceilings.json); one without would start with no wall, so it does not start.
       if (ceiling === null) throw new EnforcementError(`the ${role} role has no ceiling, so it cannot be started`);
       // den-mvp/33: a connection that holds a credential gets its token from the den's credentials folder (outside every
