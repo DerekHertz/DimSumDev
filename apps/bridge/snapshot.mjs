@@ -3,7 +3,7 @@
 import { newerUsage } from "./usage-reading.mjs";
 import { roleOf } from "../board/legacy-terms.mjs";
 import { createMarkdownBoard } from "./board/markdown-board.mjs";
-import { readdir, readFile, stat } from "node:fs/promises";
+import { lstat, readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { orderFrontier } from "../board/priority.mjs";
 import { buildRequests } from "./requests-log.mjs";
@@ -85,8 +85,10 @@ async function newestHandoff(scratch, feature, nn) {
 export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boardRoot = root, board = null } = {}) {
   const control = path.join(root, ".scratch");
   const scratch = path.join(boardRoot, ".scratch");
+  // multi-project/04: a target's .scratch that is a symlink is not followed; the den's own is read as it always was.
+  const linked = boardRoot !== root && (await lstat(scratch).catch(() => null))?.isSymbolicLink() === true;
   const [events, usageRows, requestRows] = await Promise.all([
-    readJsonl(path.join(scratch, "events.jsonl")),
+    linked ? [] : readJsonl(path.join(scratch, "events.jsonl")),
     readJsonl(path.join(control, "usage.jsonl")),
     readJsonl(path.join(control, "_requests", "requests.jsonl")),
   ]);
@@ -105,7 +107,7 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
 
   // all tickets, resolved included (blocker lookup)
   const all = new Map();
-  for (const t of await (board ?? createMarkdownBoard(boardRoot)).list()) {
+  for (const t of linked && (board === null || board.kind === "markdown") ? [] : await (board ?? createMarkdownBoard(boardRoot)).list()) {
     const [feature] = t.ref.split("/");
     all.set(t.ref, { ...t, feature: t.feature ?? feature, nn: t.nn ?? /^\/?(\d+)/.exec(t.ref.slice(feature.length + 1))?.[1] });
   }
@@ -170,7 +172,7 @@ export async function buildSnapshot(root, seq = 0, { readUsage = () => null, boa
       lastRole: roleOf(lastRow.get(t.ref)) ?? null,
       gate: mergeGate ? "merge" : null,
       request: req ? { id: req.id, kind: req.kind, ts: req.ts } : null,
-      handoff: await newestHandoff(scratch, t.feature, t.nn),
+      handoff: linked ? null : await newestHandoff(scratch, t.feature, t.nn),
     };
     // den-mvp/13: the ticket's own text, only while it waits on the user, so Needs you can show it before Approve.
     if (t.status === "ready-for-human") row.text = String(t.text ?? "").slice(0, TICKET_TEXT_CAP);

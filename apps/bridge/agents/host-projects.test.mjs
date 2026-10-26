@@ -3,7 +3,7 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, readdirSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { addProject } from "../projects.mjs";
@@ -27,9 +27,9 @@ function projectRepo() {
   return dir;
 }
 
-async function boot() {
+async function boot(runtimeConfig = {}) {
   const denState = realpathSync(mkdtempSync(path.join(tmpdir(), "den-state-")));
-  const t = await makeBridge({ denState });
+  const t = await makeBridge({ denState, runtimeConfig });
   cleanups.push(() => t.close());
   const dir = projectRepo();
   assert.deepEqual(await addProject(denState, { slug: "acme", path: dir, board: { kind: "markdown" } }), { ok: true });
@@ -67,6 +67,41 @@ test("a switch is refused while a run is active on the current project, naming i
   t.fake.spawns.at(-1).exit();
   await until(async () => (await t.state()).agents.find((a) => a.id === id)?.state !== "working", { what: "the run to end" });
   assert.equal((await t.post("/projects/active", { slug: "den" })).status, 200);
+});
+
+// multi-project/04, item 4: a run that is reserved but has not joined `agents` yet still blocks a switch.
+test("a switch is refused while a run is starting, reserved and not yet joined", async () => {
+  const { t } = await boot({ spawnDelayMs: 600 });
+  assert.equal((await t.post("/projects/active", { slug: "acme" })).status, 200);
+  const starting = t.post("/agents", { ref: "pf/01-first", role: "architect" });
+  await until(() => t.fake.spawns.length > 0, { what: "the spawn to begin" });
+  assert.equal((await t.state()).agents.length, 0, "the run has not joined the snapshot yet");
+  const refused = await t.post("/projects/active", { slug: "den" });
+  assert.equal(refused.status, 409);
+  assert.equal(refused.body.blocking.length, 1);
+  assert.equal(refused.body.blocking[0].ref, "pf/01-first");
+  assert.equal((await starting).status, 201);
+});
+
+// multi-project/04, item 6: a refused project is written to by nothing, and a grant is checked against the project's own governed paths.
+test("a direct task on an active project whose .scratch became a symlink writes nothing, in it or behind it", async () => {
+  const { t, dir } = await boot();
+  assert.equal((await t.post("/projects/active", { slug: "acme" })).status, 200);
+  const behind = realpathSync(mkdtempSync(path.join(tmpdir(), "behind-")));
+  rmSync(path.join(dir, ".scratch"), { recursive: true });
+  symlinkSync(behind, path.join(dir, ".scratch"));
+  const res = await t.post("/tasks", { role: "developer", text: "write a file" });
+  assert.ok(res.status >= 400, res.text);
+  assert.deepEqual(readdirSync(behind), []);
+  assert.equal(t.fake.spawns.length, 0);
+});
+
+test("a path grant on a governed path of the active project's root is refused", async () => {
+  const { t, dir } = await boot();
+  assert.equal((await t.post("/projects/active", { slug: "acme" })).status, 200);
+  const res = await t.post("/tasks", { role: "developer", text: "x", grants: [{ kind: "path", value: path.join(dir, ".github", "workflows") }] });
+  assert.equal(res.status, 400, res.text);
+  assert.match(res.body.error, /governed path/);
 });
 
 test("with the den active, a run's worktree is under the den's root, as before", async () => {
