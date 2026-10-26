@@ -1535,7 +1535,7 @@ export async function comment(root, ref, text, options = {}) {
       // Reviews run side by side on one lock: on an in-review ticket a reviewer
       // signs its own verdict while another reviewer holds the claim.
       const sideBySide =
-        REVIEWER_ROLES.has(role) && REVIEWER_ROLES.has(lockRole) && readStatus(await readFile(paths.ticketPath, "utf8")) === "in-review";
+        role !== lockRole && REVIEWER_ROLES.has(role) && REVIEWER_ROLES.has(lockRole) && readStatus(await readFile(paths.ticketPath, "utf8")) === "in-review";
       if (sideBySide) lockMode = role === "qa" ? "verify" : undefined;
       else if (role !== undefined && role !== lockRole) {
         throw new BoardError(

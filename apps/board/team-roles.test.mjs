@@ -92,6 +92,18 @@ test("on an in-review ticket, a reviewer's verdict counts while another reviewer
   }
 });
 
+test("a qa lock held in specify mode still cannot post a counted qa verdict on an in-review ticket", async () => {
+  const fx = await makeBoardFixture({ status: "in-review" });
+  try {
+    const claim = await runBoard(["claim", fx.ticketRelPath, "qa", "--mode", "specify"], { cwd: fx.worktree });
+    assert.equal(claim.code, 0, claim.stderr);
+    const verdict = await runBoard(["comment", fx.ticketRelPath, "--as", "qa", "--verdict", "pass", "spec ok"], { cwd: fx.worktree });
+    assert.notEqual(verdict.code, 0);
+  } finally {
+    await fx.cleanup();
+  }
+});
+
 test("before in-review, a reviewer cannot sign past another role's lock", async () => {
   const fx = await makeBoardFixture();
   try {

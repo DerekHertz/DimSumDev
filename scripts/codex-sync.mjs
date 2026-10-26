@@ -126,7 +126,7 @@ export function render(roleDefinition) {
   if (body.includes("'''")) throw new Error("body contains ''' and cannot be a TOML literal string");
   return [
     `name = ${JSON.stringify(fm.name)}`,
-    `description = ${JSON.stringify(runtimeWording(fm.description))}`,
+    `description = ${JSON.stringify(runtimeWording(fm.description.startsWith('"') ? JSON.parse(fm.description) : fm.description))}`,
     `model = ${JSON.stringify(model)}`,
     `model_reasoning_effort = ${JSON.stringify(effort)}`,
     `developer_instructions = '''\n${body}\n'''\n`,

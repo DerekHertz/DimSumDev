@@ -4,6 +4,7 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync, readdirSync } from "node:fs";
 import { join } from "node:path";
+import { render } from "./codex-sync.mjs";
 
 const dir = join(import.meta.dirname, "..", ".claude", "agents");
 
@@ -32,3 +33,8 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith(".md"))) {
     assert.deepEqual(plainScalarErrors(readFileSync(join(dir, file), "utf8")), []);
   });
 }
+
+test("the codex mirror unquotes a quoted description", () => {
+  const toml = render(readFileSync(join(dir, "chief-of-staff.md"), "utf8"));
+  assert.match(toml, /^description = "The executive role/m);
+});
