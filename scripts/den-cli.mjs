@@ -103,6 +103,19 @@ This project is built by the den's roles, loaded with \`claude --plugin-dir <den
 
 - Code tickets run a relay: \`developer\` writes the failing tests first, then \`code-reviewer\` and \`qa\` (verify) review the same commit; one fix round carries both reviews. Then \`den risk-check\`: a clean exit skips \`security\`, a hit dispatches it. Push, PR and merge on green CI follow.
 - The board is \`.scratch/\` in the main checkout (\`den board\`, \`den status\`); tests run with \`den test <files>\`.
+
+Everything in \`den:team-protocol\` applies here; swap the den's commands for the \`den\` command on PATH:
+
+| In the den | In another project |
+|---|---|
+| \`npm run board -- <cmd> ...\` | \`den board <cmd> ...\` |
+| \`npm run test:path -- <files>\`, \`node --test <files>\` | \`den test <files>\` (the project's own test command, from \`.den/project.json\`) |
+| \`npm run risk-check\` | \`den risk-check\` |
+| \`node scripts/usage.mjs --provider claude\` | \`den usage --provider claude\` |
+
+- The risk path is \`.claude/\`, \`CLAUDE.md\`, \`.den/\`, \`.github/\`, dependency and lockfile changes, secrets handling, and every file in \`.den/project.json\`'s \`guardrailPaths\`.
+- Den-only tools (\`node scripts/jg.mjs\`, \`node scripts/test-guard.mjs\`, \`npm run pr-map\`, \`npm run -s session-check\`, \`npm run verify:ui\`, \`den:update\`) don't exist there: skip them and say so in your handoff. Den docs (\`docs/agents/*\`, the den's ADRs) are not in that repo; the rules they back are the ones in \`den:team-protocol\` and your role.
+- Roles load as \`den:<role>\`; you still sign the board as the bare role (\`--as qa\`, \`claim <ref> qa\`).
 - The user approves new dependencies, accounts and keys, changes to \`.claude/\`, \`CLAUDE.md\`, \`.den/\` and CI, and gives every visual verdict.
 `;
 
