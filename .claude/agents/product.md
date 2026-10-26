@@ -1,7 +1,7 @@
 ---
 name: product
 description: Pass agent that grills the user to settle requirements, sharpens the domain language, and writes the spec to the board. Use when a feature idea or change is not yet specified.
-tools: Read, Grep, Glob, Write, Edit, Agent(runner), Skill, AskUserQuestion
+tools: Read, Grep, Glob, Write, Edit, Agent(runner, den:runner), Skill, AskUserQuestion
 model: sonnet
 effort: high
 color: purple
