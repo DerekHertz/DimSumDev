@@ -3,7 +3,7 @@
 import { test, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
@@ -84,6 +84,23 @@ test("a missing toolchain path refuses the run, names the setup step, and starts
   assert.match(refused.body.error ?? refused.text, /node_modules.*does not exist.*setup step.*target-project-setup\.md/s);
   assert.equal(t.fake.spawns.length, before);
   assert.equal(existsSync(path.join(dir, "node_modules")), false, "nothing created the path");
+});
+
+test("a toolchain entry that became a symlink to /etc refuses the run; one to a plain folder is passed on resolved", async () => {
+  const { t, dir } = await targetBridge({ toolchain: (d) => [path.join(d, "node_modules")] });
+  await rm(path.join(dir, "node_modules"), { recursive: true });
+  symlinkSync("/etc", path.join(dir, "node_modules"));
+  const before = t.fake.spawns.length;
+  const refused = await t.post("/agents", { ref: "pf/01-first", role: "developer", project: "acme" });
+  assert.equal(refused.status, 409, refused.text);
+  assert.match(refused.body.error ?? refused.text, /\/etc/);
+  assert.equal(t.fake.spawns.length, before);
+  await rm(path.join(dir, "node_modules"));
+  const real = realpathSync(mkdtempSync(path.join(tmpdir(), "den-tc-")));
+  symlinkSync(real, path.join(dir, "node_modules"));
+  const ok = await t.post("/agents", { ref: "pf/01-first", role: "developer", project: "acme" });
+  assert.equal(ok.status, 201, ok.text);
+  assert.deepEqual(t.fake.spawns.at(-1).args.project.toolchain, [real]);
 });
 
 // The real runtime, with a launcher that records what it is given.
