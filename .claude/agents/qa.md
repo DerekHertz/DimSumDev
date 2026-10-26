@@ -12,7 +12,7 @@ skills:
   - tdd
 org:
   team: tea-pantry
-  purpose: Catch weak or missing tests on every ticket before merge: the engineer writes the failing tests first, and you check each one fails without the change.
+  purpose: "Catch weak or missing tests on every ticket before merge: the engineer writes the failing tests first, and you check each one fails without the change."
   inputs: ["ticket path", "mode: verify", "branch to verify", "latest handoff for the ticket"]
   outputs: ["pass or bounce verdict in the ticket's Comments", "handoff"]
   gates: ["adding a dependency (including a test framework)", "changing a public interface not named in the ticket"]
