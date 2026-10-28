@@ -21,8 +21,8 @@ test("the plugin ships role files only, one per listed role", () => {
 test("a role drops board skills, worktree isolation and den-only tools, and opens with the GitHub protocol", () => {
   const src = "---\nname: qa\ndescription: x\ntools: Read, Bash, Agent(runner, den:runner), Skill, mcp__github\nmodel: sonnet\nisolation: worktree\nskills:\n  - team-protocol\norg:\n  team: tea\n---\nRun `npm run board -- claim`.\n";
   const out = renderRole(src, "## GitHub dispatch\nP");
-  assert.match(out, /^---\nname: qa\ndescription: x\ntools: Read, Bash\nmodel: sonnet\n---\n\n## GitHub dispatch/);
-  assert.doesNotMatch(out, /isolation|skills:|team-protocol|org:|mcp__|Skill/);
+  assert.match(out, /^---\nname: qa\ndescription: x\ntools: Read, Bash, mcp__github_comment__update_claude_comment\nmodel: sonnet\n---\n\n## GitHub dispatch/);
+  assert.doesNotMatch(out, /isolation|skills:|team-protocol|org:|Skill/);
   assert.ok(out.indexOf("GitHub dispatch") < out.indexOf("npm run board"), "the protocol comes before the den role text");
 });
 
