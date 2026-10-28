@@ -16,6 +16,9 @@ import { fileURLToPath } from "node:url";
 export const ROLES = ["architect", "code-reviewer", "developer", "qa", "security", "technical-writer"];
 const KEEP = ["name", "description", "tools", "model", "effort", "color"];
 const DROP_TOOL = /^(Agent\(.*\)|Skill|AskUserQuestion|Artifact|mcp__.*)$/;
+// claude-code-action's tracking comment: a role's own tools list gates it like any other tool, and without it the
+// role's report never reaches the pull request (docviz #1: both runs left only the placeholder comment).
+const REPORT_TOOL = "mcp__github_comment__update_claude_comment";
 
 export const MANIFEST = {
   name: "den-roles",
@@ -39,7 +42,7 @@ function frontmatter(src) {
 
 export function renderRole(src, protocol) {
   const { keys, body } = frontmatter(src);
-  const tools = keys.tools.split(/,\s*(?![^()]*\))/).map((t) => t.trim()).filter((t) => t && !DROP_TOOL.test(t));
+  const tools = [...keys.tools.split(/,\s*(?![^()]*\))/).map((t) => t.trim()).filter((t) => t && !DROP_TOOL.test(t)), REPORT_TOOL];
   const head = KEEP.filter((k) => keys[k] !== undefined)
     .map((k) => `${k}: ${k === "tools" ? tools.join(", ") : keys[k]}`)
     .join("\n");
