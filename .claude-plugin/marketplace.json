@@ -8,6 +8,11 @@
   },
   "plugins": [
     {
+      "name": "den",
+      "source": "./.claude",
+      "description": "Dim Sum Dev roles (agents and skills) for target projects: install it where `--plugin-dir <den>/.claude` isn't possible, such as claude-code-action in a project's CI."
+    },
+    {
       "name": "sleep-guard",
       "source": "./mods/sleep-guard",
       "description": "Blocks sleep-chain Bash commands and points to gh pr checks --watch or Monitor."
