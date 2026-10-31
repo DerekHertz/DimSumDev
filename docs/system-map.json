@@ -10,7 +10,7 @@
     { "id": "guardrails", "paths": ["scripts/hooks/**", ".claude/settings.json", ".claude/hooks/**", ".claude/context-budget.mjs", ".codex/hooks.json", ".codex/config.toml", ".gitleaks.toml"] },
     { "id": "ci-cd", "paths": ["apps/ci-cd/**", ".github/**", ".claude/launch.json"] },
     { "id": "roles", "paths": [".claude/agents/**", ".codex/agents/**", "plugins/den-roles/**", ".codex/*.md", ".claude/commands/**", "CLAUDE.md", "AGENTS.md"] },
-    { "id": "skills", "paths": [".claude/skills/**", ".agents/skills/**", ".claude/.claude-plugin/**", ".claude-plugin/**", "skills-lock.json"], "folders": [".claude/skills", ".agents/skills"] },
+    { "id": "skills", "paths": [".claude/skills/**", ".claude/bin/**", ".agents/skills/**", ".claude/.claude-plugin/**", ".claude-plugin/**", "skills-lock.json"], "folders": [".claude/skills", ".agents/skills"] },
     { "id": "mods", "paths": ["mods/**"], "folders": ["mods"] },
     { "id": "docs", "paths": ["docs/**", "spikes/**", "CONTEXT.md", "README.md", "design-brief.md", "LICENSE", "NOTICE"], "folders": ["docs/images", "docs/videos"] },
     { "id": "design", "paths": ["design/**"], "folders": ["design/3d"] },
