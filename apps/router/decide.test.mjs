@@ -61,6 +61,12 @@ describe("starting (den-mvp/88 from 80)", () => {
     const r = run({ order: order("1", "2", "3"), tickets: [tk(1, { paths: ["apps/a/1.mjs"] }), tk(2, { paths: ["apps/a/2.mjs"] }), tk(3, { paths: ["apps/a/3.mjs"] })], state: bridge({ room: 2 }) });
     assert.deepEqual(starts(r), [full(1), full(2)]);
   });
+  test("portable-den/10: a bridge that reports no room limit does not stop starts; files separate the tickets", () => {
+    const nolimit = { capacity: { load: 0, live: 0, refs: [] }, deliveries: [] };
+    const tickets = [1, 2, 3, 4, 5].map((n) => tk(n, { paths: [`apps/a/${n}.mjs`] }));
+    const r = run({ order: order("1", "2", "3", "4", "5"), tickets, state: nolimit });
+    assert.deepEqual(starts(r), [1, 2, 3, 4, 5].map(full));
+  });
   test("a bridge that does not answer starts nothing", () => {
     assert.deepEqual(run({ state: null, downForMs: 1000 }).actions, []);
   });

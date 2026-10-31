@@ -6,7 +6,7 @@ import { readFileSync, readdirSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { makeBoardFixture, runBoard, eventsPath } from "./board-fixture.mjs";
 import { isBoardRole } from "./board-service.mjs";
-import { DESK_ROLE, ROLES, SESSION_CAP, SLOT_CLASSES, definitionOf, slotClassOf } from "../bridge/agents/policy.mjs";
+import { DESK_ROLE, ROLES, SLOT_CLASSES, definitionOf, slotClassOf } from "../bridge/agents/policy.mjs";
 import { buildClaudeArgs, ceilingOf } from "../bridge/agents/claude-adapter.mjs";
 import { SPECIALISTS } from "../bridge/meetings/types.mjs";
 
@@ -33,7 +33,6 @@ test("orchestrator, herald and scout have no role file, are not dispatchable, an
     assert.throws(() => buildClaudeArgs({ sessionId: "00000000-0000-4000-8000-000000000000", agent: role }));
   }
   assert.deepEqual(SLOT_CLASSES, ["worker", "bao"]);
-  assert.equal(SESSION_CAP, 3);
   assert.deepEqual(Object.keys(json("../bridge/agents/limits.json").classes).sort(), ["bao", "worker"]);
   const connections = json("../bridge/library/connections.json").connections;
   for (const c of connections) assert.ok(!c.roles.includes("scout") && !c.roles.includes("herald"), c.name);

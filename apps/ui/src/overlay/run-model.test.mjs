@@ -28,7 +28,7 @@ const need = (name) => {
   return model[name];
 };
 
-const cap = (liveRefs, lockedRefs = [], { max = 8, cap: sessionCap = 8 } = {}) => capacityOf({ liveRefs, lockedRefs, max, cap: sessionCap });
+const cap = (liveRefs, lockedRefs = []) => capacityOf({ liveRefs, lockedRefs });
 const READY = { state: "ready" };
 const TICKET = { ref: "f/05-target" };
 const run = (over) => need("runState")({ capacity: cap([]), ticket: TICKET, inflight: false, steer: READY, ...over });
@@ -136,19 +136,11 @@ describe("runState", () => {
     assert.deepEqual(state, { enabled: true, reason: "Also running: f/09-zeta, f/01-alpha" });
   });
 
-  test("room 0: disabled, with '<load> of <max> running: <refs>'", () => {
-    const state = run({ capacity: cap(["f/09-zeta", "f/03-gamma"], [], { max: 2 }) });
-    assert.deepEqual(state, { enabled: false, reason: "2 of 2 running: f/03-gamma, f/09-zeta" });
-  });
-
-  test("a lock with no agent fills a slot: running refs first, then the lock", () => {
-    const state = run({ capacity: cap(["f/09-zeta"], ["f/01-alpha"], { max: 2 }) });
-    assert.deepEqual(state, { enabled: false, reason: "2 of 2 running: f/09-zeta, f/01-alpha" });
-  });
-
-  test("when the session cap binds the reason uses live and cap", () => {
-    const state = run({ capacity: cap(["f/01-a", "f/02-b", "f/03-c"], [], { max: 8, cap: 3 }) });
-    assert.deepEqual(state, { enabled: false, reason: "3 of 3 running: f/01-a, f/02-b, f/03-c" });
+  test("portable-den/10: many agents running never disable Run on another ticket; the reason names the others", () => {
+    const refs = Array.from({ length: 12 }, (_, i) => `f/${String(i + 10)}-x`);
+    const state = run({ capacity: cap(refs, ["f/01-alpha"]) });
+    assert.equal(state.enabled, true);
+    assert.match(state.reason, /^Also running: f\/10-x/);
   });
 
   test("a snapshot with no capacity key is never enabled blind", () => {
@@ -179,37 +171,34 @@ describe("runState", () => {
 
 describe("capacityFromSnapshot (the UI recomputes between snapshots)", () => {
   const working = (ref, id) => ({ id, ref, role: "architect", state: "working" });
-  const snapshot = (agents, tickets = []) => ({ capacity: { max: 2, cap: 8, load: 0, live: 0, room: 2, refs: [] }, agents, tickets });
+  const snapshot = (agents, tickets = []) => ({ capacity: { load: 0, live: 0, refs: [] }, agents, tickets });
 
-  test("max and cap come from the last snapshot; live agents and ticket holders make the rest", () => {
+  test("live agents and ticket holders make the capacity", () => {
     const c = need("capacityFromSnapshot")(snapshot(
       [working("f/01-a", "c-1")],
       [{ ref: "f/07-locked", holder: { role: "developer", since: "2026-10-12T09:00:00Z" } }, { ref: "f/08-free", holder: null }],
     ));
-    const { max, cap: sessionCap, load, live, room } = c;
-    assert.deepEqual({ max, cap: sessionCap, load, live, room }, { max: 2, cap: 8, load: 2, live: 1, room: 0 });
+    const { load, live } = c;
+    assert.deepEqual({ load, live }, { load: 2, live: 1 });
+    assert.equal(c.room, undefined);
     assert.deepEqual(c.refs, [{ ref: "f/01-a", kind: "live" }, { ref: "f/07-locked", kind: "lock" }]);
   });
 
-  test("an agent that ended no longer counts: room comes back with no new capacity frame", () => {
+  test("an agent that ended no longer counts, with no new capacity frame", () => {
     const before = need("capacityFromSnapshot")(snapshot([working("f/01-a", "c-1"), working("f/02-b", "c-2")]));
-    assert.equal(before.room, 0);
-    const after = need("capacityFromSnapshot")(snapshot([working("f/01-a", "c-1"), { ...working("f/02-b", "c-2"), state: "done" }]));
-    assert.equal(after.room, 1);
-    for (const state of ["failed", "terminated"]) {
+    assert.equal(before.live, 2);
+    for (const state of ["done", "failed", "terminated"]) {
       const ended = need("capacityFromSnapshot")(snapshot([working("f/01-a", "c-1"), { ...working("f/02-b", "c-2"), state }]));
-      assert.equal(ended.room, 1, state);
+      assert.equal(ended.live, 1, state);
     }
   });
 
-  test("Run re-enables when the agent ends", () => {
+  test("Run stays enabled on another ticket whatever is running", () => {
     const ticket = { ref: "f/05-target" };
     const running = snapshot([working("f/01-a", "c-1"), working("f/02-b", "c-2")]);
-    const ended = snapshot([working("f/01-a", "c-1"), { ...working("f/02-b", "c-2"), state: "done" }]);
-    const state = (s) => need("runState")({ capacity: need("capacityFromSnapshot")(s), ticket, inflight: false, steer: READY });
-    assert.equal(state(running).enabled, false);
-    assert.equal(state(running).reason, "2 of 2 running: f/01-a, f/02-b");
-    assert.equal(state(ended).enabled, true);
+    const state = need("runState")({ capacity: need("capacityFromSnapshot")(running), ticket, inflight: false, steer: READY });
+    assert.equal(state.enabled, true);
+    assert.equal(state.reason, "Also running: f/01-a, f/02-b");
   });
 
   test("an agent that ended while its ticket still holds the lock leaves a lock, not a running agent", () => {
@@ -228,32 +217,10 @@ describe("capacityFromSnapshot (the UI recomputes between snapshots)", () => {
     assert.equal(c.load, 1);
   });
 
-  test("a snapshot with no capacity key (older bridge) stays unknown instead of guessing max and cap", () => {
+  test("a snapshot with no capacity key (older bridge) stays unknown instead of guessing", () => {
     const c = need("capacityFromSnapshot")({ agents: [], tickets: [] });
     assert.ok(c == null, "must be null or undefined");
     assert.deepEqual(need("runState")({ capacity: c, ticket: TICKET, inflight: false, steer: READY }), { enabled: false, reason: "Capacity unknown" });
-  });
-});
-
-describe("dispatchPrompt (the Needs you dispatch card)", () => {
-  test("at room 0 the prompt is hidden and one line says why", () => {
-    assert.deepEqual(need("dispatchPrompt")(cap(["f/01-a", "f/02-b"], [], { max: 2 })), { show: false, line: "No room to dispatch: 2 of 2 running." });
-  });
-
-  test("a lock with no agent can take the last slot, and the line counts it", () => {
-    assert.deepEqual(need("dispatchPrompt")(cap(["f/01-a"], ["f/02-b"], { max: 2 })), { show: false, line: "No room to dispatch: 2 of 2 running." });
-  });
-
-  test("with room the prompt shows and there is no line", () => {
-    assert.deepEqual(need("dispatchPrompt")(cap(["f/01-a"], [], { max: 2 })), { show: true, line: null });
-  });
-
-  test("the prompt comes back when an agent ends", () => {
-    const working = (ref, id, state = "working") => ({ id, ref, role: "architect", state });
-    const snap = (agents) => ({ capacity: { max: 2, cap: 8, load: 2, live: 2, room: 0, refs: [] }, agents, tickets: [] });
-    const prompt = (s) => need("dispatchPrompt")(need("capacityFromSnapshot")(s));
-    assert.equal(prompt(snap([working("f/01-a", "c-1"), working("f/02-b", "c-2")])).show, false);
-    assert.equal(prompt(snap([working("f/01-a", "c-1"), working("f/02-b", "c-2", "done")])).show, true);
   });
 });
 
@@ -267,35 +234,3 @@ describe("the ready list shows every frontier ticket", () => {
 });
 
 // team-and-den-ux/57: two worker slots, plus one reserved for Bao; the scout slot is retired.
-describe("reserved slots", () => {
-  const snap = (agents, holders = []) => ({
-    capacity: { max: 2, cap: 3 },
-    agents,
-    tickets: holders.map((ref) => ({ ref, holder: "someone" })),
-  });
-  const live = (ref, role) => ({ id: `c-${ref}`, ref, role, state: "working" });
-
-  test("Bao's agents are not worker load, even when they hold their ticket's lock", () => {
-    const c = need("capacityFromSnapshot")(snap([live("f/01-a", "orchestrator")], ["f/01-a"]));
-    assert.deepEqual({ load: c.load, live: c.live, room: c.room }, { load: 0, live: 0, room: 2 });
-    assert.deepEqual(c.reserved, { bao: { max: 1, refs: ["f/01-a"] } });
-  });
-
-  test("a second Bao run is refused with the slot's reason while a worker role may still run", () => {
-    const capacity = need("capacityFromSnapshot")(snap([live("f/01-a", "orchestrator")]));
-    const ticket = { ref: "f/03-c" };
-    const steer = { state: "ok" };
-    assert.deepEqual(need("runState")({ capacity, ticket, steer, role: "chief-of-staff" }), { enabled: false, reason: "The Bao slot is in use: f/01-a" });
-    assert.equal(need("runState")({ capacity, ticket, steer, role: "developer" }).enabled, true);
-  });
-
-  test("full worker slots do not block Bao, and the retired scout role takes a worker slot", () => {
-    const capacity = need("capacityFromSnapshot")(snap([live("f/01-a", "developer"), live("f/02-b", "qa")]));
-    const ticket = { ref: "f/03-c" };
-    const steer = { state: "ok" };
-    assert.equal(capacity.room, 0);
-    assert.equal(need("runState")({ capacity, ticket, steer, role: "architect" }).enabled, false);
-    assert.equal(need("runState")({ capacity, ticket, steer, role: "orchestrator" }).enabled, true);
-    assert.equal(need("runState")({ capacity, ticket, steer, role: "scout" }).enabled, false);
-  });
-});

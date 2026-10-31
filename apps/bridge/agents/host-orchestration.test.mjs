@@ -63,16 +63,33 @@ test('Codex manager and bounded child share the host lifecycle and expose an exe
   assert.ok(codex.spawns[2].calls.some(c => c.call === 'closeInput'));
 });
 
-test('concurrent managers cannot each allocate their own worker cap', async () => {
-  t = await makeBridge();
-  const first = await task({ orchestration: brief('manager') });
-  const second = await task({ orchestration: brief('manager', { task: 'Coordinate docs', files: ['docs.md'] }) });
-  assert.equal(first.status, 201, first.text);
-  assert.equal(second.status, 201, second.text);
-  const children = await Promise.all([first, second].map(r => task({ orchestration: brief('child', { parent: r.body.agent.id }) })));
-  assert.deepEqual(children.map(r => r.status), [429, 429]);
-  assert.equal(t.fake.spawns.length, 2);
-  assert.equal(t.fake.peakLive, 2);
+test('portable-den/10: a lead runs four managers with four children each, all live at once, and a second tree starts beside it', async () => {
+  const claude = createFakeRuntime();
+  const codex = createFakeRuntime();
+  const spawn = codex.spawn;
+  codex.spawn = async args => Object.assign(await spawn(args), { runtimeSessionId: `thread-${args.runId}` });
+  t = await makeBridge({ noRuntime: true, extra: { runtimes: { claude, codex } } });
+  const managers = [];
+  for (let m = 0; m < 4; m++) {
+    const r = await task({ runtime: 'claude', orchestration: brief('manager', { task: `Coordinate area ${m}`, files: [`area${m}`] }) });
+    assert.equal(r.status, 201, r.text);
+    managers.push(r.body.agent.id);
+  }
+  const kids = await Promise.all(managers.flatMap((id, m) => [0, 1, 2, 3].map(c => task({ runtime: 'claude', orchestration: brief('child', { parent: id, task: `Child ${m}.${c}`, files: [`area${m}/f${c}.mjs`] }) }))));
+  assert.deepEqual(kids.map(r => r.status), Array(16).fill(201), kids.map(r => r.text).join('\n'));
+  assert.equal(claude.spawns.length, 20);
+  assert.equal(claude.peakLive, 20, 'four managers and sixteen children are live together; no count cap');
+  const fifth = await task({ runtime: 'claude', orchestration: brief('manager', { task: 'A fifth manager', files: ['area4'] }) });
+  assert.equal(fifth.status, 400);
+  assert.match(fifth.body.error, /four managers/);
+  const extra = await task({ runtime: 'claude', orchestration: brief('child', { parent: managers[0], task: 'A fifth child', files: ['area0/f4.mjs'] }) });
+  assert.equal(extra.status, 400);
+  assert.match(extra.body.error, /four children/);
+  const other = await task({ runtime: 'codex', orchestration: brief('manager', { task: 'Second tree', files: ['other'] }) });
+  assert.equal(other.status, 201, other.text);
+  const otherChild = await task({ runtime: 'codex', orchestration: brief('child', { parent: other.body.agent.id, task: 'Second tree child', files: ['other/a.mjs'] }) });
+  assert.equal(otherChild.status, 201, otherChild.text);
+  assert.equal(codex.spawns.length, 2);
 });
 
 test('real HTTP dispatch preserves task overrides, delegation and records them', async () => {

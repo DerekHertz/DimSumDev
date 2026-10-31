@@ -6,7 +6,6 @@ import { readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createProfile, PROFILES, DEFAULT_PROFILE } from "./profile.mjs";
-import { SLOTS } from "./policy.mjs";
 
 let dir, file;
 beforeEach(async () => {
@@ -16,18 +15,17 @@ beforeEach(async () => {
 afterEach(() => rm(dir, { recursive: true, force: true }));
 
 describe("the profile table", () => {
-  test("lean keeps today's values: 2 workers, Haiku leaves, 1 verifier everywhere, split above 150k", () => {
+  test("lean keeps today's values: Haiku leaves, 1 verifier everywhere, split above 150k", () => {
     const lean = PROFILES.lean;
-    assert.equal(lean.maxConcurrent, SLOTS.worker);
-    assert.equal(lean.maxConcurrent, 2);
+    assert.equal(lean.maxConcurrent, undefined, "portable-den/10: no worker count in the table");
     assert.equal(lean.leafTier, "haiku");
     assert.deepEqual(lean.verifiers, { standard: 1, riskPath: 1, ui: 1 });
     assert.equal(lean.splitAboveTokens, 150000);
   });
 
-  test("full starts at 2 workers and runs more than one verifier on risk-path and UI tickets", () => {
+  test("full runs more than one verifier on risk-path and UI tickets", () => {
     const full = PROFILES.full;
-    assert.equal(full.maxConcurrent, 2);
+    assert.equal(full.maxConcurrent, undefined);
     assert.ok(full.verifiers.riskPath > 1 && full.verifiers.ui > 1);
     assert.equal(full.verifiers.standard, 1);
     assert.ok(full.verifierLoopCap >= PROFILES.lean.verifierLoopCap);
@@ -82,10 +80,10 @@ describe("the profile store", () => {
     assert.deepEqual(await readdir(dir), ["profile.json"]);
   });
 
-  test("a table can be injected, so a test can give the two profiles different worker counts", async () => {
-    const p = createProfile({ file, table: { lean: { ...PROFILES.lean, maxConcurrent: 1 }, full: { ...PROFILES.full, maxConcurrent: 2 } } });
-    assert.equal(p.values().maxConcurrent, 2);
+  test("a table can be injected, so a test can give the two profiles different leaf tiers", async () => {
+    const p = createProfile({ file, table: { lean: { ...PROFILES.lean, leafTier: "a" }, full: { ...PROFILES.full, leafTier: "b" } } });
+    assert.equal(p.values().leafTier, "b");
     await p.set("lean");
-    assert.equal(p.values().maxConcurrent, 1);
+    assert.equal(p.values().leafTier, "a");
   });
 });

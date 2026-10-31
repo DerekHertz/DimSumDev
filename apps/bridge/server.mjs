@@ -249,7 +249,6 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
       await board.handoff(agent.ref, { role: agent.role, mode: boardMode(agent), runId: agent.id, sha: "", report: `The run did not start: ${reason}.`, committed: false, source: "den run", status: "ready-for-agent" }).catch(() => board.drop(agent.ref, { status: "ready-for-agent", reason: `${agent.role} run did not start: ${reason}` }));
       await runClaims.remove(agent.id);
     },
-    lockedRefs: async ({ project }) => (await snapshotOf(project)).tickets.filter((t) => t.holder && !meetings?.snapshot().some(m => m.held && m.ref === t.ref && m.project === project && t.holder.role === 'chief-of-staff' && t.holder.since === m.holdSince)).map((t) => t.ref),
     openDesk: (runtime) => ensureDesk(root, runtime),
     createDelegatedTicket: async ({ parent, role, brief }) => (await boards.get(parent.project)).create({
       feature: DEN_FEATURE, slug: role, title: `Delegated ${role}: ${brief.task}`.slice(0, 100),

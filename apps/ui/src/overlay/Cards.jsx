@@ -15,7 +15,7 @@ import { Card } from "./Card.jsx";
 import { LibraryCard } from "./Library.jsx";
 import { MeetingSheet, MeetingsCard, useMeetings } from "./Meetings.jsx";
 import { meetingRows } from "./meeting-model.mjs";
-import { ROLE_OPTIONS, capacityFromSnapshot, defaultRole, dispatchPrompt, runState, slotRows } from "./run-model.mjs";
+import { ROLE_OPTIONS, capacityFromSnapshot, defaultRole, runState, slotRows } from "./run-model.mjs";
 
 const isTextField = (el) => el instanceof Element && (el.closest("input, textarea, select, [contenteditable]") !== null);
 
@@ -452,8 +452,8 @@ function RunControl({ scope, ticket, capacity, steer, run }) {
   const [role, setRole] = useState(() => defaultRole(ticket));
   const ref = ticket.ref;
   const inflight = run.inflight.has(ref);
-  const state = runState({ capacity, ticket, inflight, steer, role });
-  const settled = runState({ capacity, ticket, inflight: false, steer, role });
+  const state = runState({ capacity, ticket, inflight, steer });
+  const settled = runState({ capacity, ticket, inflight: false, steer });
   // The refusal clears when this row's state changes (an agent started or ended, the session ended), not only on the next press.
   const signature = `${settled.enabled}|${settled.reason}`;
   const seen = useRef(signature);
@@ -501,7 +501,7 @@ function SlotStrip({ snapshot, capacity }) {
       <div className="slots-head">
         <span className="ov">Slots</span>
         <span className="small">
-          {!snapshot ? "Slots unavailable, bridge offline" : !capacity ? "Capacity unknown" : `${capacity.load} of ${capacity.max} running`}
+          {!snapshot ? "Slots unavailable, bridge offline" : !capacity ? "Capacity unknown" : `${capacity.load} running`}
         </span>
       </div>
       {rows.length > 0 ? (
@@ -516,7 +516,7 @@ function SlotStrip({ snapshot, capacity }) {
           ))}
         </ul>
       ) : null}
-      {rows.some((r) => r.kind === "lock") ? <p className="small muted slots-note">A lock with no agent costs a slot until it is reclaimed on the board.</p> : null}
+      {rows.some((r) => r.kind === "lock") ? <p className="small muted slots-note">A lock with no agent stays until it is reclaimed on the board.</p> : null}
     </section>
   );
 }
@@ -534,16 +534,14 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
       restoreRequestFocus.current = false;
     }
   }, [current?.key]);
-  // 228: a dispatch gate also gets Run, and at room 0 its prompt (note, Approve, Deny) is replaced by one line.
+  // 228: a dispatch gate also gets Run beside its prompt (note, Approve, Deny).
   const isDispatch = current?.kind === "gate" && current.gate === "dispatch";
-  const prompt = isDispatch ? dispatchPrompt(capacity) : { show: true, line: null };
   const dispatchTicket = isDispatch ? (snapshot?.tickets ?? []).find((t) => t.ref === current.ref) ?? { ref: current.ref } : null;
 
   // Card-scoped keys: only while focus is inside this card and not in a text field. The Tally dialog and the
   // scene are outside it, so a, d, m, j and k never reach them from here or here from them.
   const onKeyDown = (e) => {
     if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || isTextField(e.target) || !current) return;
-    if (!prompt.show && (e.key === "a" || e.key === "d" || e.key === "m")) return; // no prompt on screen, so these keys do nothing
     if (e.key === "a") decision.current?.approve();
     else if (e.key === "d") decision.current?.deny();
     else if (e.key === "m") decision.current?.focusNote();
@@ -595,9 +593,7 @@ export function NeedsYouCard({ snapshot, now, open, onToggle, busy, placeholder,
                 ? (deliveries ? <RouterStopNote key={current.key} request={current} steer={steer} deliveries={deliveries} /> : null)
               : current.kind === "meeting"
                 ? (meetings ? <MeetingDecision key={current.key} request={current} steer={steer} meetings={meetings} onOpenMeeting={onOpenMeeting} /> : null)
-              : prompt.show
-                ? <Decision key={current.key} ref={decision} request={current} session={session} />
-                : <p className="small muted dispatch-line">{prompt.line}</p>}
+              : <Decision key={current.key} ref={decision} request={current} session={session} />}
             {others.length > 0 ? (
               <ul className="request-rows">
                 {others.map((r) => (

@@ -41,7 +41,6 @@ describe("the profile over HTTP", () => {
     const { profile } = await t.state();
     assert.equal(profile.name, "full");
     assert.deepEqual(profile.values, PROFILES.full);
-    assert.equal(profile.values.maxConcurrent, 2);
     assert.ok(profile.values.verifiers.riskPath > 1);
     assert.equal(profile.values.leafTier, PROFILES.full.leafTier);
   });
@@ -71,24 +70,17 @@ describe("the profile over HTTP", () => {
     }
   });
 
-  test("a flip changes what a new run is allowed, with no restart (the host reads the profile live)", async (ctx) => {
+  test("a flip changes the profile the state reports, with no restart", async (ctx) => {
     const dir = await mkdtemp(path.join(tmpdir(), "den-profile-"));
     ctx.after(() => rm(dir, { recursive: true, force: true }));
     const file = path.join(dir, "profile.json");
-    // The real table has 2 workers in both profiles until trust-ladder/15; give lean 1 so the effect shows.
-    const profile = createProfile({ file, table: { lean: { ...PROFILES.lean, maxConcurrent: 1 }, full: { ...PROFILES.full, maxConcurrent: 2 } } });
+    const profile = createProfile({ file });
     t = await makeBridge({ extra: { profile } });
-    assert.equal((await t.state()).capacity.max, 2);
+    assert.equal((await t.state()).profile.name, "full");
     assert.equal((await flip("lean")).status, 200);
-    assert.equal((await t.state()).capacity.max, 1, "the snapshot's capacity follows the profile");
-    const first = await t.bridge.host.start({ ref: `${FEATURE}/21-hop`, role: "developer" });
-    assert.equal(first.status, 201);
-    const second = await t.bridge.host.start({ ref: `${FEATURE}/22-hop`, role: "qa" });
-    assert.equal(second.status, 429, "lean allows one worker: the second run is refused");
+    assert.deepEqual((await t.state()).profile, { name: "lean", values: PROFILES.lean });
     await flip("full");
-    assert.equal((await t.state()).capacity.max, 2);
-    const third = await t.bridge.host.start({ ref: `${FEATURE}/23-hop`, role: "qa" });
-    assert.equal(third.status, 201, "flipping back to full lets the next run in");
+    assert.equal((await t.state()).profile.name, "full");
   });
 
   test("a bad request changes nothing: no name, a non-string, an unknown profile, no token", async () => {

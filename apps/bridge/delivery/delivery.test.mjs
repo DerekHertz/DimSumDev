@@ -654,17 +654,6 @@ describe("what stops a delivery, and what it leaves", () => {
     await until(async () => !(await listed()).includes(".claude/worktrees/"), { what: "the worktrees to be removed" });
   });
 
-  test("with no room the delivery waits, and starts by itself when a run ends", async () => {
-    const t = await setup({ policy: { maxConcurrent: 1 } });
-    const other = await t.bridge.host.start({ ref: `${FEATURE}/07-bumpable`, role: "architect" });
-    assert.equal(other.ok, true, other.error);
-    await t.start();
-    await t.paused("no-room");
-    assert.equal(t.fake.spawns.length, 1);
-    t.fake.spawns[0].emit({ type: "done", ok: true });
-    assert.equal((await t.spawn(1)).args.role, "developer");
-    assert.equal((await t.job()).state, "running");
-  });
 });
 
 describe("what a delivery may be started on", () => {

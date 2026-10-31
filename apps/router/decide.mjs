@@ -64,7 +64,7 @@ export function decide({ order, tickets = [], state, usage, stops: known = [], d
   const percent = usage["5-hour"].percent;
   if (percent >= STOP_AT_PERCENT) return done(`5-hour usage is at ${percent}%`);
 
-  let room = Number.isInteger(state.capacity?.room) ? state.capacity.room : 0;
+  let room = Number.isInteger(state.capacity?.room) ? state.capacity.room : Infinity; // portable-den/10: the bridge sends no room limit; a number is a test's
   for (const d of paused) {
     const kind = d.pause?.kind;
     if (LOOK_KINDS.has(kind) && nowMs - (looked.get(d.id) ?? -Infinity) < LOOK_INTERVAL_MS) continue;

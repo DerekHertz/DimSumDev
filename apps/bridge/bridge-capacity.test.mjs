@@ -19,7 +19,7 @@ import { withLocks, lockTicket, refOf, kinds } from "./agents/capacity-test-help
 const R02 = refOf("02-ready-p0");
 const R07 = refOf("07-bumpable");
 const R08 = refOf("08-plain");
-const NUMBERS = ["max", "cap", "load", "live", "room"];
+const NUMBERS = ["load", "live"];
 const numbers = (c) => Object.fromEntries(NUMBERS.map((k) => [k, c[k]]));
 
 let t;
@@ -57,91 +57,50 @@ describe("the dispatch gate no longer waits for locks to clear", () => {
   });
 });
 
-describe("capacity in GET /state (max 2 injected)", () => {
-  test("nothing running: room is the whole max", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 2 } });
-    const { capacity } = await t.state();
-    assert.deepEqual(numbers(capacity), { max: 2, cap: 3, load: 0, live: 0, room: 2 });
-    assert.deepEqual(capacity.refs, []);
-  });
-
-  test("the default is two worker slots, and a policy override cannot raise max or cap above the three sessions", async () => {
+describe("capacity in GET /state (portable-den/10: who is running, no limit)", () => {
+  test("nothing running: no agents, no max, cap or room", async () => {
     t = await makeBridge();
-    assert.deepEqual(numbers((await t.state()).capacity), { max: 2, cap: 3, load: 0, live: 0, room: 2 });
-    await t.close();
-    t = await makeBridge({ policy: { maxConcurrent: 100, sessionCap: 100 } });
-    assert.deepEqual(numbers((await t.state()).capacity), { max: 3, cap: 3, load: 0, live: 0, room: 3 });
-    await t.close();
-    t = await makeBridge({ policy: { maxConcurrent: 3, sessionCap: 2 } });
-    assert.deepEqual(numbers((await t.state()).capacity), { max: 3, cap: 2, load: 0, live: 0, room: 2 }, "a lower session cap is reported as the host applies it");
+    const c = (await t.state()).capacity;
+    assert.deepEqual(numbers(c), { load: 0, live: 0 });
+    assert.deepEqual(c.refs, []);
+    assert.deepEqual(Object.keys(c).sort(), ["live", "load", "refs"]);
   });
 
-  test("Bao has a reserved slot: it is not worker load, a second Bao run is 429, and there is no scout slot (den-mvp outcome 1)", async () => {
-    t = await makeBridge();
-    assert.equal((await t.dispatch("orchestrator", R02)).status, 201);
-    await lockTicket(t.fx.root, "02-ready-p0", "orchestrator"); // Bao claims its own ticket: still not worker load
-    const { capacity } = await t.state();
-    assert.deepEqual(numbers(capacity), { max: 2, cap: 3, load: 0, live: 0, room: 2 }, "both worker slots are still free");
-    assert.deepEqual(capacity.reserved, { bao: { max: 1, refs: [R02] } });
-    const second = await t.dispatch("chief-of-staff", R08);
-    assert.equal(second.status, 429, second.text);
-    assert.match(second.body.error, /bao slot is in use/);
-    assert.equal((await t.dispatch("developer", R07)).status, 201, "a worker still starts beside it");
-  });
-
-  test("two live agents: room falls to 0 and refs name both as live", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 2 } });
+  test("live agents and a foreign lock are listed, and a host agent that claimed its own ticket is one live ref", async () => {
+    t = await makeBridge({ preWrite: withLocks("07-bumpable") });
     assert.equal((await t.dispatch("architect", R02)).status, 201);
     assert.equal((await t.dispatch("architect", R08)).status, 201);
-    const { capacity } = await t.state();
-    assert.deepEqual(numbers(capacity), { max: 2, cap: 3, load: 2, live: 2, room: 0 });
-    assert.deepEqual(kinds(capacity.refs), { [R02]: "live", [R08]: "live" });
+    const c = (await t.state()).capacity;
+    assert.deepEqual(numbers(c), { load: 3, live: 2 });
+    assert.deepEqual(kinds(c.refs), { [R02]: "live", [R08]: "live", [R07]: "lock" });
   });
 
-  test("one live agent plus one foreign lock: room 0, and refs tells the agent from the lock", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 2 }, preWrite: withLocks("07-bumpable") });
-    assert.equal((await t.dispatch("architect", R02)).status, 201);
-    const { capacity } = await t.state();
-    assert.deepEqual(numbers(capacity), { max: 2, cap: 3, load: 2, live: 1, room: 0 });
-    assert.deepEqual(kinds(capacity.refs), { [R02]: "live", [R07]: "lock" });
-  });
-
-  test("a host agent that has claimed its own ticket is one live ref, not a lock too", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 2 } });
-    assert.equal((await t.dispatch("architect", R02)).status, 201);
-    // den-mvp/89: the bridge itself holds the Run's claim now, so the ticket is locked and live at once.
-    assert.ok(existsSync(path.join(t.fx.root, ".scratch", "fx", "issues", "02-ready-p0.lock")), "the bridge's claim lock is on the ticket");
-    const { capacity } = await t.state();
-    assert.deepEqual(numbers(capacity), { max: 2, cap: 3, load: 1, live: 1, room: 1 });
-    assert.deepEqual(kinds(capacity.refs), { [R02]: "live" });
-  });
-
-  test("an agent that ended no longer counts, and a released lock frees its slot", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 2 }, preWrite: withLocks("07-bumpable") });
+  test("an agent that ended no longer counts", async () => {
+    t = await makeBridge({ preWrite: withLocks("07-bumpable") });
     assert.equal((await t.dispatch("architect", R02)).status, 201);
     t.fake.spawns[0].exit();
     await until(async () => (await t.state()).capacity.live === 0, { what: "the ended agent to leave capacity" });
-    assert.deepEqual(numbers((await t.state()).capacity), { max: 2, cap: 3, load: 1, live: 0, room: 1 });
+    assert.deepEqual(numbers((await t.state()).capacity), { load: 1, live: 0 });
   });
 
-  test("the snapshot's room agrees with the host: room 0 means the next dispatch is 429, room 1 means it starts", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 2 }, preWrite: withLocks("07-bumpable") });
-    assert.equal((await t.state()).capacity.room, 1);
+  test("a third agent starts: there is no count refusal", async () => {
+    t = await makeBridge();
     assert.equal((await t.dispatch("architect", R02)).status, 201);
-    assert.equal((await t.state()).capacity.room, 0);
-    assert.equal((await t.dispatch("architect", R08)).status, 429);
+    assert.equal((await t.dispatch("architect", R07)).status, 201);
+    assert.equal((await t.dispatch("architect", R08)).status, 201);
+    assert.equal((await t.state()).capacity.live, 3);
   });
 });
 
 describe("capacity in the SSE snapshot", () => {
   test("the first snapshot frame carries the same capacity as GET /state", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 2 }, preWrite: withLocks("07-bumpable") });
+    t = await makeBridge({ preWrite: withLocks("07-bumpable") });
     assert.equal((await t.dispatch("architect", R02)).status, 201);
     const sse = openSse(t.bridge);
     try {
       await sse.opened;
       const frame = await sse.next((f) => f.event === "snapshot");
-      assert.deepEqual(numbers(frame.data.capacity), { max: 2, cap: 3, load: 2, live: 1, room: 0 });
+      assert.deepEqual(numbers(frame.data.capacity), { load: 2, live: 1 });
       assert.deepEqual(kinds(frame.data.capacity.refs), { [R02]: "live", [R07]: "lock" });
       assert.deepEqual(frame.data.capacity, (await t.state()).capacity);
     } finally {

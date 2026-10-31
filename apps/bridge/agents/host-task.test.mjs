@@ -154,23 +154,15 @@ describe("POST /tasks starts a role on a ticket the route writes", () => {
     assert.equal(JSON.stringify(t.fake.spawns[1].args).includes("opus"), false);
   });
 
-  test("the concurrency limit still applies, and a refused task writes no ticket (max 2 injected)", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 2 } });
+  test("no count limit: a third task starts beside two live agents, and tasks posted at once all start", async () => {
+    t = await makeBridge({ runtimeConfig: { spawnDelayMs: 30 } });
     assert.equal((await t.post("/tasks", { role: "product", text: TEXT })).status, 201);
     assert.equal((await t.dispatch("architect")).status, 201);
     const res = await t.post("/tasks", { role: "technical-writer", text: TEXT });
-    assert.equal(res.status, 429, res.text);
-    assert.match(res.body.error, /max_concurrent_agents/);
-    assert.deepEqual(await tickets(t.fx.root), ["01-product.md"]);
-    assert.equal(t.fake.spawns.length, 2);
-  });
-
-  test("two tasks posted at once with one slot left: one starts, the other is refused and writes no ticket", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 1 }, runtimeConfig: { spawnDelayMs: 30 } });
-    const both = await Promise.all([t.post("/tasks", { role: "product", text: TEXT }), t.post("/tasks", { role: "technical-writer", text: TEXT })]);
-    assert.deepEqual(both.map((r) => r.status).sort(), [201, 429]);
-    assert.equal((await tickets(t.fx.root)).length, 1);
-    assert.equal(t.fake.spawns.length, 1);
+    assert.equal(res.status, 201, res.text);
+    const both = await Promise.all([t.post("/tasks", { role: "product", text: TEXT }), t.post("/tasks", { role: "sre", text: TEXT })]);
+    assert.deepEqual(both.map((r) => r.status), [201, 201]);
+    assert.equal(t.fake.spawns.length, 5);
   });
 
   test("the usage gate still applies, and a refused task writes no ticket", async () => {

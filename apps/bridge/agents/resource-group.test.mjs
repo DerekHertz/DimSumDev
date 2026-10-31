@@ -14,7 +14,6 @@ import { spawn as spawnChild, execFile } from "node:child_process";
 import { EnforcementError, GATE_REFUSED, LIMITS, OOM_SCORE, START_GATE, buildScopeArgv, busPlaces, cgroupOf, checkLimits, createResourceLauncher, findUserBus, groupFiles, groupProperties, judgeProbe, PROBE_SCRIPT, measureTree, watchStorage } from "./resource-group.mjs";
 import { createClaudeRuntime } from "./claude-runtime.mjs";
 import { hostPid } from "./launcher-test-helpers.mjs";
-import { SLOTS } from "./policy.mjs";
 
 const MIB = 1024 * 1024;
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
@@ -56,11 +55,8 @@ describe("limits.json: the spec's defaults", () => {
     assert.deepEqual(LIMITS.classes.worker, { memoryMiB: 2048, cpuPercent: 100, tasks: 256 }, "the agents' own limits are unchanged");
   });
 
-  test("every slot at its class limit fits inside the aggregate", () => {
-    for (const key of ["memoryMiB", "cpuPercent", "tasks"]) {
-      const sum = Object.entries(SLOTS).reduce((n, [cls, slots]) => n + slots * LIMITS.classes[cls][key], 0);
-      assert.ok(sum <= LIMITS.aggregate[key], `${key}: ${sum} > ${LIMITS.aggregate[key]}`);
-    }
+  test("each class limit fits inside the aggregate on its own (the aggregate is the real bound on many agents)", () => {
+    for (const key of ["memoryMiB", "cpuPercent", "tasks"]) for (const cls of Object.keys(LIMITS.classes)) assert.ok(LIMITS.classes[cls][key] <= LIMITS.aggregate[key], `${cls} ${key}`);
   });
 
   test("bad data is refused at load: a missing class, an extra key, a limit of zero, a string", () => {

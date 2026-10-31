@@ -39,11 +39,11 @@ const names = (rec) => rec.calls.map((c) => c.call);
 const at = (rec, call) => rec.calls.find((c) => c.call === call)?.at;
 
 describe("policy constants (agents/policy.mjs)", () => {
-  test("the slots, the caps and the grace are the ones the den-mvp spec names: two workers and one Bao (team-and-den-ux/57: no scout slot)", async () => {
+  test("the grace and the slot classes are the ones the spec names, and there is no count cap (portable-den/10)", async () => {
     const p = await loadPolicy();
-    assert.deepEqual({ ...p.SLOTS }, { worker: 2, bao: 1 });
-    assert.equal(p.MAX_CONCURRENT_AGENTS, 2);
-    assert.equal(p.SESSION_CAP, 3);
+    assert.equal(p.SLOTS, undefined);
+    assert.equal(p.MAX_CONCURRENT_AGENTS, undefined);
+    assert.equal(p.SESSION_CAP, undefined);
     assert.equal(p.KILL_GRACE_MS, 5000);
     assert.equal(p.slotClassOf("orchestrator"), "bao");
     assert.equal(p.slotClassOf("chief-of-staff"), "bao");
@@ -415,8 +415,8 @@ describe("dispatch policy: refusals write nothing and start nothing", () => {
     }
   });
 
-  test("the internal start() does start a relay-hop role, and it takes a slot like any other agent (max 2 injected)", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 2 } });
+  test("the internal start() does start a relay-hop role, and a third start is not refused", async () => {
+    t = await makeBridge();
     const res = await t.bridge.host.start({ ref: `${FEATURE}/21-hop`, role: "developer" });
     assert.equal(res.ok, true);
     assert.equal(res.status, 201);
@@ -424,7 +424,7 @@ describe("dispatch policy: refusals write nothing and start nothing", () => {
     assert.equal((await t.state()).agents.length, 1);
     await t.bridge.host.start({ ref: `${FEATURE}/22-hop`, role: "qa" });
     const third = await t.bridge.host.start({ ref: `${FEATURE}/23-hop`, role: "security" });
-    assert.equal(third.status, 429, "max_concurrent_agents applies to start() too");
+    assert.equal(third.status, 201, "no count cap applies to start()");
   });
 
   test("validation: role and ref and mode must be the right shape", async () => {
@@ -530,35 +530,12 @@ describe("dispatch policy: refusals write nothing and start nothing", () => {
 describe("caps and the concurrent-dispatch race (criterion 3)", () => {
   const refs = (n) => Array.from({ length: n }, (_, i) => `${FEATURE}/${31 + i}-race`);
 
-  test("max_concurrent_agents: two agents run, a third is 429, and an exit frees a slot (max 2 injected)", async () => {
-    t = await makeBridge({ policy: { maxConcurrent: 2 } });
-    assert.equal((await t.bridge.host.start({ ref: `${FEATURE}/21-a`, role: "architect" })).status, 201);
-    assert.equal((await t.bridge.host.start({ ref: `${FEATURE}/22-b`, role: "architect" })).status, 201);
-    const third = await t.dispatch("architect");
-    assert.equal(third.status, 429, third.text);
-    assert.equal(t.fake.spawns.length, 2);
-    t.fake.spawns[0].exit();
-    await until(async () => (await t.dispatch("architect")).status === 201, { what: "a slot to free up" });
-  });
-
-  test("six concurrent start() calls with max 2 injected: exactly two win, peak concurrency never passes two", async () => {
-    t = await makeBridge({ runtimeConfig: { spawnDelayMs: 40 }, policy: { maxConcurrent: 2 } });
-    const results = await Promise.all(refs(6).map((ref) => t.bridge.host.start({ ref, role: "architect" })));
-    assert.equal(results.filter((r) => r.status === 201).length, 2);
-    assert.equal(results.filter((r) => r.status === 429).length, 4);
-    assert.equal(t.fake.spawns.length, 2);
-    assert.ok(t.fake.peakLive <= 2, `peak ${t.fake.peakLive}`);
-    assert.equal((await t.state()).agents.length, 2);
-  });
-
-  test("the 3-session cap is a hard ceiling that an override cannot raise: twelve racing starts, three win", async () => {
-    t = await makeBridge({ runtimeConfig: { spawnDelayMs: 30 }, policy: { maxConcurrent: 100, sessionCap: 100 } });
+  test("no count cap: twelve racing start() calls on different tickets all win", async () => {
+    t = await makeBridge({ runtimeConfig: { spawnDelayMs: 30 } });
     const results = await Promise.all(refs(12).map((ref) => t.bridge.host.start({ ref, role: "architect" })));
-    assert.equal(results.filter((r) => r.status === 201).length, 3);
-    assert.equal(results.filter((r) => r.status === 429).length, 9);
-    assert.ok(t.fake.peakLive <= 3, `peak ${t.fake.peakLive}`);
-    t.fake.spawns[0].exit();
-    await until(async () => (await t.bridge.host.start({ ref: `${FEATURE}/60-late`, role: "architect" })).status === 201, { what: "a freed session" });
+    assert.deepEqual(results.map((r) => r.status), Array(12).fill(201));
+    assert.equal(t.fake.peakLive, 12);
+    assert.equal((await t.state()).agents.length, 12);
   });
 
   test("two near-simultaneous POST /agents on the same ref with a free slot: one 201, the rest 409, one spawn", async () => {
@@ -568,14 +545,12 @@ describe("caps and the concurrent-dispatch race (criterion 3)", () => {
     assert.equal(t.fake.spawns.length, 1);
   });
 
-  test("an HTTP dispatch racing a start() for the last slot: exactly one wins (max 2 injected)", async () => {
-    t = await makeBridge({ runtimeConfig: { spawnDelayMs: 40 }, policy: { maxConcurrent: 2 } });
+  test("an HTTP dispatch racing a start() on another ticket: both win", async () => {
+    t = await makeBridge({ runtimeConfig: { spawnDelayMs: 40 } });
     assert.equal((await t.bridge.host.start({ ref: `${FEATURE}/21-held`, role: "architect" })).status, 201);
     const [viaHttp, viaStart] = await Promise.all([t.dispatch("architect"), t.bridge.host.start({ ref: `${FEATURE}/22-racer`, role: "architect" })]);
-    const wins = [viaHttp.status === 201, viaStart.status === 201].filter(Boolean).length;
-    assert.equal(wins, 1, `${viaHttp.status} / ${viaStart.status}`);
-    assert.equal(t.fake.spawns.length, 2);
-    assert.ok(t.fake.peakLive <= 2);
+    assert.deepEqual([viaHttp.status, viaStart.status], [201, 201]);
+    assert.equal(t.fake.spawns.length, 3);
   });
 
   test("the same ref through start() twice at once: one wins", async () => {

@@ -3,7 +3,7 @@
 // PINNED INTERFACE (the contract these tests hold the developer to; ADR 0016 as amended, names per ADR 0019
 // decision 10: "agent" and "role" in code):
 //
-//   apps/bridge/agents/policy.mjs   MAX_CONCURRENT_AGENTS (2), SESSION_CAP (8), KILL_GRACE_MS (5000),
+//   apps/bridge/agents/policy.mjs   KILL_GRACE_MS (5000),
 //                                  RELAY_HOP_ROLES (developer, qa, security)
 //   apps/bridge/agents/runtime.mjs  createFakeRuntime(config) -> CellRuntime plus test controls (see host-core.test.mjs)
 //   startBridge({ root, port, auth, runtime?, policy? })
@@ -51,7 +51,7 @@ async function need(rel, names) {
   return mod;
 }
 export const loadRuntime = () => need("./runtime.mjs", ["createFakeRuntime"]);
-export const loadPolicy = () => need("./policy.mjs", ["MAX_CONCURRENT_AGENTS", "SESSION_CAP", "KILL_GRACE_MS", "SLOTS", "slotClassOf"]);
+export const loadPolicy = () => need("./policy.mjs", ["KILL_GRACE_MS", "slotClassOf"]);
 
 // A bridge over a disposable board, a fake runtime, a logged-in session, and shorthands.
 //   preWrite(root)  runs before the bridge starts (seed .scratch files)

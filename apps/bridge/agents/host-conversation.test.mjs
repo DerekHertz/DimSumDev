@@ -238,16 +238,16 @@ describe("a follow-up to a run that has ended", () => {
     assert.equal(cwd, t.fake.spawns[0].args.cwd);
   });
 
-  test("it is admitted like any start: usage, room and enforcement are checked again", async () => {
+  test("it is admitted like any start: usage and enforcement are checked again; there is no count limit", async () => {
     const t = await setup();
     const first = await t.start("developer");
     await t.finish(first);
 
-    // No room: both worker slots are taken by other tickets.
+    // Two other tickets run: that is no reason to refuse (portable-den/10).
     const others = [await t.start("developer", NO_GATE_REF), await t.start("qa", `${FEATURE}/05-blocked`)];
-    const full = await t.say("developer", { text: "again", runId: first.id });
-    assert.equal(full.status, 429, JSON.stringify(full.body));
-    assert.match(full.body.error, /max_concurrent_agents \(2\) reached/);
+    const busy = await t.say("developer", { text: "again", runId: first.id });
+    assert.equal(busy.status, 201, JSON.stringify(busy.body));
+    await t.finish(busy.body.agent);
     for (const o of others) await t.finish(o);
 
     await appendFile(`${t.fx.root}/.scratch/usage.jsonl`, JSON.stringify({ kind: "usage", ts: new Date().toISOString(), five_hour: 95, weekly: 10 }) + "\n");

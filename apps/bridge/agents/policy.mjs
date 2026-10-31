@@ -1,13 +1,11 @@
 // organism-infra/140 (ADR 0016 decision 3): the steering host's policy values and role table, in one place.
 // Mechanism lives in host.mjs; every number and allowlist a reviewer may want to change lives here.
 
-// den-mvp outcome 1 (spec section 2): two worker slots, plus one slot kept for Bao. team-and-den-ux/19 retired the scout and
-// its slot. A reserved slot is never a third worker. Each class has its own hardware limits (limits.json, read by resource-group.mjs).
+// portable-den/10: no count limit on live agents. A slot class only picks the resource-group limits (limits.json, read by
+// resource-group.mjs): Bao's desk and chief of staff run in "bao", every other role in "worker". A task tree's own shape
+// ceiling (ADR 0029 decision 1: four managers, four children each) is enforced in orchestration.mjs.
 export const SLOT_CLASSES = ["worker", "bao"];
-export const SLOTS = Object.freeze({ worker: 2, bao: 1 });
 export const slotClassOf = (role) => (role === DESK_ROLE || role === "chief-of-staff" ? "bao" : "worker");
-export const MAX_CONCURRENT_AGENTS = SLOTS.worker; // max_concurrent_agents (ADR 0002): worker agents plus foreign claim locks
-export const SESSION_CAP = SLOTS.worker + SLOTS.bao; // hard ceiling on live daemon-spawned sessions; a policy override can only lower it
 export const KILL_GRACE_MS = 5000; // between stdin close, SIGTERM and SIGKILL
 export const SHUTDOWN_SPAWN_WAIT_MS = 3000; // organism-infra/143: how long shutdown waits for spawns in flight before it kills synchronously
 export const USAGE_REFUSE_AT = 90; // five-hour usage percent at which dispatch is refused (ADR 0002 auto-pause)

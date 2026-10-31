@@ -1,25 +1,21 @@
-// trust-ladder/01 (ADR 0032): the Profile, one lean/full setting that sets the org limits, tiers and verifier count together.
-// The table is the single source of those values; the host reads maxConcurrent from it on every admission, so a flip
+// trust-ladder/01 (ADR 0032): the Profile, one lean/full setting that sets the org tiers and verifier count together.
+// The table is the single source of those values; the delivery reads it on every run, so a flip
 // needs no restart. It never holds a resource-group limit: limits.json is the wall and reads the same in both profiles.
 import { readFileSync } from "node:fs";
 import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
-import { SLOTS } from "./policy.mjs";
 
 export const DEFAULT_PROFILE = "full";
 
 // Tunable (first full-profile runs): full's leafTier, verifierLoopCap, splitAboveTokens and verifier counts are first guesses.
-// maxConcurrent is 2 in both until trust-ladder/15 raises full's; the wall (limits.json) has room for 2 workers and Bao's slot only.
 export const PROFILES = Object.freeze({
   lean: Object.freeze({
-    maxConcurrent: SLOTS.worker,
     leafTier: "haiku",
     verifiers: Object.freeze({ standard: 1, riskPath: 1, ui: 1 }),
     verifierLoopCap: 2,
     splitAboveTokens: 150000,
   }),
   full: Object.freeze({
-    maxConcurrent: SLOTS.worker,
     leafTier: "sonnet",
     verifiers: Object.freeze({ standard: 1, riskPath: 2, ui: 2 }),
     verifierLoopCap: 3,

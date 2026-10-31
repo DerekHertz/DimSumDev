@@ -28,7 +28,7 @@ import { fileURLToPath } from "node:url";
 import { hasSecret } from "../../../scripts/exposure.mjs";
 import { safeToolInput } from "../../shared/safe-text.mjs";
 import {
-  AGENT_ID_RE, KILL_GRACE_MS, LIVE_STATES, MODES, REF_RE, ROLES, SESSION_CAP, SLOTS, slotClassOf, UUID_RE,
+  AGENT_ID_RE, KILL_GRACE_MS, LIVE_STATES, MODES, REF_RE, ROLES, UUID_RE,
   USAGE_REFUSE_AT, APPROVAL_TTL_MS, SHUTDOWN_SPAWN_WAIT_MS, DIRECT_MODE,
   TRANSCRIPT_AGENTS, TRANSCRIPT_ENTRIES, TRANSCRIPT_RESULT_MAX, TRANSCRIPT_TEXT_MAX, REPLY_EXCERPT_MAX, USAGE_MESSAGES,
   MESSAGE_MAX_BYTES, MESSAGE_QUEUE_MAX, MESSAGE_SETTLE_MS, CONNECTION_AUTO_BYTES, CONNECTION_AUTO_CALLS,
@@ -39,7 +39,6 @@ import { parseCatalog } from "../library/catalog.mjs";
 import { createLibrary } from "../library/library.mjs";
 import { grantRefusal } from "./grant-policy.mjs";
 import { capacity as capacityOf } from "./capacity.mjs";
-import { createProfile } from "./profile.mjs";
 import { runtimeId, runtimeRegistry, validProject, validRuntimeSession } from "./identity.mjs";
 import { executionSettings, delegation, checkDelegation, delegationPrompt, RUN_RULES, canDelegate, delegateRequest, scopesOverlap } from "./orchestration.mjs";
 import { createSessions } from "./sessions.mjs";
@@ -114,13 +113,10 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, readTicket: readTicketOption, createDelegatedTicket, profile = createProfile() }) {
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, readTicket: readTicketOption, createDelegatedTicket }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
-  // trust-ladder/01: read per admission, so a profile flip changes the next run's allowance with no restart. A policy value (a test) wins.
-  const maxConcurrent = () => Math.min(policy.maxConcurrent ?? profile.values().maxConcurrent, SESSION_CAP);
-  const sessionCap = Math.min(policy.sessionCap ?? SESSION_CAP, SESSION_CAP);
   const graceMs = policy.killGraceMs ?? KILL_GRACE_MS;
   const spawnWaitMs = Math.min(policy.spawnWaitMs ?? SHUTDOWN_SPAWN_WAIT_MS, SHUTDOWN_SPAWN_WAIT_MS);
   const messageSettleMs = Math.min(policy.messageSettleMs ?? MESSAGE_SETTLE_MS, MESSAGE_SETTLE_MS);
@@ -396,35 +392,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
   };
   const overUsage = (usage) =>
     typeof usage === "number" && usage >= USAGE_REFUSE_AT ? refuse(429, `five-hour usage is ${usage}% (limit ${USAGE_REFUSE_AT}%)`) : null;
-  // The one capacity rule (organism-infra/226, ADR 0016 amendment 14): live agents plus foreign claim locks fill max;
-  // live agents alone fill the session cap. `locked` is read before the synchronous step, never inside it.
-  // den-mvp outcome 1: that rule counts the worker slots. Bao has a reserved slot of its own: its
-  // agent (and the locks it holds) are not worker load, and no worker may take their slot.
-  const liveIn = (cls) => [...liveByRef.values()].filter((a) => slotClassOf(a.role) === cls);
+  // portable-den/10: no count limit on live agents. The snapshot's capacity key only lists who is running or holds a claim lock;
+  // admission is bounded by the task tree's shape (orchestration.mjs), one live agent per ticket, the resource groups and the usage refusal.
   const capacityNow = (locked, project = "den") => {
-    const reservedRefs = new Set([...liveByRef.values()].filter((a) => slotClassOf(a.role) !== "worker").map(refKey));
-    const c = capacityOf({ liveRefs: liveIn("worker").map(refKey), lockedRefs: (locked ?? []).map((ref) => refKey({ ref, project })).filter((key) => !reservedRefs.has(key)), max: maxConcurrent(), cap: sessionCap });
-    const reserved = Object.fromEntries(Object.keys(SLOTS).filter((cls) => cls !== "worker").map((cls) => [cls, { max: SLOTS[cls], refs: liveIn(cls).map((a) => a.ref) }]));
-    const refs = c.refs.map(({ ref: key, kind }) => ({ ref: key.slice(key.indexOf("/") + 1), project: key.slice(0, key.indexOf("/")), kind }));
-    return { ...c, refs, reserved };
-  };
-  const readLocked = async (project) => {
-    try {
-      const refs = await lockedRefs({ project });
-      return Array.isArray(refs) ? refs : [];
-    } catch (err) {
-      console.error(`bridge: could not read the claim locks: ${err?.message ?? err}`);
-      return null;
-    }
-  };
-  const unreadable = () => refuse(503, "could not read the board's claim locks");
-  const full = (locked, role, project) => {
-    const c = capacityNow(locked, project);
-    const cls = slotClassOf(role);
-    if (cls !== "worker") return c.reserved[cls].refs.length < c.reserved[cls].max ? null : refuse(429, `the ${cls} slot is in use: ${c.reserved[cls].refs.join(", ")}`);
-    if (c.room > 0) return null;
-    if (c.load >= c.max) return refuse(429, `max_concurrent_agents (${c.max}) reached: ${c.refs.map((r) => r.ref).join(", ")}`);
-    return refuse(429, `the ${c.cap}-session cap is reached`);
+    const c = capacityOf({ liveRefs: [...liveByRef.values()].map(refKey), lockedRefs: (locked ?? []).map((ref) => refKey({ ref, project })) });
+    return { ...c, refs: c.refs.map(({ ref: key, kind }) => ({ ref: key.slice(key.indexOf("/") + 1), project: key.slice(0, key.indexOf("/")), kind })) };
   };
 
   async function select(input, { execute = true } = {}) {
@@ -489,8 +461,6 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (over) return over;
     const noLimits = await unenforced(runtime);
     if (noLimits) return noLimits;
-    const locked = await readLocked(selected.project);
-    if (locked === null) return unreadable();
 
     // codex-residents/05: the one admission transaction, before the synchronous step; its hold is released on every refusal below.
     const ticket = await admission.admit({ ref, project: selected.project, runtime: selected.runtime, entry: step ? "delivery" : entry, role, capability: input.capability, scopes: input.scopes, unscoped: input.scopes === undefined });
@@ -499,8 +469,6 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // From here to the registration of the reservation there is no await: this is the one synchronous step.
     if (shuttingDown) return unhold(refuse(503, "the bridge is shutting down"));
     if (liveByRef.has(refKey({ ...selected, ref }))) return unhold(refuse(409, "this ticket already has a live agent"));
-    const noRoom = full(locked, role, selected.project);
-    if (noRoom) return unhold(noRoom);
     if (entry === 'delegated' && ![...liveByRef.values()].some(a => a.id === input.delegatedBy && !a.stopRequested && !a.exited && !a.releasing)) return unhold(refuse(409, 'delegator ended before admission'));
     if (entry === 'delegated' && orchestration?.kind !== 'manager' && [...liveByRef.values()].some(a =>
       a.delegationRoot === input.delegationRoot && a.orchestration?.kind !== 'manager' && scopesOverlap(a.orchestration?.files ?? [], orchestration.files))) return unhold(refuse(409, 'delegated work overlaps another live child in this run'));
@@ -546,10 +514,6 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     attempt.running = true;
     delegationAttempts.set(key, attempt);
     try {
-      const locked = await readLocked(parent.project);
-      if (locked === null) return unreadable();
-      const noRoom = full(locked, role, parent.project);
-      if (noRoom) return noRoom;
       const { args: gitArgs, env: gitEnv } = worktreeGit(parent.workspace.dir, await gitCommonDir(worktreeRoot(parent.workspace.dir)));
       const delegatedAt = await new Promise((resolve, reject) => execFile('git', [...gitArgs, 'rev-parse', 'HEAD'], { env: gitEnv }, (err, out) => err ? reject(err) : resolve(out.trim())));
       const { ref } = await createDelegatedTicket({ parent: view(parent), role, brief: spec });
@@ -664,10 +628,6 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     const runtime = adapters[selected.runtime];
     const early = down(runtime) ?? overUsage(await readUsage(selected.runtime)) ?? (await unenforced(runtime));
     if (early) return early;
-    const lockedNow = await readLocked(selected.project);
-    if (lockedNow === null) return unreadable();
-    const noRoom = full(lockedNow, role, selected.project);
-    if (noRoom) return noRoom;
     let ref;
     try {
       ({ ref } = await createTicket(role, selected));
@@ -1433,8 +1393,6 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     if (over) return over;
     const noLimits = await unenforced(runtime);
     if (noLimits) return noLimits;
-    const locked = await readLocked(selected.project);
-    if (locked === null) return unreadable();
 
     const ticket = await admission.admit({ ref: prev.ref, project: selected.project, runtime: selected.runtime, entry: "follow-up", role: prev.role, unscoped: true });
     if (!ticket.ok) return ticket;
@@ -1442,10 +1400,6 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     // The same synchronous step as admit(): from here to the reservation there is no await.
     if (shuttingDown) return unhold(refuse(503, "the bridge is shutting down"));
     if (liveByRef.has(refKey(prev))) return unhold(refuse(409, "this ticket already has a live agent"));
-    // A claim lock on this ticket is not counted beside the run itself: once the run is live the capacity rule counts
-    // the ticket once, whoever holds its lock, and the earlier run usually left the lock there itself.
-    const noRoom = full(locked.filter((ref) => ref !== prev.ref), prev.role, selected.project);
-    if (noRoom) return unhold(noRoom);
     try { checkDelegation(prev.orchestration, { provider: prev.runtimeId, project: prev.project, live: [...liveByRef.values()] }); }
     catch (err) { return unhold(refuse(409, err.message)); }
     const messageId = randomUUID();
