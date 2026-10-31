@@ -4,7 +4,8 @@
 // The board must not reach jg's provider: every call excludes .scratch/ and .claude/, caller flags are
 // never forwarded, and a root inside a dot-directory or outside the checkout is refused. The query is
 // checked with exposure.mjs hasSecret before sending. Exit 0 on success or jg failure (the fallback line tells
-// the caller to use rg); exit 2 on a refused call. Each call appends a kind:"jg" row to usage.jsonl.
+// the caller to use rg); exit 2 on a refused call. A ranked list that jg printed is kept even when jg exited non-zero or
+// reported incomplete discovery: it comes with a "jg: partial: <reason>" line. Each call appends a kind:"jg" row to usage.jsonl.
 import { execFileSync, spawn } from "node:child_process";
 import { existsSync, realpathSync, statSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -16,6 +17,7 @@ export const FORBIDDEN_FLAGS = ["--hidden", "--no-ignore", "--include-sensitive"
 const EXCLUDES = [".scratch/", ".claude/"];
 const MIN_VERSION = [0, 6, 0];
 const RUN_TIMEOUT_MS = 180000;
+const KILL_GRACE_MS = 5000;
 
 class Refused extends Error {
   constructor(kind, message) {
@@ -108,6 +110,20 @@ function countFiles(stdout) {
   return Math.max(headers, stated);
 }
 
+// Why a result that has files is still partial: jg exited non-zero, was cut at the cap, or says discovery was incomplete.
+function partialReason(stdout, { exitCode, timedOut }) {
+  const text = String(stdout ?? "");
+  const parts = [];
+  if (timedOut) parts.push("timed out");
+  else if (exitCode !== 0) parts.push(`jg-exit-${exitCode}`);
+  if (/^Jevgrep: .*discovery incomplete/m.test(text)) {
+    const kinds = [...new Set([...text.matchAll(/^Issue: "([^"]+)"/gm)].map((m) => m[1]))];
+    parts.push(`discovery incomplete${kinds.length ? ` (${kinds.join(", ")})` : ""}`);
+  }
+  if (/^Provider error:/m.test(text)) parts.push("provider error");
+  return parts.join(", ");
+}
+
 export async function runJg({
   query, root = ".", extraArgs = [], flags = [], excludes = [], run = spawnJg, now = () => Date.now(), usageRoot, checkout, version,
 }) {
@@ -154,21 +170,52 @@ export async function runJg({
     return { row: r };
   }
   const filesReturned = countFiles(result.stdout);
-  const reason = result.exitCode !== 0 ? `jg-exit-${result.exitCode}` : filesReturned === 0 ? "no-files" : null;
-  const r = row({ filesReturned, fallback: reason !== null, ...(reason && { reason }) });
+  const partial = filesReturned > 0 ? partialReason(result.stdout, result) : "";
+  const reason = filesReturned > 0 ? null : result.timedOut ? "jg-timeout" : result.exitCode !== 0 ? `jg-exit-${result.exitCode}` : "no-files";
+  const r = row({ filesReturned, fallback: reason !== null, ...(reason && { reason }), ...(partial && { partial }) });
   await log(r);
   return reason ? { row: r } : { stdout: result.stdout, row: r };
 }
 
-function spawnJg(argv) {
+// jg runs in its own process group so the cap and a terminated wrapper can reach every process it started. At the cap:
+// SIGINT (jg prints what it has), then SIGTERM, then SIGKILL; the result resolves even if a grandchild still holds stdout.
+export function spawnJg(argv, { cmd = ["jg"], timeoutMs = RUN_TIMEOUT_MS, graceMs = KILL_GRACE_MS } = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn("jg", argv, { stdio: ["ignore", "pipe", "inherit"] });
+    const child = spawn(cmd[0], [...cmd.slice(1), ...argv], { stdio: ["ignore", "pipe", "inherit"], detached: true });
+    const killGroup = (sig) => {
+      try { process.kill(-child.pid, sig); } catch { /* the group is already gone */ }
+    };
     let stdout = "";
+    let exitCode = null;
+    let timedOut = false;
+    let settled = false;
+    const onExit = () => killGroup("SIGKILL");
+    const onSignal = () => { killGroup("SIGKILL"); process.exit(130); };
+    const timers = [];
+    const settle = (finish) => {
+      if (settled) return;
+      settled = true;
+      timers.forEach(clearTimeout);
+      process.off("exit", onExit);
+      process.off("SIGINT", onSignal);
+      process.off("SIGTERM", onSignal);
+      child.stdout.destroy();
+      finish();
+    };
+    const done = (code) => settle(() => resolve({ stdout, exitCode: code ?? exitCode ?? 1, ...(timedOut && { timedOut }) }));
+    process.once("exit", onExit);
+    process.on("SIGINT", onSignal);
+    process.on("SIGTERM", onSignal);
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (d) => { stdout += d; });
-    const timer = setTimeout(() => child.kill("SIGTERM"), RUN_TIMEOUT_MS);
-    child.on("error", (e) => { clearTimeout(timer); reject(e); });
-    child.on("close", (code) => { clearTimeout(timer); resolve({ stdout, exitCode: code ?? 1 }); });
+    timers.push(
+      setTimeout(() => { timedOut = true; killGroup("SIGINT"); }, timeoutMs),
+      setTimeout(() => killGroup("SIGTERM"), timeoutMs + graceMs),
+      setTimeout(() => { killGroup("SIGKILL"); done(null); }, timeoutMs + 2 * graceMs),
+    );
+    child.on("error", (e) => settle(() => reject(e)));
+    child.on("exit", (code) => { exitCode = code; killGroup("SIGKILL"); });
+    child.on("close", done);
   });
 }
 
@@ -202,7 +249,8 @@ async function main(argv) {
     const { stdout, row } = await runJg({
       query, root, extraArgs, usageRoot: usageRootOr(process.cwd()), checkout: gitTop(), version: jgVersion,
     });
-    process.stdout.write(row.fallback ? `jg: no result (${row.reason}); fall back to rg\n` : stdout);
+    const warning = row.partial ? `jg: partial: ${row.partial}; narrow the root (a subdirectory) for a complete answer\n` : "";
+    process.stdout.write(row.fallback ? `jg: no result (${row.reason}); fall back to rg\n` : warning + stdout);
     return 0;
   } catch (e) {
     if (!(e instanceof Refused)) throw e;
