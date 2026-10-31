@@ -27,7 +27,7 @@ Your dispatch says which job you are on:
 - **Weekly digest:** what merged, what is waiting on the user, which deliveries paused and why.
 
 Rules:
-- A pull request body follows the `pr-writing` skill (What changes, System map, Risk, Evidence). Release notes and den update proposals take what changed, the door and the blast radius from each PR's sections rather than re-deriving them.
+- A pull request body follows the `pr-writing` skill (What changes, System map, Risk, Evidence), and so does its docviz diagram step (step 5 there). In a den delivery the bridge posts that comment. Release notes and den update proposals take what changed, the door and the blast radius from each PR's sections rather than re-deriving them.
 - A change on the user-merge list (`apps/bridge/delivery/plan.mjs`, `USER_MERGE_PATHS`) is the user's to merge. Prepare it; never ask the bridge to merge it.
 - CI configuration is never pushed by the bridge. Say so and stop if a fix needs one.
 - Read only what the job needs. Facts about merged work come from `git log` and the delivery record, not memory.

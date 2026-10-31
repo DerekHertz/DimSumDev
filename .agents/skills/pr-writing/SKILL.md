@@ -9,7 +9,9 @@ The PR body is written for the user at merge time. They should be able to decide
 
 1. Commit the work, then run `npm run -s pr-map` on the branch. It diffs from the merge-base with `origin/main` (pass `--base <ref>` or `--head <ref>` to change that) and prints the System map block and the blast radius. Done when you have its output; never draw or edit the diagram by hand.
 2. Write the body below, pasting the map block as printed. Done when every section is filled and nothing in it comes from memory rather than the diff and the checks.
-3. Once pushing is authorized (a pass gate: your role and dispatch allow it, or the user said yes), open the PR (`gh pr create --body-file <file>`), and end the body with the attribution lines the session gives you.
+3. Run `node scripts/docviz-pr.mjs --body-line` (in a repo that has only the den plugin: `den-docviz-pr --body-line`) and add the line it prints to the Evidence fold. It says the docviz diagram is skipped when `docviz` is not on PATH.
+4. Once pushing is authorized (a pass gate: your role and dispatch allow it, or the user said yes), open the PR (`gh pr create --body-file <file>`), and end the body with the attribution lines the session gives you.
+5. After the PR exists, and again after every later push, add the docviz diagram (`docviz pr`, ~/docviz, "Diagrams on pull requests"). Write `steps.json` from the diff and the handoff: three to eight boxes of what the change does, each `{ "id", "label", "changed", "sources": [{ "path", "from", "to" }] }`, where `path` is a file at HEAD and `from`/`to` are text markers that cut it. Then run `node scripts/docviz-pr.mjs steps.json --pr <url> --title <title>` (plugin-only repo: `den-docviz-pr`). It passes `CONTEXT.md` as `--glossary` when the repo has one, posts the comment that starts with `<!-- docviz-pr-diagrams -->`, and edits that same comment on the next push. Without `docviz` it prints `skipped` and exits 0; if docviz fails it leaves a one-line note in the comment. Neither stops the PR. In a den delivery the bridge does this step; the agent does not. Done when the script prints `posted`, `updated` or `skipped`.
 
 ## The four sections
 
@@ -57,6 +59,8 @@ Two to four sentences on behavior: what the user or the system now does differen
 - Codex: this section replaces the "Merge Danger" heading.
 
 **Evidence** sits folded so it doesn't push the change out of view. Report what ran and its result, including failures, as summaries: no raw test or log output, since the body may be public. Name a secret's location, never its value. No line counts.
+
+The docviz comment answers "what does this do"; the system map answers "what did this touch". Keep both.
 
 ## The map
 

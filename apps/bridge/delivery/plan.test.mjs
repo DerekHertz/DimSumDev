@@ -364,6 +364,19 @@ describe("the git-host operations", () => {
     ]);
   });
 
+  // portable-den/09 AC5: a second push edits the comment the first one left; the first posts one.
+  test("comment: posts the marked comment, then edits that same comment on the next push", async () => {
+    const first = host({ "api user": "bridge\n", "--jq": "" });
+    assert.equal(await first.git.comment({ number: 9, body: "<!-- docviz-pr-diagrams -->\nA" }), "posted");
+    assert.deepEqual(first.calls.at(-1), ["gh", "api", "repos/{owner}/{repo}/issues/9/comments", "-f", "body=<!-- docviz-pr-diagrams -->\nA"]);
+    const again = host({ "api user": "bridge\n", "--jq": "4411\n" });
+    assert.equal(await again.git.comment({ number: 9, body: "<!-- docviz-pr-diagrams -->\nB" }), "updated");
+    assert.deepEqual(again.calls.at(-1), ["gh", "api", "-X", "PATCH", "repos/{owner}/{repo}/issues/comments/4411", "-f", "body=<!-- docviz-pr-diagrams -->\nB"]);
+    assert.match(again.calls.find((c) => c.includes("--paginate")).at(-1), /select\(\.user\.login == "bridge" and \(\.body \| startswith\("<!-- docviz-pr-diagrams -->"\)\)\)/, "only the bridge's own marked comment is edited");
+    await assert.rejects(host({ "api user": "a\" or true or \"b\n" }).git.comment({ number: 9, body: "b" }), /login/);
+    await assert.rejects(again.git.comment({ number: "9 --x", body: "b" }), /pull request number/);
+  });
+
   test("a value that is not a commit id, a den branch or a number reaches no command", async () => {
     const t = host();
     await assert.rejects(t.git.push({ branch: "main", sha: SHA }), /not a den branch/);

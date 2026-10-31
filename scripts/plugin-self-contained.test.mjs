@@ -29,6 +29,7 @@ const MIRRORS = [
   ["scripts/context-budget.mjs", ".claude/context-budget.mjs"],
   ["mods/test-run-guard/hooks/test-run-guard.mjs", ".claude/hooks/test-run-guard.mjs"],
   ["mods/sleep-guard/hooks/sleep-guard.mjs", ".claude/hooks/sleep-guard.mjs"],
+  ["scripts/docviz-pr.mjs", ".claude/bin/docviz-pr.mjs"],
 ];
 
 // What a by-name install leaves: .claude/ alone, as <cache>/den/0.1.0, beside a project that has no den.
