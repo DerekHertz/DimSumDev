@@ -1330,11 +1330,6 @@ export async function publishHandoff(root, ref, fromFile, options = {}) {
   return { path: dest };
 }
 
-// organism-infra/98: `board resolve <ref>... --pr N [--note "<text>"]` runs the
-// orchestrator's claim, handoff and resolved-release in one step. Every ref is
-// checked before the first write, so a refusal on any of them changes none of
-// them. A failure after writes began is reported with the refs already resolved
-// and the ref it stopped on; the board never ends silently partial.
 // portable-den/11: a ticket filed from other work carries `**Discovered from:** <ref>`. Such a ticket is untriaged while it
 // waits at ready-for-agent or ready-for-human with no claim lock and no chief-of-staff comment in its ## Comments. A parent
 // cannot resolve while any ticket discovered from it is untriaged, so found work cannot be left behind.
@@ -1366,6 +1361,11 @@ async function refuseWhileUntriaged(root, feature, ticket, action) {
   }
 }
 
+// organism-infra/98: `board resolve <ref>... --pr N [--note "<text>"]` runs the
+// orchestrator's claim, handoff and resolved-release in one step. Every ref is
+// checked before the first write, so a refusal on any of them changes none of
+// them. A failure after writes began is reported with the refs already resolved
+// and the ref it stopped on; the board never ends silently partial.
 export async function resolve(root, refs, options = {}) {
   const { pr: prArg, note } = options;
   if (!Array.isArray(refs) || refs.length === 0) {

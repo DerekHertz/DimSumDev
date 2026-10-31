@@ -88,6 +88,18 @@ test("a ticket discovered from some other ticket does not hold the parent", asyn
   }
 });
 
+test("a ticket linked by the short feature/NN parent ref holds the parent too", async () => {
+  const fx = await fixture();
+  try {
+    const child = await addChild(fx, "02-found-bug", "ready-for-agent", { discovered: `${fx.feature}/01` });
+    const r = await run(fx, ["resolve", fx.ticketRelPath, "--pr", "42"]);
+    assert.notEqual(r.code, 0, r.stdout);
+    assert.match(r.stderr, new RegExp(child));
+  } finally {
+    await fx.cleanup();
+  }
+});
+
 test("board release --status resolved refuses on the same condition and leaves the claim and status alone", async () => {
   const fx = await fixture();
   try {
