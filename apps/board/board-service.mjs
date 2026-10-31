@@ -1123,6 +1123,7 @@ export async function release(root, ref, newStatus, reason, options = {}) {
     // before any write so a refusal leaves the claim and appends no row.
     let resolvedPr = null;
     if (newStatus === "resolved") {
+      await refuseWhileUntriaged(root, feature, ticket, "release");
       const isCode = /^\*\*Type:\*\*[ \t]*(feature|bug)\b/m.test(content);
       if (isCode && pr === undefined) {
         throw new BoardError(`release blocked: ${ref} is a code ticket; --pr <number> is required to resolve it`);
@@ -1329,6 +1330,37 @@ export async function publishHandoff(root, ref, fromFile, options = {}) {
   return { path: dest };
 }
 
+// portable-den/11: a ticket filed from other work carries `**Discovered from:** <ref>`. Such a ticket is untriaged while it
+// waits at ready-for-agent or ready-for-human with no claim lock and no chief-of-staff comment in its ## Comments. A parent
+// cannot resolve while any ticket discovered from it is untriaged, so found work cannot be left behind.
+async function refuseWhileUntriaged(root, feature, ticket, action) {
+  const nn = /^(\d+)-/.exec(ticket)?.[1];
+  const names = new Set([`${feature}/${ticket}`, nn && `${feature}/${nn}`]);
+  const untriaged = [];
+  for (const entry of await readdir(path.join(root, ".scratch"), { withFileTypes: true }).catch(() => [])) {
+    if (!entry.isDirectory() || !FEATURE_RE.test(entry.name)) continue;
+    const dir = path.join(root, ".scratch", entry.name, "issues");
+    for (const file of await readdir(dir).catch(() => [])) {
+      if (!file.endsWith(".md")) continue;
+      const md = await readFile(path.join(dir, file), "utf8").catch(() => "");
+      const cut = md.search(/^## Comments\b/m);
+      const head = cut < 0 ? md : md.slice(0, cut);
+      const from = /^\*\*Discovered from:\*\*[ \t]*(\S+)/m.exec(head)?.[1];
+      if (!from || !names.has(from)) continue;
+      if (!["ready-for-agent", "ready-for-human"].includes(readStatus(md))) continue;
+      if (await exists(path.join(dir, file.replace(/\.md$/, ".lock")))) continue;
+      if (cut >= 0 && /^- \*\*(?:chief-of-staff|orchestrator),/m.test(md.slice(cut))) continue;
+      untriaged.push(`${entry.name}/${file.slice(0, -3)}`);
+    }
+  }
+  if (untriaged.length) {
+    throw new BoardError(
+      `${action} refused: ${feature}/${ticket} has untriaged tickets discovered from it: ${untriaged.join(", ")}. ` +
+        `Triage each one (claim it, park or close it, or comment: board comment <ref> --as chief-of-staff "triaged: ..."), then try again; nothing was changed`
+    );
+  }
+}
+
 // organism-infra/98: `board resolve <ref>... --pr N [--note "<text>"]` runs the
 // orchestrator's claim, handoff and resolved-release in one step. Every ref is
 // checked before the first write, so a refusal on any of them changes none of
@@ -1360,6 +1392,7 @@ export async function resolve(root, refs, options = {}) {
     }
     const status = readStatus(await readFile(paths.ticketPath, "utf8"));
     if (status === "resolved") throw new BoardError(`resolve refused: ${full} is already resolved; nothing was changed`);
+    await refuseWhileUntriaged(root, feature, ticket, "resolve");
     planned.push({ ref, feature, ticket, paths, status });
   }
 
@@ -1648,7 +1681,7 @@ const CREATE_STATUSES = ["ready-for-agent", "ready-for-human"];
 const TYPE_RE = /^[a-z][a-z -]{0,39}$/;
 // den-mvp/55: a drafted ticket (form "ticket") is written as given, so it may not hold what only the board writes: a header
 // field, a top heading or a Comments section. It must carry its own acceptance criteria.
-const DRAFT_FORGERY_RE = /^[ \t>]*(?:\*\*\s*(?:Type|Priority|Status|Blocked by|Source|Class|Origin|Serves|Goal|P0-reason)\s*:|#\s|#{1,6}\s*Comments\b)/im;
+const DRAFT_FORGERY_RE = /^[ \t>]*(?:\*\*\s*(?:Type|Priority|Status|Blocked by|Source|Class|Origin|Serves|Goal|P0-reason|Discovered from)\s*:|#\s|#{1,6}\s*Comments\b)/im;
 const DRAFT_CRITERIA_RE = /^## Acceptance criteria[ \t]*$/m;
 const FULL_REF_RE = /^[a-z0-9-]+\/\d+(?:-[a-z0-9-]+)?$/;
 const BLOCKERS_MAX = 12;
@@ -1661,7 +1694,7 @@ function existingRef(root, ref) {
   return full;
 }
 
-export async function createTicket(root, { feature, slug, title, text, source, priority = "P2", class: ticketClass, origin, serves, goal, p0Reason, type = "task", status = "ready-for-agent", form = "request", blockedBy } = {}) {
+export async function createTicket(root, { feature, slug, title, text, source, priority = "P2", class: ticketClass, origin, serves, goal, p0Reason, type = "task", status = "ready-for-agent", form = "request", blockedBy, discoveredFrom } = {}) {
   for (const [value, name] of [[feature, "feature"], [slug, "slug"], [title, "title"], [source, "source"], [serves, "serves"], [goal, "goal"], [p0Reason, "p0 reason"]]) {
     checkArgLength(value, name);
   }
@@ -1694,6 +1727,7 @@ export async function createTicket(root, { feature, slug, title, text, source, p
   } else if (p0Reason !== undefined) {
     throw new BoardError("p0 reason only applies to a P0 ticket");
   }
+  const parent = discoveredFrom === undefined ? undefined : existingRef(root, discoveredFrom);
   const originLine = origin ?? (ticketClass !== undefined ? "added" : undefined);
   if (form !== "request" && form !== "ticket") throw new BoardError("form must be request or ticket");
   if (form === "request" && blockedBy !== undefined) throw new BoardError("Blocked by is for drafted tickets (form ticket)");
@@ -1725,6 +1759,7 @@ export async function createTicket(root, { feature, slug, title, text, source, p
       ...(originLine ? [`**Origin:** ${originLine}`, ""] : []),
       ...(serves ? [`**Serves:** ${serves.trim()}`, ""] : []),
       ...(goal ? [`**Goal:** ${goal}`, ""] : []),
+      ...(parent ? [`**Discovered from:** ${parent}`, ""] : []),
       ...(priority === "P0" ? [`**P0-reason:** ${p0Reason}`, ""] : []),
       ...(form === "ticket" ? [
         `**Blocked by:** ${blockers.length ? blockers.join(", ") : "none"}`, "",
