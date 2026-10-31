@@ -222,6 +222,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     onChange: (change) => hub.publish(change),
     recordRun: createLedger(root).record,
     onEnd: (run) => Promise.all([delivery.onEnd(run), meetings.onEnd(run)]),
+    meetingApproval: (approval) => meetings?.onApproval(approval),
     settleRun: settle,
     readUsage: async (runtime) => typeof usageByRuntime[runtime] === "function" ? usageByRuntime[runtime]() : runtime === "claude" ? (await hub.snapshot()).usage?.fiveHour ?? null : null,
     // organism-infra/226: a dispatch needs the ticket to be in the frontier (ready, unblocked, unlocked), not to hold the gate.

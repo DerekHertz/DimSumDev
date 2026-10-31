@@ -90,7 +90,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
     // first message an id, and a message-applied event with that id follows once the child takes it.
     // den-mvp outcome 4: `connections` are the catalog's targets for this role; a list the adapter cannot write refuses the spawn.
     // den-mvp/38: `runCredential` ({ url, token }) is what a "run" connection's script is given to call the bridge back.
-    async spawn({ role, cwd, prompt, sessionId, model, effort, execution, delegate, ticketFile, grants, root, mainGit, resume, runId, promptId, connections, runCredential, project } = {}) {
+    async spawn({ role, cwd, prompt, sessionId, model, effort, execution, delegate, ticketFile, grants, root, readOnly, mainGit, resume, runId, promptId, connections, runCredential, project } = {}) {
       if (execution !== undefined) {
         const selected = executionSettings('claude', role, Object.fromEntries(Object.entries(execution).filter(([k]) => k !== 'provider')));
         model = selected.model;
@@ -115,7 +115,7 @@ export function createClaudeRuntime({ env = process.env, launcher = createResour
       const credentials = home === undefined ? [] : CREDENTIAL_PATHS.filter((p) => existsSync(`${home}${p.slice(1)}`));
       // The kernel review (2026-10-18): a remote connection reaches the network outside the wall, so it brings the read limit like a host.
       const remote = Array.isArray(connections) && connections.some((c) => typeof c?.url === "string");
-      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN, ...(project?.control === false ? { target: true, projectToolchain: project.toolchain ?? [], control: controlReal } : {}) });
+      const ceiling = compileCeiling(role, { worktree: isWorktreePath(cwd) ? cwd : undefined, grants, ...(readOnly === true ? { readOnly: true } : {}), ...(isWorktreePath(root) ? { root } : {}), ...(mainGit !== undefined ? { mainGit } : {}), ...(home === undefined ? {} : { home }), ...(credentials.length === 0 ? {} : { credentials }), remote, toolchain: TOOLCHAIN, ...(project?.control === false ? { target: true, projectToolchain: project.toolchain ?? [], control: controlReal } : {}) });
       // Every role has a ceiling (ceilings.json); one without would start with no wall, so it does not start.
       if (ceiling === null) throw new EnforcementError(`the ${role} role has no ceiling, so it cannot be started`);
       // den-mvp/33: a connection that holds a credential gets its token from the den's credentials folder (outside every

@@ -114,7 +114,8 @@ async function gitChangedFiles(dir, from, to) {
   return stdout.split("\0").filter(Boolean);
 }
 
-export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, readTicket: readTicketOption, createDelegatedTicket, profile = createProfile() }) {
+const MEETING_WRITE_TOOLS = new Set(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
+export function createHost({ root, projects: projectsOption, runtime, runtimes, policy = {}, bridgeUrl = () => null, readUsage = async () => null, checkGate = async () => "ok", meetingHold = () => null, meetingApproval = () => {}, claimRun = async () => {}, releaseRun = async () => {}, lockedRefs = async () => [], openDesk = async () => {}, checkCall = () => null, onChange = () => {}, recordRun = async () => {}, onEnd = async () => {}, settleRun = async () => {}, library = createLibrary({ catalog: NO_CONNECTIONS }), admission = createAdmission({ root }), changedFiles = gitChangedFiles, readTicket: readTicketOption, createDelegatedTicket, profile = createProfile() }) {
   const adapters = runtimeRegistry(runtime, runtimes);
   const adapterOf = (a) => adapters[a.runtimeId];
   const refKey = (a) => `${a.project ?? "den"}/${a.ref}`;
@@ -256,6 +257,7 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
     },
     onChange: (approval) => {
       onChange({ type: "approval", approval: publicApproval(approval) });
+      if (approval.privateContext) meetingApproval(approval);
       notePermission(agents.get(approval.agentId), approval);
       syncWaiting(agents.get(approval.agentId));
     },
@@ -819,13 +821,13 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
       ...(agent.openingMessage ? { openingMessage: agent.openingMessage, promptId: agent.openingMessage.messageId } : {}),
       ...(agent.execution ? { execution: agent.execution } : {}),
       ...(canDelegate(agent) ? { delegate: input => delegateFrom(agent, input) } : {}),
-      ...(agent.meeting ? { effort: agent.meeting.effort } : {}),
+      ...(agent.meeting ? { effort: agent.meeting.effort, readOnly: true } : {}),
       // den-mvp/49: derived here, from the bridge's own root and the run's project; never from a request. The runtime refuses a spawn without it outside the control checkout.
       project: { control: project.slug === "den", root: project.root, pluginDir: path.join(root, ".claude"), recipeFile: recipeOf(agent), ...(project.slug !== "den" && toolchainReal.length ? { toolchain: toolchainReal } : {}) },
       ...(agent.resumeOf ? { resume: true, runId: agent.id, promptId: agent.followUp.messageId } : {}),
       // agent-os/02: data for the adapter, never in the prompt. The main checkout's path rides along so the adapter can deny
       // the governed paths a path grant reaches there.
-      ...(agent.grants.length === 0 ? {} : { grants: agent.grants, root: await realpath(project.root).catch(() => project.root) }),
+      ...(agent.grants.length === 0 && !agent.meeting ? {} : { grants: agent.grants, root: await realpath(project.root).catch(() => project.root) }),
       // den-mvp outcome 4: the connections the catalog and the role file both give this role; data for the adapter.
       ...(connections.length === 0 ? {} : { connections }),
     };
@@ -1128,6 +1130,11 @@ export function createHost({ root, projects: projectsOption, runtime, runtimes, 
           Promise.resolve(agent.proc.decide(event.requestId, verdict.kind === "allow" ? { allow: true } : { allow: false, reason: verdict.reason })).catch(() => {});
           return touch(agent);
         }
+      }
+      // den-meetings/01: a meeting seat is read-only. A write tool that reaches here is refused with its reason, and never held.
+      if (agent.meeting && MEETING_WRITE_TOOLS.has(event.tool)) {
+        Promise.resolve(agent.proc.decide(event.requestId, { allow: false, reason: "Meeting seats are read-only: you cannot edit or write files. Say what you would change in your take instead." })).catch(() => {});
+        return touch(agent);
       }
       // F34: a den call the bridge would refuse anyway is denied now with its reason, and never asks the user.
       const unfit = typeof event.tool === "string" && event.tool.startsWith("mcp__den__") ? checkCall(event.tool, event.input) : null;

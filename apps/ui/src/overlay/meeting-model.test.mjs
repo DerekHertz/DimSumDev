@@ -1,7 +1,7 @@
 // den-mvp outcome 4: the pure model behind the Meetings card.
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
-import { canAsk, canDecide, meetingLine, meetingRequests, meetingRows, runsLine, seatLine, setupState, toggleRole, SPECIALISTS } from "./meeting-model.mjs";
+import { canAsk, canDecide, permissionCards, meetingLine, meetingRequests, meetingRows, runsLine, seatLine, setupState, toggleRole, SPECIALISTS } from "./meeting-model.mjs";
 import { needsYouModel } from "./overlay-model.mjs";
 import { applyEvent } from "../state/apply-event.mjs";
 
@@ -97,5 +97,23 @@ describe("what reaches Needs you", () => {
     assert.deepEqual(next.meetings.map((m) => [m.id, m.state]), [["m-1", "briefed"]]);
     const added = applyEvent(next, { type: "meeting", seq: 3, meeting: meeting({ id: "m-2" }) });
     assert.equal(added.meetings.length, 2);
+  });
+});
+
+describe("permissionCards (den-meetings/01)", () => {
+  const ask = { id: "e-1", kind: "permission-request", actor: "architect", approvalId: "a-1", tool: "WebFetch", summary: "https://example.org", expiresAt: "2026-01-01T00:10:00.000Z" };
+  const now = Date.parse("2026-01-01T00:04:00.000Z");
+  test("an open request is pending with the seconds it has left", () => {
+    assert.deepEqual(permissionCards([ask], now).map((c) => [c.id, c.actor, c.state, c.secondsLeft]), [["a-1", "architect", "pending", 360]]);
+  });
+  test("a settled request shows the state it was settled in, even before its expiry", () => {
+    const cards = permissionCards([ask, { id: "e-2", kind: "permission-settled", approvalId: "a-1", state: "denied" }], now);
+    assert.deepEqual(cards.map((c) => [c.state, c.secondsLeft]), [["denied", 0]]);
+  });
+  test("a request past its expiry with no settlement reads as expired", () => {
+    assert.equal(permissionCards([ask], Date.parse("2026-01-01T00:11:00.000Z"))[0].state, "expired");
+  });
+  test("other events are not cards", () => {
+    assert.deepEqual(permissionCards([{ id: "e-3", kind: "message" }], now), []);
   });
 });

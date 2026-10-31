@@ -117,6 +117,19 @@ export function createMeetings({ host, log, store, readTicket, readProject = asy
     event(m, 'created', 'user'); meetings.set(m.id, m); await save(m); enqueue(m, () => advance(m));
     return { ok: true, status: 201, meeting: view(m) };
   }
+  // den-meetings/01: a request a seat raises shows in this meeting's private chat; the public surfaces keep the masked approval.
+  const clip = value => { const text = String(value ?? ''); return hasSecret(text) ? '[withheld: looks like a secret]' : text.slice(0, 300); };
+  function onApproval(approval) {
+    const m = [...meetings.values()].find(m => m.live?.runId === approval.agentId || m.events.some(e => e.approvalId === approval.id));
+    if (!m) return;
+    return enqueue(m, async () => {
+      const asked = m.events.find(e => e.kind === 'permission-request' && e.approvalId === approval.id);
+      if (approval.state === 'pending' && !asked && m.live) event(m, 'permission-request', m.live.role, { approvalId: approval.id, runId: approval.agentId, tool: clip(approval.tool), summary: clip(approval.summary), expiresAt: approval.expiresAt });
+      else if (approval.state !== 'pending' && asked && !m.events.some(e => e.kind === 'permission-settled' && e.approvalId === approval.id)) event(m, 'permission-settled', asked.actor, { approvalId: approval.id, state: approval.state });
+      else return;
+      await save(m);
+    });
+  }
   async function onEnd(run) {
     const m = [...meetings.values()].find(m => m.live?.runId === run.agentId);
     if (!m) return;
@@ -261,5 +274,5 @@ export function createMeetings({ host, log, store, readTicket, readProject = asy
   const continueMeeting = id => mutate(id, m => m.state !== 'ended' ? refuse(409, 'End this meeting before continuing it') : { ok: true, status: 200, setup: { topic: m.topic, ...(m.ref ? { ref: m.ref } : {}), project: m.project, moderator: m.moderator, depth: m.depth, roles: m.seats.filter(s => s.active).map(s => s.role), budget: m.budget, continuedFrom: m.id } });
   async function read(id) { await ready; const m = meetings.get(id); return m ? { ok: true, status: 200, meeting: view(m), events: view(m).events, takes: m.seats.flatMap(s => { const e = m.events.findLast(e => e.actor === s.role && e.kind === 'message'); return e ? [{ role: s.role, n: s.takes, text: e.text }] : []; }), thread: [], topic: m.topic, summary: m.summary } : refuse(404, 'No such meeting'); }
   async function shutdown() { closing = true; await Promise.all([...meetings.values()].map(m => m.chain)); }
-  return { ready, start, read, onEnd, stop, resume, close, ask, decide, approveBudget, retry, participants, preview, publish, continueMeeting, shutdown, snapshot: () => [...meetings.values()].map(view), publicSnapshot: () => [...meetings.values()].map(metadata) };
+  return { ready, start, read, onEnd, onApproval, stop, resume, close, ask, decide, approveBudget, retry, participants, preview, publish, continueMeeting, shutdown, snapshot: () => [...meetings.values()].map(view), publicSnapshot: () => [...meetings.values()].map(metadata) };
 }

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Card } from './Card.jsx';
-import { SPECIALISTS, SEATS_MAX, meetingRows, toggleRole } from './meeting-model.mjs';
+import { SPECIALISTS, SEATS_MAX, meetingRows, permissionCards, toggleRole } from './meeting-model.mjs';
 import { ROLE_PORTRAITS } from '../shell/role-portraits.mjs';
 import { AgentMarkdown } from './agent-markdown.mjs';
 
@@ -92,13 +92,28 @@ function FollowUps({ m, meetings, disabled }) {
   </section>;
 }
 
+// den-meetings/01: a request a seat raised, in the chat it came from. Allow reads the full request first (the bridge requires it), then answers; the seat resumes.
+function PermissionCard({ card, client, person, onDone }) {
+  const [now, setNow] = useState(Date.now()), [sending, setSending] = useState(false), [error, setError] = useState(null);
+  useEffect(() => { if (card.state !== 'pending') return undefined; const timer = setInterval(() => setNow(Date.now()), 1000); return () => clearInterval(timer); }, [card.state]);
+  const left = Math.max(0, Math.ceil((Date.parse(card.expiresAt) - now) / 1000));
+  const open = card.state === 'pending' && left > 0;
+  const answer = async decision => { setSending(true); setError(null); try { await client.getApproval(card.id); await client.decide(card.id, { decision }); onDone(); } catch (e) { setError(e?.reason ?? e?.message ?? 'The bridge refused the answer.'); } finally { setSending(false); } };
+  return <article className="glass meeting-permission" data-state={open ? 'pending' : card.state === 'pending' ? 'expired' : card.state} aria-label={`${person(card.actor)} asks permission`}>
+    <p className="ov">{person(card.actor)} asks permission · {card.tool}</p>
+    <p className="small">{card.summary}</p>
+    {open ? <><p className="small" role="timer">Expires in {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}</p><button type="button" disabled={sending} onClick={() => answer('allow')}>Allow</button><button type="button" disabled={sending} onClick={() => answer('deny')}>Deny</button></> : <p className="small" role="status">{card.state === 'pending' ? 'expired' : card.state}</p>}
+    {error ? <p role="alert">{error}</p> : null}
+  </article>;
+}
+
 export function MeetingSheet({ row, client, steer, meetings, openRole = null, onContinue }) {
   const [data, setData] = useState(null), [error, setError] = useState(null);
   const [text, setText] = useState(''), [respond, setRespond] = useState(null), [to, setTo] = useState('');
   const [tab, setTab] = useState('conversation'), [custom, setCustom] = useState('');
   const [endConfirm, setEndConfirm] = useState(false), [budget, setBudget] = useState('');
-  const [continuation, setContinuation] = useState(null), [record, setRecord] = useState(false);
-  useEffect(() => { let active = true; client.getMeeting(row.id).then(body => { if (active) { setData(body); setError(null); } }, e => { if (active) setError(e.reason ?? 'Could not read the private record'); }); return () => { active = false; }; }, [client, row.id, row.stamp]);
+  const [continuation, setContinuation] = useState(null), [record, setRecord] = useState(false), [reload, setReload] = useState(0);
+  useEffect(() => { let active = true; client.getMeeting(row.id).then(body => { if (active) { setData(body); setError(null); } }, e => { if (active) setError(e.reason ?? 'Could not read the private record'); }); return () => { active = false; }; }, [client, row.id, row.stamp, reload]);
   useEffect(() => { if (openRole && data) document.querySelector(`[data-take="${CSS.escape(openRole)}"]`)?.scrollIntoView({ block: 'nearest' }); }, [openRole, data]);
   const m = data?.meeting;
   if (!m) return <p role={error ? 'alert' : 'status'}>{error ?? 'Opening private meeting record…'}</p>;
@@ -116,6 +131,7 @@ export function MeetingSheet({ row, client, steer, meetings, openRole = null, on
     <div className={`meeting-columns meeting-tab-${tab}`}>
       <section className="meeting-conversation" aria-label="Conversation"><div className="meeting-section-title"><h3>Conversation</h3><small>{m.seats.filter(s => s.active !== false).length + 1} participants · {data.events.filter(e => e.kind === 'message').length} contributions</small></div>
         <div className="meeting-messages">{data.events.map(e => ['message', 'redirect', 'decision-answer', 'failure', 'decline'].includes(e.kind) ? <article id={e.id} key={e.id} data-take={e.actor} className={`meeting-message ${e.actor === 'user' ? 'meeting-user' : ''}`}><Face role={e.actor === 'user' ? m.moderator : e.actor} moderator={m.moderator} /><div className="meeting-message-content"><header><strong>{person(e.actor)}</strong><small>Round {e.round} · <time dateTime={e.at}>{new Date(e.at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</time></small></header><div className="glass meeting-bubble">{e.sourceId ? sources([e.sourceId]) : null}<p>{e.partial ? <strong>Partial response · </strong> : null}{e.kind === 'message' ? (/^Claim:\s*(.*)/m.exec(e.text)?.[1] ?? (e.part === 'chair' ? 'Moderator contribution · expand to read the plan and evidence.' : e.text.split('\n')[0])) : e.text}</p>{e.appliesNext && !data.events.some(applied => applied.kind === 'redirect-applied' && applied.sourceId === e.id) ? <strong className="meeting-applies">Applies next · current responses finish first</strong> : null}</div>{e.kind === 'message' ? <><div className="meeting-message-actions"><details><summary>Explanation, sources & tools</summary><pre>{e.text}</pre><p>Confidence: {/Confidence:\s*(.+)/i.exec(e.text)?.[1] ?? 'unavailable from this contribution'}</p><p>Run: {e.runId} · {e.cost === null ? `estimated ${money(e.estimate)}; actual cost unavailable` : `actual ${money(e.cost)}`}</p>{e.tools?.length ? <ul>{e.tools.map((tool, i) => <li key={i}>{tool}</li>)}</ul> : <p>Tool activity unavailable in this record. No activity has been inferred.</p>}</details><button disabled={disabled || m.state === 'ended'} onClick={() => { setRespond(e.id); setTo(m.seats.find(s => s.active !== false && s.role !== e.actor)?.role ?? ''); }}>Ask someone to respond ↗</button></div></> : e.kind === 'failure' ? <button disabled={disabled || m.state === 'ended'} onClick={() => meetings.steer(m.id, 'retry', { role: ['bao', 'jiao'].includes(e.actor) ? 'chief-of-staff' : e.actor })}>Retry · budget applies</button> : null}</div></article> : e.kind === 'effort' || e.kind === 'participants' ? <p key={e.id} className="glass meeting-activity">{e.kind === 'effort' ? `${person(e.actor)} raised ${e.role} to High: ${e.text} · estimated ${money(e.estimate)}` : `Participants updated · ${e.text}`}</p> : null)}</div>
+        {permissionCards(data.events).map(card => <PermissionCard key={card.id} card={card} client={client} person={person} onDone={() => setReload(n => n + 1)} />)}
         {m.state !== 'ended' ? <div className="glass meeting-composer">{respond ? <div><label>Responding to <a href={`#${respond}`}>source message</a><select aria-label="Who should respond" value={to} onChange={e => setTo(e.target.value)}>{m.seats.filter(s => s.active !== false).map(s => <option key={s.role}>{s.role}</option>)}</select></label><button aria-label="Cancel linked response" onClick={() => setRespond(null)}>×</button></div> : null}<label className="visually-hidden" htmlFor="meeting-redirect">Jump in or redirect</label><textarea id="meeting-redirect" value={text} maxLength={2000} onChange={e => setText(e.target.value)} placeholder="Jump in, answer, or redirect the discussion…" onKeyDown={e => { if (e.key === 'Enter' && (e.ctrlKey || e.metaKey) && (text.trim() || (respond && to))) send(); }} /><footer><small>Current responses finish. Redirects apply before the next work.</small><button disabled={disabled || (!text.trim() && !respond) || (respond && !to)} onClick={send}>Send ↑</button></footer></div> : <p className="small">Ended · this record stays private permanently.</p>}
       </section>
       <aside className="meeting-decisions" aria-label="Questions and decisions"><h3>Questions & decisions</h3>

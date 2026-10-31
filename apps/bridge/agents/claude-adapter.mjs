@@ -116,19 +116,24 @@ export function parseGrants(grants) {
   return { hosts, paths };
 }
 
+// den-meetings/01: what a meeting seat may not read (home folders of the den and the two agent CLIs), and the git commands it may not run.
+export const MEETING_UNREADABLE = Object.freeze(["~/.local/state/den", "~/.claude", "~/.codex"]);
+const MEETING_DENY_RUN = Object.freeze(["git commit", "git add", "git rm", "git mv", "git checkout", "git switch", "git reset", "git restore", "git merge", "git rebase", "git stash", "git apply", "git clean", "git cherry-pick"]);
+const isReadOnly = (r) => isPlainObject(r) && Object.keys(r).length === 2 && isDense(r.allow) && r.allow.length >= 1 && r.allow.length <= 2 && r.allow.every(isWorktreePath) && isDense(r.deny) && r.deny.every((p) => MEETING_UNREADABLE.includes(p));
+
 // Governed paths of the main checkout that a path grant reaches (compileCeiling's denyAbs): absolute, plain segments, an
 // optional trailing /**. A grant list is at most six and the governed list at most 40 a side, so the cap is generous.
 const DENY_ABS_RE = /^(?:\/[A-Za-z0-9._@+-]+)+(?:\/\*\*)?$/;
 const DENY_ABS_MAX = GRANTS_MAX * 2 * FORBID_MAX;
 
-const sandboxFor = (wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials) => {
+const sandboxFor = (wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials, readOnly) => {
   // Shell writes: the sandbox's own deny list, in the absolute form when the worktree is known, plus the governed paths of the
   // main checkout that a path grant reaches.
-  const denyWrite = [...new Set([...(forbid?.write ?? []).map((p) => (worktree === undefined ? baseOf(p) : `${worktree}/${baseOf(p)}`)), ...(denyAbs ?? []).map(baseOf)])];
+  const denyWrite = [...new Set([...(readOnly && worktree !== undefined ? [worktree] : []), ...(forbid?.write ?? []).map((p) => (worktree === undefined ? baseOf(p) : `${worktree}/${baseOf(p)}`)), ...(denyAbs ?? []).map(baseOf)])];
   const filesystem = { ...(denyWrite.length === 0 ? {} : { denyWrite }), ...(writePaths?.length ? { allowWrite: [...writePaths] } : {}),
     // The read limit for a shell command (live check, agent-os/02): the home directory is closed, the worktree, the ticket and granted paths re-opened,
     // and (the kernel review) the project and toolchain compileCeiling names.
-    ...(readLimit === true ? { denyRead: ["~/"], allowRead: [...(worktree === undefined ? [] : [worktree]), ...(ticketFile === undefined ? [] : [`/${ticketFile}`.slice(1)]), ...(writePaths ?? []), ...(readOpen ?? [])] } : credentials?.length ? { denyRead: [...credentials] } : {}) };
+    ...(readLimit === true ? { denyRead: ["~/"], allowRead: [...(worktree === undefined ? [] : [worktree]), ...(ticketFile === undefined ? [] : [`/${ticketFile}`.slice(1)]), ...(writePaths ?? []), ...(readOpen ?? [])] } : credentials?.length || readOnly ? { denyRead: [...(credentials ?? []), ...(readOnly?.deny ?? [])] } : {}) };
   return {
     enabled: true,
     failIfUnavailable: true,
@@ -140,7 +145,7 @@ const sandboxFor = (wall, worktree, forbid, writePaths, readLimit, readOpen, tic
 };
 // A file tool's rule for a path: `//abs` for an absolute one (the adapter's form), `~/x` for a home one.
 const ruleForm = (p) => (p.startsWith("/") ? `/${p}` : p);
-const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials }) => {
+const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, readOnly }) => {
   const allow = [
     // den-mvp/27: behind the wall every shell command is sandboxed and an unsandboxed one is refused, yet the CLI still asked
     // for some (a heredoc written after a cd, a write to $TMPDIR) despite autoAllowBashIfSandboxed. The request protected
@@ -149,12 +154,15 @@ const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit
     // A host the ceiling or a grant names may be fetched without a question; any other fetch is one (or is refused, see webRefusal).
     ...(wall?.hosts ?? []).map((h) => `WebFetch(domain:${h})`),
     ...(ticketFile === undefined ? [] : [`Read(/${ticketFile})`]),
-    ...(worktree === undefined ? [] : [`Write(/${worktree}/**)`, `Edit(/${worktree}/**)`]),
+    ...(worktree === undefined || readOnly ? [] : [`Write(/${worktree}/**)`, `Edit(/${worktree}/**)`]),
+    // den-meetings/01: a seat reads the whole project (untracked files, .scratch/) without a request; Read rules cover Grep and Glob.
+    ...(readOnly?.allow ?? []).map((p) => `Read(${ruleForm(p)}/**)`),
     ...(writePaths ?? []).flatMap((p) => [`Write(${ruleForm(p)}/**)`, `Edit(${ruleForm(p)}/**)`]),
   ];
   const denyPaths = (forbid?.write ?? []).flatMap((p) => [p, ...(worktree === undefined ? [] : [`/${worktree}/${p}`])]);
   const deny = [
     ...DENY_RULES, "Agent", "Task",
+    ...(readOnly ? ["Write", "Edit", "NotebookEdit", ...readOnly.deny.flatMap((p) => [`Read(${p})`, `Read(${p}/**)`])] : []),
     ...denyPaths.flatMap((p) => [`Write(${p})`, `Edit(${p})`]),
     ...(denyAbs ?? []).flatMap((p) => [`Write(${ruleForm(p)})`, `Edit(${ruleForm(p)})`]),
     ...(credentials ?? []).flatMap((p) => [`Read(${p})`, `Read(${p}/**)`, `Edit(${p})`, `Edit(${p}/**)`]),
@@ -168,7 +176,7 @@ const settingsFor = ({ ticketFile, wall, worktree, forbid, writePaths, readLimit
     disableAllHooks: true,
     fastMode: false, fallbackModel: [], switchModelsOnFlag: false,
     permissions: { deny: [...new Set(deny)], ...(allow.length === 0 ? {} : { allow }), ...(readLimit === true ? { blockReadsOutsideWorkingDirectories: true, ...(ticketFile === undefined ? {} : { additionalDirectories: [ticketFile.slice(0, ticketFile.lastIndexOf("/"))] }) } : {}) },
-    ...(wall === undefined ? {} : { sandbox: sandboxFor(wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials) }),
+    ...(wall === undefined ? {} : { sandbox: sandboxFor(wall, worktree, forbid, writePaths, readLimit, readOpen, ticketFile, denyAbs, credentials, readOnly) }),
   });
 };
 
@@ -286,8 +294,11 @@ export function toolchainRefusal(p, control) {
  * worktree undefined leaves the write rules out (the wall stays, the Write request stays). Any grant outside the fixed shape,
  * any grant for a role that cannot write, and a path grant that contains the worktree are TypeErrors.
  */
-export function compileCeiling(role, { worktree, grants, root, home, mainGit, credentials, remote, toolchain, target = false, projectToolchain = [], control } = {}) {
+export function compileCeiling(role, { worktree, grants, root, home, mainGit, credentials, remote, toolchain, target = false, projectToolchain = [], control, readOnly = false } = {}) {
   const { hosts: grantHosts, paths } = parseGrants(grants);
+  if (typeof readOnly !== "boolean") throw new TypeError("compileCeiling: readOnly must be a boolean");
+  if (readOnly && root === undefined) throw new TypeError("compileCeiling: a read-only run needs the project root");
+  if (readOnly && grantHosts.length + paths.length > 0) throw new TypeError("compileCeiling: a read-only run takes no grants");
   if (credentials !== undefined && !(isDense(credentials) && credentials.every((p) => CREDENTIAL_PATHS.includes(p)))) throw new TypeError("compileCeiling: credentials must be paths from governance.json");
   if (root !== undefined && !isWorktreePath(root)) throw new TypeError("compileCeiling: root must be a plain absolute path");
   if (mainGit !== undefined && !isWorktreePath(mainGit)) throw new TypeError("compileCeiling: mainGit must be a plain absolute path");
@@ -335,7 +346,8 @@ export function compileCeiling(role, { worktree, grants, root, home, mainGit, cr
   return {
     wall: { hosts },
     ...options,
-    forbid: { write: [...GOVERNANCE.guardrailPaths, ...GOVERNANCE.ciPaths.filter((e) => !lifted(e))], run: [...GOVERNANCE.denyRun] },
+    forbid: { write: [...GOVERNANCE.guardrailPaths, ...GOVERNANCE.ciPaths.filter((e) => !lifted(e))], run: [...GOVERNANCE.denyRun, ...(readOnly ? MEETING_DENY_RUN : [])] },
+    ...(readOnly ? { readOnly: { allow: [root], deny: [...MEETING_UNREADABLE] } } : {}),
     ...(denyAbs.length === 0 ? {} : { denyAbs }),
     ...(paths.length === 0 ? {} : { writePaths: paths }),
     ...(readLimit ? { readLimit: true } : {}),
@@ -392,9 +404,9 @@ const MCP_CONFIG_FILE_RE = /^\/[A-Za-z0-9._@+-]+(?:\/[A-Za-z0-9._@+-]+)*\.json$/
 export function buildClaudeArgs(options) {
   if (!isPlainObject(options)) throw new TypeError("buildClaudeArgs needs { sessionId, agent, model?, ticketFile?, wall?, worktree? }");
   for (const key of Object.keys(options)) {
-    if (!["sessionId", "resume", "agent", "model", "effort", "managedDelegation", "delegationRole", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
+    if (!["sessionId", "resume", "agent", "model", "effort", "managedDelegation", "delegationRole", "ticketFile", "wall", "worktree", "forbid", "writePaths", "readLimit", "readOpen", "denyAbs", "credentials", "readOnly", "connections", "mcpConfigFile", "project"].includes(key)) throw new TypeError(`buildClaudeArgs: unknown option ${JSON.stringify(key)}`);
   }
-  const { sessionId, resume, agent, model, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, connections, mcpConfigFile, project } = options;
+  const { sessionId, resume, agent, model, ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, readOnly, connections, mcpConfigFile, project } = options;
   if (options.effort !== undefined && !['low', 'medium', 'high'].includes(options.effort)) throw new TypeError('Invalid meeting effort');
   if (options.managedDelegation !== undefined && options.managedDelegation !== true) throw new TypeError("Invalid managed delegation flag");
   if (options.delegationRole !== undefined && !(options.managedDelegation && isPlainObject(options.delegationRole) && typeof options.delegationRole.prompt === "string" && (options.delegationRole.tools === undefined || Array.isArray(options.delegationRole.tools)))) throw new TypeError("Invalid managed role");
@@ -413,6 +425,7 @@ export function buildClaudeArgs(options) {
   if (readLimit !== undefined && readLimit !== true) throw new TypeError("buildClaudeArgs: readLimit must be true");
   if (readOpen !== undefined && !(readLimit === true && isDense(readOpen) && readOpen.length <= 8 && readOpen.every(isWorktreePath))) throw new TypeError("buildClaudeArgs: readOpen must be plain absolute paths, with the read limit");
   if (denyAbs !== undefined && !(isDense(denyAbs) && denyAbs.length <= DENY_ABS_MAX && denyAbs.every((p) => typeof p === "string" && DENY_ABS_RE.test(p) && !p.split("/").some((part) => part === "." || part === "..")))) throw new TypeError("buildClaudeArgs: denyAbs must be plain absolute paths");
+  if (readOnly !== undefined && !(wall !== undefined && isReadOnly(readOnly))) throw new TypeError("buildClaudeArgs: readOnly must be { allow: [plain paths], deny: [fixed home folders] }, with the wall");
   if (wall === undefined && (forbid !== undefined || writePaths !== undefined || readLimit !== undefined || denyAbs !== undefined)) throw new TypeError("buildClaudeArgs: forbid, writePaths, readLimit and denyAbs need the wall");
   if (worktree !== undefined && !isWorktreePath(worktree)) throw new TypeError("buildClaudeArgs: worktree must be a plain absolute path");
   if (ticketFile !== undefined && !isTicketFilePath(ticketFile)) throw new TypeError("buildClaudeArgs: ticketFile must be a plain absolute path to a board ticket");
@@ -440,7 +453,7 @@ export function buildClaudeArgs(options) {
     "--strict-mcp-config",
     ...(inline === undefined || inline.length === 0 ? [] : ["--mcp-config", mcpConfigFor(inline)]),
     ...(mcpConfigFile === undefined ? [] : ["--mcp-config", mcpConfigFile]),
-    "--settings", settingsFor({ ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials }),
+    "--settings", settingsFor({ ticketFile, wall, worktree, forbid, writePaths, readLimit, readOpen, denyAbs, credentials, readOnly }),
   ];
 }
 

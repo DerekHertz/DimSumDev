@@ -122,3 +122,14 @@ function legacyRequests(snapshot) {
       };
     });
 }
+
+/** den-meetings/01: the permission requests in a meeting's chat, oldest first, each with its state: asked, then allowed, denied or expired. */
+export function permissionCards(events, now = Date.now()) {
+  const list = Array.isArray(events) ? events : [];
+  return list.filter((e) => e?.kind === "permission-request").map((e) => {
+    const settled = list.find((x) => x?.kind === "permission-settled" && x.approvalId === e.approvalId);
+    const left = Date.parse(e.expiresAt) - now;
+    const state = settled ? settled.state : left > 0 ? "pending" : "expired";
+    return { id: e.approvalId, eventId: e.id, actor: e.actor, tool: e.tool, summary: e.summary, expiresAt: e.expiresAt, state, secondsLeft: state === "pending" ? Math.ceil(left / 1000) : 0 };
+  });
+}
