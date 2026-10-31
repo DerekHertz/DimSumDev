@@ -14,10 +14,12 @@ import {
   publishHandoff,
   handoffTemplate,
   list,
+  createTicket,
   appendUsageLine,
   checkArgLength,
   BoardError,
 } from "./board-service.mjs";
+import { readFile } from "node:fs/promises";
 import { audit } from "./board-audit.mjs";
 import { normalizeLegacyFlags } from "./legacy-terms.mjs";
 import { loadSnapshot, buildQueue, formatQueue, gateRefusals, gateReason } from "./frontier-queue.mjs";
@@ -120,6 +122,27 @@ async function main() {
       const { positional, flags } = parseFlags(rest, { allowed: ["pr", "note"] });
       const result = await resolve(root, positional.map(full), { pr: flags.pr, note: flags.note });
       for (const ref of result.resolved) console.log(`resolved ${ref}`);
+      return;
+    }
+    case "file": {
+      // portable-den/11: file a ticket found while working on another one, with its `Discovered from` link set.
+      const { positional, flags } = parseFlags(rest, {
+        allowed: ["discovered-from", "title", "text", "ticket-file", "priority", "source", "class", "serves", "goal", "status", "type"],
+      });
+      const [feature, slug] = positional;
+      if (positional.length !== 2 || flags["discovered-from"] === undefined || flags.title === undefined || (flags.text === undefined) === (flags["ticket-file"] === undefined)) {
+        throw new BoardError('usage: board file <feature> <slug> --discovered-from <ref> --title "<t>" (--text "<request>" | --ticket-file <file with ## Acceptance criteria>) [--priority P2] [--source <s>] [--class product|pipeline] [--serves "<form>"] [--goal <g>] [--status ready-for-agent|ready-for-human] [--type <t>]');
+      }
+      const drafted = flags["ticket-file"] !== undefined;
+      const made = await createTicket(root, {
+        feature, slug, title: flags.title,
+        text: drafted ? await readFile(flags["ticket-file"], "utf8") : flags.text,
+        form: drafted ? "ticket" : "request",
+        discoveredFrom: full(flags["discovered-from"]),
+        priority: flags.priority, source: flags.source, class: flags.class, serves: flags.serves, goal: flags.goal,
+        status: flags.status, type: flags.type,
+      });
+      console.log(`filed ${made.ref}`);
       return;
     }
     case "park":

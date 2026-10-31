@@ -192,35 +192,12 @@ function threeIncidentsOfOneTool(incidentTs, snapshot) {
   return [...perTool.values()].some((n) => n >= PIPELINE_INCIDENTS);
 }
 
-// The unplanned cap (ADR 0015 Amendment 3 decision 10): once a feature has at least 3 planned tickets, an Origin-added
-// ticket is refused when the added tickets already filed (every status, the ticket itself left out) pass a third of
-// the planned count, i.e. added * 3 > planned. Planned is every ticket not Origin: added (as in buildQueue). A security
-// finding (Serves finding:<ref>) is never refused by the cap, but the tickets it filed count toward it.
-const UNPLANNED_BASELINE = 3;
-
-function checkUnplannedCap(ticket, snapshot) {
-  if (ticket.origin !== "added") return null;
-  if (FINDING_FORM_RE.test(typeof ticket.serves === "string" ? ticket.serves.trim() : "")) return null;
-  let planned = 0;
-  let added = 0;
-  for (const t of snapshot.tickets ?? []) {
-    if (t.feature !== ticket.feature || t.ref === ticket.ref) continue;
-    if (t.origin === "added") added += 1;
-    else planned += 1;
-  }
-  if (planned < UNPLANNED_BASELINE || added * 3 <= planned) return null;
-  return `unplanned: ${added} added tickets already filed in ${ticket.feature} against ${planned} planned, past a third; admitting another needs the user's yes (queue-admin admit)`;
-}
-
 export function checkAdmission(ticket, snapshot) {
   const reasons = [];
   if (!TICKET_CLASSES.includes(ticket.class)) reasons.push("class: no Class line, or not product or pipeline");
 
   const serves = checkServes(ticket, snapshot);
   reasons.push(...serves.reasons);
-
-  const capReason = checkUnplannedCap(ticket, snapshot);
-  if (capReason) reasons.push(capReason);
 
   if (ticket.class === "pipeline" && !blocksActiveFeature(ticket, snapshot) && !threeIncidentsOfOneTool(serves.incidentTs, snapshot)) {
     reasons.push(`incident: a pipeline ticket needs ${PIPELINE_INCIDENTS} distinct incidents with the same tool, or to block an active-feature ticket`);

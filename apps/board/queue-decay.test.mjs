@@ -16,11 +16,8 @@
 //     top = the Queue's top ticket when the pick was made; picked = the full ref picked; deviation only with --deviation
 //   decay reason: a park by decay carries a reason that names decay (/decay/i), in the ticket comment and the park event.
 //
-// Interpretation pinned (ADR 0015 Amendment 3 A, spec decision 10): the unplanned cap applies to a feature with at
-// least 3 planned tickets, and refuses an Origin-added ticket once the added tickets already filed pass a third of the
-// planned ones. Tests use counts that are clear under any reading of the boundary (a count of exactly planned/3 is
-// not pinned either way). Every ticket of the feature counts, whatever its status, as in queue.unplanned. A security
-// finding (Serves finding:<ref>) is never refused by the cap but is counted by it.
+// The unplanned cap (ADR 0015 Amendment 3 A, spec decision 10) was lifted by portable-den/11 (ADR 0015 Amendment 4): an
+// Origin-added ticket is no longer refused for how many added tickets exist. The planned and added counts stay displayed.
 //
 // Criterion map (acceptance criteria of queue/05):
 //   1 decay-left falls as other tickets resolve and resets on a pick, tested with literal rows
@@ -30,8 +27,8 @@
 //        .... "board pick writes one queue-pick row ...", "board pick --deviation records ...", "board pick refuses an unknown ticket ..."
 //   3 `board gate` lists expired tickets in its dry run and parks them only with --apply
 //        .... "buildQueue expired ...", "board gate dry run lists expired ...", "board gate --apply parks expired ..."
-//   4 over the unplanned cap is refused with a reason; a security finding over the cap is counted and admitted
-//        .... "the unplanned cap ..." tests, "board gate lists a ticket over the unplanned cap ..."
+//   4 (lifted by portable-den/11) the unplanned cap no longer refuses; the added count is still shown
+//        .... "the unplanned cap is lifted ...", "board gate leaves an added ticket alone ..."
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { mkdir, readFile, readdir, writeFile } from "node:fs/promises";
@@ -163,73 +160,24 @@ function addedTickets(count, firstNum = 30) {
 const candidate = (extra = {}) =>
   tk("den-v1", 90, { origin: "added", class: "product", serves: SPEC_SERVES, ...extra });
 
-test("the unplanned cap refuses an added ticket once the added tickets pass a third of the planned ones, with a reason", () => {
+test("the unplanned cap is lifted: an added ticket is admitted at any count of added tickets (portable-den/11)", () => {
   const c = candidate();
-  const r = checkAdmission(c, capSnap([...plannedTickets(6), ...addedTickets(4), c]));
-  assert.equal(r.ok, false, JSON.stringify(r));
-  assert.ok(r.reasons.length >= 1);
-  assert.ok(r.reasons.some((x) => /unplanned|cap/i.test(x)), `a reason names the cap: ${JSON.stringify(r.reasons)}`);
-  for (const reason of r.reasons) assert.doesNotMatch(reason, /\n/, "a reason is one line");
-});
-
-test("the unplanned cap admits an added ticket while the added tickets are under a third of the planned ones", () => {
-  const c = candidate();
-  const r = checkAdmission(c, capSnap([...plannedTickets(6), ...addedTickets(1), c]));
-  assert.deepEqual(r, { ok: true, reasons: [] });
-});
-
-test("the unplanned cap does not apply to a feature with fewer than 3 planned tickets", () => {
-  const c = candidate();
-  const r = checkAdmission(c, capSnap([...plannedTickets(2), ...addedTickets(5), c]));
-  assert.deepEqual(r, { ok: true, reasons: [] });
-});
-
-test("the unplanned cap never refuses a planned ticket (Origin spec, or no Origin line)", () => {
-  for (const origin of ["spec", null]) {
-    const c = candidate({ origin });
-    const r = checkAdmission(c, capSnap([...plannedTickets(6), ...addedTickets(6), c]));
-    assert.deepEqual(r, { ok: true, reasons: [] }, `origin ${origin}`);
+  for (const added of [1, 4, 12]) {
+    const r = checkAdmission(c, capSnap([...plannedTickets(6), ...addedTickets(added), c]));
+    assert.deepEqual(r, { ok: true, reasons: [] }, `${added} added`);
   }
 });
 
-test("the unplanned cap counts only the ticket's own feature", () => {
-  const c = candidate();
-  const elsewhere = Array.from({ length: 6 }, (_, i) => tk("other", 40 + i, { status: "resolved", origin: "added" }));
-  const r = checkAdmission(c, capSnap([...plannedTickets(6), ...elsewhere, c]));
-  assert.deepEqual(r, { ok: true, reasons: [] });
-});
-
-test("a security finding over the cap is admitted and is counted", () => {
-  const found = base(5, { origin: "spec" }); // the ticket the finding names
-  const planned = [...plannedTickets(6)];
+test("buildQueue still counts planned and added tickets per feature, findings included", () => {
+  const found = base(5, { origin: "spec" });
   const finding = (num) => tk("den-v1", num, { origin: "added", class: "product", serves: `finding:${found.ref}` });
-  const f = finding(90);
-  // over the cap by a wide margin, yet the finding is admitted
-  const over = checkAdmission(f, capSnap([...planned, found, ...addedTickets(4), f]));
-  assert.deepEqual(over, { ok: true, reasons: [] });
-
-  // counted: one ordinary added ticket and three findings put a following ordinary ticket over the cap,
-  // where one ordinary added ticket alone does not
-  const earlierFindings = [31, 32, 33].map((num) => ({ ...finding(num), status: "resolved" }));
-  const earlierOrdinary = base(30, { origin: "added" });
-  const next = candidate();
-  const withFindings = checkAdmission(next, capSnap([...planned, found, earlierOrdinary, ...earlierFindings, next]));
-  assert.equal(withFindings.ok, false, JSON.stringify(withFindings));
-  assert.ok(withFindings.reasons.some((x) => /unplanned|cap/i.test(x)), JSON.stringify(withFindings.reasons));
-  const withoutFindings = checkAdmission(next, capSnap([...planned, found, earlierOrdinary, next]));
-  assert.deepEqual(withoutFindings, { ok: true, reasons: [] });
-
-  const q = buildQueue(capSnap([...planned, found, earlierOrdinary, ...earlierFindings, next]));
+  const q = buildQueue(capSnap([...plannedTickets(6), found, base(30, { origin: "added" }), finding(31), finding(32), finding(33), candidate()]));
   assert.equal(q.unplanned["den-v1"].added, 5, "findings are counted among the added tickets");
 });
 
-test("gateRefusals lists a ticket over the unplanned cap and not a security finding over it", () => {
-  const found = base(5, { origin: "spec" });
+test("gateRefusals no longer lists a ticket for being over the old unplanned cap", () => {
   const over = candidate({ num: 90 });
-  const finding = tk("den-v1", 91, { origin: "added", class: "product", serves: `finding:${found.ref}` });
-  const refused = gateRefusals(capSnap([...plannedTickets(6), found, ...addedTickets(4), over, finding]));
-  assert.deepEqual(refused.map((r) => r.ref), [over.ref]);
-  assert.ok(refused[0].reasons.some((x) => /unplanned|cap/i.test(x)));
+  assert.deepEqual(gateRefusals(capSnap([...plannedTickets(6), ...addedTickets(4), over])), []);
 });
 
 // --- 3. the CLI against a temp board ---------------------------------------------------------------------------
@@ -480,33 +428,21 @@ test("an unparked ticket restarts its decay count", async () => {
   }
 });
 
-test("board gate lists a ticket over the unplanned cap and parks it only with --apply; a security finding over it stays", async () => {
-  const fx = await makeBoardFixture(SEED); // den-v1/09-seed: resolved, no Origin line, so planned
+test("board gate leaves an added ticket alone however many added tickets exist (the unplanned cap is lifted)", async () => {
+  const fx = await makeBoardFixture(SEED);
   try {
     await putSpec(fx, "den-v1", ["# Den", "", "## Step 3: Feed the agent", ""]);
     await putUsage(fx, [activeRow("den-v1")]);
-    for (const i of [1, 2, 3, 4, 5]) await putTicket(fx, "den-v1", `0${i}-planned`, { status: "resolved" }); // 6 planned with the seed
+    for (const i of [1, 2, 3, 4, 5]) await putTicket(fx, "den-v1", `0${i}-planned`, { status: "resolved" });
     for (const i of [10, 11, 12, 13]) await putTicket(fx, "den-v1", `${i}-added`, { status: "resolved", header: ["**Origin:** added"] });
     await putTicket(fx, "den-v1", "20-over", {
       header: ["**Class:** product", "**Origin:** added", '**Serves:** spec:den-v1 "Step 3"'],
     });
-    await putTicket(fx, "den-v1", "21-finding", {
-      header: ["**Class:** product", "**Origin:** added", "**Serves:** finding:den-v1/09-seed"],
-    });
-    const before = await treeSnapshot(scratch(fx));
     const dry = await run(fx, ["gate"]);
     assert.equal(dry.code, 0, dry.stderr);
-    assert.deepEqual(await treeSnapshot(scratch(fx)), before, "the dry run writes nothing");
-    const lines = dry.stdout.split("\n");
-    const over = lines.find((l) => l.includes("den-v1/20-over"));
-    assert.ok(over, `the ticket over the cap is listed:\n${dry.stdout}`);
-    assert.match(over, /unplanned|cap/i, "with the rule that refused it");
-    assert.equal(lines.find((l) => l.includes("21-finding")), undefined, `the finding is admitted:\n${dry.stdout}`);
-
-    const apply = await run(fx, ["gate", "--apply"]);
-    assert.equal(apply.code, 0, apply.stderr);
-    assert.equal(await getStatus(fx.root, "den-v1/20-over"), "parked");
-    assert.equal(await getStatus(fx.root, "den-v1/21-finding"), "ready-for-agent");
+    assert.equal(dry.stdout.split("\n").find((l) => l.includes("20-over")), undefined, dry.stdout);
+    assert.equal((await run(fx, ["gate", "--apply"])).code, 0);
+    assert.equal(await getStatus(fx.root, "den-v1/20-over"), "ready-for-agent");
   } finally {
     await fx.cleanup();
   }
