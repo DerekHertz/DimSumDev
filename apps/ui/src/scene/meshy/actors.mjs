@@ -11,7 +11,7 @@ import {RESIDENTS,sameResident,boundAgentKey} from '../../shell/resident-invento
 import {createFrameWork} from './frame-work.mjs';
 
 const RETURNING='Working · returning to desk';
-export function createMeshyActors(den){
+export function createMeshyActors(den,{workNow}={}){
  const actors=new Map(),definitions=new Map(CHARACTERS.map(c=>[c[0],c]));let bindings=new Map(),selected=null,time=0,held=null,hidden=false;
  const homes=createActorHomes(den,actors),places=homes.places;
  for(const source of den.propManifest){
@@ -22,7 +22,7 @@ export function createMeshyActors(den){
   if(!a.stationary)a.gesture=createLeisureGesture(a.panda.rig);
  }
  den.placeRegistry=places;if(den.garden?.approved)bindResidentNavigation(den,actors);
- const work=createFrameWork();
+ const work=createFrameWork({now:workNow});
  const routines=createDailyRoutines(den,actors,{work:den.routineRouteSteps?work:null});
  const meetings=den.garden?.approved?createMeetingResidents(den,actors,places,routines,work):null;
  const note=a=>{a.presentation=a.meetingTrip?.blocked?'Waiting for a clear route '+(a.meetingTrip.stage==='return'?'home':'to the meeting'):a.live&&(a.outing||a.meetingTrip?.stage==='return')?RETURNING:a.outing?(a.outing.stage==='return'?'Returning home':a.outing.stage==='outbound'?'Going to '+a.outing.spot.kind:({tea:'Taking tea',pond:'Watching the pond',rest:'Resting',games:'Playing mahjong',friend:'Visiting '+a.outing.host?.name}[a.outing.spot.kind])):a.homeNote;};

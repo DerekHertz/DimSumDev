@@ -9,7 +9,8 @@ import {createMeshyActors} from './actors.mjs';
 import {leisurePlaces} from './approved-plan.mjs';
 import {teahouseProps} from './teahouse.test-fixture.mjs';
 
-export function approvedFixture({missing=[]}={}){
+// The planning budget reads a deterministic clock, so a loaded CI machine cannot change which walker plans first (portable-den/16).
+export function approvedFixture({missing=[],workStepMs=.01}={}){
  globalThis.document={createElement:()=>({getContext:()=>new Proxy({measureText:()=>({width:40})},{get:(o,k)=>o[k]||(()=>{})})})};
  const garden=createApprovedGarden({props:teahouseProps()}),characters={},residents=new T.Group();
  const manifest=JSON.parse(readFileSync(new URL('../../../public/den/manifest.json',import.meta.url)));
@@ -18,6 +19,7 @@ export function approvedFixture({missing=[]}={}){
  const factory=createPandaAppearanceFactory({characters,approvedOnly:true}),workspaces=new Map();
  for(const dock of garden.docks){const panda=factory.createPanda(dock.role,{runtime:dock.runtime});panda.model.position.fromArray(dock.position);panda.model.rotation.y=dock.yaw;residents.add(panda.model);workspaces.set(dock.id,{person:panda.model});}
  const den={garden,residents,createPanda:factory.createPanda,destroyPanda:factory.destroyPanda,propManifest:garden.docks,roleWorkspaces:{workspaces},pandaRigs:factory.instances,walkWorld:createApprovedNavigation(garden),routineSpots:leisurePlaces()};
- const actors=createMeshyActors(den);
+ let clock=0;
+ const actors=createMeshyActors(den,{workNow:()=>clock+=workStepMs});
  return {den,actors,factory,tick(seconds,reduced=false){for(let t=0;t<Math.round(seconds*10);t++)actors.update(.1,reduced);},dispose(){actors.dispose();factory.dispose();garden.dispose();}};
 }

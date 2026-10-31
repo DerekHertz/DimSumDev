@@ -173,7 +173,8 @@ export function createApprovedNavigation(garden){
   const invoke=(method,value)=>{const previous=routeFits;routeFits=cache;try{return iterator[method](value);}finally{routeFits=previous;}};
   return {[Symbol.iterator](){return this;},next:value=>invoke('next',value),return:value=>invoke('return',value)};
  }
- function* planRoute(actor,from,to){
+ function* planRoute(actor,from,to){const strict=yield* planRouteOnce(actor,from,to,false);return strict.length?strict:yield* planRouteOnce(actor,from,to,true);}
+ function* planRouteOnce(actor,from,to,relaxed){
   const envelope=actor.envelope,signature=JSON.stringify([envelope.radius,envelope.height,envelope.bounds,envelope.slices]);
   const bodySnapshot=[
    ...bodies().filter(other=>other!==actor&&other.panda.model.visible).map(other=>({position:other.panda.model.position.clone(),envelope:other.envelope,yaw:other.yaw??other.baseYaw})),
@@ -181,7 +182,7 @@ export function createApprovedNavigation(garden){
   ].map(other=>({...other,radius:other.envelope.radius,vertices:rectangle(other.position,other.envelope,other.yaw)}));
   const canTurn=(p,fromYaw,toYaw)=>{
    if(!turn(p,fromYaw,toYaw,envelope))return false;
-   if(!Number.isFinite(to.yaw))return true;
+   if(relaxed||!Number.isFinite(to.yaw))return true;
    const nearby=bodySnapshot.filter(other=>distance(p,other.position)<envelope.radius+other.radius+.1);
    if(!nearby.length)return true;
    const delta=Math.atan2(Math.sin(toYaw-fromYaw),Math.cos(toYaw-fromYaw)),steps=Math.max(1,Math.ceil(Math.abs(delta)/.06));
