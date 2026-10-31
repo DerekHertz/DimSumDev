@@ -1,12 +1,12 @@
 {
-  "description": "The den kit's guards, for any project that loads the den plugin: context budget, board identity and raw-jg guard, uncapped test runs, sleep chains. Load it with claude --plugin-dir <den checkout>/.claude: the guards run from the den checkout, and a missing guard blocks the call.",
+  "description": "The den kit's guards, for any project that loads the den plugin: context budget, board identity and raw-jg guard, uncapped test runs, sleep chains. Every guard runs from this plugin's own folder (hooks/*.mjs, mirrored from scripts/hooks and mods/; a test fails on drift), so a by-name install works. Board identity does nothing without the den's apps/board beside the plugin; the context budget reads its token count with the den's scripts/context.mjs, which a --plugin-dir <den>/.claude load finds and a by-name install does not (it then allows). A missing guard blocks the call.",
   "hooks": {
     "PreToolUse": [
       {
         "hooks": [
           {
             "type": "command",
-            "command": "test -f \"${CLAUDE_PLUGIN_ROOT}/../scripts/hooks/context-budget.mjs\" || { echo \"den plugin: guard script missing (context-budget.mjs); load the plugin with claude --plugin-dir <den checkout>/.claude\" >&2; exit 2; }; node \"${CLAUDE_PLUGIN_ROOT}/../scripts/hooks/context-budget.mjs\"",
+            "command": "test -f \"${CLAUDE_PLUGIN_ROOT}/hooks/context-budget.mjs\" || { echo \"den plugin: guard script missing (context-budget.mjs); reinstall the den plugin\" >&2; exit 2; }; node \"${CLAUDE_PLUGIN_ROOT}/hooks/context-budget.mjs\"",
             "timeout": 15
           }
         ]
@@ -16,17 +16,17 @@
         "hooks": [
           {
             "type": "command",
-            "command": "test -f \"${CLAUDE_PLUGIN_ROOT}/../scripts/hooks/bash-guard.mjs\" || { echo \"den plugin: guard script missing (bash-guard.mjs); load the plugin with claude --plugin-dir <den checkout>/.claude\" >&2; exit 2; }; node \"${CLAUDE_PLUGIN_ROOT}/../scripts/hooks/bash-guard.mjs\"",
+            "command": "test -f \"${CLAUDE_PLUGIN_ROOT}/hooks/bash-guard.mjs\" || { echo \"den plugin: guard script missing (bash-guard.mjs); reinstall the den plugin\" >&2; exit 2; }; node \"${CLAUDE_PLUGIN_ROOT}/hooks/bash-guard.mjs\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "test -f \"${CLAUDE_PLUGIN_ROOT}/../mods/test-run-guard/hooks/test-run-guard.mjs\" || { echo \"den plugin: guard script missing (test-run-guard.mjs); load the plugin with claude --plugin-dir <den checkout>/.claude\" >&2; exit 2; }; node \"${CLAUDE_PLUGIN_ROOT}/../mods/test-run-guard/hooks/test-run-guard.mjs\"",
+            "command": "test -f \"${CLAUDE_PLUGIN_ROOT}/hooks/test-run-guard.mjs\" || { echo \"den plugin: guard script missing (test-run-guard.mjs); reinstall the den plugin\" >&2; exit 2; }; node \"${CLAUDE_PLUGIN_ROOT}/hooks/test-run-guard.mjs\"",
             "timeout": 10
           },
           {
             "type": "command",
-            "command": "test -f \"${CLAUDE_PLUGIN_ROOT}/../mods/sleep-guard/hooks/sleep-guard.mjs\" || { echo \"den plugin: guard script missing (sleep-guard.mjs); load the plugin with claude --plugin-dir <den checkout>/.claude\" >&2; exit 2; }; node \"${CLAUDE_PLUGIN_ROOT}/../mods/sleep-guard/hooks/sleep-guard.mjs\"",
+            "command": "test -f \"${CLAUDE_PLUGIN_ROOT}/hooks/sleep-guard.mjs\" || { echo \"den plugin: guard script missing (sleep-guard.mjs); reinstall the den plugin\" >&2; exit 2; }; node \"${CLAUDE_PLUGIN_ROOT}/hooks/sleep-guard.mjs\"",
             "timeout": 10
           }
         ]
