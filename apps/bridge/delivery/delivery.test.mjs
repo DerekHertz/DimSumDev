@@ -67,6 +67,7 @@ function fakeGitHost(root) {
       h.pr = { number: 7, url: "https://github.com/o/r/pull/7", state: "OPEN", sha: h.remote.sha };
     },
     prState: async () => ({ ...h.pr, mergeable: h.mergeable, checks: h.checks }),
+    comment: async (a) => call("comment", a),
     waitChecks: async () => {
       await call("waitChecks");
       await h.gate;
@@ -1460,5 +1461,73 @@ describe("the sweep of in-review tickets whose branch was merged elsewhere (den-
     assert.deepEqual(res.body.resolved, []);
     assert.equal(t.status(), "in-review");
     assert.deepEqual(t.git.asked, [], "the git host is not asked about a ticket a delivery holds");
+  });
+});
+
+// portable-den/09: the docviz diagram of the pull request, posted by the bridge after the push.
+// Criterion map (ticket portable-den/09):
+//   AC2 a delivery's PR gets the comment from the bridge; a docviz failure leaves the PR open with a one-line note -> the first two tests
+//   AC3 without docviz the PR body says skipped and nothing fails                                                  -> "without docviz ..."
+//   AC5 (bridge half) the same call posts and updates: git-host.comment finds the marker                           -> plan.test.mjs row "comment"
+const STEPS = '## Diagram steps\n\n```json\n{ "steps": [{ "id": "a", "label": "Adds the file", "changed": true, "sources": [{ "path": "feature.txt" }] }] }\n```\n';
+const MARKER = "<!-- docviz-pr-diagrams -->";
+const fakeDocviz = (over = {}) => {
+  const d = { runs: [], available: () => true, run: async (a) => (d.runs.push(a), `${MARKER}\n## How this PR works\n\nthanks @octocat\n\n<sub>cost $0.04</sub>\n`), ...over };
+  return d;
+};
+const runToMerge = async (t, report) => {
+  await t.start();
+  const dev = await t.spawn(0);
+  t.work(dev, { commit: "feature.txt", say: report });
+  t.work(await t.spawn(1), { say: "ok\nVERDICT: pass" });
+  await t.when((j) => j.state === "merged", "the delivery to merge");
+  return dev;
+};
+
+describe("the docviz diagram comment", () => {
+  test("the bridge posts the comment after opening the pull request, from the developer's steps and checkout, with mentions defused", async () => {
+    const docviz = fakeDocviz();
+    const t = await setup({ extra: { docviz } });
+    const dev = await runToMerge(t, `Added feature.txt.\n\n${STEPS}`);
+    assert.deepEqual(t.sideEffects(), ["push", "openPr", "comment", "waitChecks", "merge"]);
+    assert.equal(docviz.runs.length, 1);
+    assert.equal(path.resolve(t.root, docviz.runs[0].worktree), dev.args.cwd);
+    assert.equal(docviz.runs[0].prUrl, "https://github.com/o/r/pull/7");
+    assert.equal(docviz.runs[0].steps[0].id, "a");
+    const posted = t.git.calls.find((c) => c[0] === "comment")[1];
+    assert.equal(posted.number, 7);
+    assert.ok(posted.body.startsWith(MARKER) && posted.body.includes("cost $0.04"), "the cost footer is in the comment");
+    assert.doesNotMatch(posted.body, /@octocat/);
+    assert.match(t.git.calls.find((c) => c[0] === "openPr")[1].body, /- Diagram: a docviz comment follows/);
+  });
+
+  test("a docviz failure leaves the pull request open with a one-line note, and the delivery still merges", async () => {
+    const docviz = fakeDocviz({ run: async () => { throw new Error("diagram doesn't parse: line 3"); } });
+    const t = await setup({ extra: { docviz } });
+    await runToMerge(t, `Added feature.txt.\n\n${STEPS}`);
+    assert.equal(t.git.calls.find((c) => c[0] === "comment")[1].body, `${MARKER}\nNo diagram on this push: diagram doesn't parse: line 3\n`);
+    assert.equal(t.sideEffects().at(-1), "merge");
+  });
+
+  test("a comment the git host refuses does not stop the delivery", async () => {
+    const t = await setup({ extra: { docviz: fakeDocviz() } });
+    t.git.fail.comment = "HTTP 403";
+    await runToMerge(t, `Added feature.txt.\n\n${STEPS}`);
+    assert.equal(t.sideEffects().at(-1), "merge");
+  });
+
+  test("without docviz on PATH the pull request body says it was skipped, and nothing fails", async () => {
+    const t = await setup({ extra: { docviz: fakeDocviz({ available: () => false }) } });
+    await runToMerge(t, `Added feature.txt.\n\n${STEPS}`);
+    assert.match(t.git.calls.find((c) => c[0] === "openPr")[1].body, /- Diagram: skipped, docviz is not on PATH/);
+    assert.deepEqual(t.sideEffects(), ["push", "openPr", "waitChecks", "merge"]);
+  });
+
+  test("a handoff with no valid Diagram steps skips the comment and the body says why", async () => {
+    const docviz = fakeDocviz();
+    const t = await setup({ extra: { docviz } });
+    await runToMerge(t, 'Added feature.txt.\n\n## Diagram steps\n\n```json\n{ "steps": [{ "id": "a", "label": "x", "sources": [{ "path": "../../etc/passwd" }] }] }\n```\n');
+    assert.equal(docviz.runs.length, 0);
+    assert.match(t.git.calls.find((c) => c[0] === "openPr")[1].body, /- Diagram: skipped, the developer's handoff had no valid Diagram steps/);
   });
 });

@@ -84,6 +84,7 @@ export function deliveryPrompt({ role, mode, ref, ticketFile, since, fix = false
       (fix ? "A review of the last commit asked for changes: read .den/findings.md first, and fix what it names. A finding from the browser verifier comes with repro steps: follow them, run the flow again with `npm run verify:ui` (the browser-verify skill) after your fix, and name what it showed in your report. " : "") +
       "Work test-first in this worktree, run the checks that cover your change (the full suite runs on the pull request), and commit your work here: the bridge publishes the branch from your last commit, and a run that commits nothing delivers nothing. " +
       "End with a short report of what you changed and which checks you ran and what they showed: that last message is your handoff. Open it with the `## What changes` section the handoff skill describes: the bridge copies it into the pull request. " +
+      "After it, add a `## Diagram steps` section holding one json code block: an object with a `steps` array of three to eight boxes of what the change does, each `{ id, label, changed, sources: [{ path, from, to }] }`, where `path` is a repository file holding its code and `from` and `to` are text markers that cut it. The bridge hands it to docviz for the pull request's diagram. " +
       "If the change alters what the den looks like, end the report with a `Look at:` line and a list under it: for each visible change, one line saying where in the den to find it and what should look different. The user reads that list beside the preview."
     );
   }

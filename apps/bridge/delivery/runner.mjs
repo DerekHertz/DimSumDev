@@ -14,6 +14,7 @@
 //   after its merge. A bridge that runs from the checkout has none, and such a delivery waits as `environment`.
 //   checks: delivery/checks.mjs (den-mvp/34): the checks of ci.yml, run here before the push. A delivery started without
 //   it skips them, and GitHub CI alone decides.
+//   docviz: delivery/diagram.mjs (portable-den/09): the diagram comment of the pull request. A delivery started without it adds none.
 //   host: { start(input), stop(agentId) }    board: delivery/board.mjs    git: delivery/git-host.mjs    log: delivery/jobs.mjs
 //   readTicket(ref) -> { title, type, frontier } | null, from the board as the bridge reads it
 //   activeProject() -> slug (den-mvp/49): delivery is the control checkout's, so a start is refused while another project is active
@@ -28,6 +29,8 @@ import { DELIVERABLE_TYPES, VISUAL_TYPES, authorOf, isCiPath, isUiPath, isUserMe
 import { FLOOR_ROLES, floor, gaps } from "./floor.mjs";
 import { readLookAt, readVerdict, readVerifierEvidence, readWhatChanges } from "./prompts.mjs";
 import { classify } from "./ci-watch.mjs";
+import { readDiagramSteps } from "./diagram.mjs";
+import { diagramOrNote } from "../../../scripts/docviz-pr.mjs";
 
 const CI_RERUN_LOOKS = 20; // with ciWaitMs at 15 s, five minutes for the re-run's jobs to show
 // What a fix round after red checks reads in .den/findings.md: each red job, why, and its log from the first failing test on.
@@ -121,7 +124,7 @@ const unionRoles = (floorRoles, added) => FLOOR_ROLES.filter((r) => floorRoles?.
 // The bridge's steps that belong to the release manager (ADR 0029 decision 5).
 const RELEASE_STEPS = new Set(["push", "pr", "merge", "resolve"]);
 
-export function createDelivery({ host, board, git, log, readTicket, readInReview = async () => [], activeProject = async () => "den", onChange = () => {}, build = null, checks = null, ciWaitMs = 15000, profile = null }) {
+export function createDelivery({ host, board, git, log, readTicket, readInReview = async () => [], activeProject = async () => "den", onChange = () => {}, build = null, checks = null, docviz = null, ciWaitMs = 15000, profile = null }) {
   const jobs = new Map(); // id -> job; insertion order is snapshot order
   let mergeChain = Promise.resolve(); // merges go one at a time
   // The preview that is open for the job's candidate: { url, sha } | null.
@@ -396,6 +399,9 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
       // A later run (merge-main, fix round, the follow-up writer) that reports none keeps the earlier text and door, moved to the new commit.
       if (wc?.text) job.changes = { sha: run.sha, text: proseForBody(wc.text), door: wc.door ? { way: wc.door.way, reason: inertText(errorText(wc.door.reason)) } : null };
       else job.changes = { text: "", door: null, ...job.changes, sha: run.sha };
+      // portable-den/09: the `## Diagram steps` of the developer's handoff, for the docviz comment; a later run that reports none keeps them.
+      const ds = author ? readDiagramSteps(run.report) : null;
+      job.diagram = ds ? { sha: run.sha, steps: ds.steps } : job.diagram ? { ...job.diagram, sha: run.sha } : null;
       await build?.close(job.id, { remove: true }).catch(() => {}); // a new commit: a preview of the last one is gone
       job.branch ??= run.branch; // the first developer run names the branch; a fix round moves it forward
       job.findings = null;
@@ -594,6 +600,7 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
       // The local run is advisory (the commit's own test scripts ran it), so only its state and counts are written here.
       ...(ev.guard?.sha === sha ? guardLines(ev.guard.hits) : []),
       ...(ev.tests?.sha === sha ? [`- Checks run on the den's machine (advisory; GitHub CI is the gate): ${ev.tests.state}${ev.tests.flaky?.length ? `, ${ev.tests.flaky.length} test(s) passed only when run again` : ""} (record \`${ev.tests.record}\`)`] : []),
+      ...(docviz ? [`- Diagram: ${!docviz.available() ? "skipped, docviz is not on PATH" : job.diagram?.sha === sha ? "a docviz comment follows on the pull request" : "skipped, the developer's handoff had no valid Diagram steps"}`] : []),
       ...(ev.security?.sha === sha ? [`- Security review: ${ev.security.verdict} (run ${ev.security.runId})`] : []),
       "", `Files changed (${files.length}):`, "",
       ...files.slice(0, FILES_IN_BODY).map((f) => `- ${codeSpan(f)}`),
@@ -633,6 +640,28 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
     return true;
   }
 
+  // portable-den/09: the docviz comment, posted by the bridge from the candidate's checkout after the push. A failure leaves the pull
+  // request open with a one-line note in the same comment (a later push replaces it); it never stops the delivery.
+  const MENTION = /(^|[^\w/`@-])@(?=[\w-])/g;
+  async function diagram(job, pr) {
+    const { sha } = job.candidate;
+    if (!docviz?.available() || job.diagram?.sha !== sha) return; // the body said why
+    const worktree = host.worktreeOf?.(job.candidate.runId);
+    const { body, failed } = await diagramOrNote(async () => {
+      if (!worktree) throw new Error("the candidate's checkout is gone");
+      const out = await docviz.run({ worktree, sha, steps: job.diagram.steps, prUrl: pr.url, title: hasSecret(job.title) ? job.ref : job.title });
+      if (hasSecret(out)) throw new Error("the diagram looked like it held a secret, so it was not posted");
+      return out.replace(MENTION, "$1@\u200b");
+    });
+    try {
+      await git.comment({ number: pr.number, body });
+      job.evidence.diagram = { sha, state: failed ? "failed" : "posted", reason: failed ? errorText(failed) : null };
+    } catch (err) {
+      job.evidence.diagram = { sha, state: "failed", reason: errorText(err) };
+    }
+    await save(job);
+  }
+
   async function publish(job, gen) {
     if (await floorGap(job, gen)) return;
     const { sha } = job.candidate;
@@ -651,6 +680,7 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
         pr = await git.findPr({ branch: job.branch });
       }
       if (!pr) throw new Error("the pull request was not found after it was opened");
+      if (pr.state === "OPEN" && pr.sha === sha && job.gen === gen) await diagram(job, pr);
     }
     if (job.gen !== gen) return;
     job.pr = { number: pr.number, url: pr.url };

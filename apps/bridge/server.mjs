@@ -5,6 +5,7 @@ import { goalProblem } from "../board/goals.mjs";
 import http from "node:http";
 import { wallTables } from "./agents/claude-adapter.mjs";
 import { createProfile } from "./agents/profile.mjs";
+import { createDocviz } from "./delivery/diagram.mjs";
 import { fileURLToPath } from "node:url";
 import { existsSync, realpathSync } from "node:fs";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
@@ -136,7 +137,7 @@ function installProcessHandlers(host) {
 // The routes that start a run, a delivery or a meeting, or resume one.
 const STARTS = /^\/(?:agents|tasks|deliveries|meetings)(?:\/[^/]+\/resume)?$/;
 
-export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, proxy, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs, profile: profileOption, ghExec } = {}) {
+export async function startBridge({ root, orderFile = path.join(root, ".scratch", "work-order.md"), port = 4317, uiDir = DEFAULT_UI_DIR, denState, box, auth: authOptions, runtime, runtimes, policy, gitHost, stateDir, library: libraryOption, watchCi = false, proxy, usage: usageOption, usageByRuntime = {}, checks: checksOption = null, exit, updatePollMs, profile: profileOption, ghExec, docviz: docvizOption = null } = {}) {
   let actualPort = port;
   const git = gitHost ?? createGitHost(root);
   // den-mvp/10 and 11: the den's own build, when it is served from release folders: previews, go-live and roll back. The
@@ -269,6 +270,7 @@ export async function startBridge({ root, orderFile = path.join(root, ".scratch"
     git,
     build: denBuild,
     checks,
+    docviz: docvizOption,
     log: createJobLog(stateDir ?? path.join(root, ".scratch", "_run")),
     onChange: (change) => hub.publish(change),
     readInReview: async () => Promise.all((await snapshotOf("den")).tickets.filter((t) => t.status === "in-review" && !t.holder).map(async (t) => ({ ref: t.ref, branches: await branchesOf(root, t.ref) }))),
@@ -1283,7 +1285,7 @@ if (startedDirectly()) {
     const { createContainerLauncher } = await import("./agents/container.mjs");
     agentLauncher = createContainerLauncher({ env: process.env, image, docker: createDocker({ env: process.env }), proxy: proxyService, sessionsDir: path.join(denState, "agent-sessions") });
   }
-  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, proxy, ...(await runtimeOptions({ env: process.env, claude: createClaudeRuntime({ env: process.env, launcher: agentLauncher, controlRoot: root }), root })), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, exit: (code) => process.exit(code) });
+  const bridge = await startBridge({ root, port: Number(process.env.PORT) || 4317, auth: serviceToken ? { serviceToken } : undefined, proxy, ...(await runtimeOptions({ env: process.env, claude: createClaudeRuntime({ env: process.env, launcher: agentLauncher, controlRoot: root }), root })), box: createBuildBox({ launcher }), stateDir, denState, library: createLibrary({ stateDir }), watchCi: true, usage: createUsageReading(), checks, docviz: createDocviz({ root }), exit: (code) => process.exit(code) });
   console.log(`bridge listening on ${bridge.url} (root ${root})`);
   // The only place the launch code is shown (ADR 0016 decision 6.2): once, in a URL fragment the browser never sends.
   console.log(`to steer, open (one use, 5 minutes): ${bridge.url}/#code=${bridge.newLaunchCode()}`);

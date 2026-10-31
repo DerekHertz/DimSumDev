@@ -8,6 +8,7 @@ import { access } from "node:fs/promises";
 import path from "node:path";
 import { promisify } from "node:util";
 import { hasSecret } from "../../../scripts/exposure.mjs";
+import { upsertComment } from "../../../scripts/docviz-pr.mjs";
 import { PUBLISH_BRANCH_RE } from "../agents/workspace.mjs";
 
 const execFileP = promisify(execFile);
@@ -173,6 +174,10 @@ export function createGitHost(root, { exec = execFileP, remote = "origin", main 
     },
     async openPr({ branch, title, body }) {
       await gh("pr", "create", "--head", branchName(branch), "--base", main, "--title", oneLine(title, 200), "--body", String(body).slice(0, 8000));
+    },
+    /** portable-den/09: the docviz comment of a pull request: posted, or edited when an earlier push left one. The body starts with docviz's marker. */
+    async comment({ number, body }) {
+      return upsertComment({ gh, number: prNumber(number), body: String(body).slice(0, 60000) });
     },
     /** -> { number, url, state, sha, mergeable, checks: [{ name, done, ok, cancelled, jobId, runId }] } as the git host reports it now. */
     prState: ({ number }) => view(number),
