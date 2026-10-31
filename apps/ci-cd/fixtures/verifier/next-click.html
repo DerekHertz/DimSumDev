@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>verifier fixture: next click</title>
+</head>
+<body>
+  <h1>Teams</h1>
+  <nav aria-label="rail">
+    <button id="work" type="button">Work queue</button>
+    <button id="stop" type="button">Stop agent</button>
+    <button id="settings" type="button" disabled>Settings</button>
+  </nav>
+  <p id="panel" hidden>Queue open</p>
+  <script>
+    document.getElementById("work").addEventListener("click", () => { document.getElementById("panel").hidden = false; });
+    document.getElementById("stop").addEventListener("click", () => { document.getElementById("panel").textContent = "Stopped"; document.getElementById("panel").hidden = false; });
+  </script>
+</body>
+</html>

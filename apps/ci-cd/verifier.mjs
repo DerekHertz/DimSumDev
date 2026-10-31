@@ -12,12 +12,13 @@ import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { createDevServer, REPO_ROOT, FAVICON_PATH } from "./dev-server.mjs";
+import { nextClick } from "./browser-next-click.mjs";
 import { buildLaunchOptions } from "./launch-options.mjs";
 
 export class FlowError extends Error {}
 export class BrowserMissingError extends Error {}
 
-const ACTIONS = new Set(["goto", "click", "fill", "press"]);
+const ACTIONS = new Set(["goto", "click", "fill", "press", "goal"]);
 const STEP_KINDS = new Set([...ACTIONS, "waitFor", "expectText", "wait", "screenshot"]);
 const SHOT_NAME = /^[\w.-]+$/;
 const LAUNCH_CHANNELS = ["chrome", "msedge", undefined];
@@ -28,13 +29,14 @@ const isString = (v) => typeof v === "string" && v.length > 0;
 export function parseFlow(raw) {
   if (!raw || !Array.isArray(raw.steps) || raw.steps.length === 0) throw new FlowError("a flow needs a non-empty steps list");
   raw.steps.forEach((step, i) => {
-    const kinds = Object.keys(step ?? {});
+    const kinds = Object.keys(step ?? {}).filter((k) => !(k === "claude" && step.goal !== undefined));
     const unknown = kinds.find((k) => !STEP_KINDS.has(k));
     if (unknown) throw new FlowError(`step ${i + 1}: unknown step "${unknown}" (one of ${[...STEP_KINDS].join(", ")})`);
     if (kinds.length !== 1) throw new FlowError(`step ${i + 1}: exactly one action per step, got ${kinds.length}`);
     const [kind] = kinds;
     const v = step[kind];
     const ok = {
+      goal: isString(v) && (step.claude === undefined || isString(step.claude)),
       goto: isString(v), click: isString(v), press: isString(v), waitFor: isString(v),
       fill: isString(v?.selector) && typeof v?.value === "string",
       expectText: isString(v?.selector) && isString(v?.text),
@@ -58,6 +60,7 @@ export function describeStep(step) {
     expectText: () => `expect ${v.selector} to contain "${v.text}"`,
     wait: () => `wait ${v} ms`,
     screenshot: () => `take screenshot "${v}"`,
+    goal: () => `reach the goal "${v}"`,
   }[kind]();
 }
 
@@ -180,6 +183,7 @@ async function perform(page, step, ctx) {
   else if (kind === "waitFor") await page.waitForSelector(v, { timeout });
   else if (kind === "expectText") await page.locator(v.selector).filter({ hasText: v.text }).first().waitFor({ timeout });
   else if (kind === "wait") await page.waitForTimeout(v);
+  else if (kind === "goal") await nextClick(page, step, { ...ctx.jev, history: ctx.history.slice(-8), flow: ctx.flow, index: ctx.index });
   else if (kind === "screenshot") {
     const file = path.join(ctx.outDir, `${v}.png`);
     await page.screenshot({ path: file });
@@ -228,7 +232,9 @@ async function driveFlow({ flow, ctx, state }) {
     if (ACTIONS.has(kind)) state.lastAction = i;
     state.current = i;
     try {
+      ctx.index = i;
       await perform(page, step, ctx);
+      ctx.history.push(describeStep(step));
       state.steps.push({ index: i, step: describeStep(step), ok: true });
     } catch (err) {
       const message = String(err?.message ?? err).split("\n")[0];
@@ -261,7 +267,7 @@ async function collectPerf(state, ctx) {
  * Runs `flow` against a server it starts (the repo's dev server over `root`, or the den on a fixture board with `den`) or against
  * `url`, writes `<outDir>/report.json` and returns the report. Never rejects for a finding; rejects for a bad environment.
  */
-export async function runVerifier({ flow: rawFlow, root = REPO_ROOT, url, den = false, skipBuild = false, outDir, timeoutMs = 120000, stepTimeoutMs = 15000 }, { start = startTarget } = {}) {
+export async function runVerifier({ flow: rawFlow, root = REPO_ROOT, url, den = false, skipBuild = false, outDir, timeoutMs = 120000, stepTimeoutMs = 15000 }, { start = startTarget, jev = {} } = {}) {
   const flow = parseFlow(rawFlow);
   const runId = `run-${randomBytes(6).toString("hex")}`;
   outDir = path.resolve(outDir ?? path.join(".verify", `${flow.name}-${runId}`));
@@ -283,7 +289,7 @@ export async function runVerifier({ flow: rawFlow, root = REPO_ROOT, url, den = 
       state.findings.push({ kind: "timeout", message: `the run passed its ${timeoutMs} ms cap while starting the server`, step: -1, reproduce: [] });
     } else {
       target = up;
-      const ctx = { runId, base: target.base, vars: target.vars, outDir, tracePath: path.join(outDir, "perf-trace.json"), screenshots, stepTimeoutMs };
+      const ctx = { runId, base: target.base, vars: target.vars, outDir, tracePath: path.join(outDir, "perf-trace.json"), screenshots, stepTimeoutMs, flow: flow.name, history: [], jev };
       const work = driveFlow({ flow, ctx, state });
       const outcome = await Promise.race([
         work.then(() => "done"),
