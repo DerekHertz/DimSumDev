@@ -7,7 +7,7 @@
 //   AC2 (script half) docviz failing leaves a one-line note    -> "a docviz failure ..."
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { main, MARKER } from "./docviz-pr.mjs";
@@ -84,4 +84,10 @@ test("a docviz failure leaves a one-line note in the marked comment and exits 0"
   assert.equal(await t.run(ARGS), 0);
   assert.equal(t.comments().length, 1);
   assert.equal(t.comments()[0].body, `${MARKER}\nNo diagram on this push: diagram doesn't parse: line 3\n`);
+});
+
+// The den plugin ships a copy as bin/docviz-pr.mjs (gated patch 09-docviz-on-prs): it may not drift from this source.
+const MIRROR = new URL("../.claude/bin/docviz-pr.mjs", import.meta.url);
+test("the plugin copy of the script matches its source", { skip: !existsSync(MIRROR) && "the plugin copy arrives with gated patch 09-docviz-on-prs" }, () => {
+  assert.equal(readFileSync(MIRROR, "utf8"), readFileSync(new URL("./docviz-pr.mjs", import.meta.url), "utf8"));
 });
