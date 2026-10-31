@@ -50,3 +50,7 @@ Models: the code reviewer, release manager and technical writer run on Sonnet; t
 - Push, PR and merge have a named owner, so a red or conflicted PR can get a diagnosis instead of only a pause (from team-and-den-ux/20).
 - The relay stops being one shape. The floor keeps independent review compulsory where it matters; the owner's choices above it are recorded, so a retro can see what a task paid for.
 - Until the follow-ups land, two vocabularies coexist: the orchestrator, herald and scout still run, and their role definitions name the role that replaces them.
+
+## Amendment 1 (2026-10-31, portable-den/13): leaves may run on any model a pstack skill names
+
+The tree rule "a branch starts only Haiku leaves" becomes "a branch starts only leaves". A leaf starts no agent and holds no Agent tool, as before, but its model is whatever the starting skill names: the architect starts `Explore`, `general-purpose` and `runner` leaves on the models of the `how`, `why`, `arena` and `architect` lines in `~/.claude/rules/pstack-models.md` (opus or sonnet for arena runners and the judge, sonnet for how and why). The depth stays three levels and the cap stays about four leaves at once.

@@ -27,7 +27,7 @@ Issues and specs for this repo live as markdown files in `.scratch/`. In Agent O
 
 The `to-tickets` template. Each field is a `**Name:**` line near the top of the file:
 
-- `**Type:** feature | bug | spike | chore`. (A wayfinder child ticket uses its own `Type:` values, `research | prototype | grilling | task`; see Wayfinding operations.)
+- `**Type:** feature | bug | spike | chore`. (A decision ticket filed from a figure-it-out plan may use `Type: research | prototype | grilling | task`; see Decision-ticket operations.)
 - `**Why:**` the problem and for whom, in a line or two.
 - `**What to build:**` the behaviour, not the layers.
 - `**Out of scope:**` what an agent must not do.
@@ -45,9 +45,9 @@ Create a new file under `.scratch/<feature-slug>/` (creating the directory if ne
 
 Read the file at the referenced path. The user will normally pass the path or the issue number directly.
 
-## Wayfinding operations
+## Decision-ticket operations
 
-Used by `/wayfinder`. The **map** is a file with one **child** file per ticket.
+Used by `/figure-it-out` when a plan files decision tickets. The **map** is a file with one **child** file per ticket.
 
 - **Map**: `.scratch/<effort>/map.md` (the Notes / Decisions-so-far / Fog body).
 - **Child ticket**: `.scratch/<effort>/issues/NN-<slug>.md`, numbered from `01`, with the question in the body. A `Type:` line records the ticket type (`research`/`prototype`/`grilling`/`task`); a `Status:` line records `claimed`/`resolved`.

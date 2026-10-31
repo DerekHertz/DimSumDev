@@ -6,7 +6,7 @@ Every role's contract: what it takes in, what it hands back, what it may do on i
 
 - **One owner per task.** Bao (Claude) or Jiao (Codex) owns each ticket, project or task, recorded as `owner: bao|jiao`. The owner is the root of the task's tree, picks the roles above the planner's floor and each node's runtime, does the last review, and presents the outcome to the user.
 - **Managers** (the roles below the owner) break their part into scoped subtasks, hand them to runners, review what comes back, and pass it up. At most four managers per tree and four runners per manager; 21 nodes at most.
-- **Runners** do one well-scoped subtask and return a result and evidence. They start nothing.
+- **Runners** do one well-scoped subtask and return a result and evidence. They start nothing, on any model a pstack skill names (ADR 0029, Amendment 1).
 - **The bridge keeps the record.** Agents run no board commands and push nothing; the bridge writes claims, handoffs and the tree's record. Reviewers end with `VERDICT: pass|bounce` tied to a commit, the engineer with its candidate commit.
 
 ## Roles
@@ -24,7 +24,7 @@ Every role's contract: what it takes in, what it hands back, what it may do on i
 | Release manager | **new** | the Pass | bridge steps, plus a Sonnet agent for judgment | a reviewed candidate; merged PRs; CI results | push, PR and merge-on-green (bridge steps under its name); diagnoses, tags, release notes, den update proposals (agent) | never merges a user-merge-list change; never pushes CI config; holds no git login | the user (proposals), the owner |
 | SRE | **new** | Tea & Pantry | manager, Haiku; scheduled | health, logs, resource use, delivery and update records | health reports, tickets, proposed fixes | observes and proposes only; changes nothing | the owner; the user for fixes |
 | Technical writer | **new** | Front of House | manager, Sonnet; scheduled | docs-affecting tickets; the repo, for drift; a topic for a post | doc updates on the ticket's branch; drift tickets; post drafts | edits docs; never publishes a post | the code reviewer or owner; the user publishes |
-| Runner | existing, changed | Steamers | leaf, Haiku (or a model the manager picks) | one scoped subtask from a manager | result, evidence, failures | starts no agent; read-only when asked to search | its manager |
+| Runner | existing, changed | Steamers | leaf, Haiku (or a model the manager picks, or any model a pstack skill names; the architect may start `Explore` and `general-purpose` leaves) | one scoped subtask from a manager | result, evidence, failures | starts no agent; read-only when asked to search | its manager |
 | Orchestrator | retired (team-and-den-ux/57); replaced by the chief of staff | the Pass | executive | none | none | its duties are Bao and Jiao's, its release steps the release manager's | |
 | Herald | retired (team-and-den-ux/57); replaced by the technical writer | Front of House | manager | none | none | the technical writer drafts its posts | |
 | Scout | retired (team-and-den-ux/57); replaced by the runner | Steamers | leaf | none | none | the runner's read-only mode does its work | |

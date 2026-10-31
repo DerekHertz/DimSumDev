@@ -46,10 +46,14 @@ test("no leaf role definition (model: haiku) holds Agent", () => {
   for (const l of leaves) assert.deepEqual(front(l).tools.filter((t) => /^Agent\b/.test(t)), [], `${l} is a leaf and holds Agent`);
 });
 
+// ADR 0029 Amendment 1: the architect starts pstack leaves (how, why, arena) on any model the skills name; they start nothing.
+const PSTACK_LEAVES = ["Explore", "general-purpose"];
+
 test("the tree is three levels: only the orchestrator and the chief of staff start branch agents; a branch starts only leaves", () => {
   const leaves = AGENTS.filter((a) => front(a).model === "haiku");
   for (const a of AGENTS.filter((x) => x !== "orchestrator" && x !== "chief-of-staff")) {
-    for (const t of agentTargets(front(a).tools)) assert.ok(leaves.includes(t), `${a} starts ${t}, which is not a leaf`);
+    const allowed = a === "architect" ? [...leaves, ...PSTACK_LEAVES] : leaves;
+    for (const t of agentTargets(front(a).tools)) assert.ok(allowed.includes(t), `${a} starts ${t}, which is not a leaf`);
   }
 });
 
