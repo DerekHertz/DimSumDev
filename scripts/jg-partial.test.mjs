@@ -5,11 +5,16 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
+import { EventEmitter } from "node:events";
+import { PassThrough } from "node:stream";
 import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { runJg, spawnJg } from "./jg.mjs";
+
+const POSIX_ONLY = { skip: process.platform === "win32" && "POSIX process groups" };
+import { killTree, resolveJg, runJg, spawnJg } from "./jg.mjs";
+import { spawnRun } from "./dispatch-context.mjs";
 
 const JG_MJS = fileURLToPath(new URL("./jg.mjs", import.meta.url));
 const REPO = path.dirname(path.dirname(JG_MJS));
@@ -100,7 +105,7 @@ function hangingJg() {
   return { script, pidfile, pids: () => readFileSync(pidfile, "utf8").split(" ").map(Number) };
 }
 
-test("a jg that ignores SIGINT and SIGTERM is cut at the cap and its whole process group is gone", async () => {
+test("a jg that ignores SIGINT and SIGTERM is cut at the cap and its whole process group is gone", POSIX_ONLY, async () => {
   const h = hangingJg();
   const t0 = Date.now();
   const r = await spawnJg([h.pidfile], { cmd: [process.execPath, h.script], timeoutMs: 400, graceMs: 150 });
@@ -112,7 +117,7 @@ test("a jg that ignores SIGINT and SIGTERM is cut at the cap and its whole proce
   assert.deepEqual(pids.map(alive), [false, false]);
 });
 
-test("terminating the wrapper itself kills the jg group", async () => {
+for (const sig of ["SIGTERM", "SIGHUP"]) test(`${sig} to the wrapper itself kills the jg group`, POSIX_ONLY, async () => {
   const h = hangingJg();
   const driver = path.join(path.dirname(h.script), "driver.mjs");
   writeFileSync(driver, `import { spawnJg } from ${JSON.stringify(pathToFileURL(JG_MJS).href)};\nawait spawnJg([${JSON.stringify(h.pidfile)}], { cmd: [process.execPath, ${JSON.stringify(h.script)}], timeoutMs: 60000 });\n`);
@@ -121,7 +126,7 @@ test("terminating the wrapper itself kills the jg group", async () => {
   for (let i = 0; i < 100 && !existsSync(h.pidfile); i++) await new Promise((r) => setTimeout(r, 50));
   const pids = h.pids();
   assert.deepEqual(pids.map(alive), [true, true]);
-  wrapper.kill("SIGTERM");
+  wrapper.kill(sig);
   await exited;
   await settle(pids);
   assert.deepEqual(pids.map(alive), [false, false]);
@@ -152,4 +157,125 @@ test("CLI: a complete result prints no warning; a failure with nothing usable st
   assert.equal(cli(fakeJgOnPath(`process.stdout.write(${JSON.stringify(complete)});`)).stdout, complete);
   const failed = cli(fakeJgOnPath("process.exit(2);"));
   assert.equal(failed.stdout, "jg: no result (jg-exit-2); fall back to rg\n");
+});
+
+// ── review round: OS-agnostic process handling, one cap, partial detection ───
+
+const fakeChild = (pid = 4242) => Object.assign(new EventEmitter(), { pid, stdout: new PassThrough(), kill: () => true });
+const recorder = () => { const calls = []; return { calls, fn: (...a) => { calls.push(a); return new EventEmitter(); } }; };
+
+test("killTree on win32 runs `taskkill /pid <pid> /t /f`, and falls back to child.kill() when taskkill cannot start", () => {
+  const rec = recorder();
+  killTree(fakeChild(77), "SIGINT", { platform: "win32", spawnFn: rec.fn });
+  assert.deepEqual(rec.calls.map(([c, a]) => [c, a]), [["taskkill", ["/pid", "77", "/t", "/f"]]]);
+
+  const killed = [];
+  const child = { ...fakeChild(77), kill: (s) => killed.push(s) };
+  killTree(child, "SIGTERM", { platform: "win32", spawnFn: () => { throw new Error("spawn taskkill ENOENT"); } });
+  const failing = new EventEmitter();
+  killTree(child, "SIGKILL", { platform: "win32", spawnFn: () => failing });
+  failing.emit("error", new Error("ENOENT"));
+  assert.deepEqual(killed, ["SIGTERM", "SIGKILL"]);
+});
+
+test("killTree on POSIX signals the whole group (-pid), and signals the child when the group is gone", () => {
+  const sent = [];
+  killTree(fakeChild(88), "SIGINT", { platform: "linux", kill: (...a) => sent.push(a) });
+  assert.deepEqual(sent, [[-88, "SIGINT"]]);
+  const killed = [];
+  killTree({ ...fakeChild(88), kill: (s) => killed.push(s) }, "SIGTERM", { platform: "linux", kill: () => { throw Object.assign(new Error("ESRCH"), { code: "ESRCH" }); } });
+  assert.deepEqual(killed, ["SIGTERM"]);
+});
+
+test("spawnJg on win32 does not detach, does not use a shell, and cuts the cap with taskkill", async () => {
+  const spawns = [];
+  const spawnFn = (cmd, args, opts) => {
+    spawns.push({ cmd, args, opts });
+    return cmd === "taskkill" ? new EventEmitter() : fakeChild(555);
+  };
+  const r = await spawnJg(["a question"], { cmd: ["jg"], timeoutMs: 120, graceMs: 20, platform: "win32", spawnFn });
+  assert.equal(r.timedOut, true);
+  const [first, ...rest] = spawns;
+  assert.equal(first.opts.detached, false);
+  assert.ok(!first.opts.shell, "argv must never reach a shell");
+  assert.deepEqual(first.args, ["a question"]);
+  assert.ok(rest.length >= 1 && rest.every((s) => s.cmd === "taskkill" && s.args.join(" ") === "/pid 555 /t /f"), JSON.stringify(rest));
+});
+
+test("spawnJg on POSIX detaches jg into its own group", async () => {
+  const seen = [];
+  const spawnFn = (cmd, args, opts) => { seen.push(opts); return fakeChild(556); };
+  await spawnJg(["q"], { cmd: ["jg"], timeoutMs: 60, graceMs: 10, platform: "linux", spawnFn, kill: () => {} });
+  assert.equal(seen[0].detached, true);
+});
+
+const shimDir = "C:\\Users\\me\\AppData\\Roaming\\npm";
+const SHIM = '@ECHO off\r\n...\r\nendLocal & goto #_undefined_# 2>NUL || title %COMSPEC% & "%_prog%"  "%dp0%\\node_modules\\@dzhng\\jevgrep\\dist\\bin\\index.js" %*\r\n';
+const winFs = (files) => ({ exists: (p) => p in files, read: (p) => files[p] });
+
+test("resolveJg: off Windows it is plain `jg`; on Windows it runs the npm shim's JS entry with node, never through a shell", () => {
+  assert.deepEqual(resolveJg({ platform: "linux" }), ["jg"]);
+  const entry = path.win32.join(shimDir, "node_modules", "@dzhng", "jevgrep", "dist", "bin", "index.js");
+  const files = { [path.win32.join(shimDir, "jg.cmd")]: SHIM, [entry]: "// js" };
+  const cmd = resolveJg({ platform: "win32", pathEnv: `C:\\Windows;${shimDir}`, ...winFs(files), join: path.win32.join });
+  assert.deepEqual(cmd, [process.execPath, entry]);
+  assert.deepEqual(resolveJg({ platform: "win32", pathEnv: "C:\\Windows", ...winFs({}), join: path.win32.join }), ["jg"], "no shim: plain jg (a real jg.exe still starts)");
+  const odd = { [path.win32.join(shimDir, "jg.cmd")]: "@echo hi & calc.exe\r\n" };
+  assert.deepEqual(resolveJg({ platform: "win32", pathEnv: shimDir, ...winFs(odd), join: path.win32.join }), ["jg"], "a shim that names no JS entry is not run");
+});
+
+test("one cap covers the whole call: the escalation is inside the cap, not added to it", POSIX_ONLY, async () => {
+  const h = hangingJg();
+  const t0 = Date.now();
+  const r = await spawnJg([h.pidfile], { cmd: [process.execPath, h.script], timeoutMs: 600, graceMs: 150 });
+  const took = Date.now() - t0;
+  assert.equal(r.timedOut, true);
+  assert.ok(took < 800, `cap 600 ms with a 300 ms escalation returned after ${took} ms`);
+  await settle(h.pids());
+});
+
+test("time spent on the version check comes out of the cap handed to jg", async () => {
+  let handed;
+  let t = 0;
+  const r = await runJg({
+    query: "q", root: root(), capMs: 1000, now: () => t,
+    version: async () => { t += 400; return "0.8.0"; },
+    run: async (argv, opts) => { handed = opts; return { stdout: INCOMPLETE, exitCode: 0 }; },
+  });
+  assert.equal(r.row.fallback, false);
+  assert.equal(handed.timeoutMs, 600);
+});
+
+test("a list whose stated count differs from the files it lists, or that lacks End context., is partial even on exit 0", async () => {
+  const entries = (n) => Array.from({ length: n }, (_, i) => `- "f${i}.mjs" — relevant; source below`).join("\n");
+  const cases = [
+    [`Jevgrep: 5 relevant files.\n${entries(2)}\nEnd file list.\n\nEnd context.\n`, /5 stated.*2 listed/],
+    [`Jevgrep: 2 relevant files.\n${entries(2)}\nEnd file list.\n\nSource block "f0.mjs" lines 1-3:\n`, /End context/],
+  ];
+  for (const [stdout, re] of cases) {
+    const r = await runJg({ query: "q", root: root(), ...answer(stdout, 0) });
+    assert.equal(r.row.fallback, false);
+    assert.match(r.row.partial, re, stdout);
+  }
+  const whole = `Jevgrep: 2 relevant files.\n${entries(2)}\nEnd file list.\n\n- "f9.mjs" 3-4\n\nEnd context.\n\n`;
+  const ok = await runJg({ query: "q", root: root(), ...answer(whole, 0) });
+  assert.equal(ok.row.partial, undefined, "declaration entries after End file list. are not files");
+});
+
+test("dispatch-context spawnRun cuts the whole process group at its timeout, not only the child", POSIX_ONLY, async () => {
+  const dir = tmp("jg14-run-");
+  const script = path.join(dir, "tree.mjs");
+  const pidfile = path.join(dir, "pids");
+  writeFileSync(script, [
+    'import { spawn } from "node:child_process";',
+    'import fs from "node:fs";',
+    'const gc = spawn(process.execPath, ["-e", "setInterval(()=>{},1000)"], { stdio: "ignore" });',
+    'fs.writeFileSync(process.argv[2], process.pid + " " + gc.pid);',
+    "setInterval(() => {}, 1000);",
+  ].join("\n"));
+  const r = await spawnRun(process.execPath, [script, pidfile], { timeoutMs: 400 });
+  assert.equal(r.timedOut, true);
+  const pids = readFileSync(pidfile, "utf8").split(" ").map(Number);
+  await settle(pids);
+  assert.deepEqual(pids.map(alive), [false, false]);
 });

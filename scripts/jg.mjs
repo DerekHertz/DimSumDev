@@ -7,7 +7,8 @@
 // the caller to use rg); exit 2 on a refused call. A ranked list that jg printed is kept even when jg exited non-zero or
 // reported incomplete discovery: it comes with a "jg: partial: <reason>" line. Each call appends a kind:"jg" row to usage.jsonl.
 import { execFileSync, spawn } from "node:child_process";
-import { existsSync, realpathSync, statSync } from "node:fs";
+import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import os from "node:os";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { hasSecret } from "./exposure.mjs";
@@ -102,6 +103,9 @@ export function versionAtLeast(text, min) {
 }
 const versionOk = (text) => versionAtLeast(text, MIN_VERSION) === true;
 
+// jg's end-of-output marker on its last non-empty line; text of an indexed file can carry the same words mid-output.
+export const endsComplete = (stdout) => /^End context\.[ \t]*$/.test(String(stdout ?? "").trimEnd().split("\n").pop());
+
 // jg 0.8.0 opens a search with "Jevgrep: N relevant files." (no per-file "## " headers); the test fakes use "## <path>".
 function countFiles(stdout) {
   const text = String(stdout ?? "");
@@ -110,12 +114,22 @@ function countFiles(stdout) {
   return Math.max(headers, stated);
 }
 
-// Why a result that has files is still partial: jg exited non-zero, was cut at the cap, or says discovery was incomplete.
+// Files in the list jg opens with (`- "path" — role` lines up to "End file list."), as opposed to declaration entries after it.
+const listedFiles = (text) => (text.split(/^End file list\./m)[0].match(/^- "/gm) ?? []).length;
+
+// Why a result that has files is still partial: jg exited non-zero, was cut at the cap, says discovery was incomplete, or on exit 0
+// lists fewer files than it states / stops before its End context. marker.
 function partialReason(stdout, { exitCode, timedOut }) {
   const text = String(stdout ?? "");
   const parts = [];
   if (timedOut) parts.push("timed out");
   else if (exitCode !== 0) parts.push(`jg-exit-${exitCode}`);
+  else {
+    const stated = Number(/^Jevgrep: (\d+) relevant files?\b/m.exec(text)?.[1] ?? 0);
+    const listed = listedFiles(text);
+    if (stated && listed && stated !== listed) parts.push(`list cut short (${stated} stated, ${listed} listed)`);
+    if (!endsComplete(text)) parts.push("no End context. marker");
+  }
   if (/^Jevgrep: .*discovery incomplete/m.test(text)) {
     const kinds = [...new Set([...text.matchAll(/^Issue: "([^"]+)"/gm)].map((m) => m[1]))];
     parts.push(`discovery incomplete${kinds.length ? ` (${kinds.join(", ")})` : ""}`);
@@ -125,7 +139,7 @@ function partialReason(stdout, { exitCode, timedOut }) {
 }
 
 export async function runJg({
-  query, root = ".", extraArgs = [], flags = [], excludes = [], run = spawnJg, now = () => Date.now(), usageRoot, checkout, version,
+  query, root = ".", extraArgs = [], flags = [], excludes = [], run = spawnJg, now = () => Date.now(), usageRoot, checkout, version, capMs = RUN_TIMEOUT_MS,
 }) {
   const t0 = now();
   const row = (fields) => ({
@@ -163,7 +177,7 @@ export async function runJg({
   const argv = [...[...EXCLUDES, ...extra].flatMap((x) => ["--exclude", x]), ...flags, query, absRoot];
   let result;
   try {
-    result = await run(argv);
+    result = await run(argv, { timeoutMs: Math.max(100, version ? capMs - (now() - t0) : capMs) }); // the version check above comes out of the same cap
   } catch {
     const r = row({ reason: "jg-error" });
     await log(r);
@@ -177,41 +191,77 @@ export async function runJg({
   return reason ? { row: r } : { stdout: result.stdout, row: r };
 }
 
-// jg runs in its own process group so the cap and a terminated wrapper can reach every process it started. At the cap:
-// SIGINT (jg prints what it has), then SIGTERM, then SIGKILL; the result resolves even if a grandchild still holds stdout.
-export function spawnJg(argv, { cmd = ["jg"], timeoutMs = RUN_TIMEOUT_MS, graceMs = KILL_GRACE_MS } = {}) {
+// jg runs in its own process group (POSIX) so the cap and a terminated wrapper can reach every process it started; Windows has no
+// groups, so killTree there runs `taskkill /t /f` on the pid.
+export const ownGroup = (platform = process.platform) => platform !== "win32";
+
+export function killTree(child, sig, { platform = process.platform, spawnFn = spawn, kill = (...a) => process.kill(...a) } = {}) {
+  const direct = () => {
+    try { child.kill(sig); } catch { /* already gone */ }
+  };
+  if (platform === "win32") {
+    try {
+      spawnFn("taskkill", ["/pid", String(child.pid), "/t", "/f"], { stdio: "ignore", windowsHide: true }).on("error", direct);
+    } catch {
+      direct();
+    }
+    return;
+  }
+  try { kill(-child.pid, sig); } catch { direct(); }
+}
+
+// Where `jg` starts. A Windows npm install leaves jg.cmd (a batch shim): node cannot spawn it without a shell, and a shell would
+// parse the query. Read the shim for the JS entry it runs and start that with node instead; no shim found means plain `jg` (a jg.exe works).
+export function resolveJg({
+  platform = process.platform, pathEnv = process.env.PATH ?? "", exists = existsSync, read = (p) => readFileSync(p, "utf8"), join = path.join,
+} = {}) {
+  if (platform !== "win32") return ["jg"];
+  for (const dir of pathEnv.split(";").filter(Boolean)) {
+    const shim = join(dir, "jg.cmd");
+    if (!exists(shim)) continue;
+    const rel = /"%dp0%\\([^"\r\n]+\.[cm]?js)"/.exec(read(shim))?.[1];
+    const entry = rel && join(dir, ...rel.split("\\"));
+    if (entry && exists(entry)) return [process.execPath, entry];
+  }
+  return ["jg"];
+}
+
+// The cap is the whole budget: SIGINT (jg prints what it has) at cap - 2 graces, SIGTERM at cap - 1 grace, SIGKILL at the cap; the
+// result resolves even if a grandchild still holds stdout.
+const SIGNALS = ["SIGINT", "SIGTERM", "SIGHUP"];
+export function spawnJg(argv, {
+  cmd = resolveJg(), timeoutMs = RUN_TIMEOUT_MS, graceMs = KILL_GRACE_MS, platform = process.platform, spawnFn = spawn, kill,
+} = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd[0], [...cmd.slice(1), ...argv], { stdio: ["ignore", "pipe", "inherit"], detached: true });
-    const killGroup = (sig) => {
-      try { process.kill(-child.pid, sig); } catch { /* the group is already gone */ }
-    };
+    const child = spawnFn(cmd[0], [...cmd.slice(1), ...argv], { stdio: ["ignore", "pipe", "inherit"], detached: ownGroup(platform) });
+    const killGroup = (sig) => killTree(child, sig, { platform, spawnFn, ...(kill && { kill }) });
     let stdout = "";
     let exitCode = null;
     let timedOut = false;
     let settled = false;
     const onExit = () => killGroup("SIGKILL");
-    const onSignal = () => { killGroup("SIGKILL"); process.exit(130); };
+    const onSignal = (sig) => { killGroup("SIGKILL"); process.exit(128 + os.constants.signals[sig]); };
+    const handlers = SIGNALS.map((sig) => [sig, () => onSignal(sig)]);
     const timers = [];
     const settle = (finish) => {
       if (settled) return;
       settled = true;
       timers.forEach(clearTimeout);
       process.off("exit", onExit);
-      process.off("SIGINT", onSignal);
-      process.off("SIGTERM", onSignal);
+      handlers.forEach(([sig, h]) => process.off(sig, h));
       child.stdout.destroy();
       finish();
     };
     const done = (code) => settle(() => resolve({ stdout, exitCode: code ?? exitCode ?? 1, ...(timedOut && { timedOut }) }));
     process.once("exit", onExit);
-    process.on("SIGINT", onSignal);
-    process.on("SIGTERM", onSignal);
+    handlers.forEach(([sig, h]) => process.on(sig, h));
     child.stdout.setEncoding("utf8");
     child.stdout.on("data", (d) => { stdout += d; });
+    const at = (n) => Math.max(0, timeoutMs - n * graceMs);
     timers.push(
-      setTimeout(() => { timedOut = true; killGroup("SIGINT"); }, timeoutMs),
-      setTimeout(() => killGroup("SIGTERM"), timeoutMs + graceMs),
-      setTimeout(() => { killGroup("SIGKILL"); done(null); }, timeoutMs + 2 * graceMs),
+      setTimeout(() => { timedOut = true; killGroup("SIGINT"); }, at(2)),
+      setTimeout(() => killGroup("SIGTERM"), at(1)),
+      setTimeout(() => { killGroup("SIGKILL"); done(null); }, at(0)),
     );
     child.on("error", (e) => settle(() => reject(e)));
     child.on("exit", (code) => { exitCode = code; killGroup("SIGKILL"); });
@@ -221,7 +271,8 @@ export function spawnJg(argv, { cmd = ["jg"], timeoutMs = RUN_TIMEOUT_MS, graceM
 
 function jgVersion() {
   try {
-    return execFileSync("jg", ["--version"], { encoding: "utf8", timeout: 10000, stdio: ["ignore", "pipe", "ignore"] });
+    const [bin, ...pre] = resolveJg();
+    return execFileSync(bin, [...pre, "--version"], { encoding: "utf8", timeout: 10000, stdio: ["ignore", "pipe", "ignore"] });
   } catch {
     return null;
   }
