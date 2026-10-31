@@ -198,10 +198,14 @@ export function spawnRun(cmd, args, opts = {}) {
       killTree(child, "SIGTERM");
       hardKill = setTimeout(() => killTree(child, "SIGKILL"), 5000);
     }, opts.timeoutMs) : null;
-    child.on("error", (e) => { clearTimeout(timer); clearTimeout(hardKill); reject(e); });
+    // A detached child misses the terminal's Ctrl-C, so the parent's exit takes the group with it.
+    const onExit = () => killTree(child, "SIGKILL");
+    process.once("exit", onExit);
+    child.on("error", (e) => { clearTimeout(timer); clearTimeout(hardKill); process.off("exit", onExit); reject(e); });
     child.on("close", (code) => {
       clearTimeout(timer);
       clearTimeout(hardKill);
+      process.off("exit", onExit);
       resolve({ stdout, stderr, exitCode: timedOut ? null : (code ?? 1), ...(timedOut && { timedOut }) });
     });
   });
