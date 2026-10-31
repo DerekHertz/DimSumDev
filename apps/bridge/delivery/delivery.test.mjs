@@ -1488,10 +1488,11 @@ describe("the docviz diagram comment", () => {
   test("the bridge posts the comment after opening the pull request, from the developer's steps and checkout, with mentions defused", async () => {
     const docviz = fakeDocviz();
     const t = await setup({ extra: { docviz } });
-    const dev = await runToMerge(t, `Added feature.txt.\n\n${STEPS}`);
+    await runToMerge(t, `Added feature.txt.\n\n${STEPS}`);
     assert.deepEqual(t.sideEffects(), ["push", "openPr", "comment", "waitChecks", "merge"]);
     assert.equal(docviz.runs.length, 1);
-    assert.equal(path.resolve(t.root, docviz.runs[0].worktree), dev.args.cwd);
+    assert.equal(docviz.runs[0].sha, t.git.calls.find((c) => c[0] === "push")[1].sha);
+    assert.equal(docviz.runs[0].worktree, undefined, "docviz is given the commit, never the agent's checkout");
     assert.equal(docviz.runs[0].prUrl, "https://github.com/o/r/pull/7");
     assert.equal(docviz.runs[0].steps[0].id, "a");
     const posted = t.git.calls.find((c) => c[0] === "comment")[1];
@@ -1507,6 +1508,39 @@ describe("the docviz diagram comment", () => {
     await runToMerge(t, `Added feature.txt.\n\n${STEPS}`);
     assert.equal(t.git.calls.find((c) => c[0] === "comment")[1].body, `${MARKER}\nNo diagram on this push: diagram doesn't parse: line 3\n`);
     assert.equal(t.sideEffects().at(-1), "merge");
+  });
+
+  // Security: the comment is public text built from the developer's source by a model, and a failure note holds docviz's own words.
+  test("the posted comment is inert outside code fences, keeps docviz's marker, fences and tags, and a secret is never posted", async () => {
+    const body = `${MARKER}\n## How this PR works\n\nSee <img src=x onerror=1> and ping @octocat.\n\n\`\`\`mermaid\nflowchart LR\n  a["x<br/>y"] --> b\n\`\`\`\n\n| Step | Code |\n|---|---|\n| s | \`a:1-2\`<br>\`b:3-4\` |\n\n<sub>cost $0.04</sub>\n`;
+    const t = await setup({ extra: { docviz: fakeDocviz({ run: async () => body }) } });
+    await runToMerge(t, `Added feature.txt.\n\n${STEPS}`);
+    const posted = t.git.calls.find((c) => c[0] === "comment")[1].body;
+    assert.ok(posted.startsWith(`${MARKER}\n`), "the marker survives, so the next push finds the comment");
+    assert.match(posted, /See &lt;img src=x onerror=1> and ping @\u200boctocat/);
+    assert.match(posted, /a\["x<br\/>y"\] --> b/, "the mermaid fence is untouched");
+    assert.match(posted, /<br>/);
+    assert.match(posted, /<sub>cost \$0\.04<\/sub>/);
+    const leaky = await setup({ extra: { docviz: fakeDocviz({ run: async () => `${MARKER}\nkey ghp_${"a1B2".repeat(9)}\n` }) } });
+    await runToMerge(leaky, `Added feature.txt.\n\n${STEPS}`);
+    const note = leaky.git.calls.find((c) => c[0] === "comment")[1].body;
+    assert.match(note, /^<!-- docviz-pr-diagrams -->\nNo diagram on this push: /);
+    assert.doesNotMatch(note, /ghp_/);
+  });
+
+  test("a failure note holds no mention, no tag and no secret", async () => {
+    const hostile = fakeDocviz({ run: async () => { throw new Error("cannot read <script>x</script> @octocat"); } });
+    const t = await setup({ extra: { docviz: hostile } });
+    await runToMerge(t, `Added feature.txt.\n\n${STEPS}`);
+    const note = t.git.calls.find((c) => c[0] === "comment")[1].body;
+    assert.ok(note.startsWith(`${MARKER}\n`));
+    assert.doesNotMatch(note, /<script>|@octocat/);
+    const leaky = fakeDocviz({ run: async () => { throw new Error(`token ghp_${"a1B2".repeat(9)} rejected`); } });
+    const t2 = await setup({ extra: { docviz: leaky } });
+    await runToMerge(t2, `Added feature.txt.\n\n${STEPS}`);
+    const note2 = t2.git.calls.find((c) => c[0] === "comment")[1].body;
+    assert.doesNotMatch(note2, /ghp_/);
+    assert.ok(note2.startsWith(`${MARKER}\n`));
   });
 
   test("a comment the git host refuses does not stop the delivery", async () => {

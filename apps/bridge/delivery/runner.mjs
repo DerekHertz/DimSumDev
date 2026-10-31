@@ -30,7 +30,7 @@ import { FLOOR_ROLES, floor, gaps } from "./floor.mjs";
 import { readLookAt, readVerdict, readVerifierEvidence, readWhatChanges } from "./prompts.mjs";
 import { classify } from "./ci-watch.mjs";
 import { readDiagramSteps } from "./diagram.mjs";
-import { diagramOrNote } from "../../../scripts/docviz-pr.mjs";
+import { diagramOrNote, noteComment } from "../../../scripts/docviz-pr.mjs";
 
 const CI_RERUN_LOOKS = 20; // with ciWaitMs at 15 s, five minutes for the re-run's jobs to show
 // What a fix round after red checks reads in .den/findings.md: each red job, why, and its log from the first failing test on.
@@ -45,6 +45,7 @@ const PLAN_STEPS_MAX = 12; // bridge operations in a row before the runner stops
 const NOTE_MAX_BYTES = 2000; // the user's note with a decline, or with a Resume
 const FINDINGS_MAX = 16000;
 const GUARD_HITS_IN_BODY = 10;
+const DIAGRAM_MAX = 60000; // characters of docviz's comment (the git host refuses past 65536)
 const WHAT_CHANGES_MAX = 3000; // characters of the developer's What changes section in the pull request
 const FILES_IN_BODY = 200;
 const DEN_CHECKOUT = fileURLToPath(new URL("../../..", import.meta.url)); // the bridge's own tree: the system map is read from it
@@ -94,11 +95,11 @@ const testFindings = (rec) => {
 const inertText = (text) => text.replace(/</g, "&lt;").replace(/@(?=\w)/g, "@\u200b");
 // A What changes section: cut, masked when it looks like a secret, inert outside code fences, and a fence left open is
 // closed, so it cannot swallow the Risk heading after it.
-const proseForBody = (text) => {
+const proseForBody = (text, max = WHAT_CHANGES_MAX) => {
   if (hasSecret(text)) return "[masked: possible secret]";
   let open = null;
   const out = [];
-  for (const line of text.slice(0, WHAT_CHANGES_MAX).split("\n")) {
+  for (const line of text.slice(0, max).split("\n")) {
     const fence = /^ {0,3}(`{3,}(?=[^`]*$)|~{3,})/.exec(line); // a backtick fence's info string holds no backtick: "```x```" is inline code
     if (open) {
       if (fence && fence[1][0] === open[0] && fence[1].length >= open.length && /^ {0,3}[`~]+\s*$/.test(line)) open = null;
@@ -640,19 +641,23 @@ export function createDelivery({ host, board, git, log, readTicket, readInReview
     return true;
   }
 
-  // portable-den/09: the docviz comment, posted by the bridge from the candidate's checkout after the push. A failure leaves the pull
+  // portable-den/09: the docviz comment, posted by the bridge after the push from a clean checkout of the candidate's commit. A failure leaves the pull
   // request open with a one-line note in the same comment (a later push replaces it); it never stops the delivery.
-  const MENTION = /(^|[^\w/`@-])@(?=[\w-])/g;
+  // docviz's comment is public text a model made from the developer's source, and a failure note holds docviz's own words: both go
+  // through the same inert pass as the developer's What changes (its marker line and its <br> and <sub> tags stay).
+  const diagramBody = (text) => {
+    const [marker, ...rest] = text.split("\n");
+    return [marker, proseForBody(rest.join("\n"), DIAGRAM_MAX).replace(/&lt;(\/?(?:br|sub))>/g, "<$1>")].join("\n");
+  };
   async function diagram(job, pr) {
     const { sha } = job.candidate;
     if (!docviz?.available() || job.diagram?.sha !== sha) return; // the body said why
-    const worktree = host.worktreeOf?.(job.candidate.runId);
-    const { body, failed } = await diagramOrNote(async () => {
-      if (!worktree) throw new Error("the candidate's checkout is gone");
-      const out = await docviz.run({ worktree, sha, steps: job.diagram.steps, prUrl: pr.url, title: hasSecret(job.title) ? job.ref : job.title });
+    const { body: made, failed } = await diagramOrNote(async () => {
+      const out = await docviz.run({ sha, steps: job.diagram.steps, prUrl: pr.url, title: hasSecret(job.title) ? job.ref : job.title });
       if (hasSecret(out)) throw new Error("the diagram looked like it held a secret, so it was not posted");
-      return out.replace(MENTION, "$1@\u200b");
+      return out;
     });
+    const body = diagramBody(failed ? noteComment(hasSecret(failed) ? "[masked: possible secret]" : failed) : made);
     try {
       await git.comment({ number: pr.number, body });
       job.evidence.diagram = { sha, state: failed ? "failed" : "posted", reason: failed ? errorText(failed) : null };

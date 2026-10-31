@@ -55,9 +55,11 @@ export async function runDocviz({ stepsFile, prUrl, title, glossaryFile, cwd, en
   return body.slice(0, COMMENT_MAX);
 }
 
-/** Posts `body` as the marked comment of a pull request, or edits the one a former push left. gh(...args) -> Promise<stdout>. */
+/** Posts `body` as the marked comment of a pull request, or edits the one a former push left. Only a comment of the caller's own login is edited. gh(...args) -> Promise<stdout>. */
 export async function upsertComment({ gh, repo = "{owner}/{repo}", number, body }) {
-  const listed = await gh("api", `repos/${repo}/issues/${number}/comments`, "--paginate", "--jq", `.[] | select(.body | startswith("${MARKER}")) | .id`);
+  const login = String(await gh("api", "user", "--jq", ".login")).trim();
+  if (!/^[\w-]{1,39}$/.test(login)) throw new Error("the git host gave no usable login");
+  const listed = await gh("api", `repos/${repo}/issues/${number}/comments`, "--paginate", "--jq", `.[] | select(.user.login == "${login}" and (.body | startswith("${MARKER}"))) | .id`);
   const id = String(listed).split("\n").map((l) => l.trim()).find((l) => /^\d+$/.test(l));
   if (id) {
     await gh("api", "-X", "PATCH", `repos/${repo}/issues/comments/${id}`, "-f", `body=${body}`);

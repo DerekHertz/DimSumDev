@@ -3,7 +3,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, symlinkSync, writeFileSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, realpathSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { createDocviz, readDiagramSteps } from "./diagram.mjs";
@@ -27,27 +27,52 @@ function checkout() {
   writeFileSync(path.join(dir, "x.mjs"), "export const x = 1;\n");
   writeFileSync(path.join(dir, "CONTEXT.md"), "terms\n");
   symlinkSync("/etc/hostname", path.join(dir, "out.mjs"));
-  git("add", "x.mjs", "CONTEXT.md", "out.mjs");
+  mkdirSync(path.join(dir, "node_modules", "playwright"), { recursive: true });
+  writeFileSync(path.join(dir, "node_modules", "playwright", "index.js"), "throw new Error('planted');\n");
+  git("add", "-f", "x.mjs", "CONTEXT.md", "out.mjs", "node_modules");
   git("commit", "-q", "-m", "c");
-  return { dir, sha: git("rev-parse", "HEAD") };
+  return { dir, git, sha: git("rev-parse", "HEAD") };
 }
 
-test("docviz runs in the candidate's checkout with the steps file and CONTEXT.md; a symlink out, or another commit, is refused", async () => {
-  const { dir, sha } = checkout();
+const STEP = { id: "a", label: "x", sources: [{ path: "x.mjs" }] };
+const PR = "https://github.com/o/r/pull/7";
+
+// The checkout an agent worked in is untrusted: a planted .git file or node_modules there runs code on the host (portable-den/09 security).
+// docviz therefore runs in a clean checkout the bridge makes of the candidate's commit, and that checkout is removed afterwards.
+test("docviz runs in a clean checkout the bridge makes of the commit, with git's config pinned, and the checkout is removed", async () => {
+  const { dir, git, sha } = checkout();
   const seen = [];
   const exec = async (file, args, options) => {
     if (file === "git") return { stdout: execFileSync(file, args, { encoding: "utf8" }) };
-    seen.push({ file, args, cwd: options.cwd });
+    seen.push({ file, args, cwd: options.cwd, env: options.env, files: readdirSync(options.cwd), gitIsFile: lstatSync(path.join(options.cwd, ".git")).isFile() });
     return { stdout: "<!-- docviz-pr-diagrams -->\nbody\n" };
   };
-  const docviz = createDocviz({ root: path.dirname(dir), exec, env: { PATH: "" } });
-  const run = (over = {}) => docviz.run({ worktree: path.basename(dir), sha, steps: [{ id: "a", label: "x", sources: [{ path: "x.mjs" }] }], prUrl: "https://github.com/o/r/pull/7", title: "t", ...over });
+  const docviz = createDocviz({ root: dir, exec, env: { PATH: "", HOME: "/h" } });
+  const run = (over = {}) => docviz.run({ sha, steps: [STEP], prUrl: PR, title: "t", ...over });
   assert.match(await run(), /^<!-- docviz-pr-diagrams -->/);
-  assert.equal(seen[0].file, "docviz");
-  assert.equal(seen[0].args[0], "pr");
-  assert.deepEqual(seen[0].args.slice(2, 8), ["--pr", "https://github.com/o/r/pull/7", "--title", "t", "--glossary", seen[0].args[7]]);
-  assert.ok(seen[0].args.at(-1).endsWith("CONTEXT.md"));
+  const [call] = seen;
+  assert.equal(call.file, "docviz");
+  assert.deepEqual(call.args.slice(0, 1).concat(call.args.slice(2, 8)), ["pr", "--pr", PR, "--title", "t", "--glossary", call.args[7]]);
+  assert.ok(call.args.at(-1).endsWith("CONTEXT.md") && call.args.at(-1).startsWith(call.cwd));
+  assert.ok(call.cwd.startsWith(path.join(realpathSync(dir), ".claude", "worktrees") + path.sep), "a checkout the bridge made, not an agent's");
+  assert.ok(call.files.includes("x.mjs") && !call.files.includes("node_modules"), "the committed node_modules is not carried into the run");
+  assert.equal(call.gitIsFile, true);
+  assert.equal(call.env.GIT_CONFIG_COUNT, "2");
+  assert.deepEqual([call.env.GIT_CONFIG_KEY_0, call.env.GIT_CONFIG_VALUE_0, call.env.GIT_CONFIG_KEY_1, call.env.GIT_CONFIG_VALUE_1], ["core.fsmonitor", "", "core.hooksPath", "/dev/null"]);
+  assert.equal(call.env.HOME, "/h");
+  assert.equal(existsSync(call.cwd), false, "the checkout is removed after the run");
+  assert.doesNotMatch(git("worktree", "list", "--porcelain"), /\.claude\/worktrees/);
   assert.equal(docviz.available(), false);
-  await assert.rejects(run({ steps: [{ id: "a", label: "x", sources: [{ path: "out.mjs" }] }] }), /not a file of the checkout/);
-  await assert.rejects(run({ sha: "0".repeat(40) }), /not at the commit/);
+});
+
+test("a step naming a symlink out of the checkout, or a commit the repository lacks, is refused and leaves no checkout behind", async () => {
+  const { dir, git, sha } = checkout();
+  const exec = async (file, args) => {
+    if (file === "git") return { stdout: execFileSync(file, args, { encoding: "utf8" }) };
+    return { stdout: "<!-- docviz-pr-diagrams -->\nbody\n" };
+  };
+  const docviz = createDocviz({ root: dir, exec, env: { PATH: "" } });
+  await assert.rejects(docviz.run({ sha, steps: [{ id: "a", label: "x", sources: [{ path: "out.mjs" }] }], prUrl: PR, title: "t" }), /not a file of the checkout/);
+  await assert.rejects(docviz.run({ sha: "0".repeat(40), steps: [STEP], prUrl: PR, title: "t" }), /commit/);
+  assert.doesNotMatch(git("worktree", "list", "--porcelain"), /\.claude\/worktrees/);
 });

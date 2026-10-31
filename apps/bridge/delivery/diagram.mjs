@@ -1,14 +1,16 @@
 // portable-den/09: the docviz diagram of a delivery's pull request. The bridge runs `docviz pr` itself, on the host, from
-// the candidate's checkout: no agent starts the nested claude/codex CLI behind the wall. The steps file is the developer's
+// a clean checkout of the candidate's commit: no agent starts the nested claude/codex CLI behind the wall. The steps file is the developer's
 // (untrusted text), so it is checked here before docviz reads any file it names.
 //   readDiagramSteps(report) -> { steps } | null    the `## Diagram steps` section of a handoff: one ```json block
-//   createDocviz({ root, exec?, env? }) -> { available(), run({ worktree, sha, steps, prUrl, title }) -> the comment text }
+//   createDocviz({ root, exec?, env? }) -> { available(), run({ sha, steps, prUrl, title }) -> the comment text }
 import { execFile } from "node:child_process";
+import { randomBytes } from "node:crypto";
 import { mkdtemp, realpath, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { promisify } from "node:util";
 import { onPath, runDocviz } from "../../../scripts/docviz-pr.mjs";
+import { createWorkspaces } from "../agents/workspace.mjs";
 
 const execFileP = promisify(execFile);
 const ID_RE = /^[A-Za-z][A-Za-z0-9_]{0,39}$/;
@@ -39,27 +41,33 @@ export function readDiagramSteps(report) {
   }
 }
 
+// docviz reads the files its steps name, runs git in its cwd and may load a node_modules from it, so it never runs in the agent's
+// checkout (a planted .git file or node_modules there would run code on the host). It runs in a clean checkout of the commit that the
+// bridge makes itself and removes afterwards, with the repository's own config and no fsmonitor or hooks.
+const GIT_CONFIG_ENV = { GIT_CONFIG_COUNT: "2", GIT_CONFIG_KEY_0: "core.fsmonitor", GIT_CONFIG_VALUE_0: "", GIT_CONFIG_KEY_1: "core.hooksPath", GIT_CONFIG_VALUE_1: "/dev/null" };
+
 export function createDocviz({ root: control, exec = execFileP, env = process.env } = {}) {
+  const workspaces = createWorkspaces(control, { exec });
   return {
     available: () => onPath("docviz", env),
-    async run({ worktree: relative, sha, steps, prUrl, title }) {
-      const worktree = path.resolve(control, relative); // the host names a worktree relative to the control checkout
-      const head = String((await exec("git", ["-C", worktree, "rev-parse", "HEAD"])).stdout).trim();
-      if (head !== sha) throw new Error("the candidate's checkout is not at the commit the pull request holds");
-      const root = await realpath(worktree);
-      // A step may only name a file inside the checkout: a symlink out of it is refused.
-      for (const s of steps) for (const src of s.sources) {
-        const real = await realpath(path.join(root, src.path)).catch(() => null);
-        if (!real || !real.startsWith(`${root}${path.sep}`)) throw new Error(`step ${s.id}: ${src.path} is not a file of the checkout`);
-      }
-      const glossary = await realpath(path.join(root, "CONTEXT.md")).then((p) => (p.startsWith(`${root}${path.sep}`) ? p : undefined), () => undefined);
+    async run({ sha, steps, prUrl, title }) {
+      if (!/^[0-9a-f]{40,64}$/.test(sha) || !(await exec("git", ["-C", control, "cat-file", "-e", `${sha}^{commit}`]).then(() => true, () => false))) throw new Error("the candidate's commit is not in the repository");
+      const checkout = await workspaces.create({ ref: "docviz/00-pr", agentId: `c-${randomBytes(8).toString("hex")}`, base: sha });
       const dir = await mkdtemp(path.join(tmpdir(), "docviz-steps-"));
       try {
+        await rm(path.join(checkout.dir, "node_modules"), { recursive: true, force: true });
+        // A step may only name a file inside the checkout: a symlink out of it is refused.
+        for (const s of steps) for (const src of s.sources) {
+          const real = await realpath(path.join(checkout.dir, src.path)).catch(() => null);
+          if (!real || !real.startsWith(`${checkout.dir}${path.sep}`)) throw new Error(`step ${s.id}: ${src.path} is not a file of the checkout`);
+        }
+        const glossary = await realpath(path.join(checkout.dir, "CONTEXT.md")).then((p) => (p.startsWith(`${checkout.dir}${path.sep}`) ? p : undefined), () => undefined);
         const stepsFile = path.join(dir, "steps.json");
         await writeFile(stepsFile, JSON.stringify({ steps }));
-        return await runDocviz({ stepsFile, prUrl, title, glossaryFile: glossary, cwd: root, env, exec });
+        return await runDocviz({ stepsFile, prUrl, title, glossaryFile: glossary, cwd: checkout.dir, env: { ...env, ...GIT_CONFIG_ENV }, exec });
       } finally {
         await rm(dir, { recursive: true, force: true });
+        await workspaces.remove(checkout);
       }
     },
   };

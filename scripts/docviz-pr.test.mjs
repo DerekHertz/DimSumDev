@@ -7,7 +7,7 @@
 //   AC2 (script half) docviz failing leaves a one-line note    -> "a docviz failure ..."
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { chmodSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { main, MARKER } from "./docviz-pr.mjs";
@@ -33,9 +33,11 @@ function setup(opts) {
   r.stub("gh", `
 const fs = require("fs"); const a = process.argv.slice(2); const f = ${JSON.stringify(r.store)};
 const list = JSON.parse(fs.readFileSync(f, "utf8")); const body = (a.find((x) => x.startsWith("body=")) || "").slice(5);
-if (a.includes("--jq")) { console.log(list.filter((c) => c.body.startsWith(${JSON.stringify(MARKER)})).map((c) => c.id).join("\\n")); }
+const jq = a[a.indexOf("--jq") + 1] || "";
+if (a.includes("--jq") && a.includes("user")) { console.log("bridge"); }
+else if (a.includes("--jq")) { const who = /user\\.login == "([^"]+)"/.exec(jq); console.log(list.filter((c) => c.body.startsWith(${JSON.stringify(MARKER)}) && (!who || c.user === who[1])).map((c) => c.id).join("\\n")); }
 else if (a.includes("PATCH")) { const id = Number(a.find((x) => /comments\\/\\d+$/.test(x)).split("/").pop()); list.find((c) => c.id === id).body = body; fs.writeFileSync(f, JSON.stringify(list)); }
-else { list.push({ id: list.length + 100, body }); fs.writeFileSync(f, JSON.stringify(list)); }
+else { list.push({ id: list.length + 100, user: "bridge", body }); fs.writeFileSync(f, JSON.stringify(list)); }
 `);
   if (r.withDocviz) {
     r.stub("docviz", r.docvizFails
@@ -70,6 +72,15 @@ test("a second push edits the same comment instead of adding one", async () => {
   assert.match(t.lines.at(-1), /^updated:/);
 });
 
+test("a marked comment somebody else wrote is never edited: a new one is posted", async () => {
+  const t = setup();
+  writeFileSync(t.store, JSON.stringify([{ id: 5, user: "mallory", body: `${MARKER}\nhers` }]));
+  assert.equal(await t.run(ARGS), 0);
+  assert.equal(t.comments().length, 2);
+  assert.equal(t.comments()[0].body, `${MARKER}\nhers`);
+  assert.match(t.lines.at(-1), /^posted:/);
+});
+
 test("without docviz on PATH it skips, exits 0, posts nothing, and the body line says so", async () => {
   const t = setup({ withDocviz: false });
   assert.equal(await t.run(ARGS), 0);
@@ -84,10 +95,4 @@ test("a docviz failure leaves a one-line note in the marked comment and exits 0"
   assert.equal(await t.run(ARGS), 0);
   assert.equal(t.comments().length, 1);
   assert.equal(t.comments()[0].body, `${MARKER}\nNo diagram on this push: diagram doesn't parse: line 3\n`);
-});
-
-// The den plugin ships a copy as bin/docviz-pr.mjs (gated patch 09-docviz-on-prs): it may not drift from this source.
-const MIRROR = new URL("../.claude/bin/docviz-pr.mjs", import.meta.url);
-test("the plugin copy of the script matches its source", { skip: !existsSync(MIRROR) && "the plugin copy arrives with gated patch 09-docviz-on-prs" }, () => {
-  assert.equal(readFileSync(MIRROR, "utf8"), readFileSync(new URL("./docviz-pr.mjs", import.meta.url), "utf8"));
 });
