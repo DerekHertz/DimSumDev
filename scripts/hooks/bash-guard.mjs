@@ -2,10 +2,14 @@
 // PreToolUse hook for Bash. Reads the hook JSON on stdin; exit 2 blocks the call, exit 0 allows it.
 // organism-infra/80: jg runs only through scripts/jg.mjs (handoffs/67-security.md, Q2). This is a
 // string check, so shell indirection (eval, aliases, a script file) can bypass it: residual Low.
-import { readFileSync, realpathSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { isBoardRole } from "../../apps/board/board-service.mjs";
+import { existsSync, readFileSync, realpathSync } from "node:fs";
+import { fileURLToPath, pathToFileURL } from "node:url";
 import { bareRole } from "../context-budget.mjs";
+
+// The board-identity rule needs the den's board. This file is mirrored into the plugin (.claude/hooks/), where a
+// by-name install carries no apps/: with no board beside it the rule does nothing, and the other rules still run.
+const BOARD_SERVICE = fileURLToPath(new URL("../../apps/board/board-service.mjs", import.meta.url));
+const isBoardRole = existsSync(BOARD_SERVICE) ? (await import(pathToFileURL(BOARD_SERVICE))).isBoardRole : () => false;
 
 // Shell segments split on unquoted ; & | ( ) and newlines; each word keeps whether it was quoted.
 export function segments(command) {

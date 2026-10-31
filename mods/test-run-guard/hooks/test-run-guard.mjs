@@ -6,14 +6,40 @@
 //
 // Exit 2 blocks and feeds stderr to the model; exit 0 allows. Fail open on bad input.
 // A string check, not a shell parser; self-contained so an installed copy still works.
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 export const MAX_FILES = 3;
-export const MESSAGE =
+const WHY =
   "test-run-guard: an uncapped `node --test` over a glob, a directory or many files runs every browser test at once " +
-  "(a Chromium each; about 85 processes and 7 GB on 2026-10-23). Use `npm run test:path -- <files|dirs>` (in another project, `den test <files>`) " +
-  "(it caps browser files), `npm test`, or add `--test-concurrency=3`.";
+  "(a Chromium each; about 85 processes and 7 GB on 2026-10-23). ";
+
+// The nearest ancestor of cwd (itself included) holding `rel`, or null.
+function findUp(cwd, rel) {
+  for (let dir = path.resolve(cwd); ; dir = path.dirname(dir)) {
+    if (existsSync(path.join(dir, rel))) return path.join(dir, rel);
+    if (path.dirname(dir) === dir) return null;
+  }
+}
+
+// `npm run test:path` exists only in a project whose nearest package.json defines it; `den test` where .den/project.json does.
+function hasTestPath(cwd) {
+  try {
+    return Boolean(JSON.parse(readFileSync(findUp(cwd, "package.json"), "utf8")).scripts?.["test:path"]);
+  } catch {
+    return false;
+  }
+}
+
+export function message(cwd) {
+  const runners = [hasTestPath(cwd) && "`npm run test:path -- <files|dirs>`", findUp(cwd, path.join(".den", "project.json")) && "`den test <files>`"].filter(Boolean);
+  return (
+    WHY +
+    (runners.length
+      ? `Use ${runners.join(" or ")} (it caps browser files), \`npm test\`, or add \`--test-concurrency=3\`.`
+      : "Name at most three files, or add `--test-concurrency=3`.")
+  );
+}
 
 // Each `node ... --test ...` invocation in the command, as its argument words.
 export function testRuns(command) {
@@ -50,8 +76,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   try {
     const input = JSON.parse(readFileSync(0, "utf8"));
     const command = input?.tool_input?.command;
-    if (typeof command === "string" && verdict(command, { cwd: input.cwd || process.cwd() }) === "block") {
-      process.stderr.write(MESSAGE + "\n");
+    const cwd = input.cwd || process.cwd();
+    if (typeof command === "string" && verdict(command, { cwd }) === "block") {
+      process.stderr.write(message(cwd) + "\n");
       process.exit(2);
     }
   } catch {
