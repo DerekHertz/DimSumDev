@@ -6,14 +6,34 @@
 //
 // Exit 2 blocks and feeds stderr to the model; exit 0 allows. Fail open on bad input.
 // A string check, not a shell parser; self-contained so an installed copy still works.
-import { readFileSync, statSync } from "node:fs";
+import { existsSync, readFileSync, statSync } from "node:fs";
 import path from "node:path";
 
 export const MAX_FILES = 3;
-export const MESSAGE =
+const WHY =
   "test-run-guard: an uncapped `node --test` over a glob, a directory or many files runs every browser test at once " +
-  "(a Chromium each; about 85 processes and 7 GB on 2026-10-23). Use `npm run test:path -- <files|dirs>` (in another project, `den test <files>`) " +
-  "(it caps browser files), `npm test`, or add `--test-concurrency=3`.";
+  "(a Chromium each; about 85 processes and 7 GB on 2026-10-23). ";
+
+// `npm run test:path` exists only in a project whose nearest package.json defines it.
+function hasTestPath(cwd) {
+  for (let dir = path.resolve(cwd); ; dir = path.dirname(dir)) {
+    const pkg = path.join(dir, "package.json");
+    if (existsSync(pkg)) {
+      try {
+        return Boolean(JSON.parse(readFileSync(pkg, "utf8")).scripts?.["test:path"]);
+      } catch {
+        return false;
+      }
+    }
+    if (path.dirname(dir) === dir) return false;
+  }
+}
+
+export const message = (cwd) =>
+  WHY +
+  (hasTestPath(cwd)
+    ? "Use `npm run test:path -- <files|dirs>` (it caps browser files), `npm test`, or add `--test-concurrency=3`."
+    : "Name at most three files, or add `--test-concurrency=3`.");
 
 // Each `node ... --test ...` invocation in the command, as its argument words.
 export function testRuns(command) {
@@ -50,8 +70,9 @@ if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(im
   try {
     const input = JSON.parse(readFileSync(0, "utf8"));
     const command = input?.tool_input?.command;
-    if (typeof command === "string" && verdict(command, { cwd: input.cwd || process.cwd() }) === "block") {
-      process.stderr.write(MESSAGE + "\n");
+    const cwd = input.cwd || process.cwd();
+    if (typeof command === "string" && verdict(command, { cwd }) === "block") {
+      process.stderr.write(message(cwd) + "\n");
       process.exit(2);
     }
   } catch {

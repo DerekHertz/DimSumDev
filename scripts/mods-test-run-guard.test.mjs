@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { verdict } from "../mods/test-run-guard/hooks/test-run-guard.mjs";
 
 const HOOK = fileURLToPath(new URL("../mods/test-run-guard/hooks/test-run-guard.mjs", import.meta.url));
+const REPO = fileURLToPath(new URL("..", import.meta.url));
 const noDir = () => false;
 
 test("blocks an uncapped glob, a directory, or more than three files", () => {
@@ -24,7 +25,7 @@ test("allows a capped run, up to three files, and the npm scripts", () => {
 
 test("as a hook: exit 2 with the message on a block, exit 0 otherwise and on bad input", () => {
   const run = (input) => spawnSync(process.execPath, [HOOK], { input });
-  const blocked = run(JSON.stringify({ tool_input: { command: "node --test apps/*.test.mjs" }, cwd: "/" }));
+  const blocked = run(JSON.stringify({ tool_input: { command: "node --test apps/*.test.mjs" }, cwd: REPO }));
   assert.equal(blocked.status, 2);
   assert.match(blocked.stderr.toString(), /test:path/);
   assert.equal(run(JSON.stringify({ tool_input: { command: "ls" } })).status, 0);
