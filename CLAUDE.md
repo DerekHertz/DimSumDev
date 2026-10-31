@@ -10,7 +10,7 @@ The den runs as a systemd user service (ADR 0026), from release folders under `~
 
 Roles are defined by role definitions in `.claude/agents/`, grouped into teams. Each role's contract (inputs, outputs, authority, hand-offs) and the user's approval points are in `docs/agents/team-charter.md` (ADR 0029):
 - `chief-of-staff` (Bao is its Claude instance, Jiao its Codex instance), `product`, `architect`, `release-manager` (Pass); `orchestrator` is only Bao's desk key in the den, running the chief of staff's definition
-- `developer`, `runner` (Steamers); `runner` is a Haiku leaf that starts no agent: the agent tree is Bao and the router, then Sonnet agents, then leaves
+- `developer`, `runner` (Steamers); `runner` is a Haiku leaf that starts no agent: the agent tree is Bao and the router, then Sonnet agents, then leaves (leaves start nothing and may run on any model a pstack skill names, ADR 0029 Amendment 1)
 - `code-reviewer`, `qa`, `security`, `sre` (Tea & Pantry); `sre` runs on Haiku, observes and proposes only
 - `designer`, `technical-writer` (Front of House); the writer keeps docs true and drafts public posts, the user publishes
 - `orchestrator`, `herald` and `scout` are retired (team-and-den-ux/19): into the chief of staff, the technical writer, and the runner
