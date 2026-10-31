@@ -28,7 +28,7 @@ Tests alone are not sufficient verification. A unit is verified only when its un
 ### Arm the program
 
 - [ ] State this plan and the relay to the user, then stop. Start only on the user's explicit go.
-- [ ] Read `.claude/skills/team-protocol/SKILL.md` and `docs/agents/team-charter.md` at program start.
+- [ ] Read `../team-protocol/SKILL.md` and `docs/agents/team-charter.md` at program start.
 - [ ] Mark each risk-path unit (wall, CI, hooks, service, auth, dependencies). The user merges those.
 
 ### Spawn owners

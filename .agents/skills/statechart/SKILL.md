@@ -12,14 +12,14 @@ The chart shows how a system moves between states, in the words of the person wh
 Work in a scratch folder outside the repo. Write a TLA+ spec and its config. Then run:
 
 ```sh
-.claude/skills/statechart/scripts/statechart SPEC.tla [--config FILE] [--view FILE] [--out DIR]
+node <this skill's folder>/scripts/statechart.mjs SPEC.tla [--config FILE] [--view FILE] [--out DIR]
 ```
 
-`scripts/statechart.ts` is TypeScript, so run it with a runtime that can execute TypeScript.
+`scripts/statechart.mjs` checks the Node version, then runs `statechart.ts`, which Node 22.18+ executes without a build step.
 
 ## Platforms
 
-Runs on Linux, macOS and WSL. It needs a POSIX shell (`/bin/sh`), process groups and Node 22.18+ (or Bun 1.1.5+ or Deno 2+). The first run installs TLC and Java through `mise` (install mise first: `brew install mise` on macOS, `curl https://mise.run | sh` on Linux) and needs the network. To skip mise, set `TLA2TOOLS` to a `tla2tools.jar` and `JAVA` to a Java 11+ binary. It does not run on native Windows: `scripts/statechart` is a `/bin/sh` script and `scripts/run.ts` and `scripts/statechart.ts` spawn `/bin/sh` to kill the process group. On Windows run it inside WSL.
+Runs on Linux, macOS, WSL and native Windows. It needs Node 22.18+ (or 23.6+); it uses no shell, only `process.kill` on a process group (POSIX) or `taskkill /T /F` (Windows) to stop TLC. The first run installs TLC and Java through `mise` (ask the user to install mise first: `brew install mise` on macOS, `winget install jdx.mise` on Windows) and needs the network. To skip mise, set `TLA2TOOLS` to a `tla2tools.jar` and `JAVA` to a Java 11+ binary. TLC is pinned to v1.7.4 by URL and sha256.
 
 ## Write the spec
 

@@ -9,7 +9,7 @@ Investigate the motivation and intent behind code. The companion `how` skill ans
 
 Each spawn below takes its model from the `why investigators` or `why synthesizer` line in `~/.claude/rules/pstack-models.md`. The rule is already in context; read the file if it is not. Write the line's value as `model` and `effort`: `sonnet high` becomes `model: "sonnet"` and `effort: "high"`. Omit `model` when the value is `auto` or `inherit-parent`, or when it is not a Claude model. If the rule or the line is missing, use sonnet high for investigators and opus high for the synthesizer.
 
-Every spawn is an Agent with `subagent_type: "general-purpose"`. **Do not use `Explore`.** It strips MCP access, which disables the MCP-backed investigators and the synthesizer's citation spot-checks. Investigators still shouldn't write anything, so each brief says not to edit files.
+Every spawn is an Agent with `subagent_type: "general-purpose"`. `Explore` also keeps MCP access in Claude Code, but `general-purpose` is the type this skill was tuned on. Investigators still shouldn't write anything, so each brief says not to edit files.
 
 ## Operating Posture
 

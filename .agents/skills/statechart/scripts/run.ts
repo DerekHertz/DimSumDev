@@ -55,7 +55,7 @@ export function* fileLines(file: string) {
         kept = end;
         continue;
       }
-      yield* buf.toString("utf8", 0, cut).split("\n");
+      yield* buf.toString("utf8", 0, cut).split(/\r?\n/);
       kept = buf.copy(buf, 0, cut + 1, end);
     }
     yield buf.toString("utf8", 0, kept);
@@ -91,14 +91,6 @@ const runChild = (file: string, args: string[], options: { cwd: string; env: Nod
         }),
     );
   });
-
-export const killGroup = (pid: number) =>
-  new Promise((resolve) =>
-    spawn("/bin/sh", ["-c", 'kill -s KILL -- "-$1"', "sh", String(pid)], { stdio: "ignore" }).on(
-      "exit",
-      resolve,
-    ),
-  );
 
 export const messageOf = (error: unknown) =>
   typeof error === "object" &&
@@ -141,7 +133,7 @@ function* outputLines(output: Output) {
       rest = buf;
       continue;
     }
-    yield* utf8.decode(buf.subarray(0, cut)).split("\n");
+    yield* utf8.decode(buf.subarray(0, cut)).split(/\r?\n/);
     rest = buf.subarray(cut + 1);
   }
   yield utf8.decode(rest);
@@ -206,9 +198,10 @@ async function findTlc(cwd: string) {
       );
     found = await where();
   }
+  const java = JAVA || found[1].stdout.trim();
   return {
     jar: path.join(found[0].stdout.trim(), "tla2tools.jar"),
-    java: JAVA || found[1].stdout.trim(),
+    java: process.platform === "win32" && !path.extname(java) && fs.existsSync(`${java}.exe`) ? `${java}.exe` : java,
   };
 }
 
@@ -295,7 +288,7 @@ export async function check(specFile: string, configFile: string): Promise<Check
         {
           cwd: dir,
           out: path.join(dir, name),
-          env: process.platform === "darwin" ? process.env : { ...process.env, LC_ALL: "C.UTF-8" },
+          env: process.platform === "linux" ? { ...process.env, LC_ALL: "C.UTF-8" } : process.env,
         },
       );
     };

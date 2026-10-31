@@ -4,7 +4,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { parseArgs } from "node:util";
-import { killGroup, messageOf } from "./run.ts";
+import { killTree } from "./kill.ts";
+import { messageOf } from "./run.ts";
 
 const USAGE = `Usage: statechart SPEC.tla [--config FILE] [--view FILE] [--out DIR]
 
@@ -46,6 +47,14 @@ try {
   process.exit(2);
 }
 
+const JANITOR = `
+const kill = import(require("node:url").pathToFileURL(process.argv[1]).href);
+process.stdin.on("data", () => {}).on("end", async () => {
+  (await kill).killTree(Number(process.argv[2]));
+  for (const dir of process.argv.slice(3))
+    require("node:fs").rmSync(dir, { recursive: true, force: true, maxRetries: 5, retryDelay: 100 });
+});`;
+
 const codeOf = (error: unknown) =>
   error instanceof Error && "code" in error ? error.code : undefined;
 
@@ -86,21 +95,12 @@ try {
   let exitCode: number;
   try {
     tmp = fs.mkdtempSync(path.join(os.tmpdir(), "statechart-"));
-    const runtime = process.versions.deno
-      ? [
-          "run",
-          "--quiet",
-          "--no-prompt",
-          "--allow-read",
-          "--allow-write",
-          "--allow-run",
-          "--allow-env",
-        ]
-      : process.execArgv;
+    const posix = process.platform !== "win32";
     const worker = spawn(
       process.execPath,
       [
-        ...runtime,
+        "--disable-warning=ExperimentalWarning",
+        ...process.execArgv,
         path.join(import.meta.dirname, "worker.ts"),
         stage,
         specFile,
@@ -108,28 +108,30 @@ try {
         ...(flags.view ? [flags.view] : []),
       ],
       {
-        detached: true,
+        detached: posix,
+        windowsHide: true,
         stdio: ["ignore", "inherit", "inherit"],
-        env: { ...process.env, TMPDIR: tmp },
+        env: { ...process.env, TMPDIR: tmp, TEMP: tmp, TMP: tmp },
       },
     );
     janitor = spawn(
-      "/bin/sh",
+      process.execPath,
       [
-        "-c",
-        'while read -r line; do :; done; kill -s KILL -- "-$1"; rm -rf -- "$2" "$3"',
-        "sh",
+        "--disable-warning=ExperimentalWarning",
+        "-e",
+        JANITOR,
+        path.join(import.meta.dirname, "kill.ts"),
         String(worker.pid),
         stage,
         tmp,
       ],
-      { detached: true, stdio: ["pipe", "ignore", "ignore"] },
+      { detached: posix, windowsHide: true, stdio: ["pipe", "ignore", "ignore"] },
     );
     const exited = new Promise<number>((resolve) =>
       worker.on("exit", (code) => resolve(code ?? 2)),
     );
     await Promise.race([stopped, exited]);
-    await killGroup(worker.pid as number);
+    killTree(worker.pid as number);
     const verdict = await exited;
     if (stop) {
       console.error(`${stop} stopped the check, so the command wrote nothing.`);
@@ -140,6 +142,7 @@ try {
     } else if ((verdict === 0 || verdict === 1) && fs.existsSync(done)) {
       fs.mkdirSync(path.dirname(dest), { recursive: true });
       try {
+        if (!posix && fs.existsSync(dest)) fs.rmdirSync(dest);
         fs.renameSync(done, dest);
       } catch (error) {
         if (codeOf(error) !== "ENOTEMPTY" && codeOf(error) !== "EEXIST") throw error;
@@ -153,8 +156,9 @@ try {
       exitCode = verdict;
     } else exitCode = 2;
   } finally {
-    fs.rmSync(stage, { recursive: true, force: true });
-    if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
+    const gone = { recursive: true, force: true, maxRetries: 5, retryDelay: 100 };
+    fs.rmSync(stage, gone);
+    if (tmp) fs.rmSync(tmp, gone);
     janitor?.kill("SIGKILL");
   }
   process.exit(exitCode);

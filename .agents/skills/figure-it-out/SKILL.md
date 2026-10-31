@@ -9,13 +9,13 @@ When the task matches no playbook, design one. The deliverable before any code i
 
 ## Start
 
-Open a todolist whose first item is to read `.claude/skills/architect/references/principles.md`. Then add the phases below as todos.
+Open a todolist whose first item is to read `../architect/references/principles.md`. Then add the phases below as todos.
 
 ## Phase A: Frame
 
 Ground first, then commit. Don't start the run until you can state:
 
-- The definition of done as a falsifiable predicate (see `.claude/skills/architect/references/principles.md`).
+- The definition of done as a falsifiable predicate (see `../architect/references/principles.md`).
 - Scope, quantified: rough units and effort, plus the blockers grounding surfaced.
 - The rigor level, biased high. One-way doors and high blast radius get more. Reversible low-stakes steps get less. Rigor is gates and artifacts, not "try harder".
 
@@ -23,11 +23,11 @@ Present the framing and tradeoffs before committing to a long run. Reversible wo
 
 ## Phase B: Design the workflow
 
-Decompose into atomic, independently-landable units. Sequence riskiest-unknown-first. Scaffold and verification come before features (see `.claude/skills/architect/references/principles.md`).
+Decompose into atomic, independently-landable units. Sequence riskiest-unknown-first. Scaffold and verification come before features (see `../architect/references/principles.md`).
 
 - Build the verification harness before the work, with the baseline captured from the pre-change state, so the check reads as "old value vs new value".
 - For one-way-door design decisions, call the Skill tool with `architect`. Skip it for mechanical work whose shape is already concrete. A second arena over a settled design is over-engineering (the **laziness-protocol** skill).
-- Decide what fans out. Parallelize only across seams, and give each worker its own worktree or branch (see `.claude/skills/architect/references/principles.md`). Don't over-fan.
+- Decide what fans out. Parallelize only across seams, and give each worker its own worktree or branch (see `../architect/references/principles.md`). Don't over-fan.
 - Write the designed phase list down. That list is what the human reviews.
 
 A plan that spans more than one session becomes a playbook file and board tickets: read `multi-phase-plan.md` in this folder for the checklist skeleton, and file each unit with the `to-tickets` skill.
@@ -48,10 +48,6 @@ Log the run by calling the Skill tool with `show-me-your-work`. figure-it-out's 
 
 ## Phase E: Verify and hand back
 
-Check the whole against the Phase A predicate on the real product, not just the harness. Encode any recurring correction as a gate, a lint rule, a check, or a script (see `.claude/skills/architect/references/principles.md`).
+Check the whole against the Phase A predicate on the real product, not just the harness. Encode any recurring correction as a gate, a lint rule, a check, or a script (see `../architect/references/principles.md`).
 
 **Reply:** the playbook you designed, the rigor level and why, the decision-trail path, what's verified against the predicate, and what's still open.
-
-## Replaces wayfinder
-
-This skill replaced `wayfinder` (2026-10-31). A grilling hand-off note is the Phase A input: its settled decisions stand, its open questions become the first units, and the destination becomes the Phase A predicate.
