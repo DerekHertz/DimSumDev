@@ -8,11 +8,13 @@
 //   AC2 bash-guard allows with no den board, blocks in the den -> "board identity ..." (two tests)
 //   AC3 sleep and test guards still exit 2 from the copy -> "a sleep chain ...", "an uncapped node --test ..."
 //   AC4 the test-run-guard names test:path only where it exists -> "the test-run-guard message ..."
+//   AC4b a den-hosted project (--plugin-dir <den>/.claude) still gets the 150k stop -> "the context budget ... den"
+//   AC4c the den test hint stays where .den/project.json exists -> "the test-run-guard message keeps ..."
 //   AC5 the mirrored guard files cannot drift from their sources -> "mirrored guard scripts ..."
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { spawnSync } from "node:child_process";
-import { cpSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -95,6 +97,32 @@ test("the test-run-guard message names npm run test:path only where the project 
   mkdirSync(sub);
   const withScript = blocked(fire(pluginRoot, sub, "Bash", command));
   assert.match(withScript.stderr, /npm run test:path/);
+});
+
+test("the test-run-guard message keeps the den test hint where .den/project.json exists", () => {
+  const { pluginRoot, project } = install();
+  mkdirSync(path.join(project, ".den"));
+  writeFileSync(path.join(project, ".den", "project.json"), "{}");
+  const hit = blocked(fire(pluginRoot, project, "Bash", { command: "node --test apps/**/*.test.mjs" }));
+  assert.match(hit.stderr, /den test <files>/);
+  assert.doesNotMatch(hit.stderr, /test:path/);
+});
+
+// An agent session at 160k tokens, as a transcript under a fixture HOME (the shape context.mjs --self reads).
+test("the context budget run from .claude/hooks in the den reads the token count and stops at 150k", () => {
+  const home = realpathSync(mkdtempSync(path.join(tmpdir(), "den-plugin-ctx-")));
+  const wt = path.join(home, "worktrees", "agent-a");
+  const sub = path.join(home, ".claude", "projects", "-fixture", "sess-1", "subagents");
+  mkdirSync(wt, { recursive: true });
+  mkdirSync(sub, { recursive: true });
+  const rec = JSON.stringify({ type: "assistant", cwd: wt, message: { role: "assistant", usage: { input_tokens: 160000, cache_creation_input_tokens: 0, cache_read_input_tokens: 0, output_tokens: 3 } } });
+  writeFileSync(path.join(sub, "agent-a.jsonl"), rec + "\n");
+  const env = { ...process.env, HOME: home, DEN_ROOT: "" };
+  delete env.CLAUDE_CODE_SESSION_ID;
+  const input = { session_id: "sess-1", cwd: wt, hook_event_name: "PreToolUse", tool_name: "Read", tool_input: { file_path: "/repo/big.jsx" }, agent_id: "agent-a", agent_type: "developer" };
+  const r = spawnSync("node", [path.join(DEN_PLUGIN, "hooks", "context-budget.mjs")], { cwd: wt, env, input: JSON.stringify(input), encoding: "utf8", timeout: 20000 });
+  assert.equal(r.status, 2, `stdout=${r.stdout} stderr=${r.stderr}`);
+  assert.match(r.stderr, /160k, over the 150k budget/);
 });
 
 const SIGN_AS_OTHER = { command: "npm run board -- comment portable-den/02 --as qa \"looks fine\"" };

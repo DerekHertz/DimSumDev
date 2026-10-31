@@ -10,7 +10,7 @@
 // The agent's own reading comes from `scripts/context.mjs --self`, run as a child with the session from
 // the hook input (the hook's env does not carry CLAUDE_CODE_SESSION_ID).
 import { spawnSync } from "node:child_process";
-import { mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -18,7 +18,8 @@ import { budgetFor, isChiefOfStaff } from "../context-budget.mjs";
 
 const SESSION_ID = /^[\w.-]+$/;
 const HERE = path.dirname(fileURLToPath(import.meta.url));
-const CONTEXT_SCRIPT = path.join(HERE, "..", "context.mjs");
+// scripts/context.mjs beside this file's folder, or, when this is the plugin's mirror in the den's .claude/hooks, in the den's scripts/.
+const CONTEXT_SCRIPT = [path.join(HERE, "..", "context.mjs"), path.join(HERE, "..", "..", "scripts", "context.mjs")].find((p) => existsSync(p)) ?? path.join(HERE, "..", "context.mjs");
 
 const WRAP_UP_BASH = [
   /^git (?:add|commit)(?:\s|$)/,

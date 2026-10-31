@@ -14,26 +14,32 @@ const WHY =
   "test-run-guard: an uncapped `node --test` over a glob, a directory or many files runs every browser test at once " +
   "(a Chromium each; about 85 processes and 7 GB on 2026-10-23). ";
 
-// `npm run test:path` exists only in a project whose nearest package.json defines it.
-function hasTestPath(cwd) {
+// The nearest ancestor of cwd (itself included) holding `rel`, or null.
+function findUp(cwd, rel) {
   for (let dir = path.resolve(cwd); ; dir = path.dirname(dir)) {
-    const pkg = path.join(dir, "package.json");
-    if (existsSync(pkg)) {
-      try {
-        return Boolean(JSON.parse(readFileSync(pkg, "utf8")).scripts?.["test:path"]);
-      } catch {
-        return false;
-      }
-    }
-    if (path.dirname(dir) === dir) return false;
+    if (existsSync(path.join(dir, rel))) return path.join(dir, rel);
+    if (path.dirname(dir) === dir) return null;
   }
 }
 
-export const message = (cwd) =>
-  WHY +
-  (hasTestPath(cwd)
-    ? "Use `npm run test:path -- <files|dirs>` (it caps browser files), `npm test`, or add `--test-concurrency=3`."
-    : "Name at most three files, or add `--test-concurrency=3`.");
+// `npm run test:path` exists only in a project whose nearest package.json defines it; `den test` where .den/project.json does.
+function hasTestPath(cwd) {
+  try {
+    return Boolean(JSON.parse(readFileSync(findUp(cwd, "package.json"), "utf8")).scripts?.["test:path"]);
+  } catch {
+    return false;
+  }
+}
+
+export function message(cwd) {
+  const runners = [hasTestPath(cwd) && "`npm run test:path -- <files|dirs>`", findUp(cwd, path.join(".den", "project.json")) && "`den test <files>`"].filter(Boolean);
+  return (
+    WHY +
+    (runners.length
+      ? `Use ${runners.join(" or ")} (it caps browser files), \`npm test\`, or add \`--test-concurrency=3\`.`
+      : "Name at most three files, or add `--test-concurrency=3`.")
+  );
+}
 
 // Each `node ... --test ...` invocation in the command, as its argument words.
 export function testRuns(command) {
