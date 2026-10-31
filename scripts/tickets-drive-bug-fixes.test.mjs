@@ -54,8 +54,9 @@ test("the cause note lives in the ticket's comments everywhere; the Cause field 
   assert.match(read(".codex/agents/code-reviewer.toml"), /cause note \(in the ticket's Comments\)/);
 });
 
-test("developer.md files discovered work as a new ticket, not a Comments note", () => {
-  assert.match(read(".claude/agents/developer.md"), /new ticket/i);
+test("developer.md fixes small found work forward and files the rest with --discovered-from, not a Comments note", () => {
+  assert.match(read(".claude/agents/developer.md"), /fix forward/i);
+  assert.match(read(".claude/agents/developer.md"), /--discovered-from/);
   assert.doesNotMatch(read(".claude/agents/developer.md"), /add it to `## Comments` for the orchestrator/);
 });
 
@@ -74,10 +75,11 @@ test("code-reviewer checks the cause note's layer and, on bug tickets, greps the
   }
 });
 
-test("team-protocol (Claude and Codex): file discovered work, wait for subagents, retry brief", () => {
+test("team-protocol (Claude and Codex): fix forward or file found work with --discovered-from, wait for subagents, retry brief", () => {
   for (const rel of [...BOTH("team-protocol"), ".codex/team-protocol.md"]) {
     const s = read(rel);
-    assert.match(s, /file[^\n]*discovered work[^\n]*new ticket[^\n]*(don't|do not|instead of) chas/i, rel);
+    assert.match(s, /fix forward/i, rel);
+    assert.match(s, /--discovered-from/, rel);
     assert.match(s, /waits? for (their|its|every)[^\n]*reports? before[^\n]*(hand|end)/i, rel);
     assert.match(s, /retry brief[^\n]*cause note[^\n]*failure summary[^\n]*10 lines[^\n]*never transcript/i, rel);
   }
