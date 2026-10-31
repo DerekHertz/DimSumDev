@@ -23,7 +23,7 @@ export const CODEX_EFFORT = { default: "medium", architect: "high", security: "h
 // One or two outcome sentences per role that its org block does not say; appended to the Job line.
 // A role not listed here gets only its org purpose. Keep each short: a role file is about 2 KB.
 export const ROLE_FOCUS = {
-  architect: "Answer the design question in the ticket with seams a developer can test; write an ADR only when the decision is hard to reverse.",
+  architect: "Answer the design question in the ticket with seams a developer can test: ground the code, design it twice in parallel, compare, then sketch; write an ADR only when the decision is hard to reverse.",
   "chief-of-staff": "Fresh subagent per stage; ship except the user-kept approvals in team-protocol Gates.",
   "code-reviewer": "Read the candidate commit's diff on two axes, standards and spec fit; write no code. On a bug ticket, check the fix lands at the layer named in the cause note (in the ticket's Comments), grep the cause pattern outside the diff and list the hits as Pre-existing. Each finding is file:line and a reason; end with `board comment --verdict pass|bounce` naming the commit.",
   designer: "Run only the mode the ticket names (direction, spec, review, critique). The user decides visuals.",

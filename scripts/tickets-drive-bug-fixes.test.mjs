@@ -93,7 +93,7 @@ test("no skill, agent or tracker doc references /setup-matt-pocock-skills", () =
 test("VENDORED.md marks each edited skill adapted with its change (Claude and .agents copies match)", () => {
   const s = read(".claude/skills/VENDORED.md");
   assert.equal(read(".agents/skills/VENDORED.md"), s);
-  for (const skill of ["to-tickets", "diagnosing-bugs", "wayfinder", "grilling", "code-review", "to-spec"]) {
+  for (const skill of ["to-tickets", "diagnosing-bugs", "figure-it-out", "grilling", "code-review", "to-spec"]) {
     assert.match(s, new RegExp(`^\\| ${skill}[^\\n]*\\*\\*adapted\\*\\*`, "m"), skill);
   }
 });
