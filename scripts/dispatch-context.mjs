@@ -9,7 +9,7 @@ import { closeSync, existsSync, mkdirSync, openSync, readFileSync, readSync, rea
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { hasSecret } from "./exposure.mjs";
-import { runJg, versionAtLeast } from "./jg.mjs";
+import { endsComplete, killTree, ownGroup, resolveJg, runJg, versionAtLeast } from "./jg.mjs";
 import { appendUsageLine, resolveRoot } from "../apps/board/board-service.mjs";
 
 const QUESTION = "Where would this change be made, and which tests cover it?";
@@ -140,7 +140,7 @@ export async function buildContext({
   }
 
   if (out.stdout === undefined) return finish({ fallback: raw?.result?.exitCode === 0 && !raw.result.timedOut ? "incomplete" : failureReason(raw) });
-  if (!/^End context\.[ \t]*$/m.test(out.stdout)) return finish({ fallback: "incomplete" });
+  if (!endsComplete(out.stdout)) return finish({ fallback: "incomplete" });
   if (hasSecret(out.stdout)) return finish({ fallback: "secret-in-output" });
   if (Buffer.byteLength(out.stdout) > OUTPUT_CAP) return finish({ fallback: "output-too-large" });
   return finish({ file: out.stdout, files: out.row.filesReturned });
@@ -181,9 +181,10 @@ async function installedJgVersion() {
 }
 
 // Production seam: spawn cmd, resolve {stdout, stderr, exitCode, timedOut}; a missing binary rejects with ENOENT.
-function spawnRun(cmd, args, opts = {}) {
+export function spawnRun(cmd, args, opts = {}) {
   return new Promise((resolve, reject) => {
-    const child = spawn(cmd, args, { cwd: opts.cwd, env: { ...process.env, ...opts.env }, stdio: ["ignore", "pipe", "pipe"] });
+    const [bin, ...pre] = cmd === "jg" ? resolveJg() : [cmd];
+    const child = spawn(bin, [...pre, ...args], { cwd: opts.cwd, env: { ...process.env, ...opts.env }, stdio: ["ignore", "pipe", "pipe"], detached: ownGroup() });
     let stdout = "";
     let stderr = "";
     let timedOut = false;
@@ -191,10 +192,20 @@ function spawnRun(cmd, args, opts = {}) {
     child.stderr.setEncoding("utf8");
     child.stdout.on("data", (d) => { stdout += d; });
     child.stderr.on("data", (d) => { stderr += d; });
-    const timer = opts.timeoutMs ? setTimeout(() => { timedOut = true; child.kill("SIGTERM"); }, opts.timeoutMs) : null;
-    child.on("error", (e) => { clearTimeout(timer); reject(e); });
+    let hardKill;
+    const timer = opts.timeoutMs ? setTimeout(() => {
+      timedOut = true;
+      killTree(child, "SIGTERM");
+      hardKill = setTimeout(() => killTree(child, "SIGKILL"), 5000);
+    }, opts.timeoutMs) : null;
+    // A detached child misses the terminal's Ctrl-C, so the parent's exit takes the group with it.
+    const onExit = () => killTree(child, "SIGKILL");
+    process.once("exit", onExit);
+    child.on("error", (e) => { clearTimeout(timer); clearTimeout(hardKill); process.off("exit", onExit); reject(e); });
     child.on("close", (code) => {
       clearTimeout(timer);
+      clearTimeout(hardKill);
+      process.off("exit", onExit);
       resolve({ stdout, stderr, exitCode: timedOut ? null : (code ?? 1), ...(timedOut && { timedOut }) });
     });
   });

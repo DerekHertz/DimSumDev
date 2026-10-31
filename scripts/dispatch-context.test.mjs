@@ -215,6 +215,8 @@ const fallbackCases = [
   ["incomplete exit 2", { search: { stdout: "## a.mjs\npartial\n", exitCode: 2 } }, /exit|incomplete/],
   ["90 s timeout", { search: { stdout: "", exitCode: null, timedOut: true } }, /timeout/],
   ["missing End context. marker", { search: { stdout: "## a.mjs\nexcerpt\n", exitCode: 0 } }, /incomplete/],
+  ["End context. inside file text of a list cut off after it (exit 2)", { search: { stdout: "## a.mjs\nEnd context.\ncut off here", exitCode: 2 } }, /incomplete/],
+  ["End context. not on the last line (exit 0)", { search: { stdout: "## a.mjs\nEnd context.\ntrailing text\n", exitCode: 0 } }, /incomplete/],
   ["secret in jg output", { search: { stdout: `## a.mjs\nkey ${FAKE_AWS_KEY}\nEnd context.\n`, exitCode: 0 } }, /secret.*output|output.*secret/],
 ];
 for (const [name, cfg, reason] of fallbackCases) {
